@@ -8,6 +8,7 @@ import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from '
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
+import vinylImage from '../../assets/vinyl.png'
 
 interface AlbumTrackItemProps {
   track: BaseItemDto
@@ -513,7 +514,7 @@ export default function AlbumDetailPage() {
                     }}
                   >
                     <img
-                      src="/assets/vinyl.png"
+                      src={vinylImage}
                       alt="Vinyl Record"
                       className="w-full h-full object-cover"
                       onError={(e) => {
