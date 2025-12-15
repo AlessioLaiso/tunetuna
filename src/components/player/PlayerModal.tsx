@@ -1,0 +1,614 @@
+import { useEffect, useRef } from 'react'
+import { usePlayerStore } from '../../stores/playerStore'
+import { jellyfinClient } from '../../api/jellyfin'
+import Image from '../shared/Image'
+import QueueView from './QueueView'
+import LyricsModal from './LyricsModal'
+import { useState } from 'react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+
+interface PlayerModalProps {
+  onClose: () => void
+  onClosingStart?: () => void
+  closeRef?: React.MutableRefObject<(() => void) | null>
+}
+
+export default function PlayerModal({ onClose, onClosingStart, closeRef }: PlayerModalProps) {
+  const navigate = useNavigate()
+  const {
+    currentTrack,
+    lastPlayedTrack,
+    isPlaying,
+    currentTime,
+    duration,
+    shuffle,
+    repeat,
+    togglePlayPause,
+    next,
+    previous,
+    seek,
+    setVolume,
+    toggleShuffle,
+    toggleRepeat,
+    queue,
+    previousSongs,
+    currentIndex,
+    playTrack,
+  } = usePlayerStore()
+  
+  // Use lastPlayedTrack as fallback for display, matching PlayerBar behavior
+  const displayTrack = currentTrack || lastPlayedTrack
+  const [showQueue, setShowQueue] = useState(false)
+  const [showLyricsModal, setShowLyricsModal] = useState(false)
+  const [hasLyrics, setHasLyrics] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const progressRef = useRef<HTMLDivElement>(null)
+  const touchStartY = useRef<number | null>(null)
+  const touchStartTime = useRef<number | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+  const dragStartX = useRef<number | null>(null)
+
+  useEffect(() => {
+    // Prevent body scrolling when modal is open - use overflow only to avoid layout shifts
+    const bodyOriginalOverflowY = window.getComputedStyle(document.body).overflowY
+    const htmlOriginalOverflowY = window.getComputedStyle(document.documentElement).overflowY
+    const rootOriginalOverflowY = document.getElementById('root') ? window.getComputedStyle(document.getElementById('root')!).overflowY : 'N/A'
+    
+    // Use overflow: hidden only - no position changes to avoid TabBar jumps
+    document.body.style.overflowY = 'hidden'
+    document.documentElement.style.overflowY = 'hidden'
+    
+    const rootEl = document.getElementById('root')
+    if (rootEl) {
+      rootEl.style.overflowY = 'hidden'
+    }
+    
+    return () => {
+      // Restore overflow - no position changes means no TabBar jump
+      document.body.style.overflowY = bodyOriginalOverflowY
+      document.documentElement.style.overflowY = htmlOriginalOverflowY
+      if (rootEl) {
+        rootEl.style.overflowY = rootOriginalOverflowY !== 'N/A' ? rootOriginalOverflowY : ''
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    // Trigger slide-down animation on mount
+    requestAnimationFrame(() => {
+      setIsAnimating(true)
+    })
+  }, [])
+
+  // Derive an effective index based on the actual currentTrack in the queue,
+  // so controls work correctly after restore or other flows where currentIndex
+  // might be out of sync with the playing track.
+  const effectiveIndex =
+    currentIndex >= 0 && currentIndex < queue.length
+      ? currentIndex
+      : currentTrack
+        ? queue.findIndex(t => t.Id === currentTrack.Id)
+        : -1
+
+  // Check if there are songs after/before current
+  const hasNext = effectiveIndex >= 0 && effectiveIndex < queue.length - 1
+
+  // Previous should be active if:
+  // 1. There are songs before the effective index in the queue, OR
+  // 2. There are previousSongs in history (for going back to previously played songs)
+  const hasPrevious =
+    (effectiveIndex > 0 && effectiveIndex < queue.length) ||
+    previousSongs.length > 0
+
+  useEffect(() => {
+    // Set volume to 100% when component mounts
+    setVolume(1.0)
+  }, [setVolume])
+
+  // Check if current song has lyrics
+  useEffect(() => {
+    const checkLyrics = async () => {
+      if (!displayTrack) {
+        setHasLyrics(false)
+        return
+      }
+
+      try {
+        const lyrics = await jellyfinClient.getLyrics(displayTrack.Id)
+        const hasLyricsValue = lyrics !== null && lyrics.trim().length > 0
+        setHasLyrics(hasLyricsValue)
+      } catch (error) {
+        console.warn('[PlayerModal] Lyrics check failed:', error)
+        setHasLyrics(false)
+      }
+    }
+
+    checkLyrics()
+  }, [displayTrack])
+
+  // Get display name: use Name if available, otherwise extract filename from Path
+  const getDisplayNameForMetadata = (track: typeof displayTrack) => {
+    if (!track) return 'Unknown'
+    if (track.Name && track.Name.trim()) {
+      return track.Name
+    }
+    // Try to extract filename from Path if available
+    const path = (track as any).Path
+    if (path && typeof path === 'string') {
+      const filename = path.split('/').pop() || path.split('\\').pop()
+      return filename || 'Unknown'
+    }
+    return 'Unknown'
+  }
+
+  // Get artist name if available
+  const getArtistNameForMetadata = (track: typeof displayTrack) => {
+    if (!track) return ''
+    return track.AlbumArtist || track.ArtistItems?.[0]?.Name || ''
+  }
+
+  useEffect(() => {
+    if ('mediaSession' in navigator && displayTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: getDisplayNameForMetadata(displayTrack),
+        artist: getArtistNameForMetadata(displayTrack),
+        album: displayTrack.Album || '',
+        artwork: [
+          {
+            src: jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id, 512),
+            sizes: '512x512',
+            type: 'image/jpeg',
+          },
+        ],
+      })
+
+      navigator.mediaSession.setActionHandler('play', togglePlayPause)
+      navigator.mediaSession.setActionHandler('pause', togglePlayPause)
+      navigator.mediaSession.setActionHandler('previoustrack', previous)
+      navigator.mediaSession.setActionHandler('nexttrack', next)
+    }
+  }, [displayTrack, isPlaying, togglePlayPause, next, previous])
+
+  // Reset image error when track changes
+  useEffect(() => {
+    setImageError(false)
+  }, [displayTrack?.Id])
+
+  if (!displayTrack) {
+    return null
+  }
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Get display name: use Name if available, otherwise extract filename from Path
+  const getDisplayName = () => {
+    if (displayTrack.Name && displayTrack.Name.trim()) {
+      return displayTrack.Name
+    }
+    // Try to extract filename from Path if available
+    const path = (displayTrack as any).Path
+    if (path && typeof path === 'string') {
+      const filename = path.split('/').pop() || path.split('\\').pop()
+      return filename || 'Unknown'
+    }
+    return 'Unknown'
+  }
+
+  // Get artist name if available
+  const getArtistName = () => {
+    return displayTrack.AlbumArtist || displayTrack.ArtistItems?.[0]?.Name
+  }
+
+  // Check if album exists
+  const hasAlbum = displayTrack.AlbumId && displayTrack.Album && displayTrack.Album.trim()
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressRef.current || !duration || isDragging.current) return
+    const rect = progressRef.current.getBoundingClientRect()
+    const percent = (e.clientX - rect.left) / rect.width
+    seek(Math.max(0, Math.min(1, percent)) * duration)
+  }
+
+  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressRef.current || !duration) return
+    isDragging.current = true
+    dragStartX.current = e.clientX
+    const rect = progressRef.current.getBoundingClientRect()
+    const percent = (e.clientX - rect.left) / rect.width
+    seek(Math.max(0, Math.min(1, percent)) * duration)
+  }
+
+
+  const handleProgressMouseUp = () => {
+    isDragging.current = false
+    dragStartX.current = null
+  }
+
+  const handleProgressTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!progressRef.current || !duration) return
+    e.stopPropagation() // Prevent modal swipe gesture
+    isDragging.current = true
+    const touch = e.touches[0]
+    const rect = progressRef.current.getBoundingClientRect()
+    const percent = (touch.clientX - rect.left) / rect.width
+    seek(Math.max(0, Math.min(1, percent)) * duration)
+  }
+
+  const handleProgressTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !progressRef.current || !duration) return
+    e.stopPropagation() // Prevent modal swipe gesture
+    e.preventDefault() // Prevent scrolling
+    const touch = e.touches[0]
+    const rect = progressRef.current.getBoundingClientRect()
+    const percent = (touch.clientX - rect.left) / rect.width
+    seek(Math.max(0, Math.min(1, percent)) * duration)
+  }
+
+  const handleProgressTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation() // Prevent modal swipe gesture
+    isDragging.current = false
+    dragStartX.current = null
+  }
+
+  // Add global mouse event listeners for dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || !progressRef.current || !duration) return
+      const rect = progressRef.current.getBoundingClientRect()
+      const percent = (e.clientX - rect.left) / rect.width
+      seek(Math.max(0, Math.min(1, percent)) * duration)
+    }
+
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false
+        dragStartX.current = null
+      }
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [duration, seek])
+
+  const handleClose = () => {
+    setIsClosing(true)
+    onClosingStart?.() // Notify parent that closing has started
+    setTimeout(() => {
+      onClose()
+    }, 300) // Match transition duration
+  }
+
+  // Expose close function via ref so parent can trigger it with animation
+  useEffect(() => {
+    if (closeRef) {
+      closeRef.current = handleClose
+    }
+    return () => {
+      if (closeRef) {
+        closeRef.current = null
+      }
+    }
+  }, [closeRef])
+
+  // Swipe down gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only handle swipe if not in queue view or lyrics modal (both have their own scrolling)
+    if (showQueue || showLyricsModal) return
+    
+    touchStartY.current = e.touches[0].clientY
+    touchStartTime.current = Date.now()
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Only handle swipe if not in queue view or lyrics modal
+    if (showQueue || showLyricsModal || touchStartY.current === null) return
+
+    const currentY = e.touches[0].clientY
+    const deltaY = currentY - touchStartY.current
+
+    // Only allow downward swipes
+    if (deltaY > 0 && modalRef.current) {
+      // Apply transform to follow finger
+      const maxDelta = Math.min(deltaY, window.innerHeight * 0.5)
+      modalRef.current.style.transform = `translateY(${maxDelta}px)`
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (showQueue || showLyricsModal || touchStartY.current === null || touchStartTime.current === null) {
+      touchStartY.current = null
+      touchStartTime.current = null
+      if (modalRef.current) {
+        modalRef.current.style.transform = ''
+      }
+      return
+    }
+
+    const currentY = e.changedTouches[0].clientY
+    const deltaY = currentY - touchStartY.current
+    const deltaTime = Date.now() - touchStartTime.current
+    const swipeThreshold = 50 // Minimum pixels to trigger close
+    const velocityThreshold = 0.3 // Minimum velocity (px/ms) to trigger close
+
+    // Reset transform
+    if (modalRef.current) {
+      modalRef.current.style.transform = ''
+    }
+
+    // Check if swipe down is sufficient to close
+    const velocity = deltaY / deltaTime
+    if (deltaY > swipeThreshold || (deltaY > 30 && velocity > velocityThreshold)) {
+      handleClose()
+    }
+
+    touchStartY.current = null
+    touchStartTime.current = null
+  }
+
+  return (
+    <>
+    <div 
+      ref={modalRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className={`fixed top-0 left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out ${
+        isClosing 
+          ? 'translate-y-full' 
+          : isAnimating 
+            ? 'translate-y-0' 
+            : 'translate-y-full'
+      }`}
+      style={{
+        paddingTop: `env(safe-area-inset-top)`,
+        bottom: `calc(-1 * env(safe-area-inset-bottom))`,
+        height: `calc(100% + env(safe-area-inset-bottom))`,
+        transition: touchStartY.current === null ? 'transform 300ms ease-out' : 'none'
+      }}
+    >
+      <div className="flex items-center justify-between p-4 relative">
+        <button
+          onClick={handleClose}
+          className="text-white hover:text-gray-300 transition-colors z-10 flex-shrink-0"
+        >
+          <ChevronDown className="w-8 h-8" />
+        </button>
+        {showLyricsModal && displayTrack && (
+          <h2 className="absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
+            {getDisplayName()}
+          </h2>
+        )}
+        <div className="flex items-center gap-2 z-10 flex-shrink-0">
+          {hasLyrics && !showQueue && (
+            <button
+              onClick={() => setShowLyricsModal(!showLyricsModal)}
+              className={`transition-colors pr-2 ${
+                showLyricsModal 
+                  ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]' 
+                  : 'text-white hover:text-gray-300'
+              }`}
+            >
+              <MicVocal className="w-6 h-6" />
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (!showQueue) {
+                // Opening queue - close lyrics modal
+                setShowLyricsModal(false)
+              }
+              setShowQueue(!showQueue)
+            }}
+            className="text-white hover:text-gray-300 transition-colors"
+          >
+            {showQueue ? (
+              <SquarePlay className="w-6 h-6" />
+            ) : (
+              <ListVideo className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {showQueue ? (
+        <QueueView
+          onClose={() => setShowQueue(false)}
+          onNavigateFromContextMenu={() => {
+            // When navigating from the queue's context menu (e.g. to album/artist/genre),
+            // close the full-screen player modal so the destination page is visible.
+            handleClose()
+          }}
+        />
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 max-w-[768px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+          <div className="flex-1 overflow-hidden min-h-0 flex items-center justify-center">
+              <div className="w-full flex flex-col items-center px-4 sm:px-8">
+              <div className="w-full flex flex-col items-center">
+                <div
+                  className={`w-56 h-56 sm:w-[480px] sm:h-[480px] rounded overflow-hidden mb-4 sm:mb-8 bg-zinc-900 ${!imageError ? 'shadow-2xl' : ''}`}
+                  style={{ maxWidth: '100%' }}
+                >
+                  {imageError ? (
+                    <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center relative">
+                      <img
+                        src="/assets/vinyl.png"
+                        alt="Vinyl Record"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error('Failed to load vinyl image')
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <Image
+                      src={jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)}
+                      alt={displayTrack.Name}
+                      className="w-full h-full object-cover"
+                      showOutline={true}
+                      rounded="rounded"
+                      onError={() => setImageError(true)}
+                    />
+                  )}
+                </div>
+                <div className="text-center w-full">
+                  <h3 className="text-xl sm:text-2xl font-bold mb-2">{getDisplayName()}</h3>
+                  {getArtistName() && (
+                    <button
+                      onClick={() => {
+                        const artistId = displayTrack.ArtistItems?.[0]?.Id
+                        if (artistId) {
+                          onClose()
+                          navigate(`/artist/${artistId}`)
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto max-w-full min-w-0"
+                    >
+                      <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <span className="truncate min-w-0">{getArtistName()}</span>
+                    </button>
+                  )}
+                  {hasAlbum && (
+                    <button
+                      onClick={() => {
+                        onClose()
+                        navigate(`/album/${displayTrack.AlbumId}`)
+                      }}
+                      className="flex items-center justify-center gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto mt-1 max-w-full min-w-0"
+                    >
+                      <Disc className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <span className="truncate min-w-0">{displayTrack.Album}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="pt-2 space-y-6 flex-shrink-0 mt-4 sm:mt-0 max-w-[768px] mx-auto w-full"
+            style={{ paddingBottom: `1.5rem` }}
+          >
+            <div className="space-y-3 px-4 w-full">
+              <div className="max-w-[768px] mx-auto">
+                <div
+                  ref={progressRef}
+                  className="h-2 bg-zinc-800 rounded-full cursor-pointer w-full select-none overflow-hidden"
+                  onClick={handleProgressClick}
+                  onMouseDown={handleProgressMouseDown}
+                  onMouseUp={handleProgressMouseUp}
+                  onMouseLeave={handleProgressMouseUp}
+                  onTouchStart={handleProgressTouchStart}
+                  onTouchMove={handleProgressTouchMove}
+                  onTouchEnd={handleProgressTouchEnd}
+                >
+                  <div
+                    className="h-full bg-[var(--accent-color)] transition-all"
+                    style={{ 
+                      width: `${progressPercent}%`,
+                      borderTopLeftRadius: '9999px',
+                      borderBottomLeftRadius: '9999px',
+                      borderTopRightRadius: progressPercent >= 100 ? '9999px' : '0',
+                      borderBottomRightRadius: progressPercent >= 100 ? '9999px' : '0'
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-400 mt-2">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-8 px-6">
+              <button
+                onClick={toggleShuffle}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                <Shuffle className="w-6 h-6" />
+              </button>
+
+              <button
+                onClick={previous}
+                disabled={!hasPrevious}
+                className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
+                  hasPrevious 
+                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+                    : 'text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <SkipBack className="w-8 h-8" />
+              </button>
+
+              <button
+                onClick={() => {
+                  if (currentTrack) {
+                    togglePlayPause()
+                  } else if (displayTrack) {
+                    // Resume last played track
+                    playTrack(displayTrack)
+                  }
+                }}
+                className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
+              >
+                {isPlaying && currentTrack ? (
+                  <Pause className="w-8 h-8" />
+                ) : (
+                  <Play className="w-8 h-8" />
+                )}
+              </button>
+
+              <button
+                onClick={next}
+                disabled={!hasNext}
+                className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
+                  hasNext 
+                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+                    : 'text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <SkipForward className="w-8 h-8" />
+              </button>
+
+              <button
+                onClick={toggleRepeat}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                {repeat === 'one' ? (
+                  <Repeat1 className="w-6 h-6" />
+                ) : (
+                  <Repeat className="w-6 h-6" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showLyricsModal && (
+        <LyricsModal
+          onClose={() => setShowLyricsModal(false)}
+        />
+      )}
+    </div>
+    </>
+  )
+}

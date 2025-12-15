@@ -1,0 +1,92 @@
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Image from '../shared/Image'
+import { jellyfinClient } from '../../api/jellyfin'
+import type { BaseItemDto } from '../../api/types'
+import ContextMenu from '../shared/ContextMenu'
+import { useLongPress } from '../../hooks/useLongPress'
+
+interface PlaylistItemProps {
+  playlist: BaseItemDto
+}
+
+export default function PlaylistItem({ playlist }: PlaylistItemProps) {
+  const navigate = useNavigate()
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't navigate if context menu was just opened
+    if (contextMenuJustOpenedRef.current) {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = false
+      return
+    }
+    navigate(`/playlist/${playlist.Id}`)
+  }
+
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      setContextMenuOpen(true)
+    },
+    onClick: handleClick,
+  })
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    setContextMenuOpen(true)
+    // Reset the flag after a short delay to allow click prevention
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 100)
+  }
+
+  return (
+    <>
+      <button
+        onClick={(e) => {
+          // Prevent click if context menu is open or was just opened
+          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+          handleClick(e)
+        }}
+        onContextMenu={handleContextMenu}
+        {...longPressHandlers}
+        className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      >
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+        <Image
+          src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+          alt={playlist.Name}
+          className="w-full h-full object-cover"
+          showOutline={true}
+          rounded="rounded-sm"
+        />
+      </div>
+      <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
+        <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+          {playlist.Name}
+        </div>
+        <div className="text-xs text-gray-400 truncate">
+          {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+        </div>
+      </div>
+    </button>
+    <ContextMenu
+      item={playlist}
+      itemType="playlist"
+      isOpen={contextMenuOpen}
+      onClose={() => setContextMenuOpen(false)}
+    />
+    </>
+  )
+}
+
+

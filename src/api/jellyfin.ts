@@ -1,0 +1,1060 @@
+import type {
+  JellyfinAuthResponse,
+  BaseItemDto,
+  ItemsResult,
+  SearchResult,
+  GetItemsOptions,
+} from './types'
+import { storage } from '../utils/storage'
+import { generateUUID } from '../utils/uuid'
+import { useMusicStore } from '../stores/musicStore'
+import { normalizeQuotes } from '../utils/formatting'
+
+class JellyfinClient {
+  private baseUrl: string = ''
+  private accessToken: string = ''
+  private userId: string = ''
+  private genresCache: BaseItemDto[] | null = null
+  private isPreloading: boolean = false
+
+  get serverBaseUrl(): string {
+    return this.baseUrl
+  }
+
+  setCredentials(baseUrl: string, accessToken: string, userId: string) {
+    this.baseUrl = baseUrl.replace(/\/$/, '')
+    this.accessToken = accessToken
+    this.userId = userId
+    // Clear cache when credentials change (different user/server)
+    this.genresCache = null
+  }
+
+  clearGenresCache(): void {
+    this.genresCache = null
+  }
+
+  private getHeaders(): HeadersInit {
+    return {
+      'Authorization': `MediaBrowser Token="${this.accessToken}"`,
+      'Content-Type': 'application/json',
+      'X-Emby-Authorization': `MediaBrowser Client="Tunetuna", Device="Web", DeviceId="${this.getDeviceId()}", Version="1.0.0"`,
+    }
+  }
+
+  private getDeviceId(): string {
+    let deviceId = storage.get('deviceId')
+    if (!deviceId) {
+      deviceId = generateUUID()
+      storage.set('deviceId', deviceId)
+    }
+    return deviceId
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...this.getHeaders(),
+        ...options.headers,
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Unauthorized - please login again')
+      }
+      throw new Error(`API request failed: ${response.statusText}`)
+    }
+
+    return response.json()
+  }
+
+  async authenticate(serverUrl: string, username: string, password: string): Promise<JellyfinAuthResponse> {
+    const url = serverUrl.replace(/\/$/, '') + '/Users/authenticatebyname'
+
+    // Use AbortController for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      console.warn('Authentication request timed out after 30 seconds')
+      controller.abort()
+    }, 30000) // 30 second timeout
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Emby-Authorization': `MediaBrowser Client="Tunetuna", Device="Web", DeviceId="${this.getDeviceId()}", Version="1.0.0"`,
+        },
+        body: JSON.stringify({
+          Username: username,
+          Pw: password,
+        }),
+      })
+      clearTimeout(timeoutId)
+    } catch (error) {
+      clearTimeout(timeoutId)
+      // Handle abort (timeout)
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (import.meta.env.DEV) {
+          console.error('[JellyfinClient] Authentication timeout:', { url, serverUrl })
+        }
+        
+        // Check if it's a VPN/Tailscale IP (100.x.x.x range)
+        const isVpnIp = /^https?:\/\/100\.\d+\.\d+\.\d+/.test(serverUrl)
+        const vpnNote = isVpnIp 
+          ? '\n⚠️  VPN/Tailscale IP detected (100.x.x.x). Your phone may not be on the same VPN network.\n   Try using your local network IP instead (e.g., http://192.168.1.x:8096)\n'
+          : ''
+        
+        throw new Error(`Request timeout - server did not respond within 30 seconds.\n\nPossible issues:\n- Server URL may be incorrect: ${url}\n- Server may be down or unreachable${vpnNote}- CORS may be blocking the request (check browser console/Network tab)\n- Network connectivity issues\n\nIf this was working earlier, check:\n- Is the Jellyfin server still running?\n- Are there any CORS errors in the browser console?\n- Try accessing ${url} directly in your browser\n- If using VPN/Tailscale IP, ensure your phone is on the same network`)
+      }
+      // Handle network errors (CORS, connection refused, etc.)
+      if (error instanceof TypeError) {
+        const errorMsg = error.message.toLowerCase()
+        if (errorMsg.includes('failed to fetch') || errorMsg.includes('networkerror')) {
+          const isVpnIp = /^https?:\/\/100\.\d+\.\d+\.\d+/.test(serverUrl)
+          const vpnNote = isVpnIp 
+            ? '\n⚠️  VPN/Tailscale IP detected. Your phone may not be able to access this IP.\n   Try using your local network IP instead (e.g., http://192.168.1.x:8096)\n'
+            : ''
+
+          throw new Error(`Network error - unable to reach server at ${url}\n\nPossible issues:\n- CORS is blocking the request (check Jellyfin server CORS settings)${vpnNote}- Server is not accessible from this network\n- Invalid server URL\n\nCheck browser console for detailed error information.`)
+        }
+        throw new Error(`Network error: ${error.message}`)
+      }
+      throw error
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      throw new Error(errorText || `Authentication failed (${response.status})`)
+    }
+
+    const data: JellyfinAuthResponse = await response.json()
+    this.setCredentials(serverUrl, data.AccessToken, data.User.Id)
+    return data
+  }
+
+  getImageUrl(
+    itemId: string,
+    imageType: 'Primary' | 'Logo' | 'Art' | 'Banner' | 'Backdrop' = 'Primary',
+    maxWidth?: number
+  ): string {
+    if (!this.baseUrl || !itemId) return ''
+
+    // Use smaller, more efficient thumbnails when a max width is provided.
+    // For small UI elements (e.g. 48px avatars), using ~2x size (e.g. 96px)
+    // with slightly lower quality is a good trade-off between sharpness and payload.
+    const size = maxWidth ?? 300
+    const isSmall = size <= 128
+    const quality = isSmall ? 75 : 90
+
+    const params: string[] = [
+      `quality=${quality}`,
+      `fillHeight=${size}`,
+      `fillWidth=${size}`,
+    ]
+
+    if (maxWidth) {
+      params.push(`maxWidth=${maxWidth}`)
+    }
+
+    return `${this.baseUrl}/Items/${itemId}/Images/${imageType}?${params.join('&')}`
+  }
+
+  getArtistImageUrl(artistId: string, maxWidth?: number): string {
+    return this.getImageUrl(artistId, 'Primary', maxWidth)
+  }
+
+  getArtistBackdropUrl(artistId: string, maxWidth?: number): string {
+    return this.getImageUrl(artistId, 'Backdrop', maxWidth)
+  }
+
+  getAlbumArtUrl(albumId: string, maxWidth?: number): string {
+    return this.getImageUrl(albumId, 'Primary', maxWidth)
+  }
+
+  private buildQueryString(options: GetItemsOptions, cacheBust = false): string {
+    const params = new URLSearchParams()
+    
+    if (options.sortBy) {
+      options.sortBy.forEach(sort => params.append('SortBy', sort))
+    }
+    if (options.sortOrder) {
+      params.append('SortOrder', options.sortOrder)
+    }
+    if (options.limit) {
+      params.append('Limit', options.limit.toString())
+    }
+    if (options.startIndex) {
+      params.append('StartIndex', options.startIndex.toString())
+    }
+    if (options.includeItemTypes) {
+      options.includeItemTypes.forEach(type => params.append('IncludeItemTypes', type))
+    }
+    if (options.recursive !== undefined) {
+      params.append('Recursive', options.recursive.toString())
+    }
+    if (options.parentId) {
+      params.append('ParentId', options.parentId)
+    }
+    if (options.searchTerm && options.searchTerm.trim().length > 0) {
+      params.append('SearchTerm', options.searchTerm.trim())
+    }
+    if (options.genreIds) {
+      options.genreIds.forEach(id => params.append('GenreIds', id))
+    }
+    if (options.artistIds) {
+      options.artistIds.forEach(id => params.append('ArtistIds', id))
+    }
+    if (options.albumIds) {
+      options.albumIds.forEach(id => params.append('AlbumIds', id))
+    }
+    if (options.years) {
+      options.years.forEach(year => params.append('Years', year.toString()))
+    }
+
+    params.append('UserId', this.userId)
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,ProductionYear')
+    
+    // Add cache-busting timestamp to force fresh data from server
+    if (cacheBust) {
+      params.append('_t', Date.now().toString())
+    }
+    
+    return params.toString()
+  }
+
+  async getArtistById(artistId: string): Promise<BaseItemDto | null> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = new URLSearchParams({
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,Overview',
+    })
+    try {
+      const result = await this.request<BaseItemDto>(`/Items/${artistId}?${query}`)
+      return result
+    } catch (error) {
+      console.error('Failed to get artist by ID:', error)
+      return null
+    }
+  }
+
+  async getArtists(options: GetItemsOptions = {}): Promise<ItemsResult> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = this.buildQueryString({
+      ...options,
+      includeItemTypes: ['MusicArtist'],
+      recursive: true,
+    })
+    let result = await this.request<ItemsResult>(`/Artists?${query}`)
+    
+    // If /Artists returns no items, try /Items endpoint like albums do
+    if ((result.Items?.length || 0) === 0 && (result.TotalRecordCount || 0) === 0) {
+      result = await this.request<ItemsResult>(`/Items?${query}`)
+    }
+    
+    return {
+      Items: result.Items || [],
+      TotalRecordCount: result.TotalRecordCount || 0,
+      StartIndex: result.StartIndex || 0,
+    }
+  }
+
+  async getAlbumById(albumId: string): Promise<BaseItemDto | null> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = new URLSearchParams({
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,Overview',
+    })
+    try {
+      const result = await this.request<BaseItemDto>(`/Items/${albumId}?${query}`)
+      return result
+    } catch (error) {
+      console.error('Failed to get album by ID:', error)
+      return null
+    }
+  }
+
+  async getSongById(songId: string): Promise<BaseItemDto | null> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = new URLSearchParams({
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres',
+    })
+    try {
+      const result = await this.request<BaseItemDto>(`/Items/${songId}?${query}`)
+      return result
+    } catch (error) {
+      console.error('Failed to get song by ID:', error)
+      return null
+    }
+  }
+
+  async getAlbums(options: GetItemsOptions = {}): Promise<ItemsResult> {
+    const query = this.buildQueryString({
+      ...options,
+      includeItemTypes: ['MusicAlbum'],
+      recursive: true,
+    })
+    return this.request<ItemsResult>(`/Items?${query}`)
+  }
+
+  async getSongs(options: GetItemsOptions = {}, cacheBust = false): Promise<ItemsResult> {
+    const query = this.buildQueryString({
+      ...options,
+      includeItemTypes: ['Audio'],
+      recursive: true,
+    }, cacheBust)
+    return this.request<ItemsResult>(`/Items?${query}`)
+  }
+
+  async getGenres(forceRefresh = false): Promise<BaseItemDto[]> {
+    // Return in-memory cache if available and not forcing refresh
+    if (this.genresCache && !forceRefresh) {
+      return this.genresCache
+    }
+    
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    
+    // Check persistent store first
+    const store = useMusicStore.getState()
+    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+    
+    if (!forceRefresh && store.genres.length > 0 && store.genresLastUpdated) {
+      // Check if cooldown has expired
+      const now = Date.now()
+      const lastChecked = store.genresLastChecked || 0
+      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
+      
+      if (!cooldownExpired) {
+        // Cooldown active, return cached genres
+        this.genresCache = store.genres
+        return store.genres
+      }
+      
+      // Cooldown expired, check for new tracks
+      try {
+        const recentlyAdded = await this.getRecentlyAdded(50)
+        const items = recentlyAdded.Items || []
+        
+        // Find newest item with DateCreated
+        let newestDate = 0
+        for (const item of items) {
+          if (item.DateCreated) {
+            const itemDate = new Date(item.DateCreated).getTime()
+            if (itemDate > newestDate) {
+              newestDate = itemDate
+            }
+          }
+        }
+        
+        // Update last checked timestamp even if no new tracks
+        useMusicStore.setState({ genresLastChecked: now })
+        
+        // Only refresh if we found items newer than last update
+        if (newestDate <= store.genresLastUpdated) {
+          // No new tracks, return cached genres
+          this.genresCache = store.genres
+          return store.genres
+        }
+      } catch (error) {
+        // If check fails, gracefully fall back to cached genres
+        console.warn('[getGenres] Failed to check for new tracks, using cached genres:', error)
+        this.genresCache = store.genres
+        return store.genres
+      }
+    }
+    
+    // Need to do full refresh - extract genres from music items
+    // Extract genres ONLY from actual music items (songs) - this ensures we only get
+    // genres that actually exist in the music library, not movie/TV genres
+    try {
+      // Map: lowercase genre name -> canonical genre name (first occurrence)
+      // This ensures case-insensitive deduplication
+      const uniqueGenreNames = new Map<string, string>()
+      
+      // Get all albums in batches to extract all unique genres (much faster than songs)
+      let startIndex = 0
+      const limit = 200
+      let hasMore = true
+      
+      while (hasMore) {
+        const musicItems = await this.getAlbums({ limit, startIndex })
+        const items = musicItems.Items || []
+        
+        items.forEach(item => {
+          if (item.Genres) {
+            item.Genres.forEach(genreName => {
+              const lowerName = genreName.toLowerCase()
+              // Only add if we haven't seen this genre before (case-insensitive)
+              // Use first occurrence as canonical name
+              if (!uniqueGenreNames.has(lowerName)) {
+                uniqueGenreNames.set(lowerName, genreName)
+              }
+            })
+          }
+        })
+        
+        hasMore = items.length === limit
+        startIndex += limit
+        
+        // Safety limit to avoid infinite loops
+        if (startIndex > 10000) break
+      }
+      
+      // Now extract genres from songs to compare - only include genres that exist in songs
+      const songGenreNames = new Set<string>()
+      let startIndexSongs = 0
+      let hasMoreSongs = true
+      
+      while (hasMoreSongs) {
+        const songItems = await this.getSongs({ limit: 200, startIndex: startIndexSongs })
+        const songs = songItems.Items || []
+        
+        songs.forEach(song => {
+          if (song.Genres) {
+            song.Genres.forEach(genreName => {
+              songGenreNames.add(genreName.toLowerCase())
+            })
+          }
+        })
+        
+        hasMoreSongs = songs.length === 200
+        startIndexSongs += 200
+        if (startIndexSongs > 10000) break
+      }
+      
+      // Now get genre IDs from API for genres we found in music items
+      // This allows us to use real genre IDs when available
+      const genreNameToId = new Map<string, string>()
+      const genreIdToGenre = new Map<string, BaseItemDto>()
+      
+      try {
+        // Get all genres from API to look up IDs
+        const query = new URLSearchParams({
+          UserId: this.userId,
+          Recursive: 'true',
+        })
+        const apiGenresResult = await this.request<any>(`/Genres?${query}`)
+        
+        let allApiGenres: BaseItemDto[] = []
+        if (Array.isArray(apiGenresResult)) {
+          allApiGenres = apiGenresResult
+        } else if (apiGenresResult && typeof apiGenresResult === 'object' && 'Items' in apiGenresResult) {
+          allApiGenres = apiGenresResult.Items || []
+        }
+        
+        // Build lookup maps for genres we actually found in music
+        allApiGenres.forEach(genre => {
+          if (genre.Name) {
+            const lowerName = genre.Name.toLowerCase()
+            // Only include if this genre was found in our music items
+            if (uniqueGenreNames.has(lowerName)) {
+              genreNameToId.set(lowerName, genre.Id)
+              genreIdToGenre.set(genre.Id, genre)
+            }
+          }
+        })
+      } catch (error) {
+        console.warn('[getGenres] Failed to get genre IDs from API, will use synthetic IDs:', error)
+      }
+      
+      // Build genre objects: use API genre objects when available, otherwise create synthetic ones
+      // CRITICAL FIX: Only include genres that actually exist in songs, not just albums
+      // This prevents showing genres like "Alternative Rock" that exist on albums but not on any songs
+      const musicGenres: BaseItemDto[] = []
+      const processedLowerNames = new Set<string>()
+      
+      for (const [lowerName, canonicalName] of uniqueGenreNames) {
+        // Skip if already processed (case-insensitive check)
+        if (processedLowerNames.has(lowerName)) {
+          continue
+        }
+        
+        // Only include genres that actually exist in songs, not just albums
+        if (!songGenreNames.has(lowerName)) {
+          continue // Skip genres that don't exist in songs
+        }
+        
+        const genreId = genreNameToId.get(lowerName)
+        
+        if (genreId) {
+          // Found in API genres, use that object
+          const apiGenre = genreIdToGenre.get(genreId)
+          if (apiGenre) {
+            musicGenres.push(apiGenre)
+            processedLowerNames.add(lowerName)
+          }
+        } else {
+          // Not in API genres, create synthetic genre object using canonical name
+          musicGenres.push({
+            Id: `synthetic-${lowerName.replace(/\s+/g, '-')}`,
+            Name: canonicalName,
+            Type: 'Genre',
+          })
+          processedLowerNames.add(lowerName)
+        }
+      }
+      
+      // Update store with new genres and timestamps
+      const now = Date.now()
+      useMusicStore.getState().setGenres(musicGenres)
+      useMusicStore.setState({ 
+        genresLastUpdated: now,
+        genresLastChecked: now 
+      })
+      
+      // Cache the result
+      this.genresCache = musicGenres
+      return musicGenres
+    } catch (error) {
+      console.error('[getGenres] Failed to build music genres:', error)
+      // Return cached genres from store if available, otherwise empty array
+      if (store.genres.length > 0) {
+        this.genresCache = store.genres
+        return store.genres
+      }
+      this.genresCache = []
+      return []
+    }
+  }
+
+  async getYears(forceRefresh = false): Promise<number[]> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    
+    const store = useMusicStore.getState()
+    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+    
+    if (!forceRefresh && store.years.length > 0 && store.yearsLastUpdated) {
+      const now = Date.now()
+      const lastChecked = store.yearsLastChecked || 0
+      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
+      
+      if (!cooldownExpired) {
+        return store.years
+      }
+      
+      // Cooldown expired, check for new tracks
+      try {
+        const recentlyAdded = await this.getRecentlyAdded(50)
+        const items = recentlyAdded.Items || []
+        
+        let newestDate = 0
+        for (const item of items) {
+          if (item.DateCreated) {
+            const itemDate = new Date(item.DateCreated).getTime()
+            if (itemDate > newestDate) {
+              newestDate = itemDate
+            }
+          }
+        }
+        
+        useMusicStore.setState({ yearsLastChecked: now })
+        
+        if (newestDate <= store.yearsLastUpdated) {
+          return store.years
+        }
+      } catch (error) {
+        console.warn('[getYears] Failed to check for new tracks, using cached years:', error)
+        return store.years
+      }
+    }
+    
+    // Extract unique years from songs
+    try {
+      const uniqueYears = new Set<number>()
+      let startIndex = 0
+      const limit = 200
+      let hasMore = true
+      
+      while (hasMore) {
+        const songItems = await this.getSongs({ limit, startIndex })
+        const songs = songItems.Items || []
+        
+        songs.forEach(song => {
+          if (song.ProductionYear && song.ProductionYear > 0) {
+            uniqueYears.add(song.ProductionYear)
+          }
+        })
+        
+        hasMore = songs.length === limit
+        startIndex += limit
+        
+        if (startIndex > 10000) break
+      }
+      
+      const years = Array.from(uniqueYears).sort((a, b) => a - b)
+      
+      const now = Date.now()
+      useMusicStore.getState().setYears(years)
+      useMusicStore.setState({
+        yearsLastUpdated: now,
+        yearsLastChecked: now,
+      })
+      
+      return years
+    } catch (error) {
+      console.error('[getYears] Failed to extract years:', error)
+      if (store.years.length > 0) {
+        return store.years
+      }
+      return []
+    }
+  }
+
+  async getGroupings(forceRefresh = false): Promise<string[]> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    
+    const store = useMusicStore.getState()
+    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+    
+    if (!forceRefresh && store.groupings.length > 0 && store.groupingsLastUpdated) {
+      const now = Date.now()
+      const lastChecked = store.groupingsLastChecked || 0
+      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
+      
+      if (!cooldownExpired) {
+        return store.groupings
+      }
+      
+      // Cooldown expired, check for new tracks
+      try {
+        const recentlyAdded = await this.getRecentlyAdded(50)
+        const items = recentlyAdded.Items || []
+        
+        let newestDate = 0
+        for (const item of items) {
+          if (item.DateCreated) {
+            const itemDate = new Date(item.DateCreated).getTime()
+            if (itemDate > newestDate) {
+              newestDate = itemDate
+            }
+          }
+        }
+        
+        useMusicStore.setState({ groupingsLastChecked: now })
+        
+        if (newestDate <= store.groupingsLastUpdated) {
+          return store.groupings
+        }
+      } catch (error) {
+        console.warn('[getGroupings] Failed to check for new tracks, using cached groupings:', error)
+        return store.groupings
+      }
+    }
+    
+    // Extract unique groupings from songs
+    try {
+      const uniqueGroupings = new Set<string>()
+      let startIndex = 0
+      const limit = 200
+      let hasMore = true
+      
+      while (hasMore) {
+        const songItems = await this.getSongs({ limit, startIndex })
+        const songs = songItems.Items || []
+        
+        songs.forEach(song => {
+          if (song.Grouping && song.Grouping.trim()) {
+            uniqueGroupings.add(song.Grouping.trim())
+          }
+        })
+        
+        hasMore = songs.length === limit
+        startIndex += limit
+        
+        if (startIndex > 10000) break
+      }
+      
+      const groupings = Array.from(uniqueGroupings).sort((a, b) => a.localeCompare(b))
+      
+      const now = Date.now()
+      useMusicStore.getState().setGroupings(groupings)
+      useMusicStore.setState({
+        groupingsLastUpdated: now,
+        groupingsLastChecked: now,
+      })
+      
+      return groupings
+    } catch (error) {
+      console.error('[getGroupings] Failed to extract groupings:', error)
+      if (store.groupings.length > 0) {
+        return store.groupings
+      }
+      return []
+    }
+  }
+
+  async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<BaseItemDto[]> {
+    let allSongs: BaseItemDto[] = []
+    
+    // If forcing client-side filter, or if it's a synthetic genre, fetch all songs and filter client-side
+    // This ensures we get fresh metadata from the server, bypassing stale genre indexes
+    if (genreId.startsWith('synthetic-') || forceClientSideFilter) {
+      // Fetch all songs and filter client-side to get fresh metadata
+      // Use cache-busting to ensure we get the latest data from server
+      let startIndex = 0
+      const limit = 200
+      let hasMore = true
+      
+      while (hasMore) {
+        const result = await this.getSongs({ limit, startIndex }, true) // Cache-bust for fresh data
+        const items = result.Items || []
+        allSongs.push(...items)
+        hasMore = items.length === limit
+        startIndex += limit
+        // Safety limit to avoid infinite loops
+        if (startIndex > 50000) break
+      }
+    } else {
+      // Real genre ID - use API filtering, but paginate to get all songs
+      let startIndex = 0
+      const limit = 200
+      let hasMore = true
+      
+      while (hasMore) {
+        const result = await this.getSongs({
+          genreIds: [genreId],
+          limit,
+          startIndex,
+        })
+        const items = result.Items || []
+        allSongs.push(...items)
+        hasMore = items.length === limit
+        startIndex += limit
+        // Safety limit to avoid infinite loops
+        if (startIndex > 50000) break
+      }
+    }
+    
+    // Always filter by exact genre name match to ensure correctness
+    // This uses the Genres field from the song object, which should be fresh from the server
+    const filtered = allSongs.filter(song => {
+      const hasGenre = song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
+      
+      
+      return hasGenre
+    })
+    
+    
+    return filtered
+  }
+
+  async syncLibrary(): Promise<void> {
+    // Clear cache and force refresh genres
+    this.clearGenresCache()
+    const store = useMusicStore.getState()
+    // Clear all genre songs cache before rebuilding
+    store.clearGenreSongs()
+    const genres = await this.getGenres(true)
+    
+    // Preload songs for all genres
+    const genreSongsPromises = genres.map(async (genre) => {
+      if (!genre.Name || !genre.Id) return
+      try {
+        const songs = await this.getGenreSongs(genre.Id, genre.Name)
+        store.setGenreSongs(genre.Id, songs)
+      } catch (error) {
+        console.warn(`[syncLibrary] Failed to load songs for genre ${genre.Name}:`, error)
+      }
+    })
+    
+    // Load all genre songs in parallel
+    await Promise.all(genreSongsPromises)
+  }
+
+  async search(query: string, limit: number = 20): Promise<SearchResult> {
+    // Normalize quotes in the query for flexible matching
+    const normalizedQuery = query ? normalizeQuotes(query.trim()) : ''
+    const hasQuery = normalizedQuery.length > 0
+    
+    // Jellyfin API typically requires 3+ characters for artist search
+    // For short queries, we'll fetch all artists and filter client-side
+    const queryLength = normalizedQuery.length
+    const shouldFetchAllArtists = hasQuery && queryLength < 3
+    
+    const searchOptions: GetItemsOptions = {
+      limit,
+      includeItemTypes: ['MusicAlbum', 'Playlist', 'Audio'],
+      recursive: true,
+    }
+    
+    // Always add searchTerm if there's a query (for albums, playlists, songs)
+    // For artists, we handle short queries separately by fetching all and filtering client-side
+    if (hasQuery) {
+      searchOptions.searchTerm = normalizedQuery
+      // Only include MusicArtist in server search if query is 3+ chars (API requirement)
+      // For shorter queries, we'll fetch all artists separately and filter client-side
+      if (queryLength >= 3) {
+        searchOptions.includeItemTypes = ['MusicArtist', 'MusicAlbum', 'Playlist', 'Audio']
+      }
+    }
+    
+    // Use /Items? with buildQueryString to get full item data with all fields needed for filtering
+    const queryString = this.buildQueryString(searchOptions)
+    
+    const allResults = await this.request<ItemsResult>(`/Items?${queryString}`)
+    
+    // Separate results by type
+    let artists: BaseItemDto[] = []
+    const albums: BaseItemDto[] = []
+    const playlists: BaseItemDto[] = []
+    const songs: BaseItemDto[] = []
+    const songIds = new Set<string>() // Track song IDs to deduplicate
+    
+    allResults.Items.forEach(item => {
+      if (item.Type === 'MusicArtist') {
+        artists.push(item)
+      } else if (item.Type === 'MusicAlbum') {
+        albums.push(item)
+      } else if (item.Type === 'Playlist') {
+        playlists.push(item)
+      } else if (item.Type === 'Audio') {
+        songs.push(item)
+        songIds.add(item.Id)
+      }
+    })
+
+    // If query is short (< 3 chars), fetch all artists and filter client-side
+    if (shouldFetchAllArtists) {
+      try {
+        const allArtistsResult = await this.getArtists({ limit: 1000 })
+        const queryLower = normalizedQuery.toLowerCase()
+        
+        // Filter artists client-side with normalized matching
+        artists = (allArtistsResult.Items || []).filter(artist => {
+          const artistName = normalizeQuotes(artist.Name || '')
+          return artistName.toLowerCase().includes(queryLower)
+        })
+      } catch (error) {
+        console.error('Failed to fetch all artists for short query:', error)
+        // Keep the empty artists array if fetch fails
+      }
+    }
+
+    // If there's a search query, also fetch songs from matching artists
+    if (hasQuery && artists.length > 0) {
+      const queryLower = normalizedQuery.toLowerCase()
+      
+      // Filter artists that match the query (case-insensitive, with normalized quotes)
+      const matchingArtists = artists.filter(artist => {
+        const artistName = normalizeQuotes(artist.Name || '')
+        return artistName.toLowerCase().includes(queryLower)
+      })
+      
+      // Fetch songs from each matching artist
+      const artistSongsPromises = matchingArtists.map(artist => 
+        this.getArtistItems(artist.Id).catch(err => {
+          console.error(`Failed to fetch songs for artist ${artist.Id}:`, err)
+          return { albums: [], songs: [] }
+        })
+      )
+      
+      const artistSongsResults = await Promise.all(artistSongsPromises)
+      
+      // Combine all songs from artists, deduplicating by ID
+      artistSongsResults.forEach(({ songs: artistSongs }) => {
+        artistSongs.forEach(song => {
+          if (!songIds.has(song.Id)) {
+            songs.push(song)
+            songIds.add(song.Id)
+          }
+        })
+      })
+    }
+
+    return {
+      Artists: { Items: artists, TotalRecordCount: artists.length, StartIndex: 0 },
+      Albums: { Items: albums, TotalRecordCount: albums.length, StartIndex: 0 },
+      Playlists: { Items: playlists, TotalRecordCount: playlists.length, StartIndex: 0 },
+      Songs: { Items: songs, TotalRecordCount: songs.length, StartIndex: 0 },
+    }
+  }
+
+  async getRecentlyAdded(limit: number = 20): Promise<ItemsResult> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    // Use /Items endpoint instead of /Items/Latest for better Limit parameter support
+    const query = this.buildQueryString({
+      limit,
+      includeItemTypes: ['MusicAlbum'],
+      recursive: true,
+      sortBy: ['DateCreated'],
+      sortOrder: 'Descending',
+    })
+    const result = await this.request<ItemsResult>(`/Items?${query}`)
+    return result
+  }
+
+  async getRecentlyPlayed(limit: number = 20): Promise<ItemsResult> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = new URLSearchParams({
+      Limit: limit.toString(),
+      IncludeItemTypes: 'Audio',
+      Recursive: 'true',
+      SortBy: 'DatePlayed',
+      SortOrder: 'Descending',
+      Filters: 'IsPlayed',
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+    })
+    const result = await this.request<ItemsResult>(`/Items?${query}`)
+    return result
+  }
+
+  async getAlbumTracks(albumId: string): Promise<BaseItemDto[]> {
+    // Ensure we request Genres field so recommendations can work
+    const query = new URLSearchParams({
+      ParentId: albumId,
+      IncludeItemTypes: 'Audio',
+      SortBy: 'IndexNumber',
+      SortOrder: 'Ascending',
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+    })
+    const result = await this.request<ItemsResult>(`/Items?${query}`)
+    return result.Items
+  }
+
+  async getArtistItems(artistId: string): Promise<{ albums: BaseItemDto[], songs: BaseItemDto[] }> {
+    const query = new URLSearchParams({
+      ArtistIds: artistId,
+      IncludeItemTypes: 'MusicAlbum,Audio',
+      Recursive: 'true',
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+    })
+    const result = await this.request<ItemsResult>(`/Items?${query}`)
+    
+    const albums: BaseItemDto[] = []
+    const songs: BaseItemDto[] = []
+    
+    result.Items.forEach(item => {
+      if (item.Type === 'MusicAlbum') {
+        albums.push(item)
+      } else if (item.Type === 'Audio') {
+        songs.push(item)
+      }
+    })
+
+    return { albums, songs }
+  }
+
+  async getGenreItems(genreId: string, limit: number = 50): Promise<ItemsResult> {
+    const query = this.buildQueryString({
+      genreIds: [genreId],
+      includeItemTypes: ['MusicAlbum'],
+      recursive: true,
+      limit,
+      sortBy: ['DateCreated'],
+      sortOrder: 'Descending',
+    })
+    return this.request<ItemsResult>(`/Items?${query}`)
+  }
+
+  async getPlaylists(options: GetItemsOptions = {}): Promise<ItemsResult> {
+    const query = this.buildQueryString({
+      ...options,
+      includeItemTypes: ['Playlist'],
+      recursive: true,
+    })
+    return this.request<ItemsResult>(`/Items?${query}`)
+  }
+
+  async markItemAsPlayed(itemId: string): Promise<void> {
+    if (!this.userId || !this.baseUrl || !itemId) {
+      throw new Error('Not authenticated or invalid item ID')
+    }
+    try {
+      await this.request(`/Users/${this.userId}/PlayedItems/${itemId}`, {
+        method: 'POST',
+      })
+    } catch (error) {
+      // Log error but don't throw - playback should continue even if reporting fails
+      console.warn('Failed to mark item as played:', error)
+    }
+  }
+
+  async getLyrics(itemId: string): Promise<string | null> {
+    if (!this.userId || !this.baseUrl || !itemId) {
+      return null
+    }
+    try {
+      // Try multiple endpoint formats - Jellyfin may use different paths
+      const endpoints = [
+        `/Items/${itemId}/Lyrics`,
+        `/Items/${itemId}/RemoteLyrics`,
+        `/Audio/${itemId}/Lyrics`,
+      ]
+      
+      let lastError: string | null = null
+      
+      for (const endpoint of endpoints) {
+        const query = new URLSearchParams({
+          UserId: this.userId,
+        })
+        const url = `${this.baseUrl}${endpoint}?${query}`
+        
+        try {
+          const response = await fetch(url, {
+            headers: this.getHeaders(),
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            
+            // Jellyfin lyrics API can return different formats
+            if (data.Lyrics && Array.isArray(data.Lyrics) && data.Lyrics.length > 0) {
+              const lyricsText = data.Lyrics.map((line: any) => line.Text || '').join('\n')
+              return lyricsText
+            } else if (typeof data === 'string') {
+              return data
+            } else if (data.Text) {
+              return data.Text
+            }
+          } else if (response.status === 404) {
+            lastError = `404 for ${endpoint}`
+            continue // Try next endpoint
+          } else {
+            const errorText = await response.text().catch(() => '')
+            lastError = `${response.status}: ${errorText}`
+            continue // Try next endpoint
+          }
+        } catch (fetchError) {
+          lastError = fetchError instanceof Error ? fetchError.message : String(fetchError)
+          continue // Try next endpoint
+        }
+      }
+      
+      // All endpoints failed
+      return null
+    } catch (error) {
+      // Return null if lyrics don't exist or there's an error
+      console.warn('[getLyrics] Failed to fetch lyrics:', error)
+      return null
+    }
+  }
+}
+
+export const jellyfinClient = new JellyfinClient()
+

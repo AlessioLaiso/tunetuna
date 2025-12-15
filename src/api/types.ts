@@ -1,0 +1,75 @@
+export interface JellyfinAuthResponse {
+  User: {
+    Id: string
+    Name: string
+  }
+  AccessToken: string
+  ServerId: string
+}
+
+export interface BaseItemDto {
+  Id: string
+  Name: string
+  ServerId?: string
+  PremiereDate?: string
+  ProductionYear?: number
+  Overview?: string
+  ImageTags?: {
+    Primary?: string
+    Logo?: string
+    Art?: string
+    Banner?: string
+  }
+  AlbumArtists?: BaseItemDto[]
+  ArtistItems?: BaseItemDto[]
+  AlbumArtist?: string
+  AlbumId?: string
+  Album?: string
+  RunTimeTicks?: number
+  IndexNumber?: number
+  ParentIndexNumber?: number
+  Genres?: string[]
+  Grouping?: string
+  MediaType?: string
+  Type?: string
+  UserData?: {
+    Played?: boolean
+    PlaybackPositionTicks?: number
+    PlayCount?: number
+    LastPlayedDate?: string
+  }
+}
+
+export interface ItemsResult {
+  Items: BaseItemDto[]
+  TotalRecordCount: number
+  StartIndex: number
+}
+
+export interface SearchResult {
+  Artists?: ItemsResult
+  Albums?: ItemsResult
+  Playlists?: ItemsResult
+  Songs?: ItemsResult
+}
+
+export type SortOrder = 'RecentlyAdded' | 'Alphabetical'
+
+export interface GetItemsOptions {
+  sortBy?: string[]
+  sortOrder?: 'Ascending' | 'Descending'
+  limit?: number
+  startIndex?: number
+  includeItemTypes?: string[]
+  recursive?: boolean
+  parentId?: string
+  searchTerm?: string
+  genreIds?: string[]
+  artistIds?: string[]
+  albumIds?: string[]
+  years?: number[]
+}
+
+
+
+
