@@ -14,6 +14,8 @@ interface AlbumCardProps {
 export default function AlbumCard({ album }: AlbumCardProps) {
   const navigate = useNavigate()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
 
@@ -31,6 +33,8 @@ export default function AlbumCard({ album }: AlbumCardProps) {
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
       setContextMenuOpen(true)
     },
     onClick: handleClick,
@@ -40,6 +44,8 @@ export default function AlbumCard({ album }: AlbumCardProps) {
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
     setContextMenuOpen(true)
     // Reset the flag after a short delay to allow click prevention
     setTimeout(() => {
@@ -79,6 +85,8 @@ export default function AlbumCard({ album }: AlbumCardProps) {
         itemType="album"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </>
   )

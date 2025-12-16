@@ -21,9 +21,20 @@ interface ContextMenuProps {
    * Used in the queue view to close the player modal when navigating away.
    */
   onNavigate?: () => void
+  /**
+   * Display mode for the context menu
+   * 'mobile' - shows bottom sheet (default, for touch/long press)
+   * 'desktop' - shows positioned menu (for right-click)
+   */
+  mode?: 'mobile' | 'desktop'
+  /**
+   * Position for desktop mode (coordinates relative to viewport)
+   */
+  position?: { x: number, y: number }
 }
 
-export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate }: ContextMenuProps) {
+
+export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position }: ContextMenuProps) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
@@ -264,18 +275,86 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const actions = getActions()
   const itemName = item.Name || 'Unknown'
 
+  // Floating menu for desktop right-clicks
+  if (mode === 'desktop' && isOpen) {
+    // Calculate position to keep menu within viewport
+    const menuWidth = 240 // Estimated width
+    const menuHeight = Math.min(400, actions.length * 44 + 8) // Estimated height based on actions
+
+    let menuX = position?.x || 100
+    let menuY = position?.y || 100
+
+    // Adjust horizontal position if menu would go off-screen
+    if (menuX + menuWidth > window.innerWidth) {
+      menuX = window.innerWidth - menuWidth - 10
+    }
+
+    // Adjust vertical position if menu would go off-screen
+    if (menuY + menuHeight > window.innerHeight) {
+      menuY = window.innerHeight - menuHeight - 10
+    }
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 z-40"
+          onClick={onClose}
+          style={{ zIndex: zIndex - 1 }}
+        />
+
+        {/* Floating Context Menu */}
+        <div
+          className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 min-w-[200px]"
+          style={{
+            left: menuX,
+            top: menuY,
+            zIndex
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Actions */}
+          <div className="space-y-0">
+            {actions.map((action) => {
+              const Icon = action.icon
+              const isActionLoading = loading && loadingAction === action.id
+
+              return (
+                <button
+                  key={action.id}
+                  onClick={() => handleAction(action.id)}
+                  disabled={loading}
+                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                >
+                  <Icon className="w-4 h-4 text-white flex-shrink-0" />
+                  <span className="flex-1 text-sm text-white">
+                    {action.label}
+                  </span>
+                  {isActionLoading && (
+                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // Mobile mode - use existing BottomSheet
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
       <div className="pb-6">
         <div className="mb-4 ml-4">
           <div className="text-lg font-semibold text-white break-words">{itemName}</div>
         </div>
-        
+
         <div className="space-y-1">
           {actions.map((action) => {
             const Icon = action.icon
             const isActionLoading = loading && loadingAction === action.id
-            
+
             return (
               <button
                 key={action.id}

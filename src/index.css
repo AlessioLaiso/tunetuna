@@ -53,10 +53,6 @@ body {
 
 * {
   box-sizing: border-box;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -68,6 +64,15 @@ textarea {
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+}
+
+/* Allow context menus for interactive elements */
+button {
+  -webkit-touch-callout: default;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 @keyframes slideDown {

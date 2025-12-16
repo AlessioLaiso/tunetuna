@@ -17,7 +17,7 @@ import { unifiedSearch } from '../../utils/search'
 interface SearchArtistItemProps {
   artist: BaseItemDto
   onClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'artist') => void
+  onContextMenu: (item: BaseItemDto, type: 'artist', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
@@ -104,7 +104,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
-      className="w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left px-4 h-[72px]"
+      className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
         {imageError ? (
@@ -135,7 +135,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
 interface SearchAlbumItemProps {
   album: BaseItemDto
   onClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'album') => void
+  onContextMenu: (item: BaseItemDto, type: 'album', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
@@ -206,7 +206,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
 interface SearchSongItemProps {
   song: BaseItemDto
   onClick: (song: BaseItemDto) => void
-  onContextMenu: (item: BaseItemDto, type: 'song') => void
+  onContextMenu: (item: BaseItemDto, type: 'song', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
@@ -256,7 +256,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
-      className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center relative flex items-center justify-center">
         {imageError ? (
@@ -318,6 +318,8 @@ export default function PlaylistsPage() {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
 
   useEffect(() => {
@@ -488,9 +490,11 @@ export default function PlaylistsPage() {
     setRawSearchResults(null)
   }
 
-  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist') => {
+  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
     setContextMenuItem(item)
     setContextMenuItemType(type)
+    setContextMenuMode(mode)
+    setContextMenuPosition(position || null)
     setContextMenuOpen(true)
   }
 
@@ -576,6 +580,7 @@ export default function PlaylistsPage() {
 
       {/* Full-page search overlay - rendered via portal to escape stacking context */}
       {isSearchOpen && createPortal(
+        <>
         <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0">
           {/* Fixed overlay to hide content behind status bar */}
           <div 
@@ -627,7 +632,7 @@ export default function PlaylistsPage() {
                           onContextMenu={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            openContextMenu(playlist, 'playlist')
+                            openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
                           }}
                           className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
                         >
@@ -741,7 +746,8 @@ export default function PlaylistsPage() {
             )}
             </div>
           </div>
-        </div>,
+        </div>
+        </>,
         document.body
       )}
 
@@ -754,6 +760,9 @@ export default function PlaylistsPage() {
           setContextMenuItem(null)
           setContextMenuItemType(null)
         }}
+        zIndex={99999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </>
   )

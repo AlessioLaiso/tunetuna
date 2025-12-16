@@ -15,25 +15,46 @@ interface ArtistAlbumItemProps {
   album: BaseItemDto
   year: string | null
   onNavigate: (id: string) => void
-  onContextMenu: (album: BaseItemDto) => void
+  onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
 }
 
 function ArtistAlbumItem({ album, year, onNavigate, onContextMenu }: ArtistAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (contextMenuJustOpenedRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      contextMenuJustOpenedRef.current = false
+      return
+    }
+    onNavigate(album.Id)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 100)
+  }
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(album)
+      contextMenuJustOpenedRef.current = true
+      onContextMenu(album, 'mobile')
     },
-    onClick: () => onNavigate(album.Id),
+    onClick: handleClick,
   })
+
   return (
     <button
-      onClick={() => onNavigate(album.Id)}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(album)
-      }}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className="text-left group"
     >
@@ -64,10 +85,12 @@ interface ArtistSongItemProps {
   album: string | null
   year: string | null
   onClick: (song: BaseItemDto) => void
-  onContextMenu: (song: BaseItemDto) => void
+  onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId: string | null
 }
 
-function ArtistSongItem({ song, album, year, onClick, onContextMenu }: ArtistSongItemProps) {
+function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId }: ArtistSongItemProps) {
+  const isThisItemMenuOpen = contextMenuItemId === song.Id
   const { currentTrack } = usePlayerStore()
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -78,7 +101,7 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu }: ArtistSon
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(song)
+      onContextMenu(song, 'mobile')
     },
     onClick: () => onClick(song),
   })
@@ -87,10 +110,10 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu }: ArtistSon
       onClick={() => onClick(song)}
       onContextMenu={(e) => {
         e.preventDefault()
-        onContextMenu(song)
+        onContextMenu(song, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
-      className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
         <Image
@@ -144,9 +167,13 @@ export default function ArtistDetailPage() {
   const [isBioExpandable, setIsBioExpandable] = useState(true)
   const [hasImage, setHasImage] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | null>(null)
   const [artistContextMenuOpen, setArtistContextMenuOpen] = useState(false)
+  const [artistContextMenuMode, setArtistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [artistContextMenuPosition, setArtistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
   const bioMeasureRef = useRef<HTMLParagraphElement | null>(null)
 
@@ -490,7 +517,15 @@ export default function ArtistDetailPage() {
           </button>
           {artist && (
             <button
-              onClick={() => setArtistContextMenuOpen(true)}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                setArtistContextMenuMode('desktop')
+                setArtistContextMenuPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.bottom + 5
+                })
+                setArtistContextMenuOpen(true)
+              }}
               className="text-white hover:text-zinc-300 transition-colors z-10"
             >
               <MoreHorizontal className="w-6 h-6" />
@@ -663,9 +698,11 @@ export default function ArtistDetailPage() {
                     album={album}
                     year={year}
                     onNavigate={(id) => navigate(`/album/${id}`)}
-                    onContextMenu={(album) => {
+                    onContextMenu={(album, mode, position) => {
                       setContextMenuItem(album)
                       setContextMenuItemType('album')
+                      setContextMenuMode(mode || 'mobile')
+                      setContextMenuPosition(position || null)
                       setContextMenuOpen(true)
                     }}
                   />
@@ -721,11 +758,14 @@ export default function ArtistDetailPage() {
                     album={album}
                     year={year}
                     onClick={playTrack}
-                    onContextMenu={(song) => {
+                    onContextMenu={(song, mode, position) => {
                       setContextMenuItem(song)
                       setContextMenuItemType('song')
+                      setContextMenuMode(mode || 'mobile')
+                      setContextMenuPosition(position || null)
                       setContextMenuOpen(true)
                     }}
+                    contextMenuItemId={contextMenuItem?.Id || null}
                   />
                 )
               })}
@@ -742,6 +782,9 @@ export default function ArtistDetailPage() {
           setContextMenuItem(null)
           setContextMenuItemType(null)
         }}
+        zIndex={99999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
       <ContextMenu
         item={artist}
@@ -750,6 +793,8 @@ export default function ArtistDetailPage() {
         onClose={() => {
           setArtistContextMenuOpen(false)
         }}
+        mode={artistContextMenuMode}
+        position={artistContextMenuPosition || undefined}
       />
     </div>
   )

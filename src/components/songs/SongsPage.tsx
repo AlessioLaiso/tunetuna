@@ -19,7 +19,7 @@ import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
 interface SearchArtistItemProps {
   artist: BaseItemDto
   onClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'artist') => void
+  onContextMenu: (item: BaseItemDto, type: 'artist', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
@@ -88,7 +88,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
-    onContextMenu(artist, 'artist')
+    onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
     }, 100)
@@ -98,7 +98,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
-      onContextMenu(artist, 'artist')
+      onContextMenu(artist, 'artist', 'mobile')
     },
     onClick: handleClick,
   })
@@ -108,7 +108,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
-      className="w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px]"
+      className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
         {imageError ? (
@@ -138,7 +138,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
 interface SearchAlbumItemProps {
   album: BaseItemDto
   onClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'album') => void
+  onContextMenu: (item: BaseItemDto, type: 'album', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
@@ -161,7 +161,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
-    onContextMenu(album, 'album')
+    onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
     }, 100)
@@ -171,7 +171,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
-      onContextMenu(album, 'album')
+      onContextMenu(album, 'album', 'mobile')
     },
     onClick: handleClick,
   })
@@ -209,7 +209,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
 interface SearchSongItemProps {
   song: BaseItemDto
   onClick: (song: BaseItemDto) => void
-  onContextMenu: (item: BaseItemDto, type: 'song') => void
+  onContextMenu: (item: BaseItemDto, type: 'song', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
   showImage?: boolean
 }
@@ -240,7 +240,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
-    onContextMenu(song, 'song')
+    onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
     }, 100)
@@ -250,7 +250,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
-      onContextMenu(song, 'song')
+      onContextMenu(song, 'song', 'mobile')
     },
     onClick: handleClick,
   })
@@ -260,7 +260,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
-      className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center relative flex items-center justify-center">
         {imageError ? (
@@ -315,6 +315,8 @@ export default function SongsPage() {
     songs: BaseItemDto[]
   } | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
   const [isSearching, setIsSearching] = useState(false)
@@ -539,9 +541,11 @@ export default function SongsPage() {
     setRawSearchResults(null)
   }
 
-  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist') => {
+  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
     setContextMenuItem(item)
     setContextMenuItemType(type)
+    setContextMenuMode(mode)
+    setContextMenuPosition(position || null)
     setContextMenuOpen(true)
   }
 
@@ -732,6 +736,7 @@ export default function SongsPage() {
 
       {/* Full-page search overlay - rendered via portal to escape stacking context */}
       {isSearchOpen && createPortal(
+        <>
         <div
           ref={searchScrollRef}
           className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0"
@@ -887,7 +892,7 @@ export default function SongsPage() {
                           onContextMenu={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            openContextMenu(playlist, 'playlist')
+                            openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
                           }}
                           className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
                         >
@@ -926,7 +931,8 @@ export default function SongsPage() {
             )}
             </div>
           </div>
-        </div>,
+        </div>
+        </>,
         document.body
       )}
 
@@ -962,7 +968,9 @@ export default function SongsPage() {
           setContextMenuItem(null)
           setContextMenuItemType(null)
         }}
-        zIndex={isSearchOpen ? 200 : undefined}
+        zIndex={99999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </>
   )

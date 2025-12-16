@@ -15,6 +15,8 @@ interface SongItemProps {
 export default function SongItem({ song, showImage = true }: SongItemProps) {
   const { playTrack, currentTrack } = usePlayerStore()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const contextMenuJustOpenedRef = useRef(false)
   const [imageError, setImageError] = useState(false)
 
@@ -39,6 +41,8 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
       setContextMenuOpen(true)
     },
     onClick: handleClick,
@@ -48,6 +52,8 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
     setContextMenuOpen(true)
     // Reset the flag after a short delay to allow click prevention
     setTimeout(() => {
@@ -69,7 +75,7 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+        className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${contextMenuOpen ? 'bg-white/10' : ''}`}
       >
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
         {imageError ? (
@@ -111,6 +117,8 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
         itemType="song"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </>
   )

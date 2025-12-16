@@ -16,6 +16,8 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
   const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const contextMenuJustOpenedRef = useRef(false)
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
 
@@ -75,6 +77,8 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
       setContextMenuOpen(true)
     },
     onClick: handleClick,
@@ -84,6 +88,8 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
     setContextMenuOpen(true)
     // Reset the flag after a short delay to allow click prevention
     setTimeout(() => {
@@ -97,7 +103,7 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className="w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px]"
+        className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${contextMenuOpen ? 'bg-white/10' : ''}`}
       >
         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
           {imageError ? (
@@ -129,6 +135,9 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
         itemType="artist"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
+        zIndex={99999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </>
   )

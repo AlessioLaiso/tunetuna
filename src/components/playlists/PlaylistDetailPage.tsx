@@ -13,10 +13,12 @@ interface PlaylistTrackItemProps {
   index: number
   tracks: BaseItemDto[]
   onClick: (track: BaseItemDto, tracks: BaseItemDto[]) => void
-  onContextMenu: (track: BaseItemDto) => void
+  onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId: string | null
 }
 
-function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu }: PlaylistTrackItemProps) {
+function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, contextMenuItemId }: PlaylistTrackItemProps) {
+  const isThisItemMenuOpen = contextMenuItemId === track.Id
   const { currentTrack } = usePlayerStore()
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -27,7 +29,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu }: Pla
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(track)
+      onContextMenu(track, 'mobile')
     },
     onClick: () => onClick(track, tracks),
   })
@@ -36,10 +38,10 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu }: Pla
       onClick={() => onClick(track, tracks)}
       onContextMenu={(e) => {
         e.preventDefault()
-        onContextMenu(track)
+        onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
-      className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
         <Image
@@ -82,6 +84,8 @@ export default function PlaylistDetailPage() {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [playlistContextMenuOpen, setPlaylistContextMenuOpen] = useState(false)
+  const [playlistContextMenuMode, setPlaylistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [playlistContextMenuPosition, setPlaylistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -161,7 +165,15 @@ export default function PlaylistDetailPage() {
           </button>
           {playlist && (
             <button
-              onClick={() => setPlaylistContextMenuOpen(true)}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                setPlaylistContextMenuMode('desktop')
+                setPlaylistContextMenuPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.bottom + 5
+                })
+                setPlaylistContextMenuOpen(true)
+              }}
               className="text-white hover:text-zinc-300 transition-colors"
             >
               <MoreHorizontal className="w-6 h-6" />
@@ -208,10 +220,13 @@ export default function PlaylistDetailPage() {
                 index={index}
                 tracks={tracks}
                 onClick={(track) => playTrack(track, tracks)}
-                onContextMenu={(track) => {
+                onContextMenu={(track, mode, position) => {
                   setContextMenuItem(track)
+                  setContextMenuMode(mode || 'mobile')
+                  setContextMenuPosition(position || null)
                   setContextMenuOpen(true)
                 }}
+                contextMenuItemId={contextMenuItem?.Id || null}
               />
             ))}
           </div>
@@ -233,6 +248,8 @@ export default function PlaylistDetailPage() {
         onClose={() => {
           setPlaylistContextMenuOpen(false)
         }}
+        mode={playlistContextMenuMode}
+        position={playlistContextMenuPosition || undefined}
       />
     </div>
   )

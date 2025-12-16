@@ -11,12 +11,14 @@ import type { BaseItemDto } from '../../api/types'
 interface RecentlyPlayedSongItemProps {
   song: BaseItemDto
   onClick: (song: BaseItemDto) => void
-  onContextMenu: (song: BaseItemDto) => void
+  onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId: string | null
 }
 
-function RecentlyPlayedSongItem({ song, onClick, onContextMenu }: RecentlyPlayedSongItemProps) {
+function RecentlyPlayedSongItem({ song, onClick, onContextMenu, contextMenuItemId }: RecentlyPlayedSongItemProps) {
   const { currentTrack } = usePlayerStore()
   const [imageError, setImageError] = useState(false)
+  const isThisItemMenuOpen = contextMenuItemId === song.Id
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
@@ -26,7 +28,7 @@ function RecentlyPlayedSongItem({ song, onClick, onContextMenu }: RecentlyPlayed
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(song)
+      onContextMenu(song, 'mobile')
     },
     onClick: () => onClick(song),
   })
@@ -35,10 +37,10 @@ function RecentlyPlayedSongItem({ song, onClick, onContextMenu }: RecentlyPlayed
       onClick={() => onClick(song)}
       onContextMenu={(e) => {
         e.preventDefault()
-        onContextMenu(song)
+        onContextMenu(song, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
-      className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
         {imageError ? (
@@ -80,6 +82,8 @@ export default function RecentlyPlayed() {
   const { recentlyPlayed } = useMusicStore()
   const { playTrack } = usePlayerStore()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
 
   const handleSongClick = (song: typeof recentlyPlayed[0]) => {
@@ -99,10 +103,13 @@ export default function RecentlyPlayed() {
             key={song.Id}
             song={song}
             onClick={handleSongClick}
-            onContextMenu={(song) => {
+            onContextMenu={(song, mode, position) => {
               setContextMenuItem(song)
+              setContextMenuMode(mode || 'mobile')
+              setContextMenuPosition(position || null)
               setContextMenuOpen(true)
             }}
+            contextMenuItemId={contextMenuItem?.Id || null}
           />
         ))}
       </div>
@@ -114,6 +121,9 @@ export default function RecentlyPlayed() {
           setContextMenuOpen(false)
           setContextMenuItem(null)
         }}
+        zIndex={99999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </div>
   )

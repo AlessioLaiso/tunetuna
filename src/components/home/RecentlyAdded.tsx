@@ -11,25 +11,46 @@ import type { BaseItemDto } from '../../api/types'
 interface RecentlyAddedAlbumItemProps {
   album: BaseItemDto
   onNavigate: (id: string) => void
-  onContextMenu: (album: BaseItemDto) => void
+  onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
 }
+
 
 function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAddedAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (contextMenuJustOpenedRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      contextMenuJustOpenedRef.current = false
+      return
+    }
+    onNavigate(album.Id)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 100)
+  }
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(album)
+      contextMenuJustOpenedRef.current = true
+      onContextMenu(album, 'mobile')
     },
-    onClick: () => onNavigate(album.Id),
+    onClick: handleClick,
   })
   return (
     <button
-      onClick={() => onNavigate(album.Id)}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(album)
-      }}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className="text-left group"
     >
@@ -61,6 +82,8 @@ export default function RecentlyAdded() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
 
   useEffect(() => {
@@ -145,8 +168,11 @@ export default function RecentlyAdded() {
                         key={album.Id}
                         album={album}
                         onNavigate={(id) => navigate(`/album/${id}`)}
-                        onContextMenu={(album) => {
+                        onContextMenu={(album, mode, position) => {
                           setContextMenuItem(album)
+                          const newMode = mode || 'desktop'
+                          setContextMenuMode(newMode)
+                          setContextMenuPosition(position || null)
                           setContextMenuOpen(true)
                         }}
                       />
@@ -181,8 +207,11 @@ export default function RecentlyAdded() {
               key={album.Id}
               album={album}
               onNavigate={(id) => navigate(`/album/${id}`)}
-              onContextMenu={(album) => {
+              onContextMenu={(album, mode, position) => {
                 setContextMenuItem(album)
+                const newMode = mode || 'desktop'
+                setContextMenuMode(newMode)
+                setContextMenuPosition(position || null)
                 setContextMenuOpen(true)
               }}
             />
@@ -202,6 +231,9 @@ export default function RecentlyAdded() {
           setContextMenuOpen(false)
           setContextMenuItem(null)
         }}
+        zIndex={999999}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </div>
   )

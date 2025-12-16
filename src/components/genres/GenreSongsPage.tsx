@@ -16,7 +16,7 @@ interface GenreAlbumItemProps {
   album: BaseItemDto
   year: number | null
   onNavigate: (id: string) => void
-  onContextMenu: (album: BaseItemDto) => void
+  onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
 }
 
 function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumItemProps) {
@@ -24,7 +24,7 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumIt
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(album)
+      onContextMenu(album, 'mobile')
     },
     onClick: () => onNavigate(album.Id),
   })
@@ -34,7 +34,7 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumIt
       onClick={() => onNavigate(album.Id)}
       onContextMenu={(e) => {
         e.preventDefault()
-        onContextMenu(album)
+        onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
       className="text-left group"
@@ -70,6 +70,8 @@ export default function GenreSongsPage() {
   const [songs, setSongs] = useState<LightweightSong[]>([])
   const [loading, setLoading] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | null>(null)
 
@@ -341,9 +343,11 @@ export default function GenreSongsPage() {
                     album={album}
                     year={year}
                     onNavigate={(id) => navigate(`/album/${id}`)}
-                    onContextMenu={(album) => {
+                    onContextMenu={(album, mode, position) => {
                       setContextMenuItem(album)
                       setContextMenuItemType('album')
+                      setContextMenuMode(mode || 'mobile')
+                      setContextMenuPosition(position || null)
                       setContextMenuOpen(true)
                     }}
                   />
@@ -382,6 +386,8 @@ export default function GenreSongsPage() {
           setContextMenuItem(null)
           setContextMenuItemType(null)
         }}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
     </div>
   )

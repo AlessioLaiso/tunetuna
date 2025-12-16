@@ -13,6 +13,8 @@ interface PlaylistItemProps {
 export default function PlaylistItem({ playlist }: PlaylistItemProps) {
   const navigate = useNavigate()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const contextMenuJustOpenedRef = useRef(false)
 
   const handleClick = (e: React.MouseEvent) => {
@@ -29,6 +31,8 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
       setContextMenuOpen(true)
     },
     onClick: handleClick,
@@ -38,6 +42,8 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
     e.preventDefault()
     e.stopPropagation()
     contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
     setContextMenuOpen(true)
     // Reset the flag after a short delay to allow click prevention
     setTimeout(() => {
@@ -84,6 +90,8 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
       itemType="playlist"
       isOpen={contextMenuOpen}
       onClose={() => setContextMenuOpen(false)}
+      mode={contextMenuMode}
+      position={contextMenuPosition || undefined}
     />
     </>
   )

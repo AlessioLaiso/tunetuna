@@ -14,10 +14,12 @@ interface AlbumTrackItemProps {
   trackNumber: number | null
   tracks: BaseItemDto[]
   onClick: (track: BaseItemDto, tracks: BaseItemDto[]) => void
-  onContextMenu: (track: BaseItemDto) => void
+  onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId: string | null
 }
 
-function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu }: AlbumTrackItemProps) {
+function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
+  const isThisItemMenuOpen = contextMenuItemId === track.Id
   const { currentTrack } = usePlayerStore()
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -28,7 +30,7 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu }: 
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      onContextMenu(track)
+      onContextMenu(track, 'mobile')
     },
     onClick: () => onClick(track, tracks),
   })
@@ -37,10 +39,10 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu }: 
       onClick={() => onClick(track, tracks)}
       onContextMenu={(e) => {
         e.preventDefault()
-        onContextMenu(track)
+        onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
-      className="w-full flex items-baseline hover:bg-white/10 transition-colors group py-3"
+      className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
       <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${
         currentTrack?.Id === track.Id 
@@ -82,8 +84,12 @@ export default function AlbumDetailPage() {
   const [bioExpanded, setBioExpanded] = useState(false)
   const [hasImage, setHasImage] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [albumContextMenuOpen, setAlbumContextMenuOpen] = useState(false)
+  const [albumContextMenuMode, setAlbumContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [albumContextMenuPosition, setAlbumContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [artistLogoUrl, setArtistLogoUrl] = useState<string | null>(null)
   const [hasArtistLogo, setHasArtistLogo] = useState(false)
   const [showVinyl, setShowVinyl] = useState(false)
@@ -484,7 +490,15 @@ export default function AlbumDetailPage() {
             </button>
             {album && (
               <button
-                onClick={() => setAlbumContextMenuOpen(true)}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setAlbumContextMenuMode('desktop')
+                  setAlbumContextMenuPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5
+                  })
+                  setAlbumContextMenuOpen(true)
+                }}
                 className="text-white hover:text-zinc-300 transition-colors"
               >
                 <MoreHorizontal className="w-6 h-6" />
@@ -732,10 +746,13 @@ export default function AlbumDetailPage() {
                         trackNumber={track.IndexNumber ?? null}
                         tracks={tracks}
                         onClick={(track) => playTrack(track, tracks)}
-                        onContextMenu={(track) => {
+                        onContextMenu={(track, mode, position) => {
                           setContextMenuItem(track)
+                          setContextMenuMode(mode || 'mobile')
+                          setContextMenuPosition(position || null)
                           setContextMenuOpen(true)
                         }}
+                        contextMenuItemId={contextMenuItem?.Id || null}
                       />
                     ))}
                   </div>
@@ -753,6 +770,8 @@ export default function AlbumDetailPage() {
           setContextMenuOpen(false)
           setContextMenuItem(null)
         }}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
       <ContextMenu
         item={album}
@@ -761,6 +780,8 @@ export default function AlbumDetailPage() {
         onClose={() => {
           setAlbumContextMenuOpen(false)
         }}
+        mode={albumContextMenuMode}
+        position={albumContextMenuPosition || undefined}
       />
     </div>
   )
