@@ -335,7 +335,7 @@ class JellyfinClient {
     
     // Check persistent store first
     const store = useMusicStore.getState()
-    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+    const COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
     
     if (!forceRefresh && store.genres.length > 0 && store.genresLastUpdated) {
       // Check if cooldown has expired
@@ -349,34 +349,49 @@ class JellyfinClient {
         return store.genres
       }
       
-      // Cooldown expired, check for new tracks
+      // Cooldown expired, check for new or modified tracks
       try {
+        // Check both recently added AND recently modified songs
         const recentlyAdded = await this.getRecentlyAdded(50)
-        const items = recentlyAdded.Items || []
-        
-        // Find newest item with DateCreated
+        const recentlyModified = await this.getSongs({
+          limit: 50,
+          sortBy: ['DateLastSaved'],
+          sortOrder: 'Descending'
+        })
+
+        const items = [...(recentlyAdded.Items || []), ...(recentlyModified.Items || [])]
+
+        // Find newest item with DateCreated OR DateLastSaved
         let newestDate = 0
         for (const item of items) {
+          // Check DateCreated for new items
           if (item.DateCreated) {
             const itemDate = new Date(item.DateCreated).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
           }
+          // Check DateLastSaved for modified items
+          if (item.DateLastSaved) {
+            const itemDate = new Date(item.DateLastSaved).getTime()
+            if (itemDate > newestDate) {
+              newestDate = itemDate
+            }
+          }
         }
-        
-        // Update last checked timestamp even if no new tracks
+
+        // Update last checked timestamp even if no changes
         useMusicStore.setState({ genresLastChecked: now })
-        
+
         // Only refresh if we found items newer than last update
         if (newestDate <= store.genresLastUpdated) {
-          // No new tracks, return cached genres
+          // No new or modified tracks, return cached genres
           this.genresCache = store.genres
           return store.genres
         }
       } catch (error) {
         // If check fails, gracefully fall back to cached genres
-        console.warn('[getGenres] Failed to check for new tracks, using cached genres:', error)
+        console.warn('[getGenres] Failed to check for new/modified tracks, using cached genres:', error)
         this.genresCache = store.genres
         return store.genres
       }
@@ -516,11 +531,11 @@ class JellyfinClient {
       // Update store with new genres and timestamps
       const now = Date.now()
       useMusicStore.getState().setGenres(musicGenres)
-      useMusicStore.setState({ 
+      useMusicStore.setState({
         genresLastUpdated: now,
-        genresLastChecked: now 
+        genresLastChecked: now
       })
-      
+
       // Cache the result
       this.genresCache = musicGenres
       return musicGenres
@@ -542,7 +557,7 @@ class JellyfinClient {
     }
     
     const store = useMusicStore.getState()
-    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+    const COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
     
     if (!forceRefresh && store.years.length > 0 && store.yearsLastUpdated) {
       const now = Date.now()
@@ -623,8 +638,9 @@ class JellyfinClient {
 
 
   async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<LightweightSong[]> {
+
     let allSongs: BaseItemDto[] = []
-    
+
     // If forcing client-side filter, or if it's a synthetic genre, fetch all songs and filter client-side
     // This ensures we get fresh metadata from the server, bypassing stale genre indexes
     if (genreId.startsWith('synthetic-') || forceClientSideFilter) {
@@ -668,8 +684,6 @@ class JellyfinClient {
     // This uses the Genres field from the song object, which should be fresh from the server
     const filtered = allSongs.filter(song => {
       const hasGenre = song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
-
-
       return hasGenre
     })
 
