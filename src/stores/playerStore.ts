@@ -237,6 +237,14 @@ export const usePlayerStore = create<PlayerState>()(
         set((state) => {
           const newTracks = tracks.map(track => ({ ...track, _isRecommended: isRecommended }))
 
+          // Handle case where currentTrack exists but is not in the queue
+          // (happens when queue was manually cleared while song was playing)
+          let effectiveNewTracks = [...newTracks]
+          if (state.currentTrack && !state.originalQueue.some(t => t.Id === state.currentTrack?.Id) && !isRecommended) {
+            // Current track is playing but not in queue - prepend it to maintain continuity
+            effectiveNewTracks = [{ ...state.currentTrack, _isRecommended: false }, ...newTracks]
+          }
+
           // Get user-added songs order based on shuffle state
           const userAddedOrder = state.shuffle ? (state.shuffledOrder || []) : (state.originalQueue || [])
           
@@ -247,15 +255,15 @@ export const usePlayerStore = create<PlayerState>()(
           
           if (isRecommended) {
             // Recommendations: Simply append to recommendations array and rebuild queue
-            newRecommendations = [...state.recommendations, ...newTracks]
+            newRecommendations = [...state.recommendations, ...effectiveNewTracks]
             newQueue = [...userAddedOrder, ...newRecommendations]
             newOriginalQueue = [...state.originalQueue]  // Don't add recommendations to originalQueue
             newShuffledOrder = [...state.shuffledOrder]  // Don't add recommendations to shuffledOrder
           } else {
             // User-added songs: insert before recommendations
-            // Check for duplicates in newTracks
+            // Check for duplicates in effectiveNewTracks
             const existingIds = new Set([...state.originalQueue.map(t => t.Id)])
-            const uniqueNewTracks = newTracks.filter(t => !existingIds.has(t.Id))
+            const uniqueNewTracks = effectiveNewTracks.filter(t => !existingIds.has(t.Id))
             
             // Add to originalQueue (unshuffled order)
             newOriginalQueue = [...state.originalQueue, ...uniqueNewTracks]
@@ -376,7 +384,7 @@ export const usePlayerStore = create<PlayerState>()(
             shuffledOrder: newShuffledOrder,
             recommendations: newRecommendations,
             currentIndex: newIndex,
-            manuallyCleared: true,
+            manuallyCleared: rebuiltQueue.length === 0 ? true : state.manuallyCleared,
           }
         })
       },

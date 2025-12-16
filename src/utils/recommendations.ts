@@ -24,7 +24,7 @@ export async function getRecommendedSongs({
 
   try {
     const genres = currentTrack.Genres || []
-  const year = currentTrack.ProductionYear || currentTrack.PremiereDate
+    const year = currentTrack.ProductionYear || currentTrack.PremiereDate
     ? new Date(currentTrack.PremiereDate || '').getFullYear()
     : null
 
@@ -40,7 +40,7 @@ export async function getRecommendedSongs({
       artistItems: currentTrack.ArtistItems,
     })
   }
-  
+
   if (genres.length === 0 && isDev) {
     console.error('[Recommendations] Current track has no genres; falling back to non-genre strategies.')
   }
@@ -130,7 +130,7 @@ export async function getRecommendedSongs({
           { range: 7, years: [year - 7, year - 6, year - 5, year - 4, year - 3, year - 2, year - 1, year, year + 1, year + 2, year + 3, year + 4, year + 5, year + 6, year + 7] },
           { range: 10, years: [year - 10, year - 9, year - 8, year - 7, year - 6, year - 5, year - 4, year - 3, year - 2, year - 1, year, year + 1, year + 2, year + 3, year + 4, year + 5, year + 6, year + 7, year + 8, year + 9, year + 10] },
         ]
-        
+
         // Try each year range progressively, only expanding if we don't have enough
         for (const { range, years } of yearRanges) {
           if (yearMatchedSongs.length >= MIN_SONGS_NEEDED && range > 3) {
@@ -141,16 +141,16 @@ export async function getRecommendedSongs({
             }
             break
           }
-          
+
           const result = await jellyfinClient.getSongs({ years, limit: 300 })
           const songs = result.Items || []
-          
+
           // Filter by genre and add new matches
-          const matches = songs.filter(song => 
+          const matches = songs.filter(song =>
             song.Genres?.some(g => syntheticGenreNames.some(cg => cg.toLowerCase() === g.toLowerCase())) &&
             !yearMatchedIds.has(song.Id)
           )
-          
+
           matches.forEach(song => {
             yearMatchedSongs.push(song)
             yearMatchedIds.add(song.Id)
@@ -160,7 +160,7 @@ export async function getRecommendedSongs({
               `[Recommendations] Year range ±${range} returned ${matches.length} genre-matched songs (total: ${yearMatchedSongs.length})`,
             )
           }
-          
+
           if (yearMatchedSongs.length >= MIN_SONGS_NEEDED) {
             if (isDev) {
               console.log(
@@ -213,11 +213,13 @@ export async function getRecommendedSongs({
       
       // Deduplicate and filter recent
       const unique = Array.from(new Map(combined.map(song => [song.Id, song])).values())
+
       const recentIds = new Set([
         currentTrack.Id,
         ...queue.map(s => s.Id),
         ...recentQueue.map(s => s.Id),
       ])
+
       const filtered = unique.filter(song => !recentIds.has(song.Id))
       
       // Prioritize by year if year is available
@@ -233,9 +235,11 @@ export async function getRecommendedSongs({
           return Math.abs(aYear - year) - Math.abs(bYear - year)
         })
       }
-      
-      if (prioritized.length > 0 && isDev) {
-        console.log(`[Recommendations] Found ${prioritized.length} songs by genre name filtering`)
+
+      if (prioritized.length > 0) {
+        if (isDev) {
+          console.log(`[Recommendations] Found ${prioritized.length} songs by genre name filtering`)
+        }
         return prioritized.slice(0, 10)
       }
     } catch (error) {
@@ -951,7 +955,7 @@ export async function getRecommendedSongs({
   if (isDev) {
     console.log(`[Recommendations] Final result: ${result.length} recommendations`)
   }
-  
+
   return result
   } catch (error) {
     if (isDev) {
