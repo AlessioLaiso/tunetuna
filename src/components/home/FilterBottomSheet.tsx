@@ -13,6 +13,8 @@ interface FilterBottomSheetProps {
   onApplyYear?: (range: { min: number | null; max: number | null }) => void
   // For genre - need genre objects
   genres?: BaseItemDto[]
+  selectedValues?: string[]
+  onApply?: (selected: string[]) => void
 }
 
 export default function FilterBottomSheet({
@@ -23,8 +25,11 @@ export default function FilterBottomSheet({
   yearRange = { min: null, max: null },
   onApplyYear,
   genres = [],
+  selectedValues = [],
+  onApply,
 }: FilterBottomSheetProps) {
   const [localYearRange, setLocalYearRange] = useState<{ min: number | null; max: number | null }>(yearRange)
+  const [localSelectedGenres, setLocalSelectedGenres] = useState<string[]>(selectedValues)
   const minYearRef = useRef<HTMLDivElement>(null)
   const maxYearRef = useRef<HTMLDivElement>(null)
 
@@ -32,9 +37,23 @@ export default function FilterBottomSheet({
     setLocalYearRange(yearRange)
   }, [yearRange])
 
+  useEffect(() => {
+    setLocalSelectedGenres(selectedValues)
+  }, [selectedValues])
+
+  const handleToggle = (genreName: string) => {
+    setLocalSelectedGenres(prev =>
+      prev.includes(genreName)
+        ? prev.filter(g => g !== genreName)
+        : [...prev, genreName]
+    )
+  }
+
   const handleApply = () => {
     if (filterType === 'year' && onApplyYear) {
       onApplyYear(localYearRange)
+    } else if (filterType === 'genre' && onApply) {
+      onApply(localSelectedGenres)
     }
     onClose()
   }
@@ -45,6 +64,8 @@ export default function FilterBottomSheet({
       if (onApplyYear) {
         onApplyYear({ min: null, max: null })
       }
+    } else if (filterType === 'genre') {
+      setLocalSelectedGenres([])
     }
     onClose()
   }
@@ -238,7 +259,7 @@ export default function FilterBottomSheet({
                     .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
                     .map((genre) => {
                       const genreName = genre.Name || ''
-                      const isSelected = localSelected.includes(genreName)
+                      const isSelected = localSelectedGenres.includes(genreName)
                       return (
                         <button
                           key={genre.Id}

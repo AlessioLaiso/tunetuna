@@ -29,6 +29,7 @@ export default function PlayerBar() {
     toggleRepeat,
     previous,
     previousSongs,
+    seek,
   } = usePlayerStore()
   const [showModal, setShowModal] = useState(false)
   const [isModalClosing, setIsModalClosing] = useState(false)
@@ -368,7 +369,24 @@ export default function PlayerBar() {
             </div>
           </div>
           {displayTrack && (
-            <div className="h-1 bg-zinc-800">
+            <div
+              className="h-1 bg-zinc-800 hover:bg-zinc-600 cursor-pointer transition-colors duration-200"
+              onClick={(e) => {
+                e.stopPropagation() // Prevent opening the modal
+                if (!duration) return
+                const rect = e.currentTarget.getBoundingClientRect()
+                const percent = (e.clientX - rect.left) / rect.width
+                seek(Math.max(0, Math.min(1, percent)) * duration)
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation() // Prevent opening the modal
+                if (!duration) return
+                const touch = e.touches[0]
+                const rect = e.currentTarget.getBoundingClientRect()
+                const percent = (touch.clientX - rect.left) / rect.width
+                seek(Math.max(0, Math.min(1, percent)) * duration)
+              }}
+            >
               <div
                 className="h-full bg-[var(--accent-color)] transition-all"
                 style={{ width: `${progressPercent}%` }}
