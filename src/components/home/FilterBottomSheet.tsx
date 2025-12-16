@@ -6,11 +6,7 @@ import type { BaseItemDto } from '../../api/types'
 interface FilterBottomSheetProps {
   isOpen: boolean
   onClose: () => void
-  filterType: 'genre' | 'year' | 'grouping'
-  // For genre and grouping
-  options?: string[]
-  selectedValues?: string[]
-  onApply?: (selected: string[]) => void
+  filterType: 'genre' | 'year'
   // For year
   availableYears?: number[]
   yearRange?: { min: number | null; max: number | null }
@@ -23,39 +19,22 @@ export default function FilterBottomSheet({
   isOpen,
   onClose,
   filterType,
-  options = [],
-  selectedValues = [],
-  onApply,
   availableYears = [],
   yearRange = { min: null, max: null },
   onApplyYear,
   genres = [],
 }: FilterBottomSheetProps) {
-  const [localSelected, setLocalSelected] = useState<string[]>(selectedValues)
   const [localYearRange, setLocalYearRange] = useState<{ min: number | null; max: number | null }>(yearRange)
   const minYearRef = useRef<HTMLDivElement>(null)
   const maxYearRef = useRef<HTMLDivElement>(null)
-
-  // Reset local state when props change
-  useEffect(() => {
-    setLocalSelected(selectedValues)
-  }, [selectedValues])
 
   useEffect(() => {
     setLocalYearRange(yearRange)
   }, [yearRange])
 
-  const handleToggle = (value: string) => {
-    setLocalSelected((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    )
-  }
-
   const handleApply = () => {
     if (filterType === 'year' && onApplyYear) {
       onApplyYear(localYearRange)
-    } else if (onApply) {
-      onApply(localSelected)
     }
     onClose()
   }
@@ -65,11 +44,6 @@ export default function FilterBottomSheet({
       setLocalYearRange({ min: null, max: null })
       if (onApplyYear) {
         onApplyYear({ min: null, max: null })
-      }
-    } else {
-      setLocalSelected([])
-      if (onApply) {
-        onApply([])
       }
     }
     onClose()
@@ -154,7 +128,7 @@ export default function FilterBottomSheet({
         {/* Header */}
         <div className="flex items-center justify-between mb-4 px-4">
           <div className="text-lg font-semibold text-white">
-            Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : 'Grouping'}
+            Filter by {filterType === 'genre' ? 'Genre' : 'Year'}
           </div>
           <button
             onClick={onClose}
@@ -297,40 +271,9 @@ export default function FilterBottomSheet({
                     <div className="text-sm">No genres available</div>
                   </div>
                 )
-              ) : options.length > 0 ? (
-                // For groupings or if no genres provided, use options array
-                options.map((option) => {
-                  const isSelected = localSelected.includes(option)
-                  return (
-                    <button
-                      key={option}
-                      onClick={() => handleToggle(option)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
-                    >
-                      <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          isSelected
-                            ? 'bg-white border-white'
-                            : 'border-white/40 bg-transparent'
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-white font-medium">{option}</span>
-                    </button>
-                  )
-                })
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  <div className="text-sm">No {filterType === 'genre' ? 'genres' : 'groupings'} available</div>
+                  <div className="text-sm">No genres available</div>
                 </div>
               )}
             </div>

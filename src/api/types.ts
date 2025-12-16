@@ -29,7 +29,6 @@ export interface BaseItemDto {
   IndexNumber?: number
   ParentIndexNumber?: number
   Genres?: string[]
-  Grouping?: string
   MediaType?: string
   Type?: string
   UserData?: {

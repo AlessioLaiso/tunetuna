@@ -13,9 +13,6 @@ interface MusicState {
   years: number[]
   yearsLastUpdated: number | null
   yearsLastChecked: number | null
-  groupings: string[]
-  groupingsLastUpdated: number | null
-  groupingsLastChecked: number | null
   recentlyAdded: BaseItemDto[]
   recentlyPlayed: BaseItemDto[]
   loading: {
@@ -40,7 +37,6 @@ interface MusicState {
   clearGenreSongs: () => void
   clearGenreSongsForGenre: (genreId: string) => void
   setYears: (years: number[]) => void
-  setGroupings: (groupings: string[]) => void
   setRecentlyAdded: (items: BaseItemDto[]) => void
   setRecentlyPlayed: (items: BaseItemDto[]) => void
   addToRecentlyPlayed: (track: BaseItemDto) => void
@@ -61,9 +57,6 @@ export const useMusicStore = create<MusicState>()(
       years: [],
       yearsLastUpdated: null,
       yearsLastChecked: null,
-      groupings: [],
-      groupingsLastUpdated: null,
-      groupingsLastChecked: null,
       recentlyAdded: [],
       recentlyPlayed: [],
       loading: {
@@ -95,7 +88,6 @@ export const useMusicStore = create<MusicState>()(
         return { genreSongs: newGenreSongs }
       }),
       setYears: (years) => set({ years }),
-      setGroupings: (groupings) => set({ groupings }),
       setRecentlyAdded: (items) => set({ recentlyAdded: items }),
       setRecentlyPlayed: (items) => set({ recentlyPlayed: items }),
       addToRecentlyPlayed: (track) => set((state) => {
@@ -127,13 +119,10 @@ export const useMusicStore = create<MusicState>()(
         genresLastUpdated: state.genresLastUpdated,
         genresLastChecked: state.genresLastChecked,
         genreSongs: state.genreSongs,
-        // Persist years and groupings for filter caching
+        // Persist years for filter caching
         years: state.years,
         yearsLastUpdated: state.yearsLastUpdated,
         yearsLastChecked: state.yearsLastChecked,
-        groupings: state.groupings,
-        groupingsLastUpdated: state.groupingsLastUpdated,
-        groupingsLastChecked: state.groupingsLastChecked,
         // Persist recently played for client-side tracking
         recentlyPlayed: state.recentlyPlayed,
       }),

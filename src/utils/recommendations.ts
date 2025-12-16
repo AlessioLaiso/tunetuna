@@ -693,16 +693,6 @@ export async function getRecommendedSongs({
     console.log(`[Recommendations] Queue artist IDs: ${queueArtistIds.size} unique artists`)
   }
 
-  // Extract grouping tags from user-added queue songs
-  const queueGroupings = new Set(
-    userAddedQueue.map(s => s.Grouping).filter((g): g is string => Boolean(g)),
-  )
-  if (isDev) {
-    console.log(
-      `[Recommendations] Queue groupings: ${queueGroupings.size} unique groupings`,
-      queueGroupings.size > 0 ? Array.from(queueGroupings) : 'none',
-    )
-  }
 
   const prioritizeByArtist = (songs: BaseItemDto[]) => {
     return songs.sort((a, b) => {
@@ -718,19 +708,6 @@ export async function getRecommendedSongs({
     })
   }
 
-  const prioritizeByGrouping = (songs: BaseItemDto[]) => {
-    return songs.sort((a, b) => {
-      const aGrouping = a.Grouping
-      const bGrouping = b.Grouping
-      
-      const aMatches = aGrouping && queueGroupings.has(aGrouping)
-      const bMatches = bGrouping && queueGroupings.has(bGrouping)
-      
-      if (aMatches && !bMatches) return -1
-      if (!aMatches && bMatches) return 1
-      return 0
-    })
-  }
 
   const prioritizeByYear = (songs: BaseItemDto[]) => {
     if (!year || isNaN(year)) return songs
@@ -760,23 +737,21 @@ export async function getRecommendedSongs({
     })
   }
 
-  // Apply prioritization: first by artist, then by grouping, then by year
+  // Apply prioritization: first by artist, then by year
   const prioritizedByArtist = prioritizeByArtist(genreMatched)
-  const prioritizedByGrouping = prioritizeByGrouping(prioritizedByArtist)
-  const prioritized = prioritizeByYear(prioritizedByGrouping)
+  const prioritized = prioritizeByYear(prioritizedByArtist)
   if (isDev) {
     console.log(`[Recommendations] After prioritization: ${prioritized.length} songs`)
   }
   
   // Add randomization within priority groups to avoid always recommending the same song
-  // Group songs by their priority score (artist match, grouping match, year proximity)
+  // Group songs by their priority score (artist match, year proximity)
   const priorityGroups = new Map<string, BaseItemDto[]>()
   prioritized.forEach(song => {
     const artistMatch = (() => {
       const songArtistId = song.AlbumArtist || song.ArtistItems?.[0]?.Id
       return songArtistId && queueArtistIds.has(songArtistId) ? 'artist' : 'no-artist'
     })()
-    const groupingMatch = song.Grouping && queueGroupings.has(song.Grouping) ? 'grouping' : 'no-grouping'
     const yearScore = (() => {
       if (!year || isNaN(year)) return 'no-year'
       const songYear = song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : null)
@@ -786,7 +761,7 @@ export async function getRecommendedSongs({
       if (diff <= 5) return 'year-medium'
       return 'year-far'
     })()
-    const key = `${artistMatch}-${groupingMatch}-${yearScore}`
+    const key = `${artistMatch}-${yearScore}`
     if (!priorityGroups.has(key)) {
       priorityGroups.set(key, [])
     }
@@ -843,11 +818,10 @@ export async function getRecommendedSongs({
   const getPriorityScore = (key: string): number => {
     const parts = key.split('-')
     const artistMatch = parts[0] === 'artist' ? 100 : 0
-    const groupingMatch = parts[1] === 'grouping' ? 50 : 0
-    const yearScore = parts[2] === 'year-close' ? 30 : 
-                     parts[2] === 'year-medium' ? 20 : 
-                     parts[2] === 'year-far' ? 10 : 0
-    return artistMatch + groupingMatch + yearScore
+    const yearScore = parts[1] === 'year-close' ? 30 :
+                     parts[1] === 'year-medium' ? 20 :
+                     parts[1] === 'year-far' ? 10 : 0
+    return artistMatch + yearScore
   }
   
   const shuffledPrioritized: BaseItemDto[] = []

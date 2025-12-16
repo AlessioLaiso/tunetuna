@@ -217,7 +217,7 @@ class JellyfinClient {
     }
 
     params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,ProductionYear')
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear')
     
     // Add cache-busting timestamp to force fresh data from server
     if (cacheBust) {
@@ -233,7 +233,7 @@ class JellyfinClient {
     }
     const query = new URLSearchParams({
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,Overview',
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Overview',
     })
     try {
       const result = await this.request<BaseItemDto>(`/Items/${artistId}?${query}`)
@@ -273,7 +273,7 @@ class JellyfinClient {
     }
     const query = new URLSearchParams({
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres,Overview',
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Overview',
     })
     try {
       const result = await this.request<BaseItemDto>(`/Items/${albumId}?${query}`)
@@ -290,7 +290,7 @@ class JellyfinClient {
     }
     const query = new URLSearchParams({
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Grouping,Genres',
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres',
     })
     try {
       const result = await this.request<BaseItemDto>(`/Items/${songId}?${query}`)
@@ -617,90 +617,6 @@ class JellyfinClient {
     }
   }
 
-  async getGroupings(forceRefresh = false): Promise<string[]> {
-    if (!this.userId || !this.baseUrl) {
-      throw new Error('Not authenticated')
-    }
-    
-    const store = useMusicStore.getState()
-    const COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
-    
-    if (!forceRefresh && store.groupings.length > 0 && store.groupingsLastUpdated) {
-      const now = Date.now()
-      const lastChecked = store.groupingsLastChecked || 0
-      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
-      
-      if (!cooldownExpired) {
-        return store.groupings
-      }
-      
-      // Cooldown expired, check for new tracks
-      try {
-        const recentlyAdded = await this.getRecentlyAdded(50)
-        const items = recentlyAdded.Items || []
-        
-        let newestDate = 0
-        for (const item of items) {
-          if (item.DateCreated) {
-            const itemDate = new Date(item.DateCreated).getTime()
-            if (itemDate > newestDate) {
-              newestDate = itemDate
-            }
-          }
-        }
-        
-        useMusicStore.setState({ groupingsLastChecked: now })
-        
-        if (newestDate <= store.groupingsLastUpdated) {
-          return store.groupings
-        }
-      } catch (error) {
-        console.warn('[getGroupings] Failed to check for new tracks, using cached groupings:', error)
-        return store.groupings
-      }
-    }
-    
-    // Extract unique groupings from songs
-    try {
-      const uniqueGroupings = new Set<string>()
-      let startIndex = 0
-      const limit = 200
-      let hasMore = true
-      
-      while (hasMore) {
-        const songItems = await this.getSongs({ limit, startIndex })
-        const songs = songItems.Items || []
-        
-        songs.forEach(song => {
-          if (song.Grouping && song.Grouping.trim()) {
-            uniqueGroupings.add(song.Grouping.trim())
-          }
-        })
-        
-        hasMore = songs.length === limit
-        startIndex += limit
-        
-        if (startIndex > 10000) break
-      }
-      
-      const groupings = Array.from(uniqueGroupings).sort((a, b) => a.localeCompare(b))
-      
-      const now = Date.now()
-      useMusicStore.getState().setGroupings(groupings)
-      useMusicStore.setState({
-        groupingsLastUpdated: now,
-        groupingsLastChecked: now,
-      })
-      
-      return groupings
-    } catch (error) {
-      console.error('[getGroupings] Failed to extract groupings:', error)
-      if (store.groupings.length > 0) {
-        return store.groupings
-      }
-      return []
-    }
-  }
 
   async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<BaseItemDto[]> {
     let allSongs: BaseItemDto[] = []
