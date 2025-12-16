@@ -23,6 +23,9 @@ export function useRecommendations() {
     refreshCurrentTrack,
     isFetchingRecommendations,
     setIsFetchingRecommendations,
+    collectionStartIndex,
+    originalQueue,
+    playedSongIds,
   } = usePlayerStore()
   const { enableQueueRecommendations } = useSettingsStore()
   const recentQueueRef = useRef<typeof queue>([])
@@ -129,15 +132,17 @@ export function useRecommendations() {
           queue: currentQueueNow,
           currentTrack: currentTrackNow,
           lastPlayedTrack: lastPlayedTrackNow,
+          playedSongIds: currentPlayedSongIds,
         } = usePlayerStore.getState()
 
         const safeCombined = combined.filter((r) => {
           const inQueue = currentQueueNow.some((q) => q.Id === r.Id)
           const isCurrent = currentTrackNow?.Id === r.Id
           const isLastPlayed = lastPlayedTrackNow?.Id === r.Id
-          if (inQueue || isCurrent || isLastPlayed) {
+          const alreadyPlayed = currentPlayedSongIds.includes(r.Id)
+          if (inQueue || isCurrent || isLastPlayed || alreadyPlayed) {
             console.warn(
-              `[Recommendations Hook] Filtering out ${r.Name} (${r.Id}) - inQueue: ${inQueue}, isCurrent: ${isCurrent}, isLastPlayed: ${isLastPlayed}`
+              `[Recommendations Hook] Filtering out ${r.Name} (${r.Id}) - inQueue: ${inQueue}, isCurrent: ${isCurrent}, isLastPlayed: ${isLastPlayed}, alreadyPlayed: ${alreadyPlayed}`
             )
             return false
           }

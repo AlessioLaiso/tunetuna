@@ -83,6 +83,7 @@ interface PlayerState {
   recommendations: QueueItem[] // Recommendations stored separately, always appended to end
   previousSongs: QueueItem[]
   playedSongIds: string[] // Track all played song IDs (for shuffle mode UI filtering)
+  collectionStartIndex: number // Index where collection playback effectively started (for slicing when shuffle is disabled)
   currentIndex: number
   isPlaying: boolean
   currentTime: number
@@ -131,6 +132,7 @@ export const usePlayerStore = create<PlayerState>()(
       recommendations: [], // Recommendations stored separately
       previousSongs: [],
       playedSongIds: [],
+      collectionStartIndex: -1, // -1 means no collection start (individual song playback)
       currentIndex: -1,
       isPlaying: false,
       currentTime: 0,
@@ -383,13 +385,14 @@ export const usePlayerStore = create<PlayerState>()(
         // Clear only the queue arrays (user-added songs and recommendations)
         // Keep currentTrack, lastPlayedTrack, isPlaying, and audio state intact
         // Set manuallyCleared to prevent recommendations until user plays/adds a new song
-        set({ 
-          queue: [], 
-          originalQueue: [], 
+        set({
+          queue: [],
+          originalQueue: [],
           shuffledOrder: [],
           recommendations: [], // Clear recommendations array
-          previousSongs: [], 
-          playedSongIds: [], 
+          previousSongs: [],
+          playedSongIds: [],
+          collectionStartIndex: -1, // Reset collection start index
           currentIndex: -1,
           manuallyCleared: true, // Prevent recommendations until user plays/adds a new song
           // Keep currentTrack, lastPlayedTrack, isPlaying unchanged
@@ -626,7 +629,6 @@ export const usePlayerStore = create<PlayerState>()(
           const newRecommendations = newQueue.filter(
             (t, idx) => (t as any)._isRecommended && idx > adjustedNextIndex
           )
-
           return {
             queue: newQueue,
             originalQueue: newOriginalQueue,
@@ -685,7 +687,6 @@ export const usePlayerStore = create<PlayerState>()(
               if (!newOriginalQueue.some(t => t.Id === songToPlay.Id)) {
                 newOriginalQueue.unshift(songToPlay)
               }
-              
               
               return {
                 queue: newQueue,
@@ -759,7 +760,7 @@ export const usePlayerStore = create<PlayerState>()(
           if (newShuffle) {
             // Enabling shuffle: Generate shuffled order for "Added by You" songs
             // Only shuffle songs AFTER the current song
-            
+
             // Find current track position in originalQueue
             let currentTrackInOriginal = -1
             if (currentTrack) {
@@ -769,11 +770,32 @@ export const usePlayerStore = create<PlayerState>()(
             let shuffledOrder: QueueItem[]
             
             if (currentTrackInOriginal >= 0) {
-              // Keep everything up to and including current track
-              const beforeCurrent = state.originalQueue.slice(0, currentTrackInOriginal + 1)
-              const afterCurrent = state.originalQueue.slice(currentTrackInOriginal + 1)
-              const shuffledAfter = shuffleArray(afterCurrent)
-              shuffledOrder = [...beforeCurrent, ...shuffledAfter]
+              // For collection playback, only shuffle songs that are part of the current collection
+              let songsToShuffle: typeof state.originalQueue
+              let beforeCurrent: typeof state.originalQueue = []
+
+              if (state.collectionStartIndex > 0) {
+                // We started from middle of collection, only shuffle from collectionStartIndex onwards
+                songsToShuffle = state.originalQueue.slice(state.collectionStartIndex)
+                // Find current track position within the collection slice
+                const currentInCollection = songsToShuffle.findIndex(t => t.Id === currentTrack.Id)
+                if (currentInCollection >= 0) {
+                  beforeCurrent = songsToShuffle.slice(0, currentInCollection + 1)
+                  const afterCurrent = songsToShuffle.slice(currentInCollection + 1)
+                  const shuffledAfter = shuffleArray(afterCurrent)
+                  shuffledOrder = [...beforeCurrent, ...shuffledAfter]
+                } else {
+                  // Current track not found in collection, shuffle everything in collection
+                  shuffledOrder = shuffleArray(songsToShuffle)
+                }
+              } else {
+                // Normal case: keep everything up to current track, shuffle the rest
+                beforeCurrent = state.originalQueue.slice(0, currentTrackInOriginal + 1)
+                const afterCurrent = state.originalQueue.slice(currentTrackInOriginal + 1)
+                const shuffledAfter = shuffleArray(afterCurrent)
+                shuffledOrder = [...beforeCurrent, ...shuffledAfter]
+              }
+
             } else if (state.originalQueue.length > 0) {
               // Current track not in originalQueue, shuffle everything
               shuffledOrder = shuffleArray(state.originalQueue)
@@ -781,9 +803,14 @@ export const usePlayerStore = create<PlayerState>()(
               // No originalQueue, nothing to shuffle
               shuffledOrder = []
             }
-            
+
             // Build final queue using shuffled order + recommendations
             const finalQueue = [...shuffledOrder, ...state.recommendations]
+            console.log('[toggleShuffle] Final shuffled queue:', {
+              finalQueueLength: finalQueue.length,
+              shuffledSongs: shuffledOrder.length,
+              recommendations: state.recommendations.length
+            })
             
             // Find current track position in new queue
             let newIndex = state.currentIndex
@@ -802,28 +829,31 @@ export const usePlayerStore = create<PlayerState>()(
             }
           } else {
             // Disabling shuffle: Use originalQueue (unshuffled order) + recommendations
-            const finalQueue = [...state.originalQueue, ...state.recommendations]
-            
-            // Find current track position in the unshuffled order
+            let queueToUse = state.originalQueue
+
+            // If we have a collection start index > 0, slice to only show tracks from that point onwards
+            // (collectionStartIndex = 0 means we already sliced when starting playback)
+            if (state.collectionStartIndex > 0) {
+              queueToUse = state.originalQueue.slice(state.collectionStartIndex)
+            }
+
+            const finalQueue = [...queueToUse, ...state.recommendations]
+
+            // Find current track position in the final queue
             let newIndex = 0
             if (currentTrack) {
-              const originalIndex = state.originalQueue.findIndex(t => t.Id === currentTrack.Id)
-              if (originalIndex >= 0) {
-                newIndex = originalIndex
-              } else {
-                // Current track might be a recommendation
-                const recommendationIndex = state.recommendations.findIndex(t => t.Id === currentTrack.Id)
-                if (recommendationIndex >= 0) {
-                  newIndex = state.originalQueue.length + recommendationIndex
-                }
+              const queueIndex = finalQueue.findIndex(t => t.Id === currentTrack.Id)
+              if (queueIndex >= 0) {
+                newIndex = queueIndex
               }
             }
-            
+
             return {
               shuffle: newShuffle,
               queue: finalQueue,
-              shuffledOrder: [...state.originalQueue], // Keep shuffledOrder in sync (same as original when shuffle is off)
+              shuffledOrder: [...queueToUse], // Keep shuffledOrder in sync (same as queue when shuffle is off)
               currentIndex: newIndex,
+              playedSongIds: [], // Clear played song tracking when disabling shuffle
             }
           }
         })
@@ -842,7 +872,7 @@ export const usePlayerStore = create<PlayerState>()(
         const shuffle = get().shuffle
         // Check if the track is in the current queue
         const isInCurrentQueue = currentQueue.some(t => t.Id === track.Id)
-        
+
         // Sort tracks by disc number first, then by track number within each disc (if queue is provided)
         const rawTracks = queue || [track]
         const sortedTracks = queue ? [...rawTracks].sort((a, b) => {
@@ -856,18 +886,47 @@ export const usePlayerStore = create<PlayerState>()(
           return trackA - trackB
         }) : rawTracks
 
-        // Always use all tracks to enable previous button functionality
-        const tracks = sortedTracks.map(t => ({ ...t, _isRecommended: false }))
-        const index = tracks.findIndex((t) => t.Id === track.Id)
+        // Find the selected track's position
+        const index = sortedTracks.findIndex((t) => t.Id === track.Id)
+
+        let tracksToQueue: typeof sortedTracks
+        let previousTracks: typeof sortedTracks = []
+        let collectionStartIndex = -1
+
+        // If we have a queue context (multiple tracks), apply collection behavior
+        if (queue && queue.length > 1) {
+          if (!shuffle) {
+            // Shuffle OFF: only include tracks from selected track onwards
+            tracksToQueue = sortedTracks.slice(index)
+            // Set previous tracks in reverse order for previous button (most recent first)
+            previousTracks = sortedTracks.slice(0, index).reverse()
+            collectionStartIndex = 0 // Reset to 0 since we're slicing the queue to start from the selected track
+          } else {
+            // Shuffle ON: include all tracks (they'll be shuffled later if needed)
+            tracksToQueue = sortedTracks
+            collectionStartIndex = index // Remember where we started for future slicing
+          }
+        } else {
+          // Individual song playback: use single track
+          tracksToQueue = sortedTracks
+          collectionStartIndex = -1
+        }
+
+        // Always use the determined tracks for queue
+        const tracks = tracksToQueue.map(t => ({ ...t, _isRecommended: false }))
+        const finalIndex = tracks.findIndex((t) => t.Id === track.Id)
+
         set({
           queue: tracks,
           originalQueue: [...tracks],
           shuffledOrder: [...tracks], // Initially same as original
           recommendations: [], // Clear recommendations when starting new playback
-          currentIndex: index >= 0 ? index : 0,
+          collectionStartIndex,
+          currentIndex: finalIndex >= 0 ? finalIndex : 0,
           manuallyCleared: false, // Reset manuallyCleared when user plays a new track
-          // Clear previous songs if this is a new track not in the current queue
-          previousSongs: isInCurrentQueue ? get().previousSongs : [],
+          // Clear previous songs if this is a new track not in the current queue,
+          // otherwise preserve existing previousSongs and add any new ones
+          previousSongs: isInCurrentQueue ? get().previousSongs : previousTracks,
         })
         const audio = get().audioElement
         if (audio) {
@@ -900,6 +959,7 @@ export const usePlayerStore = create<PlayerState>()(
           originalQueue: [...queueItems],
           shuffledOrder: [...queueItems], // Initially same as original
           recommendations: [], // Clear recommendations when starting new playback
+          collectionStartIndex: 0, // Play album starts from the beginning
           currentIndex: 0,
           manuallyCleared: false,
           previousSongs: [], // Clear previous songs when playing a new album

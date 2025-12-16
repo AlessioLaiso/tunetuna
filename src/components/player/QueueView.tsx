@@ -247,12 +247,14 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   // When shuffle is off, songs are removed from queue as they play, but we still check playedSongIds
   // in case shuffle was just disabled (playedSongIds will be cleared after first next() in non-shuffle mode)
   const addedByYou = queue.filter((track, index) => {
-    const isNotRecommended = !(track as any)._isRecommended
+    const isRecommended = (track as any)._isRecommended
+    const isNotRecommended = !isRecommended
     // Exclude current track by both index and ID (more robust)
     const isNotCurrent = index !== currentIndex && track.Id !== currentTrackId
     // Exclude played songs (either from playedSongIds or if shuffle was just disabled)
     const isNotPlayed = !playedSongIdsSet.has(track.Id) || track.Id === currentTrackId
-    return isNotRecommended && isNotCurrent && isNotPlayed
+    const shouldInclude = isNotRecommended && isNotCurrent && isNotPlayed
+    return shouldInclude
   })
   // Respect the actual queue order for "Added By You" tracks.
   // The store already maintains the correct shuffled/unshuffled order in `queue`,
@@ -264,7 +266,10 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   // Only show recommendations that are after the effective index and not yet played.
   const sortedRecommendations = queue.filter((track, index) => {
     const isRecommended = (track as any)._isRecommended
-    if (!isRecommended) return false
+    if (!isRecommended) {
+      if (track.Id === currentTrackId) return false // Skip current track regardless
+      return false
+    }
     if (track.Id === currentTrackId) return false
     const isAfterCurrent = effectiveIndex === -1 ? true : index > effectiveIndex
     const isNotPlayed = !playedSongIdsSet.has(track.Id)
