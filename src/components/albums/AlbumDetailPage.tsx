@@ -94,13 +94,11 @@ export default function AlbumDetailPage() {
   const [hasArtistLogo, setHasArtistLogo] = useState(false)
   const [showVinyl, setShowVinyl] = useState(false)
   const [hideAlbumArt, setHideAlbumArt] = useState(false)
-  const [albumArtOpacity, setAlbumArtOpacity] = useState(1)
   const reverseAnimationStartedRef = useRef<boolean>(false)
-  
-  // Keep ref in sync with state
-  useEffect(() => {
-    albumArtOpacityRef.current = albumArtOpacity
-  }, [albumArtOpacity])
+
+  // Add new ref for split animation
+  const shouldSplitRef = useRef<boolean>(false)
+
   const [rotationAngle, setRotationAngle] = useState(0)
   const rotationRef = useRef<number>(0)
   const animationFrameRef = useRef<number | null>(null)
@@ -109,10 +107,6 @@ export default function AlbumDetailPage() {
   const albumArtRef = useRef<HTMLDivElement | null>(null)
   const previousAlbumIdRef = useRef<string | null>(null)
   const previousPlayingRef = useRef<boolean>(false)
-  const fadeTimeoutRef = useRef<number | null>(null)
-  const shouldFadeRef = useRef<boolean>(false)
-  const fadeSetupRef = useRef<boolean>(false)
-  const albumArtOpacityRef = useRef<number>(1)
 
   useEffect(() => {
     if (!id) return
@@ -187,155 +181,98 @@ export default function AlbumDetailPage() {
     const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
     const currentAlbumId = album?.Id || null
     const albumChanged = previousAlbumIdRef.current !== null && previousAlbumIdRef.current !== currentAlbumId
-    
-    // Only clear fade timeout when we're stopping playback or changing albums
-    // Don't clear it just because the effect re-ran for other reasons (like showVinyl changing)
-    if (fadeTimeoutRef.current) {
-      const wasPlaying = previousPlayingRef.current
-      const isStopping = wasPlaying && !isCurrentAlbumPlaying
-      const shouldClear = isStopping || albumChanged
-      
-      if (shouldClear) {
-        clearTimeout(fadeTimeoutRef.current)
-        fadeTimeoutRef.current = null
-      }
+    const playbackStateChanged = previousPlayingRef.current !== isCurrentAlbumPlaying
+
+    // Reset animation flag when playback state changes
+    if (playbackStateChanged) {
+      reverseAnimationStartedRef.current = false
     }
-    
+
     // Update previous playing state at the end
     previousPlayingRef.current = isCurrentAlbumPlaying
-    // Reset fade setup flag when album changes or stops playing
-    if (!isCurrentAlbumPlaying || albumChanged) {
-      fadeSetupRef.current = false
-      // Reset reverse animation flag when starting to play again or changing albums
-      if (isCurrentAlbumPlaying || albumChanged) {
-        reverseAnimationStartedRef.current = false
-      }
-    }
-    
+
     // Don't show vinyl if there's no album art
     if (!hasImage) {
       setShowVinyl(false)
       setHideAlbumArt(false)
-      setAlbumArtOpacity(1)
       previousAlbumIdRef.current = currentAlbumId
       return
     }
-    
+
     if (isCurrentAlbumPlaying) {
-      // Always reset reverse animation flag when playing starts
-      if (reverseAnimationStartedRef.current) {
-        reverseAnimationStartedRef.current = false
-      }
-      
+
       // Show vinyl when current album starts playing
       // Only change state if album actually changed (not just track within same album)
       // or if not yet initialized, OR if vinyl is not currently showing
       if (albumChanged || !hasInitializedRef.current || !showVinyl) {
         setShowVinyl(true)
         setHideAlbumArt(false)
-        setAlbumArtOpacity(1) // Reset opacity when showing
-        albumArtOpacityRef.current = 1 // Also update ref
         hasInitializedRef.current = true
       }
-      
-      // Always check and set up fade when album is playing (even if vinyl was already showing)
-      shouldFadeRef.current = window.innerWidth >= 768
-      
-      // After slide animation completes (500ms), fade out on screens >= 768px
-      // Set up fade timeout when album is playing and art is visible
-      // Only set up once per playing session to avoid clearing/resetting
-      // Use ref to avoid dependency on albumArtOpacity state
-      if (albumArtOpacityRef.current === 1 && shouldFadeRef.current && !fadeSetupRef.current) {
-        fadeSetupRef.current = true
-        fadeTimeoutRef.current = window.setTimeout(() => {
-          // Double-check that album is still playing and we should fade
+
+      // Check if we should use split animation (screens >= 768px)
+      shouldSplitRef.current = window.innerWidth >= 768
+
+      // Set up animation delay (500ms) - no fade, just positioning
+      if (!reverseAnimationStartedRef.current) { // Reuse this flag for animation setup
+        reverseAnimationStartedRef.current = true // Prevent multiple setups
+        setTimeout(() => {
+          // Double-check that album is still playing
           const stillPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-          if (stillPlaying && window.innerWidth >= 768) {
-            setAlbumArtOpacity(0)
+          if (stillPlaying) {
+            setHideAlbumArt(true) // This will trigger the animation (split or full slide)
           }
         }, 500)
-      } else if (albumArtOpacityRef.current === 0 && !shouldFadeRef.current) {
-        // If we're on a small screen but art is faded, fade it back in
-        setAlbumArtOpacity(1)
-        fadeSetupRef.current = false
       }
-      
+
       // Update previous album ID to track changes
       previousAlbumIdRef.current = currentAlbumId
     } else if (hasInitializedRef.current && showVinyl && !isCurrentAlbumPlaying) {
       // Only start reverse animation once - prevent multiple triggers
       if (!reverseAnimationStartedRef.current) {
         reverseAnimationStartedRef.current = true
-        
-        // Reverse animation: fade in first (if it was faded), then slide back
-        // Keep vinyl visible - it will be hidden by the art when it slides back
-        if (shouldFadeRef.current && albumArtOpacityRef.current === 0) {
-          setAlbumArtOpacity(1)
-          albumArtOpacityRef.current = 1 // Update ref immediately
-          // Wait for fade-in (300ms), then slide back
-          fadeTimeoutRef.current = window.setTimeout(() => {
-            setHideAlbumArt(false) // Slide back by setting hideAlbumArt to false
-          }, 300) // Fade-in duration
-        } else {
-          // No fade needed, just slide back immediately
-          setHideAlbumArt(false) // Slide back by setting hideAlbumArt to false
-          setAlbumArtOpacity(1)
-          albumArtOpacityRef.current = 1 // Update ref immediately
-        }
-        shouldFadeRef.current = false
+
+        // Reverse animation: just slide back immediately
+        setHideAlbumArt(false)
       }
-      
+
       previousAlbumIdRef.current = currentAlbumId
     } else if (!hasInitializedRef.current) {
       // On initial load, if not playing, keep vinyl hidden (no animation)
       setShowVinyl(false)
       setHideAlbumArt(false)
-      setAlbumArtOpacity(1)
       hasInitializedRef.current = true
       previousAlbumIdRef.current = currentAlbumId
     } else {
       // If vinyl wasn't showing, keep it hidden
       setShowVinyl(false)
       setHideAlbumArt(false)
-      setAlbumArtOpacity(1)
       previousAlbumIdRef.current = currentAlbumId
     }
-    
-    return () => {
-      // Don't clear timeout in cleanup - let it fire naturally
-      // We only clear it explicitly when we need to (stopping/changing albums)
-      // The cleanup here would clear it on every effect re-run, which kills the timeout
-    }
-  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, hasImage])
+  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, hasImage, hideAlbumArt])
 
 
-  // Handle window resize to update fade behavior
+  // Handle window resize to update animation behavior
   useEffect(() => {
     const handleResize = () => {
       const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-      const newShouldFade = window.innerWidth >= 768
-      
+
       if (isCurrentAlbumPlaying && showVinyl) {
-        shouldFadeRef.current = newShouldFade
-        // Update opacity based on new screen size
-        if (newShouldFade && albumArtOpacity === 1) {
-          // If we should fade but haven't yet, fade out after a delay
-          if (fadeTimeoutRef.current) {
-            clearTimeout(fadeTimeoutRef.current)
-          }
-          fadeTimeoutRef.current = window.setTimeout(() => {
-            setAlbumArtOpacity(0)
-          }, 100)
-        } else if (!newShouldFade && albumArtOpacity === 0) {
-          // If we shouldn't fade but are faded, fade back in
-          setAlbumArtOpacity(1)
+        const newShouldSplit = window.innerWidth >= 768
+        shouldSplitRef.current = newShouldSplit
+
+        // If we're currently animated, adjust positioning immediately
+        if (hideAlbumArt) {
+          // Force a re-render by toggling hideAlbumArt briefly
+          setHideAlbumArt(false)
+          setTimeout(() => setHideAlbumArt(true), 10)
         }
       }
     }
-    
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, albumArtOpacity])
+  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, hideAlbumArt])
 
   // Handle rotation animation
   useEffect(() => {
@@ -519,6 +456,10 @@ export default function AlbumDetailPage() {
                   style={{
                     opacity: showVinyl ? 1 : 0,
                     zIndex: 1,
+                    transform: (currentTrack?.AlbumId === album.Id && isPlaying && shouldSplitRef.current)
+                      ? 'translateX(calc(50% + 8px))'
+                      : 'translateX(0)',
+                    transition: 'transform 500ms ease-in-out, opacity 300ms ease-in-out',
                   }}
                 >
                   <div
@@ -595,14 +536,18 @@ export default function AlbumDetailPage() {
                   style={{
                     transform:
                       currentTrack?.AlbumId === album.Id && isPlaying
-                        ? 'translateX(calc(-100% - 24px))'
+                        ? shouldSplitRef.current
+                          ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
+                          : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
                         : hideAlbumArt
-                        ? 'translateX(calc(-100% - 24px))'
-                        : 'translateX(0)',
-                    opacity: albumArtOpacity,
-                    transitionProperty: 'transform, opacity',
-                    transitionDuration: '500ms, 300ms',
-                    transitionTimingFunction: 'ease-in-out, ease-in-out',
+                        ? shouldSplitRef.current
+                          ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
+                          : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
+                        : 'translateX(0)',  // Center position
+                    opacity: 1,  // Always fully opaque - no fading
+                    transitionProperty: 'transform',
+                    transitionDuration: '500ms',
+                    transitionTimingFunction: 'ease-in-out',
                     zIndex: 10,
                   }}
                 >
