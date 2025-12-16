@@ -362,6 +362,21 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   return (
     <>
+    <style>{`
+      @media (min-aspect-ratio: 4/3) and (min-width: 768px) {
+        .landscape\\:flex-row { flex-direction: row; }
+        .landscape\\:items-center { align-items: center; }
+        .landscape\\:gap-8 { gap: 2rem; }
+        .landscape\\:order-1 { order: 1; }
+        .landscape\\:flex-shrink-0 { flex-shrink: 0; }
+        .landscape\\:order-2 { order: 2; }
+        .landscape\\:text-left { text-align: left; }
+        .landscape\\:flex-1 { flex: 1; }
+        .landscape\\:max-w-xs { max-width: 20rem; }
+        .landscape\\:justify-start { justify-content: flex-start; }
+        .landscape\\:mx-0 { margin-left: 0; margin-right: 0; }
+      }
+    `}</style>
     <div
       ref={modalRef}
       onTouchStart={handleTouchStart}
@@ -439,11 +454,16 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         <div className="flex-1 flex flex-col min-h-0 max-w-[768px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
           <div className="flex-1 overflow-hidden min-h-0 flex items-center justify-center">
               <div className="w-full flex flex-col items-center px-4 sm:px-8">
-              <div className="w-full flex flex-col items-center">
-                <div
-                  className={`w-56 h-56 sm:w-[480px] sm:h-[480px] rounded overflow-hidden mb-4 sm:mb-8 bg-zinc-900 ${!imageError ? 'shadow-2xl' : ''}`}
-                  style={{ maxWidth: '100%' }}
-                >
+              <div className="w-full flex flex-col items-center landscape:flex-row landscape:items-center landscape:gap-8">
+                <div className="landscape:order-1 landscape:flex-shrink-0">
+                  <div
+                    className={`rounded overflow-hidden mb-4 lg:mb-8 bg-zinc-900 ${!imageError ? 'shadow-2xl' : ''}`}
+                    style={{
+                      width: 'clamp(224px, min(70vw, 50vh), 480px)',
+                      height: 'clamp(224px, min(70vw, 50vh), 480px)',
+                      maxWidth: '100%'
+                    }}
+                  >
                   {imageError ? (
                     <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center relative">
                       <img
@@ -466,8 +486,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       onError={() => setImageError(true)}
                     />
                   )}
+                  </div>
                 </div>
-                <div className="text-center w-full">
+                <div className="text-center landscape:text-left w-full landscape:order-2 landscape:flex-1 landscape:max-w-xs">
                   <h3 className="text-xl sm:text-2xl font-bold mb-2">{getDisplayName()}</h3>
                   {getArtistName() && (
                     <button
@@ -478,10 +499,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                           navigate(`/artist/${artistId}`)
                         }
                       }}
-                      className="flex items-center justify-center gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto max-w-full min-w-0"
+                      className="flex items-center justify-start landscape:justify-start gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left max-w-full min-w-0"
                     >
                       <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate min-w-0">{getArtistName()}</span>
+                      <span className="break-words min-w-0">{getArtistName()}</span>
                     </button>
                   )}
                   {hasAlbum && (
@@ -490,10 +511,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                         onClose()
                         navigate(`/album/${displayTrack.AlbumId}`)
                       }}
-                      className="flex items-center justify-center gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto mt-1 max-w-full min-w-0"
+                      className="flex items-center justify-start landscape:justify-start gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left mt-1 max-w-full min-w-0"
                     >
                       <Disc className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate min-w-0">{displayTrack.Album}</span>
+                      <span className="break-words min-w-0">{displayTrack.Album}</span>
                     </button>
                   )}
                 </div>
@@ -501,7 +522,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             </div>
           </div>
 
-          <div 
+          <div
             className="pt-2 space-y-6 flex-shrink-0 mt-4 sm:mt-0 max-w-[768px] mx-auto w-full"
             style={{ paddingBottom: `1.5rem` }}
           >
