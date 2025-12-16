@@ -4,7 +4,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import PlayerModal from './PlayerModal'
 import { useState } from 'react'
-import { Play, Pause, SkipForward } from 'lucide-react'
+import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1 } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
 export default function PlayerBar() {
@@ -24,6 +24,11 @@ export default function PlayerBar() {
     queue,
     currentIndex,
     repeat,
+    shuffle,
+    toggleShuffle,
+    toggleRepeat,
+    previous,
+    previousSongs,
   } = usePlayerStore()
   const [showModal, setShowModal] = useState(false)
   const [isModalClosing, setIsModalClosing] = useState(false)
@@ -177,12 +182,29 @@ export default function PlayerBar() {
   
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
   
+  // Derive an effective index based on the actual currentTrack in the queue,
+  // so controls work correctly after restore or other flows where currentIndex
+  // might be out of sync with the playing track.
+  const effectiveIndex =
+    currentIndex >= 0 && currentIndex < queue.length
+      ? currentIndex
+      : currentTrack
+        ? queue.findIndex(t => t.Id === currentTrack.Id)
+        : -1
+
   // Check if there's a next song available
   const hasNext = queue.length > 0 && (
     currentIndex < 0 || // No current track, but queue has songs
     currentIndex < queue.length - 1 || // Not at the end of queue
     repeat === 'all' // Repeat all is enabled
   )
+
+  // Previous should be active if:
+  // 1. There are songs before the effective index in the queue, OR
+  // 2. There are previousSongs in history (for going back to previously played songs)
+  const hasPrevious =
+    (effectiveIndex > 0 && effectiveIndex < queue.length) ||
+    previousSongs.length > 0
 
   // Always show the bar if there's a track to display (current or last played)
   if (!displayTrack) {
@@ -223,7 +245,8 @@ export default function PlayerBar() {
                 {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
               </div>
             </div>
-            <div className="flex items-center">
+            {/* Mobile layout: Play/Pause and Next buttons */}
+            <div className="flex items-center md:hidden">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -257,6 +280,90 @@ export default function PlayerBar() {
                 disabled={!hasNext}
               >
                 <SkipForward className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Desktop layout: All 5 buttons */}
+            <div className="hidden md:flex items-center gap-1 ml-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleShuffle()
+                }}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                }`}
+              >
+                <Shuffle className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (hasPrevious) {
+                    previous()
+                  }
+                }}
+                disabled={!hasPrevious}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  hasPrevious
+                    ? 'text-white hover:bg-zinc-800'
+                    : 'text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <SkipBack className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (currentTrack) {
+                    togglePlayPause()
+                  } else if (displayTrack) {
+                    // Resume last played track
+                    playTrack(displayTrack)
+                  }
+                }}
+                className="w-10 h-10 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-color)] hover:opacity-90"
+              >
+                {isPlaying && currentTrack ? (
+                  <Pause className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5" />
+                )}
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (hasNext) {
+                    next()
+                  }
+                }}
+                disabled={!hasNext}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  hasNext
+                    ? 'text-white hover:bg-zinc-800'
+                    : 'text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <SkipForward className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleRepeat()
+                }}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                }`}
+              >
+                {repeat === 'one' ? (
+                  <Repeat1 className="w-5 h-5" />
+                ) : (
+                  <Repeat className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
