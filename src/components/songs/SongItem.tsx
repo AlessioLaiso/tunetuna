@@ -2,13 +2,13 @@ import { useState, useRef } from 'react'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
-import type { BaseItemDto } from '../../api/types'
+import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import { Disc } from 'lucide-react'
 
 interface SongItemProps {
-  song: BaseItemDto
+  song: LightweightSong
   showImage?: boolean
 }
 

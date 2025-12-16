@@ -6,10 +6,10 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, LightweightSong } from '../../api/types'
 
 interface ContextMenuProps {
-  item: BaseItemDto | null
+  item: BaseItemDto | LightweightSong | null
   itemType: 'album' | 'song' | 'artist' | 'playlist' | null
   isOpen: boolean
   onClose: () => void

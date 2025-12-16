@@ -52,6 +52,21 @@ export interface SearchResult {
   Songs?: ItemsResult
 }
 
+// Lightweight song object for efficient storage of genre song caches
+export interface LightweightSong {
+  Id: string
+  Name: string
+  AlbumArtist?: string
+  ArtistItems?: BaseItemDto[]
+  Album?: string
+  AlbumId?: string
+  IndexNumber?: number
+  ProductionYear?: number
+  PremiereDate?: string
+  RunTimeTicks?: number
+  Genres?: string[]
+}
+
 export type SortOrder = 'RecentlyAdded' | 'Alphabetical'
 
 export interface GetItemsOptions {
@@ -67,6 +82,7 @@ export interface GetItemsOptions {
   artistIds?: string[]
   albumIds?: string[]
   years?: number[]
+  minDateLastSaved?: Date
 }
 
 

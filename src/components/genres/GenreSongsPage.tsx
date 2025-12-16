@@ -10,7 +10,7 @@ import { ArrowLeft, Shuffle, Pause } from 'lucide-react'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, LightweightSong } from '../../api/types'
 
 interface GenreAlbumItemProps {
   album: BaseItemDto
@@ -67,7 +67,7 @@ export default function GenreSongsPage() {
   const { playAlbum, toggleShuffle, currentTrack, isPlaying, pause } = usePlayerStore()
   const { genres, genreSongs, setGenreSongs } = useMusicStore()
   const [genre, setGenre] = useState<BaseItemDto | null>(null)
-  const [songs, setSongs] = useState<BaseItemDto[]>([])
+  const [songs, setSongs] = useState<LightweightSong[]>([])
   const [loading, setLoading] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)

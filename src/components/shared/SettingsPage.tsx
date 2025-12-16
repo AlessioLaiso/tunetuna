@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
+import BottomSheet from '../shared/BottomSheet'
 
 const tailwindColors = [
   { name: 'zinc', hex: '#71717a' },
@@ -32,9 +33,22 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { pageVisibility, setPageVisibility, accentColor, setAccentColor, enableQueueRecommendations, setEnableQueueRecommendations } = useSettingsStore()
   const { logout, serverUrl } = useAuthStore()
-  const { setGenres } = useMusicStore()
+  const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
   const [copied, setCopied] = useState(false)
+  const [showSyncOptions, setShowSyncOptions] = useState(false)
+  const [syncOptions, setSyncOptions] = useState({
+    scope: 'incremental' as 'incremental' | 'full'
+  })
+
+  // Reset sync options when modal closes
+  const handleCloseSyncOptions = () => {
+    setShowSyncOptions(false)
+    // Reset to defaults for next time
+    setSyncOptions({
+      scope: 'incremental'
+    })
+  }
 
   const handleLogout = () => {
     logout()
@@ -46,14 +60,19 @@ export default function SettingsPage() {
   }
 
   const handleSyncLibrary = async () => {
-    startSync('settings', 'Syncing library...')
+    const message = syncOptions.scope === 'full'
+      ? 'Syncing...'
+      : 'Syncing...'
+
+    startSync('settings', message)
     try {
-      await jellyfinClient.syncLibrary()
+      await jellyfinClient.syncLibrary(syncOptions)
       const result = await jellyfinClient.getGenres()
       const sorted = (result || []).sort((a, b) =>
         (a.Name || '').localeCompare(b.Name || '')
       )
       setGenres(sorted)
+      setLastSyncCompleted(Date.now())
       completeSync(true, 'Library synced successfully')
     } catch (error) {
       completeSync(false, error instanceof Error ? error.message : 'Failed to sync library')
@@ -184,7 +203,7 @@ export default function SettingsPage() {
         {/* Jellyfin Library Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-1">Jellyfin Library</h2>
-          <div className="relative inline-block mb-3">
+          <div className="relative inline-block mb-2">
             <button
               type="button"
               onClick={handleCopyServerUrl}
@@ -203,35 +222,81 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
-          <div className="space-y-3">
-            <div className="flex gap-3">
+          {syncState === 'idle' && lastSyncCompleted && (
+            <div className="text-xs text-gray-400 mb-4">
+              Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowSyncOptions(true)}
+              disabled={syncState === 'syncing'}
+              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            >
+              {syncState === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Sync</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Log Out</span>
+            </button>
+          </div>
+        </section>
+
+        {/* Sync Options Modal */}
+        <BottomSheet isOpen={showSyncOptions} onClose={handleCloseSyncOptions} zIndex={10001}>
+          <div className="pb-6">
+            <div className="mb-6 pl-4 pr-4">
+              <div className="text-lg font-semibold text-white">
+                Sync
+              </div>
+              <div className="text-sm text-gray-400 mt-1">
+                Cache song metadata to speed up search and loading times
+              </div>
+            </div>
+
+            <div className="space-y-3">
               <button
-                onClick={handleSyncLibrary}
+                onClick={() => {
+                  setSyncOptions({ scope: 'incremental' })
+                  setShowSyncOptions(false)
+                  handleSyncLibrary()
+                }}
                 disabled={syncState === 'syncing'}
-                className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                className="w-full flex items-center gap-3 py-4 pr-4 pl-4 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-white text-left rounded-lg transition-colors"
               >
-                {syncState === 'syncing' ? (
-                  <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Syncing...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-5 h-5" />
-                    <span>Sync</span>
-                  </>
-                )}
+                <Rabbit className="w-5 h-5 text-white flex-shrink-0" />
+                <span className="font-medium">New and updated files</span>
               </button>
+
               <button
-                onClick={handleLogout}
-                className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                onClick={() => {
+                  setSyncOptions({ scope: 'full' })
+                  setShowSyncOptions(false)
+                  handleSyncLibrary()
+                }}
+                disabled={syncState === 'syncing'}
+                className="w-full flex items-center gap-3 py-4 pr-4 pl-4 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-white text-left rounded-lg transition-colors"
               >
-                <LogOut className="w-5 h-5" />
-                <span>Log Out</span>
+                <Turtle className="w-5 h-5 text-white flex-shrink-0" />
+                <span className="font-medium">All files (slower)</span>
               </button>
             </div>
           </div>
-        </section>
+        </BottomSheet>
       </div>
     </div>
   )

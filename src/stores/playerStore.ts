@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { BaseItemDto, LightweightSong } from '../api/types'
 import type { BaseItemDto } from '../api/types'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
@@ -112,8 +113,8 @@ interface PlayerState {
   setVolume: (volume: number) => void
   toggleShuffle: () => void
   toggleRepeat: () => void
-  playTrack: (track: BaseItemDto, queue?: BaseItemDto[]) => void
-  playAlbum: (tracks: BaseItemDto[]) => void
+  playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[]) => void
+  playAlbum: (tracks: (BaseItemDto | LightweightSong)[]) => void
   playNext: (tracks: BaseItemDto[]) => void
   shuffleArtist: (songs: BaseItemDto[]) => void
   reorderQueue: (fromIndex: number, toIndex: number) => void

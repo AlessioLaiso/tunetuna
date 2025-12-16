@@ -4,6 +4,7 @@ import type {
   ItemsResult,
   SearchResult,
   GetItemsOptions,
+  LightweightSong,
 } from './types'
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
@@ -215,9 +216,12 @@ class JellyfinClient {
     if (options.years) {
       options.years.forEach(year => params.append('Years', year.toString()))
     }
+    if (options.minDateLastSaved) {
+      params.append('MinDateLastSaved', options.minDateLastSaved.toISOString())
+    }
 
     params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear')
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear,DateCreated,DateModified,DateLastSaved')
     
     // Add cache-busting timestamp to force fresh data from server
     if (cacheBust) {
@@ -618,7 +622,7 @@ class JellyfinClient {
   }
 
 
-  async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<BaseItemDto[]> {
+  async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<LightweightSong[]> {
     let allSongs: BaseItemDto[] = []
     
     // If forcing client-side filter, or if it's a synthetic genre, fetch all songs and filter client-side
@@ -664,23 +668,145 @@ class JellyfinClient {
     // This uses the Genres field from the song object, which should be fresh from the server
     const filtered = allSongs.filter(song => {
       const hasGenre = song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
-      
-      
+
+
       return hasGenre
     })
-    
-    
-    return filtered
+
+    // Convert to lightweight objects for efficient storage
+    const lightweightSongs: LightweightSong[] = filtered.map(song => ({
+      Id: song.Id,
+      Name: song.Name,
+      AlbumArtist: song.AlbumArtist,
+      ArtistItems: song.ArtistItems,
+      Album: song.Album,
+      AlbumId: song.AlbumId,
+      IndexNumber: song.IndexNumber,
+      ProductionYear: song.ProductionYear,
+      PremiereDate: song.PremiereDate,
+      RunTimeTicks: song.RunTimeTicks,
+      Genres: song.Genres
+    }))
+
+    return lightweightSongs
   }
 
-  async syncLibrary(): Promise<void> {
-    // Clear cache and force refresh genres
-    this.clearGenresCache()
+  async syncLibrary(options: { scope: 'full' | 'incremental' } = { scope: 'incremental' }): Promise<void> {
     const store = useMusicStore.getState()
-    // Clear all genre songs cache before rebuilding
+
+    if (options.scope === 'incremental') {
+      // True incremental sync - only fetch songs changed since last sync
+      const lastSync = store.lastSyncCompleted
+
+      // Always refresh genres (they might have new ones)
+      const genres = await this.getGenres(false)
+
+      // Fetch only songs modified since last sync (or recent songs if no last sync)
+      let changedSongs: BaseItemDto[] = []
+
+      if (lastSync) {
+        // Get songs modified since last sync
+        let startIndex = 0
+        const limit = 200
+        let hasMore = true
+
+        while (hasMore) {
+          const result = await this.getSongs({
+            minDateLastSaved: new Date(lastSync),
+            limit,
+            startIndex
+          }, true) // Cache bust to ensure fresh data
+
+          const items = result.Items || []
+          changedSongs.push(...items)
+
+          hasMore = items.length === limit
+          startIndex += limit
+
+          // Safety limit
+          if (startIndex > 10000) break
+        }
+      } else {
+        // First sync - get recent songs to start the cache
+        const result = await this.getSongs({
+          limit: 1000,
+          sortBy: ['DateLastSaved'],
+          sortOrder: 'Descending'
+        })
+        changedSongs = result.Items || []
+      }
+
+      // Convert to lightweight format
+      const lightweightChangedSongs: LightweightSong[] = changedSongs.map(song => ({
+        Id: song.Id,
+        Name: song.Name,
+        AlbumArtist: song.AlbumArtist,
+        ArtistItems: song.ArtistItems,
+        Album: song.Album,
+        AlbumId: song.AlbumId,
+        IndexNumber: song.IndexNumber,
+        ProductionYear: song.ProductionYear,
+        PremiereDate: song.PremiereDate,
+        RunTimeTicks: song.RunTimeTicks,
+        Genres: song.Genres
+      }))
+
+      // Merge with existing cache (avoid duplicates)
+      const existingSongs = store.songs
+      const existingIds = new Set(existingSongs.map(s => s.Id))
+      const newSongs = lightweightChangedSongs.filter(song => !existingIds.has(song.Id))
+      const mergedSongs = [...existingSongs, ...newSongs]
+
+      // Update the cache with error handling
+      try {
+        store.setSongs(mergedSongs)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+          throw new Error('Storage quota exceeded. Please clear some data or use a smaller sync scope.')
+        }
+        throw error
+      }
+
+      // Optimize: only update genres that contain new songs
+      const affectedGenres = new Set<string>()
+      newSongs.forEach(song => {
+        song.Genres?.forEach(genreName => {
+          genres.forEach(genre => {
+            if (genre.Name?.toLowerCase() === genreName.toLowerCase()) {
+              affectedGenres.add(genre.Id!)
+            }
+          })
+        })
+      })
+
+      // Update only affected genres by merging existing + new songs
+      const genreUpdatePromises = Array.from(affectedGenres).map(async (genreId) => {
+        const genre = genres.find(g => g.Id === genreId)
+        if (!genre?.Name) return
+
+        // Get existing genre songs and add new ones
+        const existingGenreSongs = store.genreSongs[genreId] || []
+        const existingIds = new Set(existingGenreSongs.map(s => s.Id))
+
+        // Add new songs that belong to this genre
+        const additionalSongs = newSongs.filter(song =>
+          song.Genres?.some(g => g.toLowerCase() === genre.Name!.toLowerCase())
+        )
+
+        // Merge without duplicates
+        const updatedGenreSongs = [...existingGenreSongs, ...additionalSongs]
+        store.setGenreSongs(genreId, updatedGenreSongs)
+      })
+
+      await Promise.all(genreUpdatePromises)
+      return
+    }
+
+    // Full sync - clear everything and rebuild
+    this.clearGenresCache()
     store.clearGenreSongs()
     const genres = await this.getGenres(true)
-    
+
     // Preload songs for all genres
     const genreSongsPromises = genres.map(async (genre) => {
       if (!genre.Name || !genre.Id) return
@@ -691,8 +817,7 @@ class JellyfinClient {
         console.warn(`[syncLibrary] Failed to load songs for genre ${genre.Name}:`, error)
       }
     })
-    
-    // Load all genre songs in parallel
+
     await Promise.all(genreSongsPromises)
   }
 
