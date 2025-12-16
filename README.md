@@ -1,6 +1,8 @@
 # Tunetuna  - Jellyfin Music PWA Client
 
-A music client for Jellyfin, built as a mobile-first self-hostable progressive web app.
+A Jellyfin music client, built as a mobile-first self-hostable progressive web app.
+
+<img width="1212" height="844" alt="tunetuna" src="https://github.com/user-attachments/assets/89c6d31a-6dd3-4b8f-b5b8-3142f0b2f1dd" />
 
 ## Key Features
 
