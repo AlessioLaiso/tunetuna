@@ -1245,11 +1245,35 @@ export const usePlayerStore = create<PlayerState>()(
     {
       name: 'player-storage',
       partialize: (state) => ({
+        // User preferences
         volume: state.volume,
         shuffle: state.shuffle,
         repeat: state.repeat,
         lastPlayedTrack: state.lastPlayedTrack,
+        // Now playing state
+        currentTrack: state.currentTrack,
+        currentIndex: state.currentIndex,
+        queue: state.queue,
+        // Added by you songs
+        originalQueue: state.originalQueue,
+        shuffledOrder: state.shuffledOrder,
+        // Playback context
+        previousSongs: state.previousSongs,
+        playedSongIds: state.playedSongIds,
+        collectionStartIndex: state.collectionStartIndex,
+        manuallyCleared: state.manuallyCleared,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Reset runtime state when app restarts
+        if (state) {
+          state.isPlaying = false
+          state.currentTime = 0
+          state.duration = 0
+          state.isFetchingRecommendations = false
+          // Keep audioElement as null - it will be set when needed
+          state.audioElement = null
+        }
+      },
     }
   )
 )
