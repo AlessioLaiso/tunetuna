@@ -16,7 +16,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
   - Quick way to shuffle all songs by an artist or in a genre.
   - Genres displayed are the ones actually coming from the metadata in the songs. Genre data is stored locally for faster retrieval after the initial sync.
   - Song lyrics in the player.
-  - Optimized for mobile. Works on desktop too.
+  - Works on mobile, desktop, and any device with a browser (your fridge?).
 
 ## Getting started (Docker)
 
