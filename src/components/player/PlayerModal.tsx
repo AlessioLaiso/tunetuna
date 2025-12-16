@@ -7,7 +7,6 @@ import LyricsModal from './LyricsModal'
 import { useState } from 'react'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import vinylImage from '../../assets/vinyl.png'
 
 interface PlayerModalProps {
   onClose: () => void
@@ -447,7 +446,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   {imageError ? (
                     <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center relative">
                       <img
-                        src={vinylImage}
+                        src="/assets/vinyl.png"
                         alt="Vinyl Record"
                         className="w-full h-full object-cover"
                         onError={(e) => {
