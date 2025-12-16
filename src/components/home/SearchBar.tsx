@@ -610,7 +610,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
           </div>
           <button
             onClick={() => navigate('/settings')}
-            className="w-8 h-8 flex items-center justify-center text-white hover:bg-gray-800 rounded-full transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
             aria-label="Settings"
           >
             <Settings className="w-5 h-5" />
@@ -650,7 +650,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
                 </div>
                 <button
                   onClick={handleCancelSearch}
-                  className="px-4 py-2 text-white text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap flex-shrink-0"
+                  className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
                 >
                   Cancel
                 </button>

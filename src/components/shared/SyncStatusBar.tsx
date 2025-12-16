@@ -29,7 +29,7 @@ export default function SyncStatusBar() {
         {state === 'syncing' && (
           <button
             onClick={cancelSync}
-            className="text-white text-sm font-medium hover:text-gray-300 transition-colors"
+            className="text-white text-sm font-medium hover:text-zinc-300 transition-colors"
           >
             Cancel
           </button>

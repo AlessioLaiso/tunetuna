@@ -400,7 +400,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       <div className="flex items-center justify-between p-4 relative">
         <button
           onClick={handleClose}
-          className="text-white hover:text-gray-300 transition-colors z-10 flex-shrink-0"
+          className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
         >
           <ChevronDown className="w-8 h-8" />
         </button>
@@ -416,7 +416,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               className={`transition-colors pr-2 ${
                 showLyricsModal 
                   ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]' 
-                  : 'text-white hover:text-gray-300'
+                  : 'text-white hover:text-zinc-300'
               }`}
             >
               <MicVocal className="w-6 h-6" />
@@ -430,7 +430,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               }
               setShowQueue(!showQueue)
             }}
-            className="text-white hover:text-gray-300 transition-colors"
+            className="text-white hover:text-zinc-300 transition-colors"
           >
             {showQueue ? (
               <SquarePlay className="w-6 h-6" />
@@ -561,7 +561,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <button
                 onClick={toggleShuffle}
                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-                  shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+                  shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
               >
                 <Shuffle className="w-6 h-6" />
@@ -612,7 +612,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <button
                 onClick={toggleRepeat}
                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-                  repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+                  repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
               >
                 {repeat === 'one' ? (

@@ -484,14 +484,14 @@ export default function ArtistDetailPage() {
           <div className="relative flex items-center justify-between gap-4 p-4">
           <button
             onClick={() => navigate(-1)}
-            className="text-white hover:text-gray-300 transition-colors z-10"
+            className="text-white hover:text-zinc-300 transition-colors z-10"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
           {artist && (
             <button
               onClick={() => setArtistContextMenuOpen(true)}
-              className="text-white hover:text-gray-300 transition-colors z-10"
+              className="text-white hover:text-zinc-300 transition-colors z-10"
             >
               <MoreHorizontal className="w-6 h-6" />
             </button>

@@ -478,14 +478,14 @@ export default function AlbumDetailPage() {
           <div className="flex items-center justify-between gap-4 p-4 relative z-10">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-gray-300 transition-colors"
+              className="text-white hover:text-zinc-300 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
             {album && (
               <button
                 onClick={() => setAlbumContextMenuOpen(true)}
-                className="text-white hover:text-gray-300 transition-colors"
+                className="text-white hover:text-zinc-300 transition-colors"
               >
                 <MoreHorizontal className="w-6 h-6" />
               </button>

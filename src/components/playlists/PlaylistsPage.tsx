@@ -516,7 +516,7 @@ export default function PlaylistsPage() {
               <h1 className="text-2xl font-bold text-white">Playlists</h1>
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="w-10 h-10 flex items-center justify-center text-white hover:bg-gray-800 rounded-full transition-colors"
+                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
                 aria-label="Search"
               >
                 <svg
@@ -597,7 +597,7 @@ export default function PlaylistsPage() {
                 </div>
                 <button
                   onClick={handleCancelSearch}
-                  className="px-4 py-2 text-white text-sm font-medium hover:text-gray-300 transition-colors whitespace-nowrap flex-shrink-0"
+                  className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
                 >
                   Cancel
                 </button>
@@ -658,7 +658,7 @@ export default function PlaylistsPage() {
                   <div>
                     <h2 className="text-xl font-bold text-white mb-4 px-4">Artists</h2>
                     <div className="space-y-0">
-                      {searchResults.artists.map((artist) => (
+                      {searchResults.artists.slice(0, 5).map((artist) => (
                         <SearchArtistItem
                           key={artist.Id}
                           artist={artist}
@@ -676,7 +676,7 @@ export default function PlaylistsPage() {
                   <div className="px-4">
                     <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
                     <div className="grid grid-cols-3 gap-4">
-                      {searchResults.albums.slice(0, 9).map((album) => (
+                      {searchResults.albums.slice(0, 12).map((album) => (
                         <SearchAlbumItem
                           key={album.Id}
                           album={album}

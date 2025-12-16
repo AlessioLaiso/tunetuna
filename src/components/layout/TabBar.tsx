@@ -46,7 +46,7 @@ export default function TabBar() {
                 to={tab.path}
                 onClick={(e) => handleTabClick(e, tab.path)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                  isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+                  isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
               >
                 <Icon className="w-5 h-5 mb-1" />

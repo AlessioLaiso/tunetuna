@@ -92,12 +92,12 @@ export default function SettingsPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-gray-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
           <div className="flex items-center gap-4 p-4">
           <button
             onClick={() => navigate('/')}
-            className="text-white hover:text-gray-300 transition-colors"
+            className="text-white hover:text-zinc-300 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
@@ -120,7 +120,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => togglePage(page)}
                   className={`relative w-12 h-6 rounded-full transition-colors ${
-                    pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-gray-600'
+                    pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
                   }`}
                 >
                   <span
@@ -143,7 +143,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setEnableQueueRecommendations(!enableQueueRecommendations)}
                 className={`relative w-12 h-6 rounded-full transition-colors ${
-                  enableQueueRecommendations ? 'bg-[var(--accent-color)]' : 'bg-gray-600'
+                  enableQueueRecommendations ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
                 }`}
               >
                 <span

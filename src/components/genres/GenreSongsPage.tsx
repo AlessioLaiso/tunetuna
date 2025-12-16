@@ -248,7 +248,7 @@ export default function GenreSongsPage() {
             <div className="flex items-center gap-4 p-4">
               <button
                 onClick={() => navigate(-1)}
-                className="text-white hover:text-gray-300 transition-colors"
+                className="text-white hover:text-zinc-300 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
@@ -275,7 +275,7 @@ export default function GenreSongsPage() {
             <div className="flex items-center gap-4 p-4">
               <button
                 onClick={() => navigate(-1)}
-                className="text-white hover:text-gray-300 transition-colors"
+                className="text-white hover:text-zinc-300 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
@@ -299,7 +299,7 @@ export default function GenreSongsPage() {
           <div className="flex items-center gap-4 p-4">
           <button
             onClick={() => navigate(-1)}
-            className="text-white hover:text-gray-300 transition-colors"
+            className="text-white hover:text-zinc-300 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>

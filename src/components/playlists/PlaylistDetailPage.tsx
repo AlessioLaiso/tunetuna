@@ -155,14 +155,14 @@ export default function PlaylistDetailPage() {
           <div className="flex items-center justify-between gap-4 px-4" style={{ paddingTop: 'calc(1rem + 8px)', paddingBottom: '1rem' }}>
           <button
             onClick={() => navigate(-1)}
-            className="text-white hover:text-gray-300 transition-colors"
+            className="text-white hover:text-zinc-300 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
           {playlist && (
             <button
               onClick={() => setPlaylistContextMenuOpen(true)}
-              className="text-white hover:text-gray-300 transition-colors"
+              className="text-white hover:text-zinc-300 transition-colors"
             >
               <MoreHorizontal className="w-6 h-6" />
             </button>

@@ -164,7 +164,7 @@ export default function RecentlyAdded() {
                 key={pageIndex}
                 onClick={() => scrollToPage(pageIndex)}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  pageIndex === currentPage ? 'bg-white' : 'bg-gray-600'
+                  pageIndex === currentPage ? 'bg-white' : 'bg-zinc-600'
                 }`}
                 aria-label={`Go to page ${pageIndex + 1}`}
               />

@@ -100,7 +100,7 @@ function QueueTrackItem({
             e.stopPropagation()
             onClick()
           }}
-          className="text-gray-400 hover:text-gray-300 transition-colors p-2"
+          className="text-gray-400 hover:text-zinc-300 transition-colors p-2"
         >
           {isPlaying ? (
             <Pause className="w-5 h-5" />
@@ -115,7 +115,7 @@ function QueueTrackItem({
               <button
                 draggable
                 onDragStart={(e) => onReorderDragStart(e, index)}
-                className="text-gray-500 hover:text-gray-300 transition-colors p-2 cursor-grab active:cursor-grabbing"
+                className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing"
               >
                 <GripHorizontal className="w-4 h-4" />
               </button>
@@ -125,7 +125,7 @@ function QueueTrackItem({
                     e.stopPropagation()
                     onRemove()
                   }}
-                  className="text-gray-400 hover:text-gray-300 transition-colors p-2"
+                  className="text-gray-400 hover:text-zinc-300 transition-colors p-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -463,7 +463,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
           <button
             onClick={toggleShuffle}
             className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-              shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+              shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
             }`}
           >
             <Shuffle className="w-6 h-6" />
@@ -507,7 +507,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
           <button
             onClick={toggleRepeat}
             className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-              repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-gray-300'
+              repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
             }`}
           >
             {repeat === 'one' ? (
