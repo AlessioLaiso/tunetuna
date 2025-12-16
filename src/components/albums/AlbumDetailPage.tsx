@@ -75,7 +75,7 @@ function formatDuration(ticks: number): string {
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, currentTrack, isPlaying } = usePlayerStore()
+  const { playAlbum, playTrack, currentTrack, isPlaying, play, pause } = usePlayerStore()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -627,7 +627,15 @@ export default function AlbumDetailPage() {
                 )}
               </div>
               <button
-                onClick={currentTrack?.AlbumId === album.Id && isPlaying ? () => usePlayerStore.getState().pause() : handlePlayAll}
+                onClick={() => {
+                  if (currentTrack?.AlbumId === album.Id && isPlaying) {
+                    pause()
+                  } else if (currentTrack?.AlbumId === album.Id && !isPlaying) {
+                    play()
+                  } else {
+                    handlePlayAll()
+                  }
+                }}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
               >
                 {currentTrack?.AlbumId === album.Id && isPlaying ? (
