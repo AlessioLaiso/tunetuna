@@ -479,7 +479,7 @@ export default function ArtistDetailPage() {
   return (
     <div className="pb-20">
       {/* Fixed header with back button */}
-      <div className="fixed top-0 left-0 right-0 z-[60]" style={{ top: `env(safe-area-inset-top)` }}>
+      <div className="fixed top-0 left-0 right-0 z-[60]" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
           <div className="relative flex items-center justify-between gap-4 p-4">
           <button

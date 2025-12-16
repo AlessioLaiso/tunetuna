@@ -48,7 +48,7 @@ export default function LyricsModal({ onClose }: LyricsModalProps) {
     <div 
       className="fixed left-0 right-0 bg-zinc-900 z-[55] flex flex-col"
       style={{ 
-        top: `calc(env(safe-area-inset-top) + 4rem)`,
+        top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)`,
         bottom: `calc(11rem + env(safe-area-inset-bottom))`
       }}
     >

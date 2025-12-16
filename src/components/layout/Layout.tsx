@@ -1,9 +1,11 @@
 import { ReactNode, useEffect } from 'react'
 import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
+import SyncStatusBar from '../shared/SyncStatusBar'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { useSyncStore } from '../../stores/syncStore'
 import { jellyfinClient } from '../../api/jellyfin'
 
 const colorMap: Record<string, string> = {
@@ -39,11 +41,18 @@ export default function Layout({ children }: LayoutProps) {
   useRecommendations()
   const { accentColor } = useSettingsStore()
   const { genres } = useMusicStore()
+  const { state: syncState } = useSyncStore()
 
   useEffect(() => {
     const colorHex = colorMap[accentColor] || colorMap.blue
     document.documentElement.style.setProperty('--accent-color', colorHex)
   }, [accentColor])
+
+  // Update header offset when sync state changes
+  useEffect(() => {
+    const headerOffset = syncState !== 'idle' ? '28px' : '0px'
+    document.documentElement.style.setProperty('--header-offset', headerOffset)
+  }, [syncState])
 
   // Preload genres in background if not already loaded
   useEffect(() => {
@@ -55,19 +64,34 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, [genres.length])
 
+  const topOffset = syncState !== 'idle' ? '28px' : '0px'
+
   return (
     <>
       {/* Fixed overlay to hide content behind status bar */}
-      <div 
+      <div
         className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
-        style={{ height: `env(safe-area-inset-top)` }}
+        style={{
+          height: `env(safe-area-inset-top)`,
+          top: syncState !== 'idle' ? '28px' : '0px'
+        }}
       />
+      <SyncStatusBar />
       {/* Fixed overlay to hide content behind TabBar */}
-      <div 
+      <div
         className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none"
         style={{ height: `calc(4rem + env(safe-area-inset-bottom) - 8px)` }}
       />
-      <div className="min-h-screen bg-black text-white" style={{ paddingBottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)`, overflowX: 'hidden', maxWidth: '100vw', width: '100%' }}>
+      <div
+        className="min-h-screen bg-black text-white"
+        style={{
+          paddingBottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)`,
+          paddingTop: syncState !== 'idle' ? '28px' : '0',
+          overflowX: 'hidden',
+          maxWidth: '100vw',
+          width: '100%'
+        }}
+      >
         <div className="max-w-[768px] mx-auto w-full">
           {children}
         </div>

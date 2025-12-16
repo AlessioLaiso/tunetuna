@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useSyncStore } from '../../stores/syncStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 
@@ -32,8 +33,7 @@ export default function SettingsPage() {
   const { pageVisibility, setPageVisibility, accentColor, setAccentColor, enableQueueRecommendations, setEnableQueueRecommendations } = useSettingsStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres } = useMusicStore()
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const { state: syncState, startSync, completeSync } = useSyncStore()
   const [copied, setCopied] = useState(false)
 
   const handleLogout = () => {
@@ -46,22 +46,17 @@ export default function SettingsPage() {
   }
 
   const handleSyncLibrary = async () => {
-    setIsSyncing(true)
-    setSyncMessage(null)
+    startSync('settings', 'Syncing library...')
     try {
       await jellyfinClient.syncLibrary()
       const result = await jellyfinClient.getGenres()
-      const sorted = (result || []).sort((a, b) => 
+      const sorted = (result || []).sort((a, b) =>
         (a.Name || '').localeCompare(b.Name || '')
       )
       setGenres(sorted)
-      setSyncMessage('Library synced successfully')
-      setTimeout(() => setSyncMessage(null), 3000)
+      completeSync(true, 'Library synced successfully')
     } catch (error) {
-      setSyncMessage(error instanceof Error ? error.message : 'Failed to sync library')
-      setTimeout(() => setSyncMessage(null), 3000)
-    } finally {
-      setIsSyncing(false)
+      completeSync(false, error instanceof Error ? error.message : 'Failed to sync library')
     }
   }
 
@@ -78,7 +73,7 @@ export default function SettingsPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-gray-800" style={{ top: `env(safe-area-inset-top)` }}>
+      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-gray-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
           <div className="flex items-center gap-4 p-4">
           <button
@@ -212,10 +207,10 @@ export default function SettingsPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleSyncLibrary}
-                disabled={isSyncing}
+                disabled={syncState === 'syncing'}
                 className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
               >
-                {isSyncing ? (
+                {syncState === 'syncing' ? (
                   <>
                     <RefreshCw className="w-5 h-5 animate-spin" />
                     <span>Syncing...</span>
@@ -235,15 +230,6 @@ export default function SettingsPage() {
                 <span>Log Out</span>
               </button>
             </div>
-            {syncMessage && (
-              <div className={`text-sm text-center px-3 py-2 rounded ${
-                syncMessage.includes('successfully') 
-                  ? 'bg-green-900/30 text-green-400' 
-                  : 'bg-red-900/30 text-red-400'
-              }`}>
-                {syncMessage}
-              </div>
-            )}
           </div>
         </section>
       </div>

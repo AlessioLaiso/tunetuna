@@ -4,6 +4,7 @@ import { Play, ListStart, ListEnd, Shuffle, RefreshCw, ArrowRight, User, Guitar,
 import BottomSheet from './BottomSheet'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
 import type { BaseItemDto } from '../../api/types'
 
@@ -27,6 +28,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [loading, setLoading] = useState(false)
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const { playTrack, playAlbum, addToQueue, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
+  const { startSync, completeSync } = useSyncStore()
   const { genres } = useMusicStore()
 
   if (!item || !itemType) {
@@ -116,7 +118,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             addToQueue(tracks)
           } else if (action === 'sync') {
             // Sync this album by preloading its tracks
-            await jellyfinClient.getAlbumTracks(item.Id)
+            startSync('context-menu', `Syncing ${item.Name}...`)
+            try {
+              await jellyfinClient.getAlbumTracks(item.Id)
+              completeSync(true, `${item.Name} synced`)
+            } catch (error) {
+              completeSync(false, `Failed to sync ${item.Name}`)
+            }
           }
           break
         }
@@ -129,7 +137,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             addToQueue([item])
           } else if (action === 'sync') {
             // Sync this song by fetching its details
-            await jellyfinClient.getSongById(item.Id)
+            startSync('context-menu', `Syncing ${item.Name}...`)
+            try {
+              await jellyfinClient.getSongById(item.Id)
+              completeSync(true, `${item.Name} synced`)
+            } catch (error) {
+              completeSync(false, `Failed to sync ${item.Name}`)
+            }
           }
           break
         }
@@ -145,7 +159,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             addToQueue(songs)
           } else if (action === 'sync') {
             // Sync this artist by preloading their items
-            await jellyfinClient.getArtistItems(item.Id)
+            startSync('context-menu', `Syncing ${item.Name}...`)
+            try {
+              await jellyfinClient.getArtistItems(item.Id)
+              completeSync(true, `${item.Name} synced`)
+            } catch (error) {
+              completeSync(false, `Failed to sync ${item.Name}`)
+            }
           }
           break
         }

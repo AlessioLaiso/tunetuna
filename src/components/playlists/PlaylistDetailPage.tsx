@@ -150,7 +150,7 @@ export default function PlaylistDetailPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `env(safe-area-inset-top)` }}>
+      <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
           <div className="flex items-center justify-between gap-4 px-4" style={{ paddingTop: 'calc(1rem + 8px)', paddingBottom: '1rem' }}>
           <button

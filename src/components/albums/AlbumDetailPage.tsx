@@ -448,30 +448,32 @@ export default function AlbumDetailPage() {
       {/* Make status bar transparent by covering Layout's black overlay */}
       <div 
         className="fixed top-0 left-0 right-0 z-[55] pointer-events-none"
-        style={{ 
+        style={{
           height: `env(safe-area-inset-top)`,
+          top: `var(--header-offset, 0px)`,
           background: 'transparent'
         }}
       />
       {/* Gradient overlay from status bar to header end - below header in z-index */}
       <div 
         className="fixed top-0 left-0 right-0 z-10 pointer-events-none"
-        style={{ 
-          height: `calc(env(safe-area-inset-top) + 4rem)`,
-          background: `linear-gradient(to bottom, 
-            #000000 0%, 
-            #000000 calc(env(safe-area-inset-top) + 0.5rem), 
-            rgba(0, 0, 0, 0.95) calc(env(safe-area-inset-top) + 1rem), 
-            rgba(0, 0, 0, 0.85) calc(env(safe-area-inset-top) + 1.5rem), 
-            rgba(0, 0, 0, 0.7) calc(env(safe-area-inset-top) + 2rem), 
-            rgba(0, 0, 0, 0.5) calc(env(safe-area-inset-top) + 2.5rem), 
-            rgba(0, 0, 0, 0.3) calc(env(safe-area-inset-top) + 3rem), 
-            rgba(0, 0, 0, 0.15) calc(env(safe-area-inset-top) + 3.5rem), 
-            rgba(0, 0, 0, 0) calc(env(safe-area-inset-top) + 4rem)
+        style={{
+          height: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)`,
+          top: `var(--header-offset, 0px)`,
+          background: `linear-gradient(to bottom,
+            #000000 0%,
+            #000000 calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
+            rgba(0, 0, 0, 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
+            rgba(0, 0, 0, 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
+            rgba(0, 0, 0, 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
+            rgba(0, 0, 0, 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
+            rgba(0, 0, 0, 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
+            rgba(0, 0, 0, 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
+            rgba(0, 0, 0, 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
           )`
         }}
       />
-      <div className="fixed top-0 left-0 right-0 z-20" style={{ top: `env(safe-area-inset-top)` }}>
+      <div className="fixed top-0 left-0 right-0 z-20" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto relative">
           <div className="flex items-center justify-between gap-4 p-4 relative z-10">
             <button

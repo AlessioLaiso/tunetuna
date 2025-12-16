@@ -27,7 +27,7 @@ export default function HomePage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `env(safe-area-inset-top)` }}>
+      <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
           <SearchBar onSearchStateChange={setIsSearchActive} />
         </div>

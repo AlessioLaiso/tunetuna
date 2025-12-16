@@ -633,10 +633,10 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
           {/* Fixed overlay to hide content behind status bar */}
           <div 
             className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
-            style={{ height: `env(safe-area-inset-top)` }}
+            style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
           />
           {/* Fixed search header with Cancel button */}
-          <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `env(safe-area-inset-top)`, height: '76px' }}>
+          <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
             <div className="max-w-[768px] mx-auto w-full">
               <div className="flex items-center gap-3 px-4 pt-4">
                 <div className="flex-1">

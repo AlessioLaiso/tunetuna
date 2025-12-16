@@ -362,22 +362,23 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   return (
     <>
-    <div 
+    <div
       ref={modalRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`fixed top-0 left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out ${
-        isClosing 
-          ? 'translate-y-full' 
-          : isAnimating 
-            ? 'translate-y-0' 
+      className={`fixed left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out ${
+        isClosing
+          ? 'translate-y-full'
+          : isAnimating
+            ? 'translate-y-0'
             : 'translate-y-full'
       }`}
       style={{
-        paddingTop: `env(safe-area-inset-top)`,
+        top: `var(--header-offset, 0px)`,
+        paddingTop: `calc(env(safe-area-inset-top) + var(--header-offset, 0px))`,
         bottom: `calc(-1 * env(safe-area-inset-bottom))`,
-        height: `calc(100% + env(safe-area-inset-bottom))`,
+        height: `calc(100% + env(safe-area-inset-bottom) + var(--header-offset, 0px))`,
         transition: touchStartY.current === null ? 'transform 300ms ease-out' : 'none'
       }}
     >

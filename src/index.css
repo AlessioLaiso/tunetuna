@@ -48,7 +48,7 @@ body {
 /* Sticky header utility that accounts for safe area insets */
 .sticky-safe-top {
   position: sticky;
-  top: env(safe-area-inset-top);
+  top: calc(var(--header-offset, 0px) + env(safe-area-inset-top));
 }
 
 * {
