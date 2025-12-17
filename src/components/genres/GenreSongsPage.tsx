@@ -12,6 +12,11 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 
+const INITIAL_VISIBLE_ALBUMS = 45
+const VISIBLE_ALBUMS_INCREMENT = 45
+const INITIAL_VISIBLE_SONGS = 45
+const VISIBLE_SONGS_INCREMENT = 45
+
 interface GenreAlbumItemProps {
   album: BaseItemDto
   year: number | null
@@ -74,6 +79,8 @@ export default function GenreSongsPage() {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | null>(null)
+  const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
+  const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
 
   useEffect(() => {
     if (!id) return
@@ -242,6 +249,54 @@ export default function GenreSongsPage() {
     return result
   }, [songs])
 
+  // Reset visible albums window when albums change
+  useEffect(() => {
+    setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
+  }, [albums.length])
+
+  // Incrementally reveal more albums as the user scrolls near the bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // When the user is within ~1.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+        setVisibleAlbumsCount((prev) =>
+          Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
+        )
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [albums.length])
+
+  // Reset visible songs window when songs change
+  useEffect(() => {
+    setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
+  }, [songs.length])
+
+  // Incrementally reveal more songs as the user scrolls near the bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // When the user is within ~1.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+        setVisibleSongsCount((prev) =>
+          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+        )
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [songs.length])
+
   if (loading) {
     return (
       <div className="pb-20">
@@ -335,7 +390,7 @@ export default function GenreSongsPage() {
           <div className="mb-10 px-4 pt-4">
             <h2 className="text-xl font-bold text-white mb-4">Albums ({albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {albums.map((album) => {
+              {albums.slice(0, visibleAlbumsCount).map((album) => {
                 const year = album.ProductionYear || (album.PremiereDate ? new Date(album.PremiereDate).getFullYear() : null)
                 return (
                   <GenreAlbumItem
@@ -362,16 +417,8 @@ export default function GenreSongsPage() {
           <div>
             <h2 className="text-xl font-bold text-white mb-2 px-4">Songs ({songs.length})</h2>
             <div className="space-y-0">
-              {groupedSongs.map(({ artist, albums }) => (
-                <div key={artist}>
-                  {albums.map(({ albumId, albumName, songs: albumSongs }) => (
-                    <div key={albumId}>
-                      {albumSongs.map((song) => (
-                        <SongItem key={song.Id} song={song} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
+              {songs.slice(0, visibleSongsCount).map((song) => (
+                <SongItem key={song.Id} song={song} />
               ))}
             </div>
           </div>

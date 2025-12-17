@@ -8,6 +8,9 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 
+const INITIAL_VISIBLE_TRACKS = 45
+const VISIBLE_TRACKS_INCREMENT = 45
+
 interface PlaylistTrackItemProps {
   track: BaseItemDto
   index: number
@@ -86,6 +89,7 @@ export default function PlaylistDetailPage() {
   const [playlistContextMenuOpen, setPlaylistContextMenuOpen] = useState(false)
   const [playlistContextMenuMode, setPlaylistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [playlistContextMenuPosition, setPlaylistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
+  const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
 
   useEffect(() => {
     if (!id) return
@@ -119,6 +123,30 @@ export default function PlaylistDetailPage() {
 
     loadPlaylistData()
   }, [id])
+
+  // Reset visible tracks window when tracks change
+  useEffect(() => {
+    setVisibleTracksCount(INITIAL_VISIBLE_TRACKS)
+  }, [tracks.length])
+
+  // Incrementally reveal more tracks as the user scrolls near the bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // When the user is within ~1.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+        setVisibleTracksCount((prev) =>
+          Math.min(prev + VISIBLE_TRACKS_INCREMENT, tracks.length)
+        )
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [tracks.length])
 
   const handlePlayAll = () => {
     if (tracks.length > 0) {
@@ -213,7 +241,7 @@ export default function PlaylistDetailPage() {
 
         <div>
           <div className="space-y-0">
-            {tracks.map((track, index) => (
+            {tracks.slice(0, visibleTracksCount).map((track, index) => (
               <PlaylistTrackItem
                 key={track.Id}
                 track={track}

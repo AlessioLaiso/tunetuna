@@ -11,6 +11,11 @@ import Spinner from '../shared/Spinner'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
+const INITIAL_VISIBLE_ALBUMS = 45
+const VISIBLE_ALBUMS_INCREMENT = 45
+const INITIAL_VISIBLE_SONGS = 45
+const VISIBLE_SONGS_INCREMENT = 45
+
 interface ArtistAlbumItemProps {
   album: BaseItemDto
   year: string | null
@@ -175,6 +180,8 @@ export default function ArtistDetailPage() {
   const [artistContextMenuMode, setArtistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [artistContextMenuPosition, setArtistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
+  const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
+  const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const bioMeasureRef = useRef<HTMLParagraphElement | null>(null)
 
   // Scroll to top when component mounts or artist ID changes
@@ -352,6 +359,54 @@ export default function ArtistDetailPage() {
       window.removeEventListener('resize', handleResize)
     }
   }, [artist?.Overview])
+
+  // Reset visible albums window when albums change
+  useEffect(() => {
+    setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
+  }, [albums.length])
+
+  // Incrementally reveal more albums as the user scrolls near the bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // When the user is within ~1.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+        setVisibleAlbumsCount((prev) =>
+          Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
+        )
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [albums.length])
+
+  // Reset visible songs window when songs change
+  useEffect(() => {
+    setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
+  }, [songs.length])
+
+  // Incrementally reveal more songs as the user scrolls near the bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // When the user is within ~1.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+        setVisibleSongsCount((prev) =>
+          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+        )
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [songs.length])
 
 
   const handleShuffleAll = () => {
@@ -690,7 +745,7 @@ export default function ArtistDetailPage() {
           <div className="mb-10 px-4">
             <h2 className="text-2xl font-bold text-white mb-4">Albums ({albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {albums.map((album) => {
+              {albums.slice(0, visibleAlbumsCount).map((album) => {
                 const year = getAlbumYear(album)
                 return (
                   <ArtistAlbumItem
@@ -749,7 +804,7 @@ export default function ArtistDetailPage() {
               </div>
             </div>
             <div className="space-y-0">
-              {sortedSongs.map((song) => {
+              {sortedSongs.slice(0, visibleSongsCount).map((song) => {
                 const { album, year } = getSongAlbumAndYear(song)
                 return (
                   <ArtistSongItem
