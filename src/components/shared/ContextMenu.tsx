@@ -141,12 +141,15 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         }
         case 'song': {
           if (action === 'play') {
+            console.log('ContextMenu: Playing song', item.Name)
             playTrack(item)
           } else if (action === 'playNext') {
+            console.log('ContextMenu: Adding song to play next', item.Name)
             playNext([item])
           } else if (action === 'addToQueue') {
+            console.log('ContextMenu: Adding song to queue', item.Name)
             addToQueue([item])
-            } else if (action === 'sync') {
+          } else if (action === 'sync') {
               // Sync this song and invalidate related genre caches
               startSync('context-menu', `Syncing ${item.Name}...`)
               try {

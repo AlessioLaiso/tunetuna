@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { usePlayerStore, markItemAsReported } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack, useLastPlayedTrack } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import PlayerModal from './PlayerModal'
@@ -9,8 +9,8 @@ import { useLocation } from 'react-router-dom'
 
 export default function PlayerBar() {
   const {
-    currentTrack,
-    lastPlayedTrack,
+    songs,
+    currentIndex,
     isPlaying,
     currentTime,
     duration,
@@ -21,16 +21,17 @@ export default function PlayerBar() {
     setCurrentTime,
     setDuration,
     playTrack,
-    queue,
-    currentIndex,
     repeat,
     shuffle,
     toggleShuffle,
     toggleRepeat,
     previous,
-    previousSongs,
     seek,
   } = usePlayerStore()
+
+  const currentTrack = useCurrentTrack()
+  const lastPlayedTrack = useLastPlayedTrack()
+
   const [showModal, setShowModal] = useState(false)
   const [isModalClosing, setIsModalClosing] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -48,6 +49,12 @@ export default function PlayerBar() {
       }, 300) // Match animation duration
     }
   }, [location.pathname])
+
+  // Ensure modal is closed on initial mount to prevent flash from browser cache
+  useEffect(() => {
+    setShowModal(false)
+    setIsModalClosing(false)
+  }, [])
 
   // Listen for close modal event from TabBar
   useEffect(() => {
@@ -93,19 +100,14 @@ export default function PlayerBar() {
     }
 
     const handleEnded = async () => {
-      const queue = usePlayerStore.getState().queue
-      const trackIsRecommended = currentTrack ? (queue.find(t => t.Id === currentTrack.Id) as any)?._isRecommended : false
       // Report playback when track ends
       if (currentTrack) {
         try {
           await jellyfinClient.markItemAsPlayed(currentTrack.Id)
-          // Mark as reported to prevent duplicate delayed reports
-          markItemAsReported(currentTrack.Id)
           // Trigger a custom event to notify RecentlyPlayed to refresh after a short delay
-          // This ensures the server has time to update its database
           setTimeout(() => {
             window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: currentTrack.Id } }))
-          }, 4000) // 4 second delay after markItemAsPlayed completes to allow server to update
+          }, 4000)
         } catch (error) {
           // Error already logged in markItemAsPlayed
         }
@@ -142,22 +144,20 @@ export default function PlayerBar() {
     }
   }, [])
 
-  // Initialize queue from lastPlayedTrack on app load if queue is empty
+  // Initialize playback if we have a current track but audio isn't playing
   useEffect(() => {
-    const state = usePlayerStore.getState()
-    // If we have a lastPlayedTrack but no currentTrack and empty queue, restore it
-    if (state.lastPlayedTrack && !state.currentTrack && state.queue.length === 0) {
-      const track = state.lastPlayedTrack
-      // Add the track to the queue and set it as current
-      // Use setQueue to properly initialize the queue, then setCurrentTrack to set up audio
-      usePlayerStore.getState().setQueue([track])
-      // setCurrentTrack will handle setting up the audio source (if audio element exists)
-      usePlayerStore.getState().setCurrentTrack(track)
-      // Reset manuallyCleared to false so recommendations can trigger
-      // This is an automatic restoration, not a manual user action
-      usePlayerStore.setState({ manuallyCleared: false })
+    if (currentTrack && !isPlaying && audioElement) {
+      // Ensure audio source is set for the current track
+      const baseUrl = jellyfinClient.serverBaseUrl
+      const audioUrl = baseUrl
+        ? `${baseUrl}/Audio/${currentTrack.Id}/stream?static=true`
+        : ''
+      if (audioElement.src !== audioUrl) {
+        audioElement.src = audioUrl
+        audioElement.load()
+      }
     }
-  }, [])
+  }, [currentTrack, isPlaying, audioElement])
 
   // Ensure audio source is set when audio element becomes available and we have a currentTrack
   useEffect(() => {
@@ -183,29 +183,15 @@ export default function PlayerBar() {
   
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
   
-  // Derive an effective index based on the actual currentTrack in the queue,
-  // so controls work correctly after restore or other flows where currentIndex
-  // might be out of sync with the playing track.
-  const effectiveIndex =
-    currentIndex >= 0 && currentIndex < queue.length
-      ? currentIndex
-      : currentTrack
-        ? queue.findIndex(t => t.Id === currentTrack.Id)
-        : -1
-
   // Check if there's a next song available
-  const hasNext = queue.length > 0 && (
+  const hasNext = songs.length > 0 && (
     currentIndex < 0 || // No current track, but queue has songs
-    currentIndex < queue.length - 1 || // Not at the end of queue
+    currentIndex < songs.length - 1 || // Not at the end of queue
     repeat === 'all' // Repeat all is enabled
   )
 
-  // Previous should be active if:
-  // 1. There are songs before the effective index in the queue, OR
-  // 2. There are previousSongs in history (for going back to previously played songs)
-  const hasPrevious =
-    (effectiveIndex > 0 && effectiveIndex < queue.length) ||
-    previousSongs.length > 0
+  // Previous should be active if there are songs before current index
+  const hasPrevious = currentIndex > 0
 
   // Always show the bar if there's a track to display (current or last played)
   if (!displayTrack) {

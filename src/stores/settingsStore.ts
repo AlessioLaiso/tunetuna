@@ -16,8 +16,10 @@ interface SettingsState {
   setPageVisibility: (visibility: Partial<PageVisibility>) => void
   accentColor: string
   setAccentColor: (color: string) => void
-  enableQueueRecommendations: boolean
-  setEnableQueueRecommendations: (enabled: boolean) => void
+  showQueueRecommendations: boolean
+  setShowQueueRecommendations: (enabled: boolean) => void
+  recommendationsQuality: 'good' | 'degraded' | 'failed'
+  setRecommendationsQuality: (quality: 'good' | 'degraded' | 'failed') => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -38,8 +40,10 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       accentColor: 'blue',
       setAccentColor: (color) => set({ accentColor: color }),
-      enableQueueRecommendations: true,
-      setEnableQueueRecommendations: (enabled) => set({ enableQueueRecommendations: enabled }),
+      showQueueRecommendations: true,
+      setShowQueueRecommendations: (enabled) => set({ showQueueRecommendations: enabled }),
+      recommendationsQuality: 'good',
+      setRecommendationsQuality: (quality) => set({ recommendationsQuality: quality }),
     }),
     {
       name: 'settings-storage',

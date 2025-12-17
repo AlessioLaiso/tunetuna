@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
@@ -13,7 +13,8 @@ interface SongItemProps {
 }
 
 export default function SongItem({ song, showImage = true }: SongItemProps) {
-  const { playTrack, currentTrack } = usePlayerStore()
+  const { playTrack } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)

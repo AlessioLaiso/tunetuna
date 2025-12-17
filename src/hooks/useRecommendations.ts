@@ -14,194 +14,204 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export function useRecommendations() {
   const {
-    queue,
-    currentTrack,
+    songs,
     currentIndex,
     addToQueue,
-    lastPlayedTrack,
-    manuallyCleared,
     refreshCurrentTrack,
     isFetchingRecommendations,
     setIsFetchingRecommendations,
-    collectionStartIndex,
-    originalQueue,
-    playedSongIds,
   } = usePlayerStore()
-  const { enableQueueRecommendations } = useSettingsStore()
-  const recentQueueRef = useRef<typeof queue>([])
+
+  const { showQueueRecommendations } = useSettingsStore()
+
+  const recentQueueRef = useRef<typeof songs>([])
   const isRecommendingRef = useRef(false)
+  const lastFailedAttemptRef = useRef<number>(0) // Track when we last failed to get recommendations
 
   useEffect(() => {
     // Update recent queue (last 20 tracks)
-    recentQueueRef.current = queue.slice(-20)
-  }, [queue])
+    recentQueueRef.current = songs.slice(-20)
+  }, [songs])
 
   useEffect(() => {
-    const { shuffle } = usePlayerStore.getState()
+    // Reset failure timestamp when current track changes
+    lastFailedAttemptRef.current = 0
+  }, [currentIndex])
 
-    let tracksRemaining = 0
+  useEffect(() => {
+    // Reset failure timestamp when user manually toggles recommendations on/off
+    lastFailedAttemptRef.current = 0
+  }, [showQueueRecommendations])
 
-    if (currentIndex >= 0 && currentIndex < queue.length) {
-      // Normal case: currentIndex points into the queue
-      tracksRemaining = queue.length - currentIndex
-    } else if (queue.length === 1 && currentTrack) {
-      // Restore case: one item in queue and a currentTrack, but index is invalid
-      tracksRemaining = 1
-    } else if (queue.length === 0 && currentTrack) {
-      // Extreme case: no queue at all but a playing track
-      tracksRemaining = 1
-    }
+  useEffect(() => {
+    // Count upcoming recommendations (after current position)
+    const upcomingRecommendations = songs
+      .slice(currentIndex + 1)
+      .filter(song => song.source === 'recommendation').length
 
+    // If recommendations are enabled, maintain exactly 12 upcoming recommendations
+    // Don't retry if we recently failed (within 10 seconds)
+    const timeSinceLastFailure = Date.now() - lastFailedAttemptRef.current
     const shouldTrigger = Boolean(
-      enableQueueRecommendations &&
+      showQueueRecommendations &&
         !isRecommendingRef.current &&
-        !manuallyCleared &&
-        currentTrack &&
-        tracksRemaining > 0 &&
-        tracksRemaining <= 3
+        !isFetchingRecommendations && // Don't trigger if already fetching
+        currentIndex >= 0 &&
+        upcomingRecommendations < 12 &&
+        timeSinceLastFailure > 10000 // Wait at least 10 seconds after a failed attempt
     )
 
-    if (!shouldTrigger || !currentTrack) {
-      return
-    }
-
-    isRecommendingRef.current = true
-    setIsFetchingRecommendations?.(true)
+    if (!shouldTrigger) return
 
     const runRecommendations = async () => {
+      console.log('[Recommendations] Starting fetch, setting isRecommending = true')
+      isRecommendingRef.current = true
+      setIsFetchingRecommendations(true)
+
+      // Safety timeout to reset flags if something goes wrong
+      const timeoutId = setTimeout(() => {
+        console.log('[Recommendations] Safety timeout triggered, resetting flags')
+        isRecommendingRef.current = false
+        setIsFetchingRecommendations(false)
+      }, 30000) // 30 seconds timeout
+
       try {
         await refreshCurrentTrack()
-        const refreshedTrack =
-          usePlayerStore.getState().currentTrack || currentTrack
+        const currentTrack = songs[currentIndex]
 
-        const seeds: typeof queue = []
-        const baseIndex =
-          currentIndex >= 0 && currentIndex < queue.length ? currentIndex : -1
+        if (!currentTrack) return
 
-        if (baseIndex >= 0) {
-          const currentSeed = queue[baseIndex]
-          if (currentSeed) seeds.push(currentSeed)
+        // Get seeds from current track and nearby tracks
+        const seedTracks = [currentTrack]
 
-          const nextSeed = queue[baseIndex + 1]
-          if (nextSeed) seeds.push(nextSeed)
-
-          const nextNextSeed = queue[baseIndex + 2]
-          if (nextNextSeed) seeds.push(nextNextSeed)
+        // Add up to 2 more seeds from nearby songs
+        const nearbyIndices = [currentIndex - 1, currentIndex + 1, currentIndex + 2]
+        for (const idx of nearbyIndices) {
+          if (idx >= 0 && idx < songs.length && seedTracks.length < 3) {
+            const nearbyTrack = songs[idx]
+            if (nearbyTrack && !seedTracks.some(s => s.Id === nearbyTrack.Id)) {
+              seedTracks.push(nearbyTrack)
+            }
+          }
         }
 
-        if (seeds.length === 0 && refreshedTrack) {
-          seeds.push(refreshedTrack as any)
-        }
+        // DEBUG: Show which seed tracks are being used
+        console.log('[Recommendations] Using seed tracks:', seedTracks.map((seed, i) =>
+          `${i + 1}. ${seed.Name} (${seed.ProductionYear}) [${seed.Genres?.join(', ') || 'no genres'}]`
+        ))
 
-        let perSeedTarget = 12
-        if (seeds.length === 2) perSeedTarget = 6
-        if (seeds.length >= 3) perSeedTarget = 4
+        // Get recommendations for each seed
+        const seedResults: Array<{recommendations: any[], hasGenreMatches: boolean}> = []
 
-        const allRecommendedMap = new Map<string, typeof queue[0]>()
-
-        for (let idx = 0; idx < seeds.length; idx++) {
-          const seed = seeds[idx]
-          if (!seed) continue
-
-          const seedRecs = await getRecommendedSongs({
+        for (const seed of seedTracks) {
+          console.log(`[Recommendations] Generating recommendations for seed: ${seed.Name}`)
+          const result = await getRecommendedSongs({
             currentTrack: seed,
-            queue,
+            queue: songs,
             recentQueue: recentQueueRef.current,
-            lastPlayedTrack,
+            lastPlayedTrack: null, // Not needed with new system
           })
 
-          if (!Array.isArray(seedRecs) || seedRecs.length === 0) {
-            console.warn(
-              `[Recommendations Hook] Seed ${idx} returned no recommendations`
-            )
-            continue
-          }
-
-          const seedNew = seedRecs
-            .filter((r) => r && r.Id && !allRecommendedMap.has(String(r.Id)))
-            .slice(0, perSeedTarget)
-
-          seedNew.forEach((r) => {
-            allRecommendedMap.set(String(r.Id), r as any)
+          console.log(`[Recommendations] Result for seed ${seed.Name}:`, {
+            recommendationsCount: result.recommendations?.length || 0,
+            hasGenreMatches: result.hasGenreMatches,
+            triggeredGenreSync: result.triggeredGenreSync,
+            resultType: typeof result,
+            isArray: Array.isArray(result)
           })
-        }
 
-        let combined = Array.from(allRecommendedMap.values())
-
-        const {
-          queue: currentQueueNow,
-          currentTrack: currentTrackNow,
-          lastPlayedTrack: lastPlayedTrackNow,
-          playedSongIds: currentPlayedSongIds,
-        } = usePlayerStore.getState()
-
-        const safeCombined = combined.filter((r) => {
-          const inQueue = currentQueueNow.some((q) => q.Id === r.Id)
-          const isCurrent = currentTrackNow?.Id === r.Id
-          const isLastPlayed = lastPlayedTrackNow?.Id === r.Id
-          const alreadyPlayed = currentPlayedSongIds.includes(r.Id)
-          if (inQueue || isCurrent || isLastPlayed || alreadyPlayed) {
-            console.warn(
-              `[Recommendations Hook] Filtering out ${r.Name} (${r.Id}) - inQueue: ${inQueue}, isCurrent: ${isCurrent}, isLastPlayed: ${isLastPlayed}, alreadyPlayed: ${alreadyPlayed}`
-            )
-            return false
+          // If genre sync was triggered, skip this seed and schedule a retry
+          if (result.triggeredGenreSync) {
+            console.log('[Recommendations] Genre sync triggered for this seed, skipping it and will retry in 5 seconds...')
+            setTimeout(() => {
+              // Reset the failure timestamp to allow immediate retry
+              lastFailedAttemptRef.current = 0
+            }, 5000)
+            return // Skip adding this seed to results
           }
-          return true
-        })
 
-        if (safeCombined.length < combined.length) {
-          console.warn(
-            `[Recommendations Hook] Filtered out ${
-              combined.length - safeCombined.length
-            } songs that are now in queue/playing`
-          )
+          if (result.recommendations && Array.isArray(result.recommendations)) {
+            seedResults.push(result)
+          } else {
+            console.warn(`[Recommendations] Invalid result for seed ${seed.Name}:`, result)
+          }
         }
 
-        if (safeCombined.length === 0) {
-          console.warn(
-            '[Recommendations Hook] No safe combined recommendations remain after filtering'
-          )
-          return
+        // Filter to only seeds that found genre matches
+        const successfulSeeds = seedResults.filter(result => result.hasGenreMatches)
+
+        console.log(`[Recommendations] ${successfulSeeds.length} out of ${seedTracks.length} seeds found genre matches`)
+
+        // If no seeds found genre matches, set degraded quality
+        if (successfulSeeds.length === 0) {
+          const { setRecommendationsQuality } = useSettingsStore.getState()
+          setRecommendationsQuality('degraded')
+          console.log('[Recommendations] No genre matches found - falling back to year/artist only')
         }
 
-        const shuffled = shuffleArray(safeCombined)
-        const finalRecommendations = shuffled.slice(0, 12)
+        // Distribute recommendations evenly across successful seeds (or all seeds if none successful)
+        const seedsToUse = successfulSeeds.length > 0 ? successfulSeeds : seedResults
+        const targetPerSeed = Math.ceil(12 / seedsToUse.length)
+        const safeRecommendations: any[] = []
 
-        if (finalRecommendations.length > 0) {
-          addToQueue(finalRecommendations, true)
+        for (const seedResult of seedsToUse) {
+          const filtered = seedResult.recommendations.filter(rec => {
+            // Filter out songs already in queue or already selected
+            const alreadyInQueue = songs.some(song => song.Id === rec.Id)
+            const alreadySelected = safeRecommendations.some(existing => existing.Id === rec.Id)
+            return !alreadyInQueue && !alreadySelected
+          })
+
+          // Take up to targetPerSeed from this seed
+          const toAdd = filtered.slice(0, targetPerSeed)
+          safeRecommendations.push(...toAdd)
+
+          console.log(`[Recommendations] Added ${toAdd.length} recommendations from seed (${filtered.length} available, genreMatch: ${seedResult.hasGenreMatches})`)
+        }
+
+        // Limit to final 12
+        const finalRecommendations = safeRecommendations.slice(0, 12)
+
+        // Shuffle the final recommendations to mix genres (independent of shuffle setting)
+        const shuffledRecommendations = shuffleArray(finalRecommendations)
+
+        console.log(`[Recommendations] Final ${finalRecommendations.length} recommendations (distributed across ${seedTracks.length} seeds)`)
+
+        if (shuffledRecommendations.length > 0) {
+          const upcomingAfterAdd = songs.slice(currentIndex + 1).filter(song => song.source === 'recommendation').length + shuffledRecommendations.length
+          console.log(`[Recommendations] Adding ${shuffledRecommendations.length} recommendations. Upcoming recommendations will be: ${upcomingAfterAdd}`)
+          console.log('[Recommendations] Recommendations to add:', shuffledRecommendations.map(r => r.Name))
+          addToQueue(shuffledRecommendations, false, 'recommendation') // Add as recommendations
+          console.log('[Recommendations] Successfully added recommendations to queue')
+          // Reset failure timestamp on success
+          lastFailedAttemptRef.current = 0
         } else {
-          console.warn(
-            '[Recommendations Hook] No recommendations to add after shuffling/slicing'
-          )
+          console.log('[Recommendations] No safe recommendations to add - marking as failed attempt')
+          // Mark this as a failed attempt to prevent infinite retries
+          lastFailedAttemptRef.current = Date.now()
         }
+
       } catch (error) {
-        console.error(
-          '[Recommendations Hook] CRITICAL: Failed to get multi-seed recommendations:',
-          error
-        )
-        console.error('[Recommendations Hook] Error details:', {
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : 'No stack trace',
-          currentTrack: currentTrack?.Name,
-          queueLength: queue.length,
-        })
-      } finally {
+        console.error('[Recommendations Hook] Failed to get recommendations:', error)
+        // Ensure flags are reset even on error
         isRecommendingRef.current = false
-        setIsFetchingRecommendations?.(false)
+        setIsFetchingRecommendations(false)
+      } finally {
+        clearTimeout(timeoutId)
+        console.log('[Recommendations] Finished fetch, setting isRecommending = false')
+        isRecommendingRef.current = false
+        setIsFetchingRecommendations(false)
       }
     }
 
-    void runRecommendations()
+    runRecommendations()
   }, [
+    songs,
     currentIndex,
-    queue.length,
-    currentTrack,
-    queue,
     addToQueue,
-    lastPlayedTrack,
-    manuallyCleared,
     refreshCurrentTrack,
-    enableQueueRecommendations,
+    showQueueRecommendations,
+    isFetchingRecommendations,
     setIsFetchingRecommendations,
   ])
 }

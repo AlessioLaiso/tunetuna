@@ -31,7 +31,7 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, enableQueueRecommendations, setEnableQueueRecommendations } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor } = useSettingsStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
@@ -131,28 +131,6 @@ export default function SettingsPage() {
                 </button>
               </div>
             ))}
-          </div>
-        </section>
-
-        {/* Recommendations Section */}
-        <section>
-          <h2 className="text-lg font-semibold text-white mb-4">Recommendations</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg">
-              <label className="text-white font-medium">Recommendations in the queue</label>
-              <button
-                onClick={() => setEnableQueueRecommendations(!enableQueueRecommendations)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  enableQueueRecommendations ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    enableQueueRecommendations ? 'translate-x-6' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
           </div>
         </section>
 

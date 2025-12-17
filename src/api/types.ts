@@ -67,7 +67,7 @@ export interface LightweightSong {
   Genres?: string[]
 }
 
-export type SortOrder = 'RecentlyAdded' | 'Alphabetical'
+export type SortOrder = 'RecentlyAdded' | 'Alphabetical' | 'Newest'
 
 export interface GetItemsOptions {
   sortBy?: string[]

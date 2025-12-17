@@ -7,6 +7,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { jellyfinClient } from '../../api/jellyfin'
+import type { LightweightSong, BaseItemDto } from '../../api/types'
 
 const colorMap: Record<string, string> = {
   slate: '#64748b',
@@ -40,8 +41,39 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   useRecommendations()
   const { accentColor } = useSettingsStore()
-  const { genres } = useMusicStore()
+  const { genres, songs, genreSongs } = useMusicStore()
   const { state: syncState } = useSyncStore()
+
+  // Fisher-Yates shuffle algorithm
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  // Utility function to generate fresh shuffle pool
+  const generateShufflePool = (allSongs: LightweightSong[], recentlyPlayed: BaseItemDto[], poolSize = 30) => {
+    if (allSongs.length === 0) return []
+
+    // Exclude recently played songs (last 10) to avoid repetition
+    const recentlyPlayedIds = new Set(recentlyPlayed.slice(0, 10).map(song => song.Id))
+    const availableSongs = allSongs.filter(song => !recentlyPlayedIds.has(song.Id))
+
+    // If we don't have enough songs after exclusion, include some recent ones
+    let poolSongs = availableSongs
+    if (poolSongs.length < poolSize) {
+      const recentToInclude = recentlyPlayed.slice(0, poolSize - poolSongs.length)
+      poolSongs = [...poolSongs, ...recentToInclude.map(rp =>
+        allSongs.find(s => s.Id === rp.Id)
+      ).filter(Boolean)]
+    }
+
+    // Shuffle and return pool
+    return shuffleArray(poolSongs).slice(0, poolSize)
+  }
 
   useEffect(() => {
     const colorHex = colorMap[accentColor] || colorMap.blue
@@ -63,6 +95,73 @@ export default function Layout({ children }: LayoutProps) {
       })
     }
   }, [genres.length])
+
+  // Minimal preload for instant shuffle start
+  useEffect(() => {
+    const musicStore = useMusicStore.getState()
+    const totalSongs = songs.length + Object.values(genreSongs).flat().length
+
+    // Create shuffle pool if songs exist but pool is empty (existing users)
+    if (totalSongs > 0 && musicStore.shufflePool.length === 0) {
+      musicStore.refreshShufflePool()
+    }
+    // Preload minimal songs if nothing cached (first-time users)
+    else if (totalSongs === 0) {
+      setTimeout(async () => {
+        try {
+          // Get total song count first
+          const countResult = await jellyfinClient.getSongs({ limit: 1 })
+          const librarySize = countResult.TotalRecordCount || 1000
+
+          // Generate 3 random offsets across the entire library
+          const offsets = []
+          for (let i = 0; i < 3; i++) {
+            const randomOffset = Math.floor(Math.random() * librarySize)
+            offsets.push(randomOffset)
+          }
+
+          // Fetch 1 song from each random offset (parallel requests)
+          const samplePromises = offsets.map(offset =>
+            jellyfinClient.getSongs({
+              limit: 1,
+              sortBy: ['SortName'],
+              sortOrder: 'Ascending',
+              startIndex: offset
+            })
+          )
+
+          const results = await Promise.all(samplePromises)
+          const sampledSongs = results.flatMap(result => result.Items || [])
+
+          if (sampledSongs.length > 0) {
+            const lightweightSongs = sampledSongs.map(song => ({
+              Id: song.Id,
+              Name: song.Name,
+              AlbumArtist: song.AlbumArtist,
+              ArtistItems: song.ArtistItems,
+              Album: song.Album,
+              AlbumId: song.AlbumId,
+              IndexNumber: song.IndexNumber,
+              ProductionYear: song.ProductionYear,
+              PremiereDate: song.PremiereDate,
+              RunTimeTicks: song.RunTimeTicks,
+              Genres: song.Genres
+            }))
+
+            // Cache songs and create shuffle pool from the diverse samples
+            useMusicStore.setState({
+              songs: lightweightSongs,
+              shufflePool: shuffleArray(lightweightSongs), // Use all sampled songs
+              lastPoolUpdate: Date.now()
+            })
+          }
+        } catch (error) {
+          console.warn('Minimal song preload failed:', error)
+          // Shuffle will work via API fallback - no big deal
+        }
+      }, 300) // Quick delay, not 500ms
+    }
+  }, [songs.length, genreSongs])
 
   const topOffset = syncState !== 'idle' ? '28px' : '0px'
 

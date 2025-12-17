@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
@@ -20,7 +20,7 @@ interface AlbumTrackItemProps {
 
 function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
-  const { currentTrack } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
@@ -77,7 +77,8 @@ function formatDuration(ticks: number): string {
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, currentTrack, isPlaying, play, pause } = usePlayerStore()
+  const { playAlbum, playTrack, isPlaying, play, pause } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -210,8 +211,8 @@ export default function AlbumDetailPage() {
         hasInitializedRef.current = true
       }
 
-      // Check if we should use split animation (screens >= 768px)
-      shouldSplitRef.current = window.innerWidth >= 768
+      // Check if we should use split animation (screens >= 560px)
+      shouldSplitRef.current = window.innerWidth >= 560
 
       // Set up animation delay (500ms) - no fade, just positioning
       if (!reverseAnimationStartedRef.current) { // Reuse this flag for animation setup
@@ -258,7 +259,7 @@ export default function AlbumDetailPage() {
       const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
 
       if (isCurrentAlbumPlaying && showVinyl) {
-        const newShouldSplit = window.innerWidth >= 768
+        const newShouldSplit = window.innerWidth >= 560
         shouldSplitRef.current = newShouldSplit
 
         // If we're currently animated, adjust positioning immediately

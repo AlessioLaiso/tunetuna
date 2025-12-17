@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Settings, Guitar, Calendar, Play, ListEnd, User, Disc } from 'lucide-react'
+import { Settings, Guitar, Calendar, Play, ListEnd, User, Disc, Shuffle } from 'lucide-react'
 import SearchInput from '../shared/SearchInput'
 import type { BaseItemDto } from '../../api/types'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -9,7 +9,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import FilterBottomSheet from './FilterBottomSheet'
 import { useMusicStore } from '../../stores/musicStore'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
 
@@ -219,7 +219,7 @@ interface SearchSongItemProps {
 }
 
 function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
-  const { currentTrack } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const [imageError, setImageError] = useState(false)
@@ -340,7 +340,20 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
   
   // Player functions
-  const { playAlbum, addToQueue, playTrack } = usePlayerStore()
+  const { playAlbum, addToQueue, playTrack, shuffleAllSongs } = usePlayerStore()
+
+  // Loading state for shuffle button
+  const [isShuffling, setIsShuffling] = useState(false)
+
+  // Reset loading state after a timeout to prevent permanent disabling
+  useEffect(() => {
+    if (isShuffling) {
+      const timeout = setTimeout(() => {
+        setIsShuffling(false)
+      }, 10000) // Reset after 10 seconds max
+      return () => clearTimeout(timeout)
+    }
+  }, [isShuffling])
   
   const navigate = useNavigate()
 
@@ -612,13 +625,56 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
           <div className="text-lg font-semibold text-white">
             Tunetuna
           </div>
-          <button
-            onClick={() => navigate('/settings')}
-            className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-            aria-label="Settings"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+
+                // Prevent concurrent shuffle operations
+                const state = usePlayerStore.getState()
+                const { isShuffleAllActive, isShuffleGenreActive, shuffle } = state
+
+
+                if (isShuffling || isShuffleAllActive || isShuffleGenreActive) {
+
+
+                  return // Already shuffling, ignore click
+                }
+
+                setIsShuffling(true)
+
+
+                try {
+                  await shuffleAllSongs()
+
+                } catch (error) {
+                  console.error('Home shuffle button - shuffleAllSongs failed:', error)
+
+
+                  console.error('Shuffle all failed:', error)
+                } finally {
+                  setIsShuffling(false)
+
+
+                }
+              }}
+              disabled={isShuffling}
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+              aria-label="Shuffle all songs"
+            >
+              {isShuffling ? (
+                <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <Shuffle className="w-5 h-5" />
+              )}
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         <div className="relative" onClick={() => setIsSearchOpen(true)}>
           <SearchInput

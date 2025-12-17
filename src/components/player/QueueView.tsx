@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
@@ -7,6 +8,9 @@ import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, GripHoriz
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
+
+const INITIAL_VISIBLE_SONGS = 45
+const VISIBLE_SONGS_INCREMENT = 45
 
 interface QueueTrackItemProps {
   track: BaseItemDto
@@ -46,7 +50,6 @@ function QueueTrackItem({
 
   return (
     <div
-      key={`${track.Id}-${index}`}
       draggable={!isCurrent}
       onDragOver={(e) => {
         e.preventDefault()
@@ -157,16 +160,11 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
-  const { 
-    queue, 
-    previousSongs,
-    playedSongIds,
+  const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
+  const [showPrevious, setShowPrevious] = useState(false)
+  const {
+    songs,
     currentIndex,
-    currentTrack,
-    playTrack, 
-    removeFromQueue, 
-    reorderQueue, 
-    setQueue,
     clearQueue,
     isPlaying,
     shuffle,
@@ -177,8 +175,15 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
     next,
     previous,
     skipToTrack,
+    removeFromQueue,
+    reorderQueue,
     isFetchingRecommendations,
+    isLoadingMoreSongs,
+    shuffleHasMoreSongs,
   } = usePlayerStore()
+
+
+  const { showQueueRecommendations, setShowQueueRecommendations, recommendationsQuality } = useSettingsStore()
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.effectAllowed = 'move'
@@ -207,11 +212,9 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
     }
     // Prevent dropping across user-added / recommendation boundary
     const fromIdx = draggingIndex ?? dragIndex
-    const fromTrack = queue[fromIdx]
-    const toTrack = queue[dropIndex]
-    const fromIsRec = fromTrack ? !!(fromTrack as any)._isRecommended : false
-    const toIsRec = toTrack ? !!(toTrack as any)._isRecommended : false
-    if (fromTrack && toTrack && fromIsRec !== toIsRec) {
+    const fromTrack = songs[fromIdx]
+    const toTrack = songs[dropIndex]
+    if (fromTrack && toTrack && fromTrack.source !== toTrack.source) {
       setDragOverIndex(null)
       setDraggingIndex(null)
       return
@@ -224,58 +227,24 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
     setDraggingIndex(null)
   }
 
-  // Organize queue into sections
-  // Always use currentTrack from store - it persists even when queue is cleared
-  const nowPlayingTrack = currentTrack || (currentIndex >= 0 && currentIndex < queue.length ? queue[currentIndex] : null)
+  // Get current track
+  const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
 
-  // Derive an effective index based on the actual nowPlayingTrack in the queue,
-  // so controls work correctly after restore or other flows where currentIndex
-  // might be out of sync with the playing track.
-  const effectiveIndex =
-    currentIndex >= 0 && currentIndex < queue.length
-      ? currentIndex
-      : nowPlayingTrack
-        ? queue.findIndex(t => t.Id === nowPlayingTrack.Id)
-        : -1
+  // Split queue into 4 sections
+  const previouslyPlayed = songs.filter((song, index) => index < currentIndex)
+  const comingUp = songs.filter((song, index) => song.source === 'user' && index > currentIndex)
+  const upcomingRecommendations = songs.filter((song, index) => song.source === 'recommendation' && index > currentIndex)
 
-  // Track which songs have been played (from playedSongIds array)
-  const playedSongIdsSet = new Set(playedSongIds)
-  const currentTrackId = nowPlayingTrack?.Id
-  
-  // Filter out played songs from "Added By You" section
-  // When shuffle is on, we track played songs in playedSongIds
-  // When shuffle is off, songs are removed from queue as they play, but we still check playedSongIds
-  // in case shuffle was just disabled (playedSongIds will be cleared after first next() in non-shuffle mode)
-  const addedByYou = queue.filter((track, index) => {
-    const isRecommended = (track as any)._isRecommended
-    const isNotRecommended = !isRecommended
-    // Exclude current track by both index and ID (more robust)
-    const isNotCurrent = index !== currentIndex && track.Id !== currentTrackId
-    // Exclude played songs (either from playedSongIds or if shuffle was just disabled)
-    const isNotPlayed = !playedSongIdsSet.has(track.Id) || track.Id === currentTrackId
-    const shouldInclude = isNotRecommended && isNotCurrent && isNotPlayed
-    return shouldInclude
-  })
-  // Respect the actual queue order for "Added By You" tracks.
-  // The store already maintains the correct shuffled/unshuffled order in `queue`,
-  // so we avoid any further sorting here to ensure manual reordering is visible.
-  const sortedAddedByYou = addedByYou
-  
-  // Recommendations: derive from the queue itself, not the separate `recommendations` array,
-  // so that manual reordering is reflected visually.
-  // Only show recommendations that are after the effective index and not yet played.
-  const sortedRecommendations = queue.filter((track, index) => {
-    const isRecommended = (track as any)._isRecommended
-    if (!isRecommended) {
-      if (track.Id === currentTrackId) return false // Skip current track regardless
-      return false
-    }
-    if (track.Id === currentTrackId) return false
-    const isAfterCurrent = effectiveIndex === -1 ? true : index > effectiveIndex
-    const isNotPlayed = !playedSongIdsSet.has(track.Id)
-    return isAfterCurrent && isNotPlayed
-  })
-  const hasRecommendations = sortedRecommendations.length > 0
+  // Apply lazy loading limits - calculate total visible songs needed
+  let remainingVisible = visibleSongsCount
+  const visiblePreviouslyPlayed = previouslyPlayed.slice(-Math.min(remainingVisible, previouslyPlayed.length))
+  remainingVisible -= visiblePreviouslyPlayed.length
+  remainingVisible -= currentTrack ? 1 : 0 // Account for current track
+
+  const visibleComingUp = comingUp.slice(0, Math.max(0, remainingVisible))
+  remainingVisible -= visibleComingUp.length
+
+  const visibleUpcomingRecommendations = upcomingRecommendations.slice(0, Math.max(0, remainingVisible))
   
 
   const handleClear = () => {
@@ -285,18 +254,11 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   }
 
   // Check if there are songs after/before current
-  const hasNext = effectiveIndex >= 0 && effectiveIndex < queue.length - 1
+  const hasNext = currentIndex >= 0 && currentIndex < songs.length - 1
+  const hasPrevious = currentIndex > 0
 
-  // Previous should be active if:
-  // 1. There are songs before the effective index in the queue, OR
-  // 2. There are previousSongs in history (for going back to previously played songs)
-  const hasPrevious =
-    (effectiveIndex > 0 && effectiveIndex < queue.length) ||
-    previousSongs.length > 0
-
-  // Check if queue is effectively empty (completely empty or only now playing remains)
-  // After clear, queue is empty but currentTrack might still be playing
-  const isQueueEmpty = queue.length === 0 || (addedByYou.length === 0 && !hasRecommendations)
+  // Check if queue is effectively empty
+  const isQueueEmpty = songs.length === 0 || (visibleComingUp.length === 0 && visibleUpcomingRecommendations.length === 0)
   const handleItemContextMenu = (track: BaseItemDto) => {
     setContextMenuItem(track)
     setContextMenuOpen(true)
@@ -305,43 +267,106 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   const handleDragEnterRow = (index: number) => {
     // Only show drop indicator when dragging within the same section
     if (draggingIndex == null) return
-    const fromTrack = queue[draggingIndex]
-    const toTrack = queue[index]
+    const fromTrack = songs[draggingIndex]
+    const toTrack = songs[index]
     if (!fromTrack || !toTrack) return
-    const fromIsRec = !!(fromTrack as any)._isRecommended
-    const toIsRec = !!(toTrack as any)._isRecommended
-    if (fromIsRec !== toIsRec) {
+    if (fromTrack.source !== toTrack.source) {
       setDragOverIndex(null)
       return
     }
     setDragOverIndex(index)
   }
 
+  // Incrementally reveal more songs as the user scrolls near the bottom
+  useEffect(() => {
+    const container = document.querySelector('.queue-container')
+    if (!container) return
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop
+      const viewportHeight = container.clientHeight
+      const fullHeight = container.scrollHeight
+
+      // When the user is within ~2.5 viewports of the bottom, load more rows
+      if (scrollTop + viewportHeight * 2.5 >= fullHeight) {
+        setVisibleSongsCount((prev) =>
+          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+        )
+      }
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [songs.length])
+
   return (
     <div className="flex-1 flex flex-col min-h-0 max-w-[768px] mx-auto w-full" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
-      <div className="flex-1 overflow-y-auto min-h-0" style={{ paddingBottom: '8rem' }}>
-        {queue.length === 0 && !nowPlayingTrack ? (
+      <div className="flex-1 overflow-y-auto min-h-0 queue-container" style={{ paddingBottom: '8rem' }}>
+        {songs.length === 0 && !currentTrack ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             <p>Queue is empty</p>
           </div>
         ) : (
           <div>
-            {/* Now Playing Section - Always show if currentTrack exists */}
-            {nowPlayingTrack && (
+            {/* Previously Played Section */}
+            {visiblePreviouslyPlayed.length > 0 && showPrevious && (
               <div>
-                <div className="px-4 pb-0 pt-3 text-lg font-semibold text-white tracking-wider">
-                  Now Playing
+                <div className="px-4 pb-0 pt-7 flex items-center justify-between">
+                  <div className="text-base font-bold text-white tracking-wider">
+                    Previous
+                  </div>
+                  <button
+                    onClick={() => setShowPrevious(false)}
+                    className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
+                  >
+                    Hide
+                  </button>
+                </div>
+                {visiblePreviouslyPlayed.map((track, mapIndex) => {
+                  const index = songs.indexOf(track)
+                  return (
+                    <QueueTrackItem
+                      key={`${track.Id}-${mapIndex}`}
+                      track={track}
+                      index={index}
+                      isCurrent={false}
+                      isPlaying={false}
+                      showRemoveButton={false}
+                      onClick={() => skipToTrack(index)}
+                      onReorderDragStart={handleDragStart}
+                      onReorderDrop={handleDrop}
+                      onContextMenu={handleItemContextMenu}
+                      isDragOver={false}
+                      onDragEnterRow={handleDragEnterRow}
+                    />
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Now Playing Section - Always show if currentTrack exists */}
+            {currentTrack && (
+              <div>
+                <div className="px-4 pb-0 pt-7 flex items-center justify-between">
+                  <div className="text-base font-bold text-white tracking-wider">
+                    Now Playing
+                  </div>
+                  {visiblePreviouslyPlayed.length > 0 && !showPrevious && (
+                    <button
+                      onClick={() => setShowPrevious(true)}
+                      className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
+                    >
+                      Show Previous
+                    </button>
+                  )}
                 </div>
                 <QueueTrackItem
-                  track={nowPlayingTrack}
-                  index={currentIndex >= 0 ? currentIndex : -1}
+                  track={currentTrack}
+                  index={currentIndex}
                   isCurrent={true}
                   isPlaying={isPlaying}
                   showRemoveButton={false}
-                  onClick={() => {
-                    // Toggle play/pause via the icon button for the current track
-                    togglePlayPause()
-                  }}
+                  onClick={togglePlayPause}
                   onReorderDragStart={handleDragStart}
                   onReorderDrop={handleDrop}
                   onContextMenu={handleItemContextMenu}
@@ -351,45 +376,48 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
               </div>
             )}
 
-            {/* Queue Section with Clear Queue Button */}
-            {(sortedAddedByYou.length > 0 || hasRecommendations) && (
+            {/* Coming Up Section */}
+            {visibleComingUp.length > 0 && (
               <div>
-                <div className="px-4 pb-0 pt-3 flex items-center justify-between">
-                  <div className="text-lg font-semibold text-white tracking-wider">
-                    Queue
+                <div className="px-4 pb-0 pt-7 flex items-center justify-between">
+                  <div className="text-base font-bold text-white tracking-wider">
+                    Coming Up
                   </div>
                   <button
-                    onClick={handleClear}
+                    onClick={() => {
+                      // Clear only coming up songs (user-added songs after current)
+                      const songsToKeep = songs.filter((song, index) =>
+                        index <= currentIndex || song.source === 'recommendation'
+                      )
+                      // Rebuild the queue
+                      const newSongs = songsToKeep
+                      const newCurrentIndex = Math.min(currentIndex, newSongs.length - 1)
+
+                      // Update player store
+                      usePlayerStore.setState({
+                        songs: newSongs,
+                        currentIndex: newCurrentIndex,
+                        standardOrder: newSongs.filter(s => s.source === 'user').map(s => s.Id),
+                        shuffleOrder: newSongs.filter(s => s.source === 'user').map(s => s.Id),
+                      })
+                    }}
                     className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
                   >
                     Clear
                   </button>
                 </div>
-              </div>
-            )}
-
-            {/* Added by you Section */}
-            {sortedAddedByYou.length > 0 && (
-              <div>
-                <div className="px-4 pb-0 pt-4 text-xs font-semibold text-gray-400 tracking-wider">
-                  Added By You
-                </div>
-                {sortedAddedByYou.map((track) => {
-                  const index = queue.findIndex((t) => t.Id === track.Id)
+                {visibleComingUp.map((track, mapIndex) => {
+                  const index = songs.indexOf(track)
                   return (
                     <QueueTrackItem
-                      key={`${track.Id}-${index}`}
+                      key={`${track.Id}-${mapIndex}`}
                       track={track}
                       index={index}
                       isCurrent={false}
-                      isPlaying={isPlaying}
+                      isPlaying={false}
                       showRemoveButton={true}
-                      onClick={() => {
-                        skipToTrack(index)
-                      }}
-                      onRemove={() => {
-                        removeFromQueue(index)
-                      }}
+                      onClick={() => skipToTrack(index)}
+                      onRemove={() => removeFromQueue(index)}
                       onReorderDragStart={handleDragStart}
                       onReorderDrop={handleDrop}
                       onContextMenu={handleItemContextMenu}
@@ -398,53 +426,88 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
                     />
                   )
                 })}
+                {isLoadingMoreSongs && (
+                  <div className="flex items-center justify-center py-4">
+                    <Spinner size="sm" />
+                    <span className="ml-2 text-sm text-gray-400">Loading more songs...</span>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Recommendations Section */}
-            {hasRecommendations && (
-              <div>
-                <div className="px-4 pb-0 pt-4 text-xs font-semibold text-gray-400 tracking-wider">
+            <div>
+              <div className="px-4 pb-0 pt-7 flex items-center justify-between">
+                <div className="text-base font-bold text-white tracking-wider flex items-baseline gap-2">
                   Recommendations
+                  {isFetchingRecommendations && (
+                    <span className="text-xs text-gray-400 font-normal">
+                      Syncing genres...
+                    </span>
+                  )}
+                  {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
+                    <span className="text-xs text-red-400 font-normal">
+                      (Unable to generate)
+                    </span>
+                  )}
                 </div>
-                {sortedRecommendations.map((track) => {
-                  // Find the actual index in the queue
-                  const index = queue.findIndex(t => t.Id === track.Id)
-                  const safeIndex = index >= 0 ? index : -1
-                  return (
-                    <QueueTrackItem
-                      key={`${track.Id}-${safeIndex}`}
-                      track={track}
-                      index={safeIndex}
-                      isCurrent={false}
-                      isPlaying={isPlaying}
-                      showRemoveButton={true}
-                      onClick={() => {
-                        if (safeIndex >= 0) {
-                          skipToTrack(safeIndex)
-                        }
-                      }}
-                      onRemove={() => {
-                        if (safeIndex >= 0) {
-                          removeFromQueue(safeIndex)
-                        }
-                      }}
-                      onReorderDragStart={handleDragStart}
-                      onReorderDrop={handleDrop}
-                      onContextMenu={handleItemContextMenu}
-                      isDragOver={dragOverIndex === safeIndex}
-                      onDragEnterRow={handleDragEnterRow}
-                    />
-                  )
-                })}
+                <button
+                  onClick={() => {
+                    const newValue = !showQueueRecommendations
+                    setShowQueueRecommendations(newValue)
+                    if (!newValue) {
+                      // Clear all recommendations from queue when toggled off
+                      const songsWithoutRecommendations = songs.filter(song => song.source !== 'recommendation')
+                      const newCurrentIndex = Math.min(currentIndex, songsWithoutRecommendations.length - 1)
+                      usePlayerStore.setState({
+                        songs: songsWithoutRecommendations,
+                        currentIndex: newCurrentIndex,
+                        standardOrder: songsWithoutRecommendations.filter(s => s.source === 'user').map(s => s.Id),
+                        shuffleOrder: songsWithoutRecommendations.filter(s => s.source === 'user').map(s => s.Id),
+                      })
+                    }
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    showQueueRecommendations ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      showQueueRecommendations ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
-            )}
-
-            {isFetchingRecommendations && (
-              <div className="px-4 pt-4 pb-6 flex justify-center">
-                <Spinner />
-              </div>
-            )}
+              {showQueueRecommendations && (
+                <>
+                  {visibleUpcomingRecommendations.map((track, mapIndex) => {
+                    const index = songs.indexOf(track)
+                    return (
+                      <QueueTrackItem
+                        key={`${track.Id}-${mapIndex}`}
+                        track={track}
+                        index={index}
+                        isCurrent={false}
+                        isPlaying={false}
+                        showRemoveButton={true}
+                        onClick={() => skipToTrack(index)}
+                        onRemove={() => removeFromQueue(index)}
+                        onReorderDragStart={handleDragStart}
+                        onReorderDrop={handleDrop}
+                        onContextMenu={handleItemContextMenu}
+                        isDragOver={dragOverIndex === index}
+                        onDragEnterRow={handleDragEnterRow}
+                      />
+                    )
+                  })}
+                  {isFetchingRecommendations && (
+                    <div className="px-4 pt-4 pb-6 flex justify-center">
+                      <Spinner />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

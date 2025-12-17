@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Disc } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import SongItem from '../songs/SongItem'
 import Image from '../shared/Image'
-import { ArrowLeft, Shuffle, Pause } from 'lucide-react'
+import { ArrowLeft, Shuffle, Pause, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
@@ -16,6 +16,8 @@ const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
+
+type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
 interface GenreAlbumItemProps {
   album: BaseItemDto
@@ -69,7 +71,8 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumIt
 export default function GenreSongsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, toggleShuffle, currentTrack, isPlaying, pause } = usePlayerStore()
+  const { playAlbum, toggleShuffle, isPlaying, pause, shuffleGenreSongs, addToQueue } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const { genres, genreSongs, setGenreSongs } = useMusicStore()
   const [genre, setGenre] = useState<BaseItemDto | null>(null)
   const [songs, setSongs] = useState<LightweightSong[]>([])
@@ -81,6 +84,18 @@ export default function GenreSongsPage() {
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | null>(null)
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
+  const [isShufflingGenre, setIsShufflingGenre] = useState(false)
+  const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
+
+  // Reset loading state after a timeout to prevent permanent disabling
+  useEffect(() => {
+    if (isShufflingGenre) {
+      const timeout = setTimeout(() => {
+        setIsShufflingGenre(false)
+      }, 10000) // Reset after 10 seconds max
+      return () => clearTimeout(timeout)
+    }
+  }, [isShufflingGenre])
 
   useEffect(() => {
     if (!id) return
@@ -142,14 +157,38 @@ export default function GenreSongsPage() {
     loadGenreSongs()
   }, [id, genres, genreSongs, setGenreSongs])
 
-  const handleShufflePlay = () => {
-    if (songs.length > 0) {
-      const shuffled = [...songs].sort(() => Math.random() - 0.5)
-      const { shuffle } = usePlayerStore.getState()
-      if (!shuffle) {
-        toggleShuffle()
+  const handleShufflePlay = async () => {
+
+
+    if (songs.length > 0 && genre?.Id && genre?.Name && !isShufflingGenre) {
+
+      // Prevent concurrent shuffle operations
+      const state = usePlayerStore.getState()
+      const { isShuffleAllActive, isShuffleGenreActive, shuffle } = state
+
+      if (isShuffleAllActive || isShuffleGenreActive) {
+        return // Another shuffle is active, ignore click
       }
-      playAlbum(shuffled)
+
+      setIsShufflingGenre(true)
+
+
+      try {
+        await shuffleGenreSongs(genre.Id, genre.Name)
+
+
+      } catch (error) {
+
+
+        console.error('Failed to shuffle genre:', error)
+      } finally {
+        setIsShufflingGenre(false)
+
+
+      }
+    } else {
+
+
     }
   }
 
@@ -190,29 +229,29 @@ export default function GenreSongsPage() {
   const groupedSongs = useMemo(() => {
     // Group by artist
     const artistMap = new Map<string, Map<string, BaseItemDto[]>>()
-    
+
     songs.forEach(song => {
       const artistName = song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'
       const albumId = song.AlbumId || 'no-album'
-      
+
       if (!artistMap.has(artistName)) {
         artistMap.set(artistName, new Map())
       }
-      
+
       const albumMap = artistMap.get(artistName)!
       if (!albumMap.has(albumId)) {
         albumMap.set(albumId, [])
       }
-      
+
       albumMap.get(albumId)!.push(song)
     })
-    
+
     // Sort within each group
     const result: Array<{ artist: string; albums: Array<{ albumId: string; albumName: string; songs: BaseItemDto[] }> }> = []
-    
+
     artistMap.forEach((albumMap, artistName) => {
       const albums: Array<{ albumId: string; albumName: string; songs: BaseItemDto[] }> = []
-      
+
       albumMap.forEach((songs, albumId) => {
         // Sort songs by track number
         const sortedSongs = [...songs].sort((a, b) => {
@@ -220,34 +259,115 @@ export default function GenreSongsPage() {
           const trackB = b.IndexNumber || 0
           return trackA - trackB
         })
-        
+
         const albumName = sortedSongs[0]?.Album || 'Unknown Album'
         albums.push({ albumId, albumName, songs: sortedSongs })
       })
-      
+
       // Sort albums by date (newest first), then by name
       albums.sort((a, b) => {
         const songA = a.songs[0]
         const songB = b.songs[0]
-        
+
         const yearA = songA?.ProductionYear || (songA?.PremiereDate ? new Date(songA.PremiereDate).getFullYear() : 0)
         const yearB = songB?.ProductionYear || (songB?.PremiereDate ? new Date(songB.PremiereDate).getFullYear() : 0)
-        
+
         if (yearA !== yearB) {
           return yearB - yearA
         }
-        
+
         return a.albumName.localeCompare(b.albumName)
       })
-      
+
       result.push({ artist: artistName, albums })
     })
-    
+
     // Sort artists alphabetically
     result.sort((a, b) => a.artist.localeCompare(b.artist))
-    
+
     return result
   }, [songs])
+
+  // Helper function to get album date for a song
+  const getSongAlbumDate = (song: LightweightSong, albums: BaseItemDto[]): number => {
+    const album = albums.find(a => a.Id === song.AlbumId)
+    if (!album) return 0
+
+    if (album.ProductionYear) {
+      return album.ProductionYear
+    }
+
+    if (album.PremiereDate) {
+      const date = new Date(album.PremiereDate)
+      return date.getFullYear()
+    }
+
+    return 0
+  }
+
+  // Sort songs based on current sort order
+  const sortedSongs = useMemo(() => {
+    if (songSortOrder === 'Alphabetical') {
+      return [...songs].sort((a, b) => {
+        const nameA = a.Name || ''
+        const nameB = b.Name || ''
+        return nameA.localeCompare(nameB)
+      })
+    }
+
+    // For Newest and Oldest, sort by album date, then album ID, then track number, then name
+    return [...songs].sort((a, b) => {
+      const dateA = getSongAlbumDate(a, albums)
+      const dateB = getSongAlbumDate(b, albums)
+
+      // Primary sort: by album date
+      if (dateA !== dateB) {
+        return songSortOrder === 'Newest' ? dateB - dateA : dateA - dateB
+      }
+
+      // Secondary sort: by album ID (keeps songs from same album together)
+      const albumA = a.AlbumId || ''
+      const albumB = b.AlbumId || ''
+      if (albumA !== albumB) {
+        return albumA.localeCompare(albumB)
+      }
+
+      // Tertiary sort: by track number
+      const trackA = a.IndexNumber || 0
+      const trackB = b.IndexNumber || 0
+      if (trackA !== trackB) {
+        return trackA - trackB
+      }
+
+      // Quaternary sort: alphabetically by name (fallback)
+      const nameA = a.Name || ''
+      const nameB = b.Name || ''
+      return nameA.localeCompare(nameB)
+    })
+  }, [songs, songSortOrder, albums])
+
+  // Cycle through sort orders
+  const cycleSongSortOrder = () => {
+    setSongSortOrder(current => {
+      if (current === 'Alphabetical') return 'Newest'
+      if (current === 'Newest') return 'Oldest'
+      return 'Alphabetical'
+    })
+  }
+
+  // Play all songs from genre in current sort order
+  const handlePlayAllSongsFromGenre = () => {
+    if (sortedSongs.length > 0) {
+      playAlbum(sortedSongs)
+    }
+  }
+
+  // Add all songs from genre to queue in current sort order
+  const handleAddAllSongsFromGenreToQueue = () => {
+    if (sortedSongs.length > 0) {
+      addToQueue(sortedSongs)
+    }
+  }
 
   // Reset visible albums window when albums change
   useEffect(() => {
@@ -273,10 +393,10 @@ export default function GenreSongsPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [albums.length])
 
-  // Reset visible songs window when songs change
+  // Reset visible songs window when sortedSongs change
   useEffect(() => {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
-  }, [songs.length])
+  }, [sortedSongs.length])
 
   // Incrementally reveal more songs as the user scrolls near the bottom
   useEffect(() => {
@@ -288,14 +408,14 @@ export default function GenreSongsPage() {
       // When the user is within ~1.5 viewports of the bottom, load more rows
       if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
         setVisibleSongsCount((prev) =>
-          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+          Math.min(prev + VISIBLE_SONGS_INCREMENT, sortedSongs.length)
         )
       }
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [songs.length])
+  }, [sortedSongs.length])
 
   if (loading) {
     return (
@@ -362,20 +482,13 @@ export default function GenreSongsPage() {
           </button>
           <h1 className="text-xl font-bold flex-1 truncate">{genre.Name}</h1>
           <button
-            onClick={() => {
-              const isCurrentGenrePlaying = currentTrack && isPlaying && genre && 
-                currentTrack.Genres?.some(g => g.toLowerCase() === genre.Name?.toLowerCase())
-              if (isCurrentGenrePlaying) {
-                pause()
-              } else {
-                handleShufflePlay()
-              }
-            }}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm border border-white/20 flex-shrink-0"
+            onClick={handleShufflePlay}
+            disabled={isShufflingGenre}
+            className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+            aria-label="Shuffle genre songs"
           >
-            {currentTrack && isPlaying && genre && 
-              currentTrack.Genres?.some(g => g.toLowerCase() === genre.Name?.toLowerCase()) ? (
-              <Pause className="w-5 h-5" />
+            {isShufflingGenre ? (
+              <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
             ) : (
               <Shuffle className="w-5 h-5" />
             )}
@@ -415,9 +528,41 @@ export default function GenreSongsPage() {
         {/* Songs section */}
         {songs.length > 0 && (
           <div>
-            <h2 className="text-xl font-bold text-white mb-2 px-4">Songs ({songs.length})</h2>
+            <div className="px-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-bold text-white">Songs ({songs.length})</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePlayAllSongsFromGenre}
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Play all songs"
+                  >
+                    <Play className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddAllSongsFromGenreToQueue}
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Add all songs to queue"
+                  >
+                    <ListEnd className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={cycleSongSortOrder}
+                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                >
+                  {songSortOrder}
+                  <ArrowUpDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
             <div className="space-y-0">
-              {songs.slice(0, visibleSongsCount).map((song) => (
+              {sortedSongs.slice(0, visibleSongsCount).map((song) => (
                 <SongItem key={song.Id} song={song} />
               ))}
             </div>

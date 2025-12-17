@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack, useLastPlayedTrack } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import QueueView from './QueueView'
@@ -17,8 +17,8 @@ interface PlayerModalProps {
 export default function PlayerModal({ onClose, onClosingStart, closeRef }: PlayerModalProps) {
   const navigate = useNavigate()
   const {
-    currentTrack,
-    lastPlayedTrack,
+    songs,
+    currentIndex,
     isPlaying,
     currentTime,
     duration,
@@ -31,15 +31,20 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     setVolume,
     toggleShuffle,
     toggleRepeat,
-    queue,
-    previousSongs,
-    currentIndex,
     playTrack,
   } = usePlayerStore()
-  
+
+  const currentTrack = useCurrentTrack()
+  const lastPlayedTrack = useLastPlayedTrack()
+
   // Use lastPlayedTrack as fallback for display, matching PlayerBar behavior
   const displayTrack = currentTrack || lastPlayedTrack
   const [showQueue, setShowQueue] = useState(false)
+
+  // Ensure queue view is closed on mount to prevent flash
+  useEffect(() => {
+    setShowQueue(false)
+  }, [])
   const [showLyricsModal, setShowLyricsModal] = useState(false)
   const [hasLyrics, setHasLyrics] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -84,25 +89,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     })
   }, [])
 
-  // Derive an effective index based on the actual currentTrack in the queue,
-  // so controls work correctly after restore or other flows where currentIndex
-  // might be out of sync with the playing track.
-  const effectiveIndex =
-    currentIndex >= 0 && currentIndex < queue.length
-      ? currentIndex
-      : currentTrack
-        ? queue.findIndex(t => t.Id === currentTrack.Id)
-        : -1
-
-  // Check if there are songs after/before current
-  const hasNext = effectiveIndex >= 0 && effectiveIndex < queue.length - 1
-
-  // Previous should be active if:
-  // 1. There are songs before the effective index in the queue, OR
-  // 2. There are previousSongs in history (for going back to previously played songs)
-  const hasPrevious =
-    (effectiveIndex > 0 && effectiveIndex < queue.length) ||
-    previousSongs.length > 0
+  const hasNext = currentIndex >= 0 && currentIndex < songs.length - 1
+  const hasPrevious = currentIndex > 0
 
   useEffect(() => {
     // Set volume to 100% when component mounts
@@ -376,6 +364,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         .landscape\\:justify-start { justify-content: flex-start; }
         .landscape\\:mx-0 { margin-left: 0; margin-right: 0; }
       }
+
+      @media (min-width: 1024px) {
+        .lg\\:max-w-\\[864px\\] { max-width: 864px; }
+      }
     `}</style>
     <div
       ref={modalRef}
@@ -451,9 +443,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           }}
         />
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 max-w-[768px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+        <div className="flex-1 flex flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
           <div className="flex-1 overflow-hidden min-h-0 flex items-center justify-center">
-              <div className="w-full flex flex-col items-center px-4 sm:px-8">
+              <div className="w-full flex flex-col items-center px-4 sm:px-8 md:pr-0">
               <div className="w-full flex flex-col items-center landscape:flex-row landscape:items-center landscape:gap-8">
                 <div className="landscape:order-1 landscape:flex-shrink-0">
                   <div
@@ -523,11 +515,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           </div>
 
           <div
-            className="pt-2 space-y-6 flex-shrink-0 mt-4 sm:mt-0 max-w-[768px] mx-auto w-full"
+            className="pt-2 space-y-6 flex-shrink-0 mt-4 sm:mt-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full"
             style={{ paddingBottom: `1.5rem` }}
           >
             <div className="space-y-3 px-4 w-full">
-              <div className="max-w-[768px] mx-auto">
+              <div className="max-w-[768px] lg:max-w-[864px] mx-auto">
                 <div
                   ref={progressRef}
                   className="h-2 bg-zinc-800 rounded-full cursor-pointer w-full select-none overflow-hidden"

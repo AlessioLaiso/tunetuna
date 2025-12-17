@@ -645,6 +645,9 @@ export default function AlbumsPage() {
       if (sortOrder === 'RecentlyAdded') {
         options.sortBy = ['DateCreated']
         options.sortOrder = 'Descending'
+      } else if (sortOrder === 'Newest') {
+        options.sortBy = ['ProductionYear', 'SortName']
+        options.sortOrder = ['Descending', 'Ascending']
       } else {
         options.sortBy = ['SortName']
         options.sortOrder = 'Ascending'
@@ -696,10 +699,18 @@ export default function AlbumsPage() {
             {!isSearchOpen && (
               <div className="flex items-center justify-between gap-2">
                 <button
-                  onClick={() => setSortPreference('albums', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
+                  onClick={() => {
+                    const nextSort =
+                      sortOrder === 'RecentlyAdded' ? 'Alphabetical' :
+                      sortOrder === 'Alphabetical' ? 'Newest' :
+                      'RecentlyAdded'
+                    setSortPreference('albums', nextSort)
+                  }}
                   className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
                 >
-                  {sortOrder === 'RecentlyAdded' ? 'Recently Added' : 'Alphabetically'}
+                  {sortOrder === 'RecentlyAdded' ? 'Recently Added' :
+                   sortOrder === 'Newest' ? 'Newest' :
+                   'Alphabetically'}
                   <ArrowUpDown className="w-4 h-4" />
                 </button>
                 {loading.albums && !isInitialLoad.current && (

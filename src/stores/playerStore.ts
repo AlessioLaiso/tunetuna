@@ -1,13 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { BaseItemDto, LightweightSong } from '../api/types'
-import type { BaseItemDto } from '../api/types'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
-
-interface QueueItem extends BaseItemDto {
-  _isRecommended?: boolean
-}
+import { useSettingsStore } from './settingsStore'
 
 // Track which items have been reported to prevent duplicate API calls
 const reportedItems = new Set<string>()
@@ -15,39 +11,21 @@ const reportingTimeouts = new Map<string, NodeJS.Timeout>()
 
 // Helper function to report playback after a delay
 function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseItemDto | null, delayMs: number = 5000) {
-  const queue = usePlayerStore.getState().queue
-  const trackIsRecommended = queue.find(t => t.Id === trackId) ? (queue.find(t => t.Id === trackId) as any)?._isRecommended : false
-  
-  // Clear any existing timeout for this track
-  const existingTimeout = reportingTimeouts.get(trackId)
-  if (existingTimeout) {
-    clearTimeout(existingTimeout)
-  }
-
-  // Skip if already reported
-  if (reportedItems.has(trackId)) {
-    return
-  }
-
   const timeoutId = setTimeout(async () => {
-    
     // Check if we're still playing the same track
     const currentTrack = getCurrentTrack()
-    
+
     if (currentTrack?.Id === trackId) {
       try {
-        const queue = usePlayerStore.getState().queue
-        const trackIsRecommended = queue.find(t => t.Id === trackId) ? (queue.find(t => t.Id === trackId) as any)?._isRecommended : false
         await jellyfinClient.markItemAsPlayed(trackId)
         reportedItems.add(trackId)
         // Trigger event to refresh RecentlyPlayed after server updates
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
-        }, 4000) // 4 second delay after markItemAsPlayed completes to allow server to update
+        }, 4000)
       } catch (error) {
         // Error already logged in markItemAsPlayed
       }
-    } else {
     }
     reportingTimeouts.delete(trackId)
   }, delayMs)
@@ -65,7 +43,7 @@ export function markItemAsReported(trackId: string) {
   }
 }
 
-// Helper function to shuffle array using Fisher-Yates algorithm
+// Fisher-Yates shuffle algorithm
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -75,66 +53,106 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+export interface QueueSong extends BaseItemDto {
+  source: 'user' | 'recommendation'  // 'user' for manually added, 'recommendation' for auto-added
+}
+
 interface PlayerState {
-  currentTrack: BaseItemDto | null
-  lastPlayedTrack: BaseItemDto | null
-  queue: QueueItem[]
-  originalQueue: QueueItem[] // Unshuffled order of "Added by You" songs
-  shuffledOrder: QueueItem[] // Shuffled order of "Added by You" songs (only songs after current)
-  recommendations: QueueItem[] // Recommendations stored separately, always appended to end
-  previousSongs: QueueItem[]
-  playedSongIds: string[] // Track all played song IDs (for shuffle mode UI filtering)
-  collectionStartIndex: number // Index where collection playback effectively started (for slicing when shuffle is disabled)
-  currentIndex: number
+  // Core queue data
+  songs: QueueSong[]  // Single source of truth - all songs in playback order
+
+  // Navigation indices
+  currentIndex: number  // -1 = no current song
+  previousIndex: number // -1 = no previous song (for going back)
+
+  // Ordering modes for user songs
+  standardOrder: string[]  // IDs of user songs in standard order
+  shuffleOrder: string[]   // IDs of user songs in shuffle order
+
+  // Playback state
   isPlaying: boolean
   currentTime: number
   duration: number
   volume: number
+
+  // Modes
   shuffle: boolean
   repeat: 'off' | 'all' | 'one'
+
+  // Audio
   audioElement: HTMLAudioElement | null
-  manuallyCleared: boolean
+
+  // UI state
   isFetchingRecommendations: boolean
+  isLoadingMoreSongs: boolean  // Shows spinner when loading additional shuffle songs
+  shuffleHasMoreSongs: boolean // True if more songs available for current shuffle
+  lastPlayedTrack: BaseItemDto | null  // Persisted for display on app load
+  isShuffleAllActive: boolean  // For backward compatibility
+  isShuffleGenreActive: boolean  // For backward compatibility
+  manuallyCleared: boolean  // Prevent recommendations after manual clearing
+
+  // Actions
   setAudioElement: (element: HTMLAudioElement | null) => void
   setIsFetchingRecommendations: (isFetching: boolean) => void
-  setCurrentTrack: (track: BaseItemDto | null) => void
-  setQueue: (tracks: BaseItemDto[]) => void
-  addToQueue: (tracks: BaseItemDto[], isRecommended?: boolean) => void
-  removeFromQueue: (index: number) => void
+  setIsLoadingMoreSongs: (isLoading: boolean) => void
+  setCurrentTime: (time: number) => void
+  setDuration: (duration: number) => void
+  setVolume: (volume: number) => void
+
+  // Queue management
   clearQueue: () => void
+  addToQueue: (tracks: BaseItemDto[], playNext?: boolean, source?: 'user' | 'recommendation') => void
+  removeFromQueue: (index: number) => void
+  reorderQueue: (fromIndex: number, toIndex: number) => void
+
+  // Playback control
   play: () => void
   pause: () => void
   togglePlayPause: () => void
   next: () => void
   previous: () => void
   seek: (time: number) => void
-  setCurrentTime: (time: number) => void
-  setDuration: (duration: number) => void
-  setVolume: (volume: number) => void
+
+  // Mode toggles
   toggleShuffle: () => void
   toggleRepeat: () => void
+
+  // Playback initiation
   playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[]) => void
-  playAlbum: (tracks: (BaseItemDto | LightweightSong)[]) => void
+  playAlbum: (tracks: (BaseItemDto | LightweightSong)[], startIndex?: number) => void
   playNext: (tracks: BaseItemDto[]) => void
   shuffleArtist: (songs: BaseItemDto[]) => void
-  reorderQueue: (fromIndex: number, toIndex: number) => void
+  shuffleAllSongs: () => Promise<void>
+  shuffleGenreSongs: (genreId: string, genreName: string) => Promise<void>
+
+  // Queue navigation
   skipToTrack: (trackIndex: number) => void
+
+  // Track management
   refreshCurrentTrack: () => Promise<void>
+}
+
+// Custom hook to get current track (computed from songs and currentIndex)
+export const useCurrentTrack = () => {
+  const { songs, currentIndex } = usePlayerStore()
+  return currentIndex >= 0 && songs.length > currentIndex ? songs[currentIndex] : null
+}
+
+// Custom hook to get last played track
+export const useLastPlayedTrack = () => {
+  const { lastPlayedTrack } = usePlayerStore()
+  return lastPlayedTrack
 }
 
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
-      currentTrack: null,
-      lastPlayedTrack: null,
-      queue: [],
-      originalQueue: [], // Unshuffled order of "Added by You" songs
-      shuffledOrder: [], // Shuffled order of "Added by You" songs
-      recommendations: [], // Recommendations stored separately
-      previousSongs: [],
-      playedSongIds: [],
-      collectionStartIndex: -1, // -1 means no collection start (individual song playback)
+      // Initial state
+      songs: [],
       currentIndex: -1,
+      previousIndex: -1,
+      standardOrder: [],
+      shuffleOrder: [],
       isPlaying: false,
       currentTime: 0,
       duration: 0,
@@ -142,8 +160,13 @@ export const usePlayerStore = create<PlayerState>()(
       shuffle: false,
       repeat: 'off',
       audioElement: null,
-      manuallyCleared: false,
       isFetchingRecommendations: false,
+      isLoadingMoreSongs: false,
+      shuffleHasMoreSongs: false,
+      lastPlayedTrack: null,
+      isShuffleAllActive: false,
+      isShuffleGenreActive: false,
+      manuallyCleared: false,
 
       setAudioElement: (element) => {
         set({ audioElement: element })
@@ -156,277 +179,312 @@ export const usePlayerStore = create<PlayerState>()(
         set({ isFetchingRecommendations: isFetching })
       },
 
-      setCurrentTrack: (track) => {
-        const previousTrack = get().currentTrack
-        const queue = get().queue
-        const previousTrackIsRecommended = previousTrack ? queue.find(t => t.Id === previousTrack.Id) ? (queue.find(t => t.Id === previousTrack.Id) as any)?._isRecommended : false : false
-        const newTrackIsRecommended = track ? queue.find(t => t.Id === track.Id) ? (queue.find(t => t.Id === track.Id) as any)?._isRecommended : false : false
-        
-        // Clear reported status when switching to a different track
-        if (previousTrack && track && previousTrack.Id !== track.Id) {
-          
-          // CRITICAL FIX: Report the previous track immediately if it hasn't been reported yet
-          // This ensures tracks that are skipped quickly still get reported
-          if (!reportedItems.has(previousTrack.Id)) {
-            // Clear the timeout and report immediately
-            const previousTimeout = reportingTimeouts.get(previousTrack.Id)
-            if (previousTimeout) {
-              clearTimeout(previousTimeout)
-              reportingTimeouts.delete(previousTrack.Id)
-            }
-            // Mark as reported immediately to prevent duplicate reports
-            reportedItems.add(previousTrack.Id)
-            // Report immediately in the background (don't await)
-            // Use previousTrackIsRecommended calculated at the start of the function to avoid stale queue lookups
-            jellyfinClient.markItemAsPlayed(previousTrack.Id).then(() => {
-              // Trigger a custom event to notify RecentlyPlayed to refresh after a short delay
-              // This ensures the server has time to update its database
-              setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: previousTrack.Id } }))
-              }, 4000) // 4 second delay after markItemAsPlayed completes to allow server to update
-            }).catch((error) => {
-              // If reporting fails, remove from reportedItems so it can be retried later
-              reportedItems.delete(previousTrack.Id)
-            })
-          } else {
-            // Already reported, just clear the timeout if it exists
-            const previousTimeout = reportingTimeouts.get(previousTrack.Id)
-            if (previousTimeout) {
-              clearTimeout(previousTimeout)
-              reportingTimeouts.delete(previousTrack.Id)
-            }
-          }
-          // Don't delete from reportedItems here - it should stay marked as reported
-          // The deletion was causing issues where tracks being reported would be immediately unmarked
-        }
-        if (track) {
-          set({ currentTrack: track, lastPlayedTrack: track })
-          // Add to local recently played list (client-side tracking)
-          // Only add if this is a new track (not the same track being set again)
-          if (!previousTrack || previousTrack.Id !== track.Id) {
-            useMusicStore.getState().addToRecentlyPlayed(track)
-          }
-        } else {
-          set({ currentTrack: track })
-        }
+      setIsLoadingMoreSongs: (isLoading) => {
+        set({ isLoadingMoreSongs: isLoading })
+      },
+
+      setCurrentTime: (time) => {
+        set({ currentTime: time })
+      },
+
+      setDuration: (duration) => {
+        set({ duration })
+      },
+
+      setVolume: (volume) => {
+        set({ volume })
         const audio = get().audioElement
-        if (audio && track) {
-          const baseUrl = jellyfinClient.serverBaseUrl
-          const audioUrl = baseUrl
-            ? `${baseUrl}/Audio/${track.Id}/stream?static=true`
-            : ''
-          if (audio.src !== audioUrl) {
-            audio.src = audioUrl
-            audio.load()
-          }
+        if (audio) {
+          audio.volume = volume
         }
       },
 
-      setQueue: (tracks) => {
-        const queueItems = tracks.map(t => ({ ...t, _isRecommended: false }))
-        set({ 
-          queue: queueItems, 
-          originalQueue: [...queueItems], 
-          shuffledOrder: [...queueItems], // Initially same as original
-          manuallyCleared: true, 
-          playedSongIds: [] 
+      clearQueue: () => {
+        set((state) => {
+          // Keep only the currently playing song, clear everything else
+          const currentSong = state.currentIndex >= 0 ? [state.songs[state.currentIndex]] : []
+          return {
+            songs: currentSong,
+            currentIndex: currentSong.length > 0 ? 0 : -1,
+            previousIndex: -1,
+            standardOrder: currentSong.map(s => s.Id),
+            shuffleOrder: currentSong.map(s => s.Id),
+            manuallyCleared: true, // Mark as manually cleared to prevent recommendations
+            // Keep playback state for current song
+            // isPlaying, currentTime, duration stay as they are
+          }
         })
       },
 
-      addToQueue: (tracks, isRecommended = false) => {
+      addToQueue: (tracks, playNext = false, source = 'user') => {
+
         set((state) => {
-          const newTracks = tracks.map(track => ({ ...track, _isRecommended: isRecommended }))
+          const newSongs = tracks.map(track => ({ ...track, source: source as 'user' | 'recommendation' }))
 
-          // Handle case where currentTrack exists but is not in the queue
-          // (happens when queue was manually cleared while song was playing)
-          let effectiveNewTracks = [...newTracks]
-          if (state.currentTrack && !state.originalQueue.some(t => t.Id === state.currentTrack?.Id) && !isRecommended) {
-            // Current track is playing but not in queue - prepend it to maintain continuity
-            effectiveNewTracks = [{ ...state.currentTrack, _isRecommended: false }, ...newTracks]
-          }
+          // Separate existing user songs and recommendations
+          const userSongs = state.songs.filter(song => song.source === 'user')
+          const recommendations = state.songs.filter(song => song.source === 'recommendation')
 
-          // Get user-added songs order based on shuffle state
-          const userAddedOrder = state.shuffle ? (state.shuffledOrder || []) : (state.originalQueue || [])
-          
-          let newQueue: QueueItem[]
-          let newOriginalQueue: QueueItem[]
-          let newShuffledOrder: QueueItem[]
-          let newRecommendations: QueueItem[]
-          
-          if (isRecommended) {
-            // Recommendations: Simply append to recommendations array and rebuild queue
-            newRecommendations = [...state.recommendations, ...effectiveNewTracks]
-            newQueue = [...userAddedOrder, ...newRecommendations]
-            newOriginalQueue = [...state.originalQueue]  // Don't add recommendations to originalQueue
-            newShuffledOrder = [...state.shuffledOrder]  // Don't add recommendations to shuffledOrder
-          } else {
-            // User-added songs: insert before recommendations
-            // Check for duplicates in effectiveNewTracks
-            const existingIds = new Set([...state.originalQueue.map(t => t.Id)])
-            const uniqueNewTracks = effectiveNewTracks.filter(t => !existingIds.has(t.Id))
-            
-            // Add to originalQueue (unshuffled order)
-            newOriginalQueue = [...state.originalQueue, ...uniqueNewTracks]
-            
+          let updatedUserSongs: QueueSong[]
+          let newStandardOrder = [...state.standardOrder]
+          let newShuffleOrder = [...state.shuffleOrder]
+          let finalSongs: QueueSong[]
+
+          if (playNext) {
+            // Add as play next - insert after current song in the overall queue
+            const songsToInsert = state.shuffle ? shuffleArray([...newSongs]) : newSongs
+
+            // Insert after current song position
+            const insertPosition = state.currentIndex + 1
+            const songsBeforeInsert = state.songs.slice(0, insertPosition)
+            const songsAfterInsert = state.songs.slice(insertPosition)
+
+            // Rebuild the queue with new songs inserted
+            finalSongs = [
+              ...songsBeforeInsert,
+              ...songsToInsert,
+              ...songsAfterInsert
+            ]
+
+            // Separate user songs and recommendations
+            updatedUserSongs = finalSongs.filter(song => song.source === 'user')
+            const newRecommendations = finalSongs.filter(song => song.source === 'recommendation')
+
+            // Update order arrays
+            const newSongIds = songsToInsert.map(s => s.Id)
+
             if (state.shuffle) {
-              // Shuffle is ON: shuffle new songs into existing user-added songs
-              // Only shuffle songs AFTER the current song
-              let shuffledUserAdded: QueueItem[]
-              if (state.currentIndex >= 0 && state.currentTrack) {
-                const currentTrackInOriginal = newOriginalQueue.findIndex(t => t.Id === state.currentTrack?.Id)
-                if (currentTrackInOriginal >= 0) {
-                  // Keep everything up to and including current track
-                  const beforeCurrent = newOriginalQueue.slice(0, currentTrackInOriginal + 1)
-                  const afterCurrent = newOriginalQueue.slice(currentTrackInOriginal + 1)
-                  const shuffledAfter = shuffleArray(afterCurrent)
-                  shuffledUserAdded = [...beforeCurrent, ...shuffledAfter]
-                } else {
-                  // Current track not found, shuffle everything
-                  shuffledUserAdded = shuffleArray(newOriginalQueue)
-                }
-              } else {
-                // No current index, shuffle everything
-                shuffledUserAdded = shuffleArray(newOriginalQueue)
-              }
-              
-              newShuffledOrder = shuffledUserAdded
-              // Build queue using shuffled order + recommendations
-              newQueue = [...shuffledUserAdded, ...state.recommendations]
+              // For shuffle mode, insert new songs after current position in shuffle order
+              const currentShuffleIndex = state.currentIndex
+              newShuffleOrder = [
+                ...state.shuffleOrder.slice(0, currentShuffleIndex + 1),
+                ...newSongIds,
+                ...state.shuffleOrder.slice(currentShuffleIndex + 1)
+              ]
             } else {
-              // Shuffle is OFF: append to end of user-added section (before recommendations)
-              newShuffledOrder = [...newOriginalQueue] // Keep shuffledOrder in sync when shuffle is off
-              newQueue = [...newOriginalQueue, ...state.recommendations]
+              // For standard mode, maintain the order of updatedUserSongs
+              newStandardOrder = updatedUserSongs.map(s => s.Id)
             }
-            
-            newRecommendations = [...state.recommendations]  // Keep recommendations unchanged
+          } else {
+            // Add to queue with priority over recommendations
+            const songsToInsert = newSongs
+
+            // If current song is a recommendation, insert user songs after current but before remaining recommendations
+            const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
+            if (currentSong?.source === 'recommendation') {
+              // Find remaining recommendations after current song
+              const remainingRecommendations = state.songs.slice(state.currentIndex + 1).filter(song => song.source === 'recommendation')
+              const insertPosition = state.currentIndex + 1
+
+              // Insert user songs after current song, before remaining recommendations
+              finalSongs = [
+                ...state.songs.slice(0, insertPosition),
+                ...songsToInsert,
+                ...remainingRecommendations,
+                ...state.songs.slice(state.currentIndex + 1 + remainingRecommendations.length)
+              ]
+            } else {
+              // Add to end of overall queue
+              finalSongs = [...state.songs, ...songsToInsert]
+            }
+
+            // Separate user songs and recommendations for order arrays
+            updatedUserSongs = finalSongs.filter(song => song.source === 'user')
+
+            // Update order arrays
+            const newSongIds = songsToInsert.map(s => s.Id)
+            if (state.shuffle) {
+              // For shuffle mode, insert new songs at the right position in shuffle order
+              const insertPos = currentSong?.source === 'recommendation' ? state.currentIndex + 1 : state.shuffleOrder.length
+              newShuffleOrder = [
+                ...state.shuffleOrder.slice(0, insertPos),
+                ...newSongIds,
+                ...state.shuffleOrder.slice(insertPos)
+              ]
+            } else {
+              // For standard mode, insert new songs at the right position in standard order
+              const insertPos = currentSong?.source === 'recommendation' ? state.currentIndex + 1 : state.standardOrder.length
+              newStandardOrder = [
+                ...state.standardOrder.slice(0, insertPos),
+                ...newSongIds,
+                ...state.standardOrder.slice(insertPos)
+              ]
+            }
           }
 
-          // Update currentIndex if needed (if we inserted before current position)
+          // Update indices if current song moved
           let newCurrentIndex = state.currentIndex
-          if (!isRecommended && state.currentIndex >= 0) {
-            // If we inserted user-added songs and shuffle is ON, we need to find the current track in the new queue
-            if (state.shuffle && state.currentTrack) {
-              const newIndex = newQueue.findIndex(t => t.Id === state.currentTrack?.Id)
-              if (newIndex >= 0) {
-                newCurrentIndex = newIndex
-              }
-            }
-            // If shuffle is OFF, the index might have shifted if we inserted before current position
-            // But since we append to user-added section, currentIndex should remain valid
+          if (playNext) {
+            // For playNext, current song stays at the same index
+            newCurrentIndex = state.currentIndex
+          } else if (state.currentIndex >= 0) {
+            // For regular add, find where current song moved to
+            const currentSong = state.songs[state.currentIndex]
+            newCurrentIndex = finalSongs.findIndex(s => s.Id === currentSong?.Id)
           }
-          
+
+          // Enforce max queue size (1000 songs total)
+          let trimmedSongs = finalSongs
+          if (finalSongs.length > 1000) {
+            // Keep newest 5 previous songs, then current song, then next songs up to 1000 total
+            const currentSong = newCurrentIndex >= 0 ? finalSongs[newCurrentIndex] : null
+            const songsBeforeCurrent = finalSongs.slice(0, newCurrentIndex)
+            const songsAfterCurrent = finalSongs.slice(newCurrentIndex + 1)
+
+            // Keep newest 5 previous songs
+            const keepPrevious = songsBeforeCurrent.slice(-5)
+            // Keep all songs after current
+            const keepAfter = songsAfterCurrent
+
+            // Calculate how many more we can keep before current
+            const remainingSlots = 1000 - keepPrevious.length - (currentSong ? 1 : 0) - keepAfter.length
+            const keepBefore = songsBeforeCurrent.slice(-Math.max(0, remainingSlots))
+
+            trimmedSongs = [
+              ...keepBefore,
+              ...(currentSong ? [currentSong] : []),
+              ...keepAfter
+            ]
+
+            // Adjust current index
+            newCurrentIndex = currentSong ? keepBefore.length : -1
+          }
+
+
           return {
-            queue: newQueue,
-            originalQueue: newOriginalQueue,
-            shuffledOrder: newShuffledOrder,
-            recommendations: newRecommendations,
+            songs: trimmedSongs,
             currentIndex: newCurrentIndex,
-            // Reset manuallyCleared flag when user adds songs (not recommendations)
-            manuallyCleared: isRecommended ? state.manuallyCleared : false,
+            standardOrder: newStandardOrder,
+            shuffleOrder: newShuffleOrder,
+            manuallyCleared: false, // Allow recommendations again since user added songs
           }
         })
       },
 
       removeFromQueue: (index) => {
         set((state) => {
-          const newQueue = [...state.queue]
-          const removedTrack = newQueue[index]
-          newQueue.splice(index, 1)
-          
-          // Check if the removed track is a recommendation
-          const isRecommended = removedTrack && (removedTrack as any)._isRecommended
-          
-          // Also remove from originalQueue and shuffledOrder if it exists there
-          let newOriginalQueue = [...state.originalQueue]
-          let newShuffledOrder = [...state.shuffledOrder]
-          let newRecommendations = [...state.recommendations]
-          
-          if (removedTrack) {
-            const originalIndex = newOriginalQueue.findIndex(t => t.Id === removedTrack.Id)
-            if (originalIndex >= 0) {
-              newOriginalQueue.splice(originalIndex, 1)
-            }
-            const shuffledIndex = newShuffledOrder.findIndex(t => t.Id === removedTrack.Id)
-            if (shuffledIndex >= 0) {
-              newShuffledOrder.splice(shuffledIndex, 1)
-            }
-            // If it's a recommendation, also remove from recommendations array
-            if (isRecommended) {
-              const recommendationIndex = newRecommendations.findIndex(t => t.Id === removedTrack.Id)
-              if (recommendationIndex >= 0) {
-                newRecommendations.splice(recommendationIndex, 1)
-              }
-            }
-          }
-          
-          // Rebuild queue with updated recommendations
-          const userAddedOrder = state.shuffle ? newShuffledOrder : newOriginalQueue
-          const rebuiltQueue = [...userAddedOrder, ...newRecommendations]
-          
-          let newIndex = state.currentIndex
+          if (index < 0 || index >= state.songs.length) return state
+
+          const songToRemove = state.songs[index]
+          const newSongs = state.songs.filter((_, i) => i !== index)
+
+          // Update order arrays
+          let newStandardOrder = state.standardOrder.filter(id => id !== songToRemove.Id)
+          let newShuffleOrder = state.shuffleOrder.filter(id => id !== songToRemove.Id)
+
+          // Update indices
+          let newCurrentIndex = state.currentIndex
+          let newPreviousIndex = state.previousIndex
+
           if (index < state.currentIndex) {
-            newIndex = state.currentIndex - 1
-          } else if (index === state.currentIndex && rebuiltQueue.length > 0) {
-            newIndex = Math.min(state.currentIndex, rebuiltQueue.length - 1)
+            newCurrentIndex = state.currentIndex - 1
+          } else if (index === state.currentIndex) {
+            // Current song removed - stop playback but keep the song as lastPlayedTrack
+            newCurrentIndex = -1
+            // Don't clear lastPlayedTrack here, let it persist
           }
-          
-          // Find the current track's new position in the rebuilt queue
-          if (state.currentTrack) {
-            const newCurrentIndex = rebuiltQueue.findIndex(t => t.Id === state.currentTrack?.Id)
-            if (newCurrentIndex >= 0) {
-              newIndex = newCurrentIndex
-            }
+
+          if (index < state.previousIndex) {
+            newPreviousIndex = state.previousIndex - 1
+          } else if (index === state.previousIndex) {
+            newPreviousIndex = -1 // Previous song removed
           }
-          
+
           return {
-            queue: rebuiltQueue,
-            originalQueue: newOriginalQueue,
-            shuffledOrder: newShuffledOrder,
-            recommendations: newRecommendations,
-            currentIndex: newIndex,
-            manuallyCleared: rebuiltQueue.length === 0 ? true : state.manuallyCleared,
+            songs: newSongs,
+            currentIndex: newCurrentIndex,
+            previousIndex: newPreviousIndex,
+            standardOrder: newStandardOrder,
+            shuffleOrder: newShuffleOrder,
           }
         })
       },
 
-      clearQueue: () => {
-        
-        // Clear only the queue arrays (user-added songs and recommendations)
-        // Keep currentTrack, lastPlayedTrack, isPlaying, and audio state intact
-        // Set manuallyCleared to prevent recommendations until user plays/adds a new song
-        set({
-          queue: [],
-          originalQueue: [],
-          shuffledOrder: [],
-          recommendations: [], // Clear recommendations array
-          previousSongs: [],
-          playedSongIds: [],
-          collectionStartIndex: -1, // Reset collection start index
-          currentIndex: -1,
-          manuallyCleared: true, // Prevent recommendations until user plays/adds a new song
-          // Keep currentTrack, lastPlayedTrack, isPlaying unchanged
-        })
-        
-      },
-      play: () => {
-        const audio = get().audioElement
-        const currentTrack = get().currentTrack
-        if (audio && currentTrack) {
-          // Ensure audio source is set
-          if (!audio.src) {
-            const baseUrl = jellyfinClient.serverBaseUrl
-            const audioUrl = baseUrl
-              ? `${baseUrl}/Audio/${currentTrack.Id}/stream?static=true`
-              : ''
-            audio.src = audioUrl
-            audio.load()
+      reorderQueue: (fromIndex, toIndex) => {
+        set((state) => {
+          if (fromIndex < 0 || toIndex < 0 ||
+              fromIndex >= state.songs.length || toIndex >= state.songs.length ||
+              fromIndex === toIndex) {
+            return state
           }
-          audio.play().then(() => {
-            set({ isPlaying: true })
-            // Report playback after delay
-            if (currentTrack) {
-              reportPlaybackWithDelay(currentTrack.Id, () => get().currentTrack)
+
+          const fromSong = state.songs[fromIndex]
+          const toSong = state.songs[toIndex]
+
+          // Don't allow dragging between user songs and recommendations
+          if (fromSong.source !== toSong.source) {
+            return state
+          }
+
+          const newSongs = [...state.songs]
+          const [removed] = newSongs.splice(fromIndex, 1)
+          newSongs.splice(toIndex, 0, removed)
+
+          // Update order arrays for user songs
+          if (fromSong.source === 'user') {
+            const orderArray = state.shuffle ? 'shuffleOrder' : 'standardOrder'
+            const currentOrder = state[orderArray] as string[]
+
+            // Remove and reinsert in the order array
+            const orderIndex = currentOrder.indexOf(fromSong.Id)
+            if (orderIndex >= 0) {
+              const newOrder = [...currentOrder]
+              newOrder.splice(orderIndex, 1)
+
+              // Find where to insert in the user songs section
+              const userSongsBeforeTo = newSongs.slice(0, toIndex + 1).filter(s => s.source === 'user')
+              const insertIndex = userSongsBeforeTo.length - 1
+
+              newOrder.splice(insertIndex, 0, fromSong.Id)
+
+              const newCurrentIndex = toIndex === state.currentIndex ? toIndex :
+                                   fromIndex === state.currentIndex ? toIndex :
+                                   state.currentIndex
+              return {
+                songs: newSongs,
+                [orderArray]: newOrder,
+                currentIndex: newCurrentIndex,
+                previousIndex: toIndex === state.previousIndex ? toIndex :
+                              fromIndex === state.previousIndex ? toIndex :
+                              state.previousIndex,
+              }
             }
+          }
+
+          // For recommendations, just update indices
+          const newCurrentIndex2 = toIndex === state.currentIndex ? toIndex :
+                                  fromIndex === state.currentIndex ? toIndex :
+                                  state.currentIndex
+          return {
+            songs: newSongs,
+            currentIndex: newCurrentIndex2,
+            previousIndex: toIndex === state.previousIndex ? toIndex :
+                          fromIndex === state.previousIndex ? toIndex :
+                          state.previousIndex,
+          }
+        })
+      },
+
+      play: () => {
+        const { audioElement, currentIndex, songs } = get()
+        if (audioElement && currentIndex >= 0 && currentIndex < songs.length) {
+          const track = songs[currentIndex]
+
+          // Ensure audio source is set
+          const baseUrl = jellyfinClient.serverBaseUrl
+          const audioUrl = baseUrl
+            ? `${baseUrl}/Audio/${track.Id}/stream?static=true`
+            : ''
+          if (audioElement.src !== audioUrl) {
+            audioElement.src = audioUrl
+            audioElement.load()
+          }
+
+          audioElement.play().then(() => {
+            set({ isPlaying: true })
+            reportPlaybackWithDelay(track.Id, () => get().songs[get().currentIndex] || null)
+            // Track locally played songs for recently played list
+            useMusicStore.getState().addToRecentlyPlayed(track)
           }).catch((error) => {
             console.error('Playback error:', error)
             set({ isPlaying: false })
@@ -452,289 +510,61 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       next: () => {
-        const { queue, currentIndex, repeat, shuffle, currentTrack } = get()
-        if (queue.length === 0) return
+        const { songs, currentIndex, repeat, previousIndex } = get()
 
-        // Determine the next index (sequential navigation works for both shuffled and unshuffled queues)
+        if (songs.length === 0) return
+
         let nextIndex = currentIndex + 1
 
-        // Special restore cases:
-        // 1) currentIndex === -1 and no currentTrack, but queue has items:
-        //    treat first `next()` as "skip the first item" (go to index 1).
-        // 2) currentIndex === -1 but currentTrack exists:
-        //    find its position in the queue and advance to the song after it.
-        if (currentIndex === -1 && queue.length > 0) {
-          if (!currentTrack && queue.length > 1) {
-            // Case 1: no currentTrack, just skip the first queue item
-            nextIndex = 1
-          } else if (currentTrack) {
-            // Case 2: align with currentTrack in the queue, then move to the next one
-            const currentIdxInQueue = queue.findIndex(t => t.Id === currentTrack.Id)
-            if (currentIdxInQueue >= 0) {
-              nextIndex = currentIdxInQueue + 1
-            }
-          }
-        }
-        if (nextIndex >= queue.length) {
+        // Handle end of queue
+        if (nextIndex >= songs.length) {
           if (repeat === 'all') {
             nextIndex = 0
           } else {
-            return
+            return // Can't go next
           }
         }
 
-
-
-        // If shuffle is on, ensure we never play recommendations before all "Added By You" songs are done
-        if (shuffle && nextIndex < queue.length) {
-          const nextTrack = queue[nextIndex]
-          const isNextRecommended = nextTrack && (nextTrack as any)._isRecommended
-          
-          
-          if (isNextRecommended) {
-            // CRITICAL FIX: Check if there are ANY unplayed user-added songs in the entire queue
-            // We need to check both before and after the current position
-            // Get all user-added songs
-            const allUserAddedSongs = queue.filter(t => !(t as any)._isRecommended)
-            // Get played user-added songs (from playedSongIds array)
-            const { playedSongIds } = get()
-            const playedUserAddedIds = new Set(playedSongIds)
-            // Find unplayed user-added songs
-            const unplayedUserAddedSongs = allUserAddedSongs.filter(
-              t => !playedUserAddedIds.has(t.Id) && t.Id !== get().currentTrack?.Id
-            )
-            
-            if (unplayedUserAddedSongs.length > 0) {
-              // Find the next unplayed user-added song (prefer after current position, but can be before if needed)
-              let nextUserAddedIndex = -1
-              
-              // First try to find one after current position
-              nextUserAddedIndex = queue.findIndex(
-                (t, idx) => idx > currentIndex && !(t as any)._isRecommended && !playedUserAddedIds.has(t.Id) && t.Id !== get().currentTrack?.Id
-              )
-              
-              // If none found after, find the first unplayed one (could be before current position)
-              if (nextUserAddedIndex === -1) {
-                nextUserAddedIndex = queue.findIndex(
-                  (t, idx) => !(t as any)._isRecommended && !playedUserAddedIds.has(t.Id) && t.Id !== get().currentTrack?.Id
-                )
-              }
-              
-              
-              if (nextUserAddedIndex >= 0) {
-                nextIndex = nextUserAddedIndex
-              } else {
-              }
-            } else {
-            }
-          }
-        }
-
-        set((state) => {
-          const newQueue = [...state.queue]
-          const newPreviousSongs = [...state.previousSongs]
-          let newPlayedSongIds = [...state.playedSongIds]
-          let newOriginalQueue = [...state.originalQueue]
-          let adjustedNextIndex = nextIndex
-          
-          
-          // CRITICAL FIX: When shuffle is on, don't remove tracks from queue - just advance the index
-          // This ensures all shuffled songs can be played
-          if (shuffle) {
-            // Add current song to previousSongs for history (but don't remove from queue)
-            // IMPORTANT: handle the case where currentIndex is -1 but currentTrack exists
-            let currentIndexForShuffle = state.currentIndex
-            if (currentIndexForShuffle < 0 && state.currentTrack) {
-              currentIndexForShuffle = newQueue.findIndex(t => t.Id === state.currentTrack?.Id)
-            }
-
-            if (currentIndexForShuffle >= 0 && currentIndexForShuffle < newQueue.length) {
-              const currentSong = newQueue[currentIndexForShuffle]
-              if (currentSong) {
-                // Add to previousSongs if not already there (limit to 10)
-                if (!newPreviousSongs.some(t => t.Id === currentSong.Id)) {
-                  newPreviousSongs.unshift(currentSong)
-                  if (newPreviousSongs.length > 10) {
-                    newPreviousSongs.pop()
-                  }
-                }
-                // Add to playedSongIds (unlimited, for UI filtering)
-                if (!newPlayedSongIds.includes(currentSong.Id)) {
-                  newPlayedSongIds.push(currentSong.Id)
-                }
-              }
-            }
-            
-            // If we're jumping to a different index (not sequential), mark all skipped songs as played
-            if (
-              currentIndexForShuffle >= 0 &&
-              nextIndex !== currentIndexForShuffle + 1 &&
-              nextIndex !== 0
-            ) {
-              const startIdx = Math.min(currentIndexForShuffle + 1, nextIndex)
-              const endIdx = Math.max(currentIndexForShuffle + 1, nextIndex)
-              for (let i = startIdx; i < endIdx && i < newQueue.length; i++) {
-                const skippedSong = newQueue[i]
-                if (skippedSong && !newPlayedSongIds.includes(skippedSong.Id)) {
-                  newPlayedSongIds.push(skippedSong.Id)
-                }
-              }
-            }
-            
-            // Just update the index, don't remove from queue
-            adjustedNextIndex = nextIndex
-            
-          } else {
-            // When shuffle is off, use the original removal logic
-            // Add current song to previousSongs before removing it
-            // (unless it's the only song and we're wrapping around)
-            if (state.currentIndex >= 0 && state.currentIndex < newQueue.length) {
-              const isOnlySong = newQueue.length === 1
-              const isWrappingAround = repeat === 'all' && nextIndex === 0 && state.currentIndex === newQueue.length - 1
-              const currentSong = newQueue[state.currentIndex]
-              
-              
-              if (!isOnlySong || !isWrappingAround) {
-                // Add to previousSongs (limit to 10)
-                if (currentSong) {
-                  newPreviousSongs.unshift(currentSong)
-                  if (newPreviousSongs.length > 10) {
-                    newPreviousSongs.pop()
-                  }
-                  
-                  // Also remove from originalQueue
-                  const originalIndex = newOriginalQueue.findIndex(t => t.Id === currentSong.Id)
-                  if (originalIndex >= 0) {
-                    newOriginalQueue.splice(originalIndex, 1)
-                  }
-                }
-                
-                newQueue.splice(state.currentIndex, 1)
-                
-                
-                // Adjust nextIndex if we removed an item before it
-                if (state.currentIndex < nextIndex) {
-                  adjustedNextIndex = nextIndex - 1
-                } else if (state.currentIndex === nextIndex && nextIndex >= newQueue.length) {
-                  // If we removed the item at nextIndex and it was the last item
-                  adjustedNextIndex = repeat === 'all' ? 0 : Math.max(0, newQueue.length - 1)
-                }
-                
-              }
-            }
-          }
-          
-          // Ensure adjustedNextIndex is valid
-          if (adjustedNextIndex >= newQueue.length) {
-            adjustedNextIndex = repeat === 'all' && newQueue.length > 0 ? 0 : Math.max(0, newQueue.length - 1)
-          }
-          if (adjustedNextIndex < 0) {
-            adjustedNextIndex = 0
-          }
-
-          // Keep recommendations array in sync with the queue:
-          // only include recommendation tracks that are still ahead of the current song.
-          // This prevents already-played recommendations from reappearing in the UI.
-          const newRecommendations = newQueue.filter(
-            (t, idx) => (t as any)._isRecommended && idx > adjustedNextIndex
-          )
-          return {
-            queue: newQueue,
-            originalQueue: newOriginalQueue,
-            previousSongs: newPreviousSongs,
-            playedSongIds: newPlayedSongIds,
-            currentIndex: adjustedNextIndex,
-            recommendations: newRecommendations,
-          }
+        // Update previous index and move current
+        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
+        set({
+          previousIndex: currentIndex, // Remember where we came from for back navigation
+          currentIndex: nextIndex,
+          lastPlayedTrack: currentTrack,
         })
-        
-        // Get the updated state and play the next track
-        const updatedState = get()
-        const trackToPlay = updatedState.queue[updatedState.currentIndex]
 
-        if (trackToPlay) {
-          get().setCurrentTrack(trackToPlay)
-          get().play()
-        } else {
-          console.error('[Shuffle] next() - trackToPlay is null! This is the stuck state.', {
-            currentIndex: updatedState.currentIndex,
-            queueLength: updatedState.queue.length,
-            queue: updatedState.queue,
-          })
-        }
+        // Play the next track
+        get().play()
       },
 
       previous: () => {
-        const { queue, previousSongs, currentIndex, currentTrack } = get()
-        
-        
-        // If we have previous songs in history and we're at the start of the queue, use them
-        if (previousSongs.length > 0 && (currentIndex <= 0 || queue.length === 0)) {
-          const prevTrack = previousSongs[0]
-          
-          
-          if (prevTrack) {
-            set((state) => {
-              const newQueue = [...state.queue]
-              const newPreviousSongs = [...state.previousSongs]
-              let newOriginalQueue = [...state.originalQueue]
-              
-              // Take the previous song from history
-              const songToPlay = newPreviousSongs.shift()!
-              
-              
-              // CRITICAL FIX: Don't add current track back to previousSongs when going backwards
-              // previousSongs should only be populated when going forward (via next())
-              // Adding it here creates a cycle: A -> B -> A -> B...
-              // The current track will be added to previousSongs when we go forward again via next()
-              
-              
-              // Add the previous song to queue at the beginning
-              newQueue.unshift(songToPlay)
-              
-              // Also add to originalQueue if it's not already there
-              if (!newOriginalQueue.some(t => t.Id === songToPlay.Id)) {
-                newOriginalQueue.unshift(songToPlay)
-              }
-              
-              return {
-                queue: newQueue,
-                originalQueue: newOriginalQueue,
-                previousSongs: newPreviousSongs,
-                currentIndex: 0,
-              }
-            })
-            get().setCurrentTrack(prevTrack)
-            get().play()
-          }
-          return
-        }
-        
-        // Otherwise, use the queue as before
-        if (queue.length === 0) return
+        const { songs, currentIndex, previousIndex } = get()
 
-        // Sequential navigation works for both shuffled and unshuffled queues
-        let prevIndex = currentIndex - 1
-        if (prevIndex < 0) {
-          prevIndex = queue.length - 1
-        }
-        
+        if (songs.length === 0) return
 
-        const prevTrack = queue[prevIndex]
-        
-        
-        if (prevTrack) {
-          set({ currentIndex: prevIndex })
-          get().setCurrentTrack(prevTrack)
-          get().play()
+        let newCurrentIndex = currentIndex
+        let newPreviousIndex = currentIndex // Remember where we came from
+
+        if (currentIndex > 0) {
+          // Go to previous song in queue
+          newCurrentIndex = currentIndex - 1
         } else {
-          console.error('[Shuffle] previous() - prevTrack is null! This is the stuck state.', {
-            prevIndex,
-            currentIndex,
-            queueLength: queue.length,
-            queue: queue,
-          })
+          // At start of queue, wrap around if repeat all
+          const { repeat } = get()
+          if (repeat === 'all') {
+            newCurrentIndex = songs.length - 1
+          } else {
+            return // Can't go previous
+          }
         }
+
+        set({
+          currentIndex: newCurrentIndex,
+          previousIndex: newPreviousIndex,
+        })
+
+        // Play the previous track
+        get().play()
       },
 
       seek: (time) => {
@@ -745,124 +575,68 @@ export const usePlayerStore = create<PlayerState>()(
         }
       },
 
-      setCurrentTime: (time) => {
-        set({ currentTime: time })
-      },
-
-      setDuration: (duration) => {
-        set({ duration })
-      },
-
-      setVolume: (volume) => {
-        set({ volume })
-        const audio = get().audioElement
-        if (audio) {
-          audio.volume = volume
-        }
-      },
-
       toggleShuffle: () => {
         set((state) => {
           const newShuffle = !state.shuffle
-          const currentTrack = state.currentTrack
-          
+
           if (newShuffle) {
-            // Enabling shuffle: Generate shuffled order for "Added by You" songs
-            // Only shuffle songs AFTER the current song
+            // Shuffle only upcoming songs, preserve previous songs and current song position
+            const previousSongs = state.songs.slice(0, state.currentIndex) // Songs before current
+            const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
+            const upcomingSongs = state.songs.slice(state.currentIndex + 1).filter(s => s.source === 'user') // User songs after current
+            const recommendations = state.songs.filter(s => s.source === 'recommendation')
 
-            // Find current track position in originalQueue
-            let currentTrackInOriginal = -1
-            if (currentTrack) {
-              currentTrackInOriginal = state.originalQueue.findIndex(t => t.Id === currentTrack.Id)
-            }
-            
-            let shuffledOrder: QueueItem[]
-            
-            if (currentTrackInOriginal >= 0) {
-              // For collection playback, only shuffle songs that are part of the current collection
-              let songsToShuffle: typeof state.originalQueue
-              let beforeCurrent: typeof state.originalQueue = []
+            // Shuffle the upcoming songs
+            const shuffledUpcomingIds = shuffleArray(upcomingSongs.map(s => s.Id))
+            const shuffledUpcomingSongs = shuffledUpcomingIds.map(id =>
+              upcomingSongs.find(s => s.Id === id)
+            ).filter(Boolean) as QueueSong[]
 
-              if (state.collectionStartIndex > 0) {
-                // We started from middle of collection, only shuffle from collectionStartIndex onwards
-                songsToShuffle = state.originalQueue.slice(state.collectionStartIndex)
-                // Find current track position within the collection slice
-                const currentInCollection = songsToShuffle.findIndex(t => t.Id === currentTrack.Id)
-                if (currentInCollection >= 0) {
-                  beforeCurrent = songsToShuffle.slice(0, currentInCollection + 1)
-                  const afterCurrent = songsToShuffle.slice(currentInCollection + 1)
-                  const shuffledAfter = shuffleArray(afterCurrent)
-                  shuffledOrder = [...beforeCurrent, ...shuffledAfter]
-                } else {
-                  // Current track not found in collection, shuffle everything in collection
-                  shuffledOrder = shuffleArray(songsToShuffle)
-                }
-              } else {
-                // Normal case: keep everything up to current track, shuffle the rest
-                beforeCurrent = state.originalQueue.slice(0, currentTrackInOriginal + 1)
-                const afterCurrent = state.originalQueue.slice(currentTrackInOriginal + 1)
-                const shuffledAfter = shuffleArray(afterCurrent)
-                shuffledOrder = [...beforeCurrent, ...shuffledAfter]
-              }
+            // Rebuild queue: previous + current + shuffled upcoming + recommendations
+            const newSongs = [
+              ...previousSongs,
+              ...(currentSong ? [currentSong] : []),
+              ...shuffledUpcomingSongs,
+              ...recommendations
+            ]
 
-            } else if (state.originalQueue.length > 0) {
-              // Current track not in originalQueue, shuffle everything
-              shuffledOrder = shuffleArray(state.originalQueue)
-            } else {
-              // No originalQueue, nothing to shuffle
-              shuffledOrder = []
-            }
+            // Update shuffleOrder for the upcoming songs only
+            const newShuffleOrder = [...state.standardOrder.slice(0, state.currentIndex + 1), ...shuffledUpcomingIds]
 
-            // Build final queue using shuffled order + recommendations
-            const finalQueue = [...shuffledOrder, ...state.recommendations]
-            console.log('[toggleShuffle] Final shuffled queue:', {
-              finalQueueLength: finalQueue.length,
-              shuffledSongs: shuffledOrder.length,
-              recommendations: state.recommendations.length
-            })
-            
-            // Find current track position in new queue
-            let newIndex = state.currentIndex
-            if (currentTrack) {
-              const trackIndex = finalQueue.findIndex(t => t.Id === currentTrack.Id)
-              if (trackIndex >= 0) {
-                newIndex = trackIndex
-              }
-            }
-            
             return {
               shuffle: newShuffle,
-              shuffledOrder: shuffledOrder,
-              queue: finalQueue,
-              currentIndex: newIndex,
+              shuffleOrder: newShuffleOrder,
+              songs: newSongs,
+              // currentIndex remains the same
             }
           } else {
-            // Disabling shuffle: Use originalQueue (unshuffled order) + recommendations
-            let queueToUse = state.originalQueue
 
-            // If we have a collection start index > 0, slice to only show tracks from that point onwards
-            // (collectionStartIndex = 0 means we already sliced when starting playback)
-            if (state.collectionStartIndex > 0) {
-              queueToUse = state.originalQueue.slice(state.collectionStartIndex)
-            }
+            // Restore standard order for upcoming songs, preserve previous songs and current song position
+            const previousSongs = state.songs.slice(0, state.currentIndex) // Songs before current
+            const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
+            const upcomingStandardIds = state.standardOrder.slice(state.currentIndex + 1) // Standard order IDs after current
 
-            const finalQueue = [...queueToUse, ...state.recommendations]
 
-            // Find current track position in the final queue
-            let newIndex = 0
-            if (currentTrack) {
-              const queueIndex = finalQueue.findIndex(t => t.Id === currentTrack.Id)
-              if (queueIndex >= 0) {
-                newIndex = queueIndex
-              }
-            }
+            const upcomingStandardSongs = upcomingStandardIds
+              .map(id => state.songs.find(s => s.Id === id && s.source === 'user'))
+              .filter(Boolean) as QueueSong[]
+
+
+            const recommendations = state.songs.filter(s => s.source === 'recommendation')
+
+            // Rebuild queue: previous + current + standard upcoming + recommendations
+            const newSongs = [
+              ...previousSongs,
+              ...(currentSong ? [currentSong] : []),
+              ...upcomingStandardSongs,
+              ...recommendations
+            ]
+
 
             return {
               shuffle: newShuffle,
-              queue: finalQueue,
-              shuffledOrder: [...queueToUse], // Keep shuffledOrder in sync (same as queue when shuffle is off)
-              currentIndex: newIndex,
-              playedSongIds: [], // Clear played song tracking when disabling shuffle
+              songs: newSongs,
+              // currentIndex remains the same
             }
           }
         })
@@ -877,374 +651,359 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playTrack: (track, queue) => {
-        const currentQueue = get().queue
-        const shuffle = get().shuffle
-        // Check if the track is in the current queue
-        const isInCurrentQueue = currentQueue.some(t => t.Id === track.Id)
+        // If queue is provided, maintain the original order and set currentIndex to the selected track
+        let tracks: (BaseItemDto | LightweightSong)[]
+        let currentIndex: number
 
-        // Sort tracks by disc number first, then by track number within each disc (if queue is provided)
-        const rawTracks = queue || [track]
-        const sortedTracks = queue ? [...rawTracks].sort((a, b) => {
-          const discA = a.ParentIndexNumber ?? 1
-          const discB = b.ParentIndexNumber ?? 1
-          if (discA !== discB) {
-            return discA - discB
-          }
-          const trackA = a.IndexNumber ?? 0
-          const trackB = b.IndexNumber ?? 0
-          return trackA - trackB
-        }) : rawTracks
-
-        // Find the selected track's position
-        const index = sortedTracks.findIndex((t) => t.Id === track.Id)
-
-        let tracksToQueue: typeof sortedTracks
-        let previousTracks: typeof sortedTracks = []
-        let collectionStartIndex = -1
-
-        // If we have a queue context (multiple tracks), apply collection behavior
-        if (queue && queue.length > 1) {
-          if (!shuffle) {
-            // Shuffle OFF: only include tracks from selected track onwards
-            tracksToQueue = sortedTracks.slice(index)
-            // Set previous tracks in reverse order for previous button (most recent first)
-            previousTracks = sortedTracks.slice(0, index).reverse()
-            collectionStartIndex = 0 // Reset to 0 since we're slicing the queue to start from the selected track
-          } else {
-            // Shuffle ON: include all tracks (they'll be shuffled later if needed)
-            tracksToQueue = sortedTracks
-            collectionStartIndex = index // Remember where we started for future slicing
+        if (queue) {
+          // Keep the original order from queue, but put the selected track at the right position
+          tracks = queue
+          currentIndex = queue.findIndex(t => t.Id === track.Id)
+          if (currentIndex === -1) {
+            // Fallback if track not found in queue
+            tracks = [track, ...queue.filter(t => t.Id !== track.Id)]
+            currentIndex = 0
           }
         } else {
-          // Individual song playback: use single track
-          tracksToQueue = sortedTracks
-          collectionStartIndex = -1
+          tracks = [track]
+          currentIndex = 0
         }
 
-        // Always use the determined tracks for queue
-        const tracks = tracksToQueue.map(t => ({ ...t, _isRecommended: false }))
-        const finalIndex = tracks.findIndex((t) => t.Id === track.Id)
+        const songs = tracks.map(t => ({ ...t, source: 'user' as const }))
 
         set({
-          queue: tracks,
-          originalQueue: [...tracks],
-          shuffledOrder: [...tracks], // Initially same as original
-          recommendations: [], // Clear recommendations when starting new playback
-          collectionStartIndex,
-          currentIndex: finalIndex >= 0 ? finalIndex : 0,
-          manuallyCleared: false, // Reset manuallyCleared when user plays a new track
-          // Clear previous songs if this is a new track not in the current queue,
-          // otherwise preserve existing previousSongs and add any new ones
-          previousSongs: isInCurrentQueue ? get().previousSongs : previousTracks,
+          songs,
+          standardOrder: songs.map(s => s.Id),
+          shuffleOrder: songs.map(s => s.Id),
+          currentIndex,
+          previousIndex: currentIndex > 0 ? currentIndex - 1 : -1,
+          shuffle: false,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          manuallyCleared: false, // Allow recommendations for fresh queue
         })
-        const audio = get().audioElement
-        if (audio) {
-          const baseUrl = jellyfinClient.serverBaseUrl
-          const audioUrl = baseUrl
-            ? `${baseUrl}/Audio/${track.Id}/stream?static=true`
-            : ''
-          audio.src = audioUrl
-          audio.load()
-          get().setCurrentTrack(track)
-          audio.play().then(() => {
-            set({ isPlaying: true })
-            // Report playback after delay
-            reportPlaybackWithDelay(track.Id, () => get().currentTrack)
-          }).catch((error) => {
-            console.error('Playback error:', error)
-            set({ isPlaying: false })
-          })
-        }
+
+        // Start playback
+        get().play()
       },
 
-      playAlbum: (tracks) => {
-        if (tracks.length === 0) return
-        // Preserve the order of tracks as provided by the caller
-        const orderedTracks = [...tracks]
-        const queueItems = orderedTracks.map(t => ({ ...t, _isRecommended: false }))
-        const firstTrack = orderedTracks[0]
+      playAlbum: (tracks, startIndex = 0) => {
+        const songs = tracks.map(t => ({ ...t, source: 'user' as const }))
+
         set({
-          queue: queueItems,
-          originalQueue: [...queueItems],
-          shuffledOrder: [...queueItems], // Initially same as original
-          recommendations: [], // Clear recommendations when starting new playback
-          collectionStartIndex: 0, // Play album starts from the beginning
-          currentIndex: 0,
-          manuallyCleared: false,
-          previousSongs: [], // Clear previous songs when playing a new album
-          playedSongIds: [], // Clear played songs when playing a new album
-          shuffle: false, // Disable shuffle when playing a new album
+          songs,
+          standardOrder: songs.map(s => s.Id),
+          shuffleOrder: songs.map(s => s.Id),
+          currentIndex: startIndex,
+          previousIndex: startIndex > 0 ? startIndex - 1 : -1,
+          shuffle: false,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          manuallyCleared: false, // Allow recommendations for fresh queue
         })
-        const audio = get().audioElement
-        if (audio) {
-          const baseUrl = jellyfinClient.serverBaseUrl
-          const audioUrl = baseUrl
-            ? `${baseUrl}/Audio/${firstTrack.Id}/stream?static=true`
-            : ''
-          audio.src = audioUrl
-          audio.load()
-          get().setCurrentTrack(firstTrack)
-          audio.play().then(() => {
-            set({ isPlaying: true })
-            // Report playback after delay
-            reportPlaybackWithDelay(firstTrack.Id, () => get().currentTrack)
-          }).catch((error) => {
-            console.error('Playback error:', error)
-            set({ isPlaying: false })
-          })
-        }
+
+        // Start playback
+        get().play()
       },
 
       playNext: (tracks) => {
-        if (tracks.length === 0) return
-        set((state) => {
-          const queueItems = tracks.map(t => ({ ...t, _isRecommended: false }))
-          const currentIndex = state.currentIndex
-          
-          let newQueue: QueueItem[]
-          let newOriginalQueue: QueueItem[]
-          let newShuffledOrder: QueueItem[]
-          let newCurrentIndex = currentIndex
-          
-          // Add to originalQueue first
-          const originalInsertIndex = currentIndex >= 0 && currentIndex < state.originalQueue.length 
-            ? currentIndex + 1 
-            : state.originalQueue.length
-          newOriginalQueue = [...state.originalQueue]
-          newOriginalQueue.splice(originalInsertIndex, 0, ...queueItems)
-          
-          if (tracks.length === 1) {
-            // Single song: Insert immediately after current track (even if shuffle is ON)
-            const insertIndex = currentIndex >= 0 ? currentIndex + 1 : 0
-            
-            if (state.shuffle) {
-              // Shuffle is ON: Use shuffledOrder, insert after current
-              const currentTrackInShuffled = state.shuffledOrder.findIndex(t => t.Id === state.currentTrack?.Id)
-              if (currentTrackInShuffled >= 0) {
-                const beforeInsert = state.shuffledOrder.slice(0, currentTrackInShuffled + 1)
-                const afterInsert = state.shuffledOrder.slice(currentTrackInShuffled + 1)
-                newShuffledOrder = [...beforeInsert, ...queueItems, ...afterInsert]
-              } else {
-                newShuffledOrder = [...state.shuffledOrder, ...queueItems]
-              }
-              newQueue = [...newShuffledOrder, ...state.recommendations]
-            } else {
-              // Shuffle is OFF: Use originalQueue order
-              newShuffledOrder = [...newOriginalQueue] // Keep in sync
-              newQueue = [...newOriginalQueue, ...state.recommendations]
-            }
-          } else {
-            // Multiple songs
-            if (state.shuffle) {
-              // Shuffle is ON: Insert right after current track, but shuffle them among themselves
-              const shuffledNewTracks = shuffleArray(queueItems)
-              const currentTrackInShuffled = state.shuffledOrder.findIndex(t => t.Id === state.currentTrack?.Id)
-              if (currentTrackInShuffled >= 0) {
-                const beforeInsert = state.shuffledOrder.slice(0, currentTrackInShuffled + 1)
-                const afterInsert = state.shuffledOrder.slice(currentTrackInShuffled + 1)
-                newShuffledOrder = [...beforeInsert, ...shuffledNewTracks, ...afterInsert]
-              } else {
-                newShuffledOrder = [...state.shuffledOrder, ...shuffledNewTracks]
-              }
-              newQueue = [...newShuffledOrder, ...state.recommendations]
-            } else {
-              // Shuffle is OFF: Insert right after current track
-              newShuffledOrder = [...newOriginalQueue] // Keep in sync
-              newQueue = [...newOriginalQueue, ...state.recommendations]
-            }
-          }
-          
-          // If current track exists, find its new position in the queue
-          if (state.currentTrack) {
-            const foundIndex = newQueue.findIndex(t => t.Id === state.currentTrack?.Id)
-            if (foundIndex >= 0) {
-              newCurrentIndex = foundIndex
-            }
-          }
-          
-          return {
-            queue: newQueue,
-            originalQueue: newOriginalQueue,
-            shuffledOrder: newShuffledOrder,
-            currentIndex: newCurrentIndex,
-            manuallyCleared: false,
-          }
-        })
+        get().addToQueue(tracks, true) // playNext = true
       },
 
       shuffleArtist: (songs) => {
-        if (songs.length === 0) return
         const shuffled = shuffleArray(songs)
-        const queueItems = shuffled.map(t => ({ ...t, _isRecommended: false }))
-        const firstTrack = shuffled[0]
+        const queueSongs = shuffled.map(t => ({ ...t, source: 'user' as const }))
+
         set({
-          queue: queueItems,
-          originalQueue: [...queueItems],
-          shuffledOrder: [...queueItems], // Initially same as original
-          recommendations: [], // Clear recommendations when starting new playback
+          songs: queueSongs,
+          standardOrder: queueSongs.map(s => s.Id),
+          shuffleOrder: queueSongs.map(s => s.Id),
           currentIndex: 0,
-          manuallyCleared: false,
-          previousSongs: [],
-          playedSongIds: [],
-          shuffle: false, // Don't enable shuffle mode, we already shuffled the songs
+          previousIndex: -1,
+          shuffle: false, // Already shuffled, so disable shuffle mode
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          manuallyCleared: false, // Allow recommendations for fresh queue
         })
-        const audio = get().audioElement
-        if (audio) {
-          const baseUrl = jellyfinClient.serverBaseUrl
-          const audioUrl = baseUrl
-            ? `${baseUrl}/Audio/${firstTrack.Id}/stream?static=true`
-            : ''
-          audio.src = audioUrl
-          audio.load()
-          get().setCurrentTrack(firstTrack)
-          audio.play().then(() => {
-            set({ isPlaying: true })
-            // Report playback after delay
-            reportPlaybackWithDelay(firstTrack.Id, () => get().currentTrack)
-          }).catch((error) => {
-            console.error('Playback error:', error)
-            set({ isPlaying: false })
-          })
-        }
+
+        // Start playback
+        get().play()
       },
 
-      reorderQueue: (fromIndex, toIndex) => {
-        set((state) => {
-          const newQueue = [...state.queue]
-          const [removed] = newQueue.splice(fromIndex, 1)
+      shuffleAllSongs: async () => {
 
-          // Adjust insertion index so dropping ON a row feels consistent
-          // with the visual indicator (insert before that row).
-          // After removing fromIndex, elements after it shift left by 1.
-          let insertionIndex = toIndex
-          if (fromIndex < toIndex) {
-            insertionIndex = Math.max(0, toIndex - 1)
-          }
-          newQueue.splice(insertionIndex, 0, removed)
-          
-          // Also reorder originalQueue to match the new queue order
-          // When user manually reorders, we update originalQueue to reflect the new standard order
-          let newOriginalQueue: QueueItem[] = []
-          if (state.shuffle) {
-            // If shuffle is on, rebuild originalQueue based on the new queue order
-            // Find each track in the original queue and add them in the new order
-            const trackMap = new Map(state.originalQueue.map(t => [t.Id, t]))
-            for (const track of newQueue) {
-              const originalTrack = trackMap.get(track.Id)
-              if (originalTrack) {
-                newOriginalQueue.push(originalTrack)
-              }
+        // Clear the queue first
+        get().clearQueue()
+
+        // Disable recommendations
+        const { setShowQueueRecommendations } = useSettingsStore.getState()
+        setShowQueueRecommendations(false)
+
+        // Device detection for song limits
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+        const maxSongs = isMobile ? 400 : 800
+
+
+        // Try to use shuffle pool for instant start
+        const musicStore = useMusicStore.getState()
+
+
+        let instantSongs: LightweightSong[] = []
+        let remainingSongs: LightweightSong[] = []
+
+        if (musicStore.shufflePool.length >= 1) {
+          // Use available songs from shuffle pool for instant playback (up to 5)
+          const availableFromPool = Math.min(5, musicStore.shufflePool.length)
+          instantSongs = musicStore.shufflePool.slice(0, availableFromPool)
+          // Refresh the pool by removing used songs and adding new ones
+          const remainingPool = musicStore.shufflePool.slice(availableFromPool)
+          const poolSongs = musicStore.songs
+          const recentlyPlayedIds = new Set(musicStore.recentlyPlayed.slice(0, 10).map(s => s.Id))
+          const availableForPool = poolSongs.filter(s => !recentlyPlayedIds.has(s.Id))
+          const newPoolSongs = shuffleArray(availableForPool).slice(0, availableFromPool)
+          const refreshedPool = [...remainingPool, ...newPoolSongs]
+
+          useMusicStore.setState({
+            shufflePool: refreshedPool,
+            lastPoolUpdate: Date.now()
+          })
+        } else {
+
+          // Fallback: quick load from cache or API
+          let allSongs = musicStore.songs
+
+          if (!allSongs || allSongs.length === 0) {
+
+            try {
+              const result = await jellyfinClient.getSongs({
+                limit: Math.max(50, maxSongs), // Load at least 50 for instant start
+                sortBy: ['SortName'],
+                sortOrder: 'Ascending'
+              })
+              allSongs = result.Items || []
+            } catch (error) {
+              console.error('Failed to fetch songs for shuffle all:', error)
+              return
             }
-            // Add any tracks from originalQueue that weren't in the new queue
-            for (const track of state.originalQueue) {
-              if (!newQueue.some(t => t.Id === track.Id)) {
-                newOriginalQueue.push(track)
-              }
-            }
-          } else {
-            // If shuffle is off, queue and originalQueue should be in sync
-            newOriginalQueue = [...newQueue]
           }
-          
-          let newCurrentIndex = state.currentIndex
-          if (state.currentIndex === fromIndex) {
-            newCurrentIndex = insertionIndex
-          } else if (fromIndex < state.currentIndex && toIndex >= state.currentIndex) {
-            newCurrentIndex = state.currentIndex - 1
-          } else if (fromIndex > state.currentIndex && toIndex <= state.currentIndex) {
-            newCurrentIndex = state.currentIndex + 1
-          }
-          return {
-            queue: newQueue,
-            originalQueue: newOriginalQueue,
-            currentIndex: newCurrentIndex,
-          }
+
+          // Use first 5 for instant start
+          instantSongs = shuffleArray(allSongs).slice(0, 5)
+          remainingSongs = allSongs.filter(s => !instantSongs.some(inst => inst.Id === s.Id))
+
+
+          // Initialize shuffle pool for future use
+          useMusicStore.setState({
+            songs: allSongs, // Cache the fetched songs
+            shufflePool: shuffleArray(allSongs).slice(0, 30), // Create pool from fetched songs
+            lastPoolUpdate: Date.now()
+          })
+        }
+
+        // PHASE 1: Start with available songs for instant playback
+        const instantQueueSongs = instantSongs.map(t => ({ ...t, source: 'user' as const }))
+        const initialSongCount = instantSongs.length
+
+        // Check if there are more songs available
+        const totalAvailableSongs = musicStore.songs.length + Object.values(musicStore.genreSongs).flat().length
+        const hasMoreSongs = totalAvailableSongs > instantSongs.length
+
+
+        set({
+          songs: instantQueueSongs,
+          standardOrder: instantQueueSongs.map(s => s.Id),
+          shuffleOrder: instantQueueSongs.map(s => s.Id),
+          currentIndex: 0,
+          previousIndex: -1,
+          shuffle: true,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          isLoadingMoreSongs: false, // No spinner in queue
+          shuffleHasMoreSongs: hasMoreSongs,
+          manuallyCleared: true,
         })
+
+
+        // Start playback immediately
+        get().play()
+
+
+        // PHASE 2: Background load remaining songs (up to maxSongs - initialSongCount)
+        setTimeout(async () => {
+
+          try {
+            const currentState = get()
+
+            // Safety check - ensure we're still in shuffle mode and have expected initial count
+            if (!currentState.shuffle || currentState.songs.length !== initialSongCount) {
+              return // State changed, abort expansion
+            }
+
+            let fullSongPool = musicStore.songs
+
+            // If main songs cache is empty, fetch from API
+            if (!fullSongPool || fullSongPool.length === 0) {
+
+              const result = await jellyfinClient.getSongs({
+                limit: maxSongs,
+                sortBy: ['SortName'],
+                sortOrder: 'Ascending'
+              })
+              fullSongPool = result.Items || []
+            }
+
+            // Combine with genre songs and deduplicate
+            const genreSongs = Object.values(musicStore.genreSongs).flat()
+            const combinedPool = [...fullSongPool, ...genreSongs]
+            const songMap = new Map()
+            combinedPool.forEach(song => songMap.set(song.Id, song))
+            const deduplicatedPool = Array.from(songMap.values())
+
+            // Remove songs already in queue
+            const currentSongIds = new Set(instantQueueSongs.map(s => s.Id))
+            const availablePool = deduplicatedPool.filter(s => !currentSongIds.has(s.Id))
+
+
+            if (availablePool.length > 0) {
+              // Take up to maxSongs - initialSongCount more songs
+              const additionalNeeded = Math.min(maxSongs - initialSongCount, availablePool.length)
+              const additionalSongs = shuffleArray(availablePool).slice(0, additionalNeeded)
+              const additionalQueueSongs = additionalSongs.map(t => ({ ...t, source: 'user' as const }))
+
+              // Add to queue
+              const newQueueSongs = [...instantQueueSongs, ...additionalQueueSongs]
+
+              set({
+                songs: newQueueSongs,
+                standardOrder: newQueueSongs.map(s => s.Id),
+                shuffleOrder: newQueueSongs.map(s => s.Id),
+                shuffleHasMoreSongs: availablePool.length > additionalNeeded
+              })
+
+              // Refresh shuffle pool after shuffle operation
+              useMusicStore.getState().refreshShufflePool()
+
+            } else {
+            }
+          } catch (error) {
+            console.error('Failed to expand shuffle queue:', error)
+            // Keep the initial 5 songs - better than nothing
+          }
+        }, 100)
+      },
+
+      shuffleGenreSongs: async (genreId, genreName) => {
+        // Clear the queue first
+        get().clearQueue()
+
+        // Disable recommendations
+        const { setShowQueueRecommendations } = useSettingsStore.getState()
+        setShowQueueRecommendations(false)
+
+        // Device detection for song limits
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+        const maxSongs = isMobile ? 400 : 800
+
+        // Get genre songs from music store
+        const genreSongs = useMusicStore.getState().genreSongs[genreId]
+
+        if (!genreSongs || genreSongs.length === 0) {
+          console.warn(`No songs found for genre: ${genreName}`)
+          return
+        }
+
+        // Use first 5 songs for instant start
+        const instantSongs = shuffleArray(genreSongs).slice(0, 5)
+        const remainingGenreSongs = genreSongs.filter(s => !instantSongs.some(inst => inst.Id === s.Id))
+        const instantQueueSongs = instantSongs.map(t => ({ ...t, source: 'user' as const }))
+
+        // Check if there are more songs available in this genre
+        const hasMoreSongs = genreSongs.length > 5
+
+        set({
+          songs: instantQueueSongs,
+          standardOrder: instantQueueSongs.map(s => s.Id),
+          shuffleOrder: instantQueueSongs.map(s => s.Id),
+          currentIndex: 0,
+          previousIndex: -1,
+          shuffle: true,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          isLoadingMoreSongs: false, // No spinner in queue
+          shuffleHasMoreSongs: hasMoreSongs,
+          manuallyCleared: true,
+        })
+
+        // Start playback immediately
+        get().play()
+
+        // Background load remaining genre songs
+        setTimeout(async () => {
+          try {
+            const currentState = get()
+
+            // Safety check
+            if (!currentState.shuffle || currentState.songs.length !== 5) {
+              return // State changed, abort expansion
+            }
+
+            if (remainingGenreSongs.length > 0) {
+              const additionalNeeded = Math.min(maxSongs - 5, remainingGenreSongs.length)
+              const additionalSongs = shuffleArray(remainingGenreSongs).slice(0, additionalNeeded)
+              const additionalQueueSongs = additionalSongs.map(t => ({ ...t, source: 'user' as const }))
+
+              const newQueueSongs = [...instantQueueSongs, ...additionalQueueSongs]
+
+              set({
+                songs: newQueueSongs,
+                standardOrder: newQueueSongs.map(s => s.Id),
+                shuffleOrder: newQueueSongs.map(s => s.Id),
+                shuffleHasMoreSongs: remainingGenreSongs.length > additionalNeeded
+              })
+            }
+          } catch (error) {
+            console.error('Failed to expand genre shuffle queue:', error)
+          }
+        }, 100)
       },
 
       skipToTrack: (trackIndex) => {
-        const { queue, originalQueue } = get()
-        if (trackIndex < 0 || trackIndex >= queue.length) return
-        
-        // Remove all tracks before the selected index
-        const newQueue = queue.slice(trackIndex)
-        const selectedTrack = newQueue[0]
-        
-        // Also update originalQueue to match - find the selected track in originalQueue
-        let newOriginalQueue = [...originalQueue]
-        if (selectedTrack) {
-          const originalIndex = newOriginalQueue.findIndex(t => t.Id === selectedTrack.Id)
-          if (originalIndex >= 0) {
-            newOriginalQueue = newOriginalQueue.slice(originalIndex)
-          }
-        }
+        const { songs, currentIndex } = get()
 
-        // Rebuild recommendations to only include items that are still
-        // after the selected track in the new queue.
-        // This ensures that when you jump to a recommendation (or any later song),
-        // everything before it disappears from the UI (both user-added and recs).
-        const newRecommendations = newQueue.filter(
-          (t, idx) => (t as any)._isRecommended && idx > 0
-        )
-        
+        if (trackIndex < 0 || trackIndex >= songs.length) return
+
+        // Set previous to current position, then move to new position
+        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
         set({
-          queue: newQueue,
-          originalQueue: newOriginalQueue,
-          recommendations: newRecommendations,
-          currentIndex: 0,
-          manuallyCleared: false,
-          previousSongs: [], // Clear previous songs when skipping to a new track
+          previousIndex: currentIndex >= 0 ? currentIndex : -1,
+          currentIndex: trackIndex,
+          lastPlayedTrack: currentTrack,
         })
-        
-        const audio = get().audioElement
-        if (audio && selectedTrack) {
-          const baseUrl = jellyfinClient.serverBaseUrl
-          const audioUrl = baseUrl
-            ? `${baseUrl}/Audio/${selectedTrack.Id}/stream?static=true`
-            : ''
-          audio.src = audioUrl
-          audio.load()
-          set({ currentTrack: selectedTrack, lastPlayedTrack: selectedTrack })
-          audio.play().then(() => {
-            set({ isPlaying: true })
-            // Report playback after delay
-            reportPlaybackWithDelay(selectedTrack.Id, () => get().currentTrack)
-          }).catch((error) => {
-            console.error('Playback error:', error)
-            set({ isPlaying: false })
-          })
-        }
+
+        // Start playback
+        get().play()
       },
 
       refreshCurrentTrack: async () => {
-        const currentTrack = get().currentTrack
-        if (!currentTrack?.Id) return
-        
+        const { currentIndex, songs } = get()
+
+        if (currentIndex < 0 || currentIndex >= songs.length) return
+
+        const currentSong = songs[currentIndex]
+
         try {
-          const freshTrack = await jellyfinClient.getSongById(currentTrack.Id)
+          const freshTrack = await jellyfinClient.getSongById(currentSong.Id)
           if (freshTrack) {
-            // Update currentTrack with fresh metadata
-            set({ currentTrack: freshTrack })
-            
-            // Also update in queue if the track is in the queue
-            const queue = get().queue
-            const originalQueue = get().originalQueue
-            const queueIndex = queue.findIndex(t => t.Id === currentTrack.Id)
-            const originalQueueIndex = originalQueue.findIndex(t => t.Id === currentTrack.Id)
-            
-            if (queueIndex >= 0 || originalQueueIndex >= 0) {
-              const newQueue = queueIndex >= 0 ? [...queue] : queue
-              const newOriginalQueue = originalQueueIndex >= 0 ? [...originalQueue] : originalQueue
-              
-              if (queueIndex >= 0) {
-                newQueue[queueIndex] = { ...newQueue[queueIndex], ...freshTrack }
-              }
-              if (originalQueueIndex >= 0) {
-                newOriginalQueue[originalQueueIndex] = { ...newOriginalQueue[originalQueueIndex], ...freshTrack }
-              }
-              
-              set({ queue: newQueue, originalQueue: newOriginalQueue })
-            }
+            set((state) => {
+              const newSongs = [...state.songs]
+              newSongs[state.currentIndex] = { ...newSongs[state.currentIndex], ...freshTrack }
+              return { songs: newSongs }
+            })
           }
         } catch (error) {
           console.error('Failed to refresh current track:', error)
@@ -1254,36 +1013,36 @@ export const usePlayerStore = create<PlayerState>()(
     {
       name: 'player-storage',
       partialize: (state) => ({
-        // User preferences
+        // Core queue state
+        songs: state.songs,
+        currentIndex: state.currentIndex,
+        previousIndex: state.previousIndex,
+        standardOrder: state.standardOrder,
+        shuffleOrder: state.shuffleOrder,
+
+        // Playback preferences
         volume: state.volume,
         shuffle: state.shuffle,
         repeat: state.repeat,
         lastPlayedTrack: state.lastPlayedTrack,
-        // Now playing state
-        currentTrack: state.currentTrack,
-        currentIndex: state.currentIndex,
-        queue: state.queue,
-        // Added by you songs
-        originalQueue: state.originalQueue,
-        shuffledOrder: state.shuffledOrder,
-        // Playback context
-        previousSongs: state.previousSongs,
-        playedSongIds: state.playedSongIds,
-        collectionStartIndex: state.collectionStartIndex,
+        isShuffleAllActive: state.isShuffleAllActive,
+        isShuffleGenreActive: state.isShuffleGenreActive,
         manuallyCleared: state.manuallyCleared,
       }),
-      onRehydrateStorage: () => (state) => {
-        // Reset runtime state when app restarts
+
+      onRehydrateStorage: (state) => {
         if (state) {
+          // Reset runtime state
           state.isPlaying = false
           state.currentTime = 0
           state.duration = 0
-          state.isFetchingRecommendations = false
-          // Keep audioElement as null - it will be set when needed
           state.audioElement = null
+          state.isFetchingRecommendations = false
+          // Keep lastPlayedTrack as persisted
+          state.isShuffleAllActive = false
+          state.isShuffleGenreActive = false
         }
-      },
+      }
     }
   )
 )
-

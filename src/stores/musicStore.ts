@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LightweightSong } from '../api/types'
+import type { LightweightSong, BaseItemDto } from '../api/types'
 
 // Custom IndexedDB storage adapter for larger data capacity
 const indexedDBStorage = {
@@ -87,6 +87,8 @@ interface MusicState {
   lastSyncCompleted: number | null
   recentlyAdded: BaseItemDto[]
   recentlyPlayed: BaseItemDto[]
+  shufflePool: LightweightSong[] // Pre-shuffled songs for instant playback
+  lastPoolUpdate: number | null
   loading: {
     artists: boolean
     albums: boolean
@@ -115,12 +117,13 @@ interface MusicState {
   setSortPreference: (type: 'artists' | 'albums' | 'songs' | 'playlists', order: SortOrder) => void
   setSongs: (songs: LightweightSong[]) => void
   setLastSyncCompleted: (timestamp: number) => void
+  refreshShufflePool: () => void
 }
 
 export const useMusicStore = create<MusicState>()(
   persist(
     (set) => ({
-      artists: [],
+        artists: [],
       albums: [],
       songs: [],
       genres: [],
@@ -133,6 +136,8 @@ export const useMusicStore = create<MusicState>()(
       lastSyncCompleted: null,
       recentlyAdded: [],
       recentlyPlayed: [],
+      shufflePool: [],
+      lastPoolUpdate: null,
       loading: {
         artists: false,
         albums: false,
@@ -187,6 +192,50 @@ export const useMusicStore = create<MusicState>()(
       setSongs: (songs) => set({ songs }),
 
       setLastSyncCompleted: (timestamp) => set({ lastSyncCompleted: timestamp }),
+
+      refreshShufflePool: () => set((state) => {
+
+        // Simple shuffle pool generation without external functions
+        const poolSize = 30
+        // Use main songs if available, otherwise use genre songs
+        let availableSongs = state.songs
+        const totalGenreSongs = Object.values(state.genreSongs).flat().length
+        if (state.songs.length === 0 && totalGenreSongs > 0) {
+          availableSongs = Object.values(state.genreSongs).flat()
+        }
+
+        if (availableSongs.length === 0) {
+          return { shufflePool: [] }
+        }
+
+        // Exclude recently played songs (last 10) to avoid repetition
+        const recentlyPlayedIds = new Set(state.recentlyPlayed.slice(0, 10).map(song => song.Id))
+        availableSongs = availableSongs.filter(song => !recentlyPlayedIds.has(song.Id))
+
+        // If we don't have enough songs after exclusion, include some recent ones
+        let poolSongs = availableSongs
+        if (poolSongs.length < poolSize) {
+          const recentToInclude = state.recentlyPlayed.slice(0, poolSize - poolSongs.length)
+          poolSongs = [...poolSongs, ...recentToInclude.map(rp =>
+            state.songs.find(s => s.Id === rp.Id)
+          ).filter(Boolean)]
+        }
+
+        // Simple shuffle
+        const shuffled = [...poolSongs]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
+
+        const newPool = shuffled.slice(0, poolSize)
+
+
+        return {
+          shufflePool: newPool,
+          lastPoolUpdate: Date.now()
+        }
+      }),
     }),
     {
       name: 'music-storage',
@@ -198,6 +247,9 @@ export const useMusicStore = create<MusicState>()(
         genresLastChecked: state.genresLastChecked,
         genreSongs: state.genreSongs,
         songs: state.songs,
+        // Persist shuffle pool for instant playback
+        shufflePool: state.shufflePool,
+        lastPoolUpdate: state.lastPoolUpdate,
         // Persist years for filter caching
         years: state.years,
         yearsLastUpdated: state.yearsLastUpdated,
@@ -209,7 +261,5 @@ export const useMusicStore = create<MusicState>()(
     }
   )
 )
-
-
 
 

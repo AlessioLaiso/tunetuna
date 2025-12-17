@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Disc } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import Image from '../shared/Image'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
@@ -16,7 +16,7 @@ interface RecentlyPlayedSongItemProps {
 }
 
 function RecentlyPlayedSongItem({ song, onClick, onContextMenu, contextMenuItemId }: RecentlyPlayedSongItemProps) {
-  const { currentTrack } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const [imageError, setImageError] = useState(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const formatDuration = (ticks: number): string => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayerStore, useCurrentTrack } from '../../stores/playerStore'
 import { ArrowLeft, Play, Pause, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
@@ -22,7 +22,7 @@ interface PlaylistTrackItemProps {
 
 function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, contextMenuItemId }: PlaylistTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
-  const { currentTrack } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
@@ -80,7 +80,8 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
 export default function PlaylistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, currentTrack, isPlaying } = usePlayerStore()
+  const { playAlbum, playTrack, isPlaying } = usePlayerStore()
+  const currentTrack = useCurrentTrack()
   const [playlist, setPlaylist] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
