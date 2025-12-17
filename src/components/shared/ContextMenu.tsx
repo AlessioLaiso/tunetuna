@@ -146,15 +146,28 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             playNext([item])
           } else if (action === 'addToQueue') {
             addToQueue([item])
-          } else if (action === 'sync') {
-            // Sync this song by fetching its details
-            startSync('context-menu', `Syncing ${item.Name}...`)
-            try {
-              await jellyfinClient.getSongById(item.Id)
-              completeSync(true, `${item.Name} synced`)
-            } catch (error) {
-              completeSync(false, `Failed to sync ${item.Name}`)
-            }
+            } else if (action === 'sync') {
+              // Sync this song and invalidate related genre caches
+              startSync('context-menu', `Syncing ${item.Name}...`)
+              try {
+                const updatedSong = await jellyfinClient.getSongById(item.Id)
+
+                // Clear genre caches for this song's current genres
+                if (updatedSong.Genres) {
+                  const allGenres = await jellyfinClient.getGenres()
+
+                  updatedSong.Genres.forEach(genreName => {
+                    const genre = allGenres.find(g => g.Name?.toLowerCase() === genreName.toLowerCase())
+                    if (genre?.Id) {
+                      useMusicStore.getState().clearGenreSongsForGenre(genre.Id)
+                    }
+                  })
+                }
+
+                completeSync(true, `${item.Name} synced`)
+              } catch (error) {
+                completeSync(false, `Failed to sync ${item.Name}`)
+              }
           }
           break
         }
