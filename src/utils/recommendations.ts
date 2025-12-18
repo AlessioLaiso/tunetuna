@@ -219,8 +219,10 @@ export async function getRecommendedSongs({
       }
     }
 
-    recommendations.push(...genreMatches.slice(0, 8))
-    if (isDev) console.log(`[Recommendations] Added ${Math.min(genreMatches.length, 8)} genre matches to recommendations`)
+    // Shuffle genre matches to avoid alphabetical bias (always picking "A" songs)
+    const shuffledGenreMatches = shuffleArray(genreMatches)
+    recommendations.push(...shuffledGenreMatches.slice(0, 8))
+    if (isDev) console.log(`[Recommendations] Added ${Math.min(shuffledGenreMatches.length, 8)} genre matches to recommendations`)
 
     // Track genre match success
     if (genres.length > 0 && genreMatches.length > 0) {
@@ -240,9 +242,9 @@ export async function getRecommendedSongs({
 
   if (currentYear && recommendations.length < 10) {
     const yearRanges = [
-      { range: 3, years: Array.from({length: 7}, (_, i) => currentYear - 3 + i) }, // ±3 years
-      { range: 6, years: Array.from({length: 13}, (_, i) => currentYear - 6 + i) }, // ±6 years
-      { range: 10, years: Array.from({length: 21}, (_, i) => currentYear - 10 + i) }, // ±10 years
+      { range: 3, years: Array.from({ length: 7 }, (_, i) => currentYear - 3 + i) }, // ±3 years
+      { range: 6, years: Array.from({ length: 13 }, (_, i) => currentYear - 6 + i) }, // ±6 years
+      { range: 10, years: Array.from({ length: 21 }, (_, i) => currentYear - 10 + i) }, // ±10 years
     ]
 
     let yearMatches: LightweightSong[] = []
@@ -268,17 +270,47 @@ export async function getRecommendedSongs({
       yearMatches.push(...rangeMatches)
     }
 
-    // Take up to 12 year matches
-    const selectedYearMatches = yearMatches.slice(0, 12)
+    // Deduplicate year matches (since ranges overlap)
+    const uniqueYearMatches = Array.from(
+      new Map(yearMatches.map(song => [song.Id, song])).values()
+    )
+
+    // Shuffle year matches to avoid alphabetical bias
+    const shuffledYearMatches = shuffleArray(uniqueYearMatches)
+    const selectedYearMatches = shuffledYearMatches.slice(0, 12)
     recommendations.push(...selectedYearMatches)
 
     if (isDev) console.log(`[Recommendations] Total year matches used: ${selectedYearMatches.length}`)
 
   }
 
-  // Shuffle and limit to 12
+  // Shuffle and then reorder to avoid consecutive artists
   const shuffled = shuffleArray(recommendations)
-  const finalRecommendations = shuffled.slice(0, 12)
+  const reordered: BaseItemDto[] = []
+  const pool = [...shuffled]
+
+  while (pool.length > 0 && reordered.length < 12) {
+    let index = -1
+
+    if (reordered.length > 0) {
+      const lastSong = reordered[reordered.length - 1]
+      const lastArtistIds = lastSong.ArtistItems?.map(a => a.Id) || []
+
+      // Find first song in pool that shares NO artists with last song
+      index = pool.findIndex(candidate => {
+        const candidateArtistIds = candidate.ArtistItems?.map(a => a.Id) || []
+        return !candidateArtistIds.some(id => lastArtistIds.includes(id))
+      })
+    }
+
+    // If no safe option found (or first iteration), just take the first one
+    if (index === -1) index = 0
+
+    const selected = pool.splice(index, 1)[0]
+    reordered.push(selected)
+  }
+
+  const finalRecommendations = reordered
 
 
   // Set recommendations quality
