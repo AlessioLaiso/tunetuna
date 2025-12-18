@@ -1,17 +1,60 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LightweightSong, BaseItemDto } from '../api/types'
+import type { LightweightSong, BaseItemDto, SortOrder } from '../api/types'
+
+// Singleton IndexedDB connection to prevent race conditions
+let dbInstance: IDBDatabase | null = null
+let dbPromise: Promise<IDBDatabase> | null = null
+
+function getDB(): Promise<IDBDatabase> {
+  // Return existing connection if available
+  if (dbInstance) {
+    return Promise.resolve(dbInstance)
+  }
+
+  // Return pending connection if one is being established
+  if (dbPromise) {
+    return dbPromise
+  }
+
+  // Create new connection
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open('tunetuna-storage', 1)
+
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('zustand')) {
+        db.createObjectStore('zustand')
+      }
+    }
+
+    request.onsuccess = () => {
+      dbInstance = request.result
+
+      // Handle connection close (e.g., browser closing DB)
+      dbInstance.onclose = () => {
+        dbInstance = null
+        dbPromise = null
+      }
+
+      resolve(dbInstance)
+    }
+
+    request.onerror = () => {
+      dbPromise = null
+      reject(request.error)
+    }
+  })
+
+  return dbPromise
+}
 
 // Custom IndexedDB storage adapter for larger data capacity
 const indexedDBStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const request = indexedDB.open('tunetuna-storage', 1)
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore('zustand')
-      }
-      request.onsuccess = () => {
-        const db = request.result
+    try {
+      const db = await getDB()
+      return new Promise((resolve) => {
         const transaction = db.transaction(['zustand'], 'readonly')
         const store = transaction.objectStore('zustand')
         const getRequest = store.get(name)
@@ -21,40 +64,29 @@ const indexedDBStorage = {
         getRequest.onerror = () => {
           resolve(null)
         }
-      }
-      request.onerror = () => {
-        resolve(null)
-      }
-    })
+      })
+    } catch {
+      return null
+    }
   },
   setItem: async (name: string, value: string): Promise<void> => {
+    const db = await getDB()
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('tunetuna-storage', 1)
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore('zustand')
+      const transaction = db.transaction(['zustand'], 'readwrite')
+      const store = transaction.objectStore('zustand')
+      const setRequest = store.put(value, name)
+      setRequest.onsuccess = () => {
+        resolve()
       }
-      request.onsuccess = () => {
-        const db = request.result
-        const transaction = db.transaction(['zustand'], 'readwrite')
-        const store = transaction.objectStore('zustand')
-        const setRequest = store.put(value, name)
-        setRequest.onsuccess = () => {
-          resolve()
-        }
-        setRequest.onerror = () => {
-          reject(setRequest.error)
-        }
-      }
-      request.onerror = () => {
-        reject(request.error)
+      setRequest.onerror = () => {
+        reject(setRequest.error)
       }
     })
   },
   removeItem: async (name: string): Promise<void> => {
-    return new Promise((resolve) => {
-      const request = indexedDB.open('tunetuna-storage', 1)
-      request.onsuccess = () => {
-        const db = request.result
+    try {
+      const db = await getDB()
+      return new Promise((resolve) => {
         const transaction = db.transaction(['zustand'], 'readwrite')
         const store = transaction.objectStore('zustand')
         const deleteRequest = store.delete(name)
@@ -64,14 +96,12 @@ const indexedDBStorage = {
         deleteRequest.onerror = () => {
           resolve() // Don't throw on remove errors
         }
-      }
-      request.onerror = () => {
-        resolve()
-      }
-    })
+      })
+    } catch {
+      // Silently fail on remove errors
+    }
   },
 }
-import type { BaseItemDto, SortOrder } from '../api/types'
 
 interface MusicState {
   artists: BaseItemDto[]

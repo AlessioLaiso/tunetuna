@@ -1077,10 +1077,14 @@ class JellyfinClient {
           
           if (response.ok) {
             const data = await response.json()
-            
+
             // Jellyfin lyrics API can return different formats
+            interface LyricsLine {
+              Text?: string
+              Start?: number
+            }
             if (data.Lyrics && Array.isArray(data.Lyrics) && data.Lyrics.length > 0) {
-              const lyricsText = data.Lyrics.map((line: any) => line.Text || '').join('\n')
+              const lyricsText = (data.Lyrics as LyricsLine[]).map((line) => line.Text || '').join('\n')
               return lyricsText
             } else if (typeof data === 'string') {
               return data

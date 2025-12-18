@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { jellyfinClient } from '../api/jellyfin'
 import { storage } from '../utils/storage'
+import { clearPlaybackTrackingState } from './playerStore'
 
 interface AuthState {
   serverUrl: string
@@ -17,8 +18,6 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      // #region agent log
-      // #endregion
       serverUrl: '',
       username: '',
       accessToken: '',
@@ -42,6 +41,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear playback tracking state to prevent memory leaks
+        clearPlaybackTrackingState()
         set({
           serverUrl: '',
           username: '',
@@ -64,11 +65,6 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      onRehydrateStorage: () => (state) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authStore.ts:66',message:'AuthStore rehydrated from localStorage',data:{rehydratedState:state,localStorageData:localStorage.getItem('auth-storage')},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-      },
       onRehydrateStorage: () => (state) => {
         if (state?.isAuthenticated && state.serverUrl && state.accessToken && state.userId) {
           jellyfinClient.setCredentials(state.serverUrl, state.accessToken, state.userId)

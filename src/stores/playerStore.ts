@@ -9,6 +9,15 @@ import { useSettingsStore } from './settingsStore'
 const reportedItems = new Set<string>()
 const reportingTimeouts = new Map<string, NodeJS.Timeout>()
 
+// Clear playback tracking state (call on logout to prevent memory leaks)
+export function clearPlaybackTrackingState() {
+  reportedItems.clear()
+  for (const timeout of reportingTimeouts.values()) {
+    clearTimeout(timeout)
+  }
+  reportingTimeouts.clear()
+}
+
 // Helper function to report playback after a delay
 function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseItemDto | null, delayMs: number = 5000) {
   const timeoutId = setTimeout(async () => {

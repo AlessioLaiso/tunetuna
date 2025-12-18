@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getRecommendedSongs } from '../utils/recommendations'
+import { logger } from '../utils/logger'
+import type { BaseItemDto } from '../api/types'
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -77,19 +79,19 @@ export function useRecommendations() {
         return
       }
       if (timeSinceLastSuccess <= 5000) {
-        console.log(`[Recommendations] Waiting for cooldown (${5 - Math.floor(timeSinceLastSuccess / 1000)}s remaining)`)
+        logger.log(`[Recommendations] Waiting for cooldown (${5 - Math.floor(timeSinceLastSuccess / 1000)}s remaining)`)
       }
       return
     }
 
     const runRecommendations = async () => {
-      console.log('[Recommendations] Starting fetch, setting isRecommending = true')
+      logger.log('[Recommendations] Starting fetch, setting isRecommending = true')
       isRecommendingRef.current = true
       setIsFetchingRecommendations(true)
 
       // Safety timeout to reset flags if something goes wrong
       const timeoutId = setTimeout(() => {
-        console.log('[Recommendations] Safety timeout triggered, resetting flags')
+        logger.log('[Recommendations] Safety timeout triggered, resetting flags')
         isRecommendingRef.current = false
         setIsFetchingRecommendations(false)
       }, 30000) // 30 seconds timeout
@@ -116,10 +118,10 @@ export function useRecommendations() {
 
 
         // Get recommendations for each seed
-        const seedResults: Array<{recommendations: any[], hasGenreMatches: boolean}> = []
+        const seedResults: Array<{recommendations: BaseItemDto[], hasGenreMatches: boolean}> = []
 
         for (const seed of seedTracks) {
-          console.log(`[Recommendations] Generating recommendations for seed: ${seed.Name}`)
+          logger.log(`[Recommendations] Generating recommendations for seed: ${seed.Name}`)
           const result = await getRecommendedSongs({
             currentTrack: seed,
             queue: songs,
@@ -127,7 +129,7 @@ export function useRecommendations() {
             lastPlayedTrack: null, // Not needed with new system
           })
 
-          console.log(`[Recommendations] Result for seed ${seed.Name}:`, {
+          logger.log(`[Recommendations] Result for seed ${seed.Name}:`, {
             recommendationsCount: result.recommendations?.length || 0,
             hasGenreMatches: result.hasGenreMatches,
             triggeredGenreSync: result.triggeredGenreSync,
@@ -140,7 +142,7 @@ export function useRecommendations() {
             retryCountRef.current += 1
 
             if (retryCountRef.current > maxRetries) {
-              console.warn('[Recommendations] Max retries reached, giving up')
+              logger.warn('[Recommendations] Max retries reached, giving up')
               lastFailedAttemptRef.current = Date.now()
               const { setRecommendationsQuality } = useSettingsStore.getState()
               setRecommendationsQuality('failed')
@@ -149,7 +151,7 @@ export function useRecommendations() {
 
             // Exponential backoff: 15s, 30s, 60s
             const backoffDelay = 15000 * Math.pow(2, retryCountRef.current - 1)
-            console.log(`[Recommendations] Genre sync triggered (attempt ${retryCountRef.current}/${maxRetries}), retry in ${backoffDelay/1000}s`)
+            logger.log(`[Recommendations] Genre sync triggered (attempt ${retryCountRef.current}/${maxRetries}), retry in ${backoffDelay/1000}s`)
 
             setTimeout(() => {
               lastFailedAttemptRef.current = 0
@@ -160,20 +162,20 @@ export function useRecommendations() {
           if (result.recommendations && Array.isArray(result.recommendations)) {
             seedResults.push(result)
           } else {
-            console.warn(`[Recommendations] Invalid result for seed ${seed.Name}:`, result)
+            logger.warn(`[Recommendations] Invalid result for seed ${seed.Name}:`, result)
           }
         }
 
         // Filter to only seeds that found genre matches
         const successfulSeeds = seedResults.filter(result => result.hasGenreMatches)
 
-        console.log(`[Recommendations] ${successfulSeeds.length} out of ${seedTracks.length} seeds found genre matches`)
+        logger.log(`[Recommendations] ${successfulSeeds.length} out of ${seedTracks.length} seeds found genre matches`)
 
         // If no seeds found genre matches, set degraded quality
         if (successfulSeeds.length === 0) {
           const { setRecommendationsQuality } = useSettingsStore.getState()
           setRecommendationsQuality('degraded')
-          console.log('[Recommendations] No genre matches found - falling back to year/artist only')
+          logger.log('[Recommendations] No genre matches found - falling back to year/artist only')
         }
 
         // Calculate how many we actually need to reach 12 total upcoming
@@ -181,16 +183,16 @@ export function useRecommendations() {
         const neededCount = Math.max(0, 12 - currentUpcoming)
 
         if (neededCount === 0) {
-          console.log('[Recommendations] Already have 12 upcoming recommendations, skipping')
+          logger.log('[Recommendations] Already have 12 upcoming recommendations, skipping')
           return
         }
 
-        console.log(`[Recommendations] Currently have ${currentUpcoming} upcoming, need ${neededCount} more to reach 12`)
+        logger.log(`[Recommendations] Currently have ${currentUpcoming} upcoming, need ${neededCount} more to reach 12`)
 
         // Distribute recommendations evenly across successful seeds (or all seeds if none successful)
         const seedsToUse = successfulSeeds.length > 0 ? successfulSeeds : seedResults
         const targetPerSeed = Math.ceil(neededCount / seedsToUse.length)
-        const safeRecommendations: any[] = []
+        const safeRecommendations: BaseItemDto[] = []
 
         for (const seedResult of seedsToUse) {
           const filtered = seedResult.recommendations.filter(rec => {
@@ -204,7 +206,7 @@ export function useRecommendations() {
           const toAdd = filtered.slice(0, targetPerSeed)
           safeRecommendations.push(...toAdd)
 
-          console.log(`[Recommendations] Added ${toAdd.length} recommendations from seed (${filtered.length} available, genreMatch: ${seedResult.hasGenreMatches})`)
+          logger.log(`[Recommendations] Added ${toAdd.length} recommendations from seed (${filtered.length} available, genreMatch: ${seedResult.hasGenreMatches})`)
         }
 
         // Limit to what we actually need
@@ -213,11 +215,11 @@ export function useRecommendations() {
         // Shuffle the final recommendations to mix genres (independent of shuffle setting)
         const shuffledRecommendations = shuffleArray(finalRecommendations)
 
-        console.log(`[Recommendations] Final ${finalRecommendations.length} recommendations (distributed across ${seedTracks.length} seeds)`)
+        logger.log(`[Recommendations] Final ${finalRecommendations.length} recommendations (distributed across ${seedTracks.length} seeds)`)
 
         if (shuffledRecommendations.length > 0) {
-          console.log(`[Recommendations] Adding ${shuffledRecommendations.length} recommendations (had ${currentUpcoming}, will have ${currentUpcoming + shuffledRecommendations.length})`)
-          console.log('[Recommendations] Recommendations to add:', shuffledRecommendations.map(r => r.Name))
+          logger.log(`[Recommendations] Adding ${shuffledRecommendations.length} recommendations (had ${currentUpcoming}, will have ${currentUpcoming + shuffledRecommendations.length})`)
+          logger.log('[Recommendations] Recommendations to add:', shuffledRecommendations.map(r => r.Name))
           // CRITICAL: Set success timestamp BEFORE adding to queue to prevent race condition
           // When addToQueue updates state, React schedules re-render immediately
           // We must set the timestamp first so the cooldown check sees the new value
@@ -225,21 +227,21 @@ export function useRecommendations() {
           lastSuccessAttemptRef.current = Date.now()
           retryCountRef.current = 0
           addToQueue(shuffledRecommendations, false, 'recommendation') // Add as recommendations
-          console.log('[Recommendations] Successfully added recommendations to queue')
+          logger.log('[Recommendations] Successfully added recommendations to queue')
         } else {
-          console.log('[Recommendations] No safe recommendations to add - marking as failed attempt')
+          logger.log('[Recommendations] No safe recommendations to add - marking as failed attempt')
           // Mark this as a failed attempt to prevent infinite retries
           lastFailedAttemptRef.current = Date.now()
         }
 
       } catch (error) {
-        console.error('[Recommendations Hook] Failed to get recommendations:', error)
+        logger.error('[Recommendations Hook] Failed to get recommendations:', error)
         // Ensure flags are reset even on error
         isRecommendingRef.current = false
         setIsFetchingRecommendations(false)
       } finally {
         clearTimeout(timeoutId)
-        console.log('[Recommendations] Finished fetch, setting isRecommending = false')
+        logger.log('[Recommendations] Finished fetch, setting isRecommending = false')
         isRecommendingRef.current = false
         setIsFetchingRecommendations(false)
       }

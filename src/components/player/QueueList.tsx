@@ -189,6 +189,7 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
     const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
     const [showPrevious, setShowPrevious] = useState(false)
+    const [showSyncingMessage, setShowSyncingMessage] = useState(false)
 
     const {
         songs,
@@ -344,6 +345,18 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
         handleScroll()
         return () => container.removeEventListener('scroll', handleScroll)
     }, [songs.length])
+
+    // Add a 2-second delay before showing the "Syncing genres..." message
+    useEffect(() => {
+        if (isFetchingRecommendations) {
+            const timer = setTimeout(() => {
+                setShowSyncingMessage(true)
+            }, 2000)
+            return () => clearTimeout(timer)
+        } else {
+            setShowSyncingMessage(false)
+        }
+    }, [isFetchingRecommendations])
 
     return (
         <div className="flex-1 flex flex-col min-h-0 w-full relative">
@@ -519,9 +532,9 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                     </button>
                                 </div>
                                 {/* Status messages below header */}
-                                {(isFetchingRecommendations || recommendationsQuality === 'failed') && (
+                                {(showSyncingMessage || recommendationsQuality === 'failed') && (
                                     <div className="px-4 pb-2">
-                                        {isFetchingRecommendations && (
+                                        {showSyncingMessage && (
                                             <span className="text-xs text-gray-400 font-normal">
                                                 Syncing genres...
                                             </span>
@@ -556,7 +569,7 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                                 />
                                             )
                                         })}
-                                        {isFetchingRecommendations && (
+                                        {showSyncingMessage && (
                                             <div className="px-4 pt-4 pb-6 flex justify-center">
                                                 <Spinner />
                                             </div>
