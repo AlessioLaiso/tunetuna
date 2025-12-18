@@ -490,18 +490,8 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                             {/* Recommendations Section */}
                             <div>
                                 <div className="px-4 pb-0 pt-7 flex items-center justify-between">
-                                    <div className="text-base font-bold text-white tracking-wider flex items-baseline gap-2">
+                                    <div className="text-base font-bold text-white tracking-wider">
                                         Recommendations
-                                        {isFetchingRecommendations && (
-                                            <span className="text-xs text-gray-400 font-normal">
-                                                Syncing genres...
-                                            </span>
-                                        )}
-                                        {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
-                                            <span className="text-xs text-red-400 font-normal">
-                                                (Unable to generate)
-                                            </span>
-                                        )}
                                     </div>
                                     <button
                                         onClick={() => {
@@ -528,6 +518,21 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                         />
                                     </button>
                                 </div>
+                                {/* Status messages below header */}
+                                {(isFetchingRecommendations || recommendationsQuality === 'failed') && (
+                                    <div className="px-4 pb-2">
+                                        {isFetchingRecommendations && (
+                                            <span className="text-xs text-gray-400 font-normal">
+                                                Syncing genres...
+                                            </span>
+                                        )}
+                                        {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
+                                            <span className="text-xs text-gray-400 font-normal">
+                                                Sync library in settings
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 {showQueueRecommendations && (
                                     <>
                                         {visibleUpcomingRecommendations.map((track, mapIndex) => {

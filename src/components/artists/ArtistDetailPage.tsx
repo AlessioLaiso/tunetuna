@@ -196,7 +196,10 @@ export default function ArtistDetailPage() {
 
   // Scroll to top when component mounts or artist ID changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' })
+    const scrollContainer = document.querySelector('.main-scrollable')
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: 'auto' })
+    }
   }, [id])
 
   // Normalize artist name by removing special characters for comparison
