@@ -131,11 +131,10 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenu
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${
-          currentTrack?.Id === song.Id 
-            ? 'text-[var(--accent-color)]' 
-            : 'text-white group-hover:text-[var(--accent-color)]'
-        }`}>
+        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
+          ? 'text-[var(--accent-color)]'
+          : 'text-white group-hover:text-[var(--accent-color)]'
+          }`}>
           {song.Name}
         </div>
         {(album || year) && (
@@ -185,6 +184,7 @@ export default function ArtistDetailPage() {
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const bioMeasureRef = useRef<HTMLParagraphElement | null>(null)
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Scroll to top when component mounts or artist ID changes
   useEffect(() => {
@@ -216,32 +216,32 @@ export default function ArtistDetailPage() {
             currentArtist = foundArtist
           }
         }
-        
+
         if (!currentArtist) {
           setLoading(false)
           return
         }
-        
+
         setArtist(currentArtist)
         setHasImage(true) // Reset image state when artist changes
-        
+
         // Get artist items
         const result = await jellyfinClient.getArtistItems(id)
-        
+
         // If no songs/albums found, try to find a similar artist with content
         if (result.albums.length === 0 && result.songs.length === 0 && currentArtist.Name) {
-          
+
           const normalizedName = normalizeArtistName(currentArtist.Name)
           // Search for similar artists
           const searchResults = await jellyfinClient.search(currentArtist.Name, 50)
           const similarArtists = searchResults.Artists?.Items || []
-          
+
           // Find an artist with the same normalized name but different ID that has content
           for (const similarArtist of similarArtists) {
             if (similarArtist.Id !== id && normalizeArtistName(similarArtist.Name) === normalizedName) {
               // Check if this similar artist has content
               const similarResult = await jellyfinClient.getArtistItems(similarArtist.Id)
-              
+
               if (similarResult.albums.length > 0 || similarResult.songs.length > 0) {
                 // Redirect to the similar artist that has content
                 navigate(`/artist/${similarArtist.Id}`, { replace: true })
@@ -250,7 +250,7 @@ export default function ArtistDetailPage() {
             }
           }
         }
-        
+
         // Sort albums from newest to oldest by year
         const sortedAlbums = [...result.albums].sort((a, b) => {
           const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
@@ -438,7 +438,7 @@ export default function ArtistDetailPage() {
   const getSongAlbumAndYear = (song: BaseItemDto): { album: string | null; year: string | null } => {
     const album = song.Album || null
     let year: string | null = null
-    
+
     // Try to find the album in albums array to get year
     if (song.AlbumId) {
       const albumData = albums.find(a => a.Id === song.AlbumId)
@@ -446,7 +446,7 @@ export default function ArtistDetailPage() {
         year = getAlbumYear(albumData)
       }
     }
-    
+
     return { album, year }
   }
 
@@ -563,31 +563,34 @@ export default function ArtistDetailPage() {
   return (
     <div className="pb-20">
       {/* Fixed header with back button */}
-      <div className="fixed top-0 left-0 right-0 z-[60]" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+      <div
+        className={`fixed top-0 left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+      >
         <div className="max-w-[768px] mx-auto">
           <div className="relative flex items-center justify-between gap-4 p-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-white hover:text-zinc-300 transition-colors z-10"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          {artist && (
             <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                setArtistContextMenuMode('desktop')
-                setArtistContextMenuPosition({
-                  x: rect.left + rect.width / 2,
-                  y: rect.bottom + 5
-                })
-                setArtistContextMenuOpen(true)
-              }}
+              onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors z-10"
             >
-              <MoreHorizontal className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6" />
             </button>
-          )}
+            {artist && (
+              <button
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setArtistContextMenuMode('desktop')
+                  setArtistContextMenuPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5
+                  })
+                  setArtistContextMenuOpen(true)
+                }}
+                className="text-white hover:text-zinc-300 transition-colors z-10"
+              >
+                <MoreHorizontal className="w-6 h-6" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -629,7 +632,7 @@ export default function ArtistDetailPage() {
             <div className="absolute inset-x-0 top-0 bottom-[-1px] bg-gradient-to-b from-transparent via-black/60 to-black pointer-events-none" />
           </div>
         )}
-        
+
         {/* Artist info overlay */}
         <div className={`left-0 right-0 ${hasImage ? 'absolute' : 'relative'} ${hasImage ? 'pt-16' : 'pt-12'}`} style={hasImage ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
           <div className="max-w-[768px] mx-auto px-4 flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">

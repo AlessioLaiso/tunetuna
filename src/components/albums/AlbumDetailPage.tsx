@@ -45,17 +45,15 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
       {...longPressHandlers}
       className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${
-        currentTrack?.Id === track.Id 
-          ? 'text-[var(--accent-color)]' 
-          : 'text-gray-500'
-      }`}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
+      <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${currentTrack?.Id === track.Id
+        ? 'text-[var(--accent-color)]'
+        : 'text-gray-500'
+        }`}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${
-          currentTrack?.Id === track.Id 
-            ? 'text-[var(--accent-color)]' 
-            : 'text-white group-hover:text-[var(--accent-color)]'
-        }`}>
+        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
+          ? 'text-[var(--accent-color)]'
+          : 'text-white group-hover:text-[var(--accent-color)]'
+          }`}>
           {track.Name}
         </div>
       </div>
@@ -108,6 +106,8 @@ export default function AlbumDetailPage() {
   const hasInitializedRef = useRef<boolean>(false)
   const albumArtRef = useRef<HTMLDivElement | null>(null)
   const previousAlbumIdRef = useRef<string | null>(null)
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+
   const previousPlayingRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function AlbumDetailPage() {
       try {
         const tracksList = await jellyfinClient.getAlbumTracks(id)
         setTracks(tracksList)
-        
+
         // Get album info with Overview field
         const albumDetail = await jellyfinClient.getAlbumById(id)
         let currentAlbum = albumDetail
@@ -130,7 +130,7 @@ export default function AlbumDetailPage() {
             currentAlbum = foundAlbum
           }
         }
-        
+
         if (!currentAlbum) {
           // Try to get from tracks
           if (tracksList.length > 0 && tracksList[0].AlbumId === id) {
@@ -141,7 +141,7 @@ export default function AlbumDetailPage() {
             } as BaseItemDto
           }
         }
-        
+
         if (currentAlbum) {
           setAlbum(currentAlbum)
           setHasImage(true) // Reset image state when album changes
@@ -279,23 +279,23 @@ export default function AlbumDetailPage() {
   // Handle rotation animation
   useEffect(() => {
     const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-    
+
     if (isCurrentAlbumPlaying) {
       // Start rotation animation
       const animate = (currentTime: number) => {
         if (lastTimeRef.current === 0) {
           lastTimeRef.current = currentTime
         }
-        
+
         const deltaTime = currentTime - lastTimeRef.current
         const rotationSpeed = 360 / 10000 // 360 degrees per 10 seconds (10s = 10000ms)
         rotationRef.current = (rotationRef.current + rotationSpeed * deltaTime) % 360
         setRotationAngle(rotationRef.current)
         lastTimeRef.current = currentTime
-        
+
         animationFrameRef.current = requestAnimationFrame(animate)
       }
-      
+
       lastTimeRef.current = 0
       animationFrameRef.current = requestAnimationFrame(animate)
     } else {
@@ -306,7 +306,7 @@ export default function AlbumDetailPage() {
       }
       lastTimeRef.current = 0
     }
-    
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
@@ -391,7 +391,7 @@ export default function AlbumDetailPage() {
   return (
     <div className="pb-20" style={{ overflowX: 'hidden', maxWidth: '100vw', width: '100%' }}>
       {/* Make status bar transparent by covering Layout's black overlay */}
-      <div 
+      <div
         className="fixed top-0 left-0 right-0 z-[55] pointer-events-none"
         style={{
           height: `env(safe-area-inset-top)`,
@@ -400,7 +400,7 @@ export default function AlbumDetailPage() {
         }}
       />
       {/* Gradient overlay from status bar to header end - below header in z-index */}
-      <div 
+      <div
         className="fixed top-0 left-0 right-0 z-10 pointer-events-none"
         style={{
           height: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)`,
@@ -418,7 +418,10 @@ export default function AlbumDetailPage() {
           )`
         }}
       />
-      <div className="fixed top-0 left-0 right-0 z-20" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+      <div
+        className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+      >
         <div className="max-w-[768px] mx-auto relative">
           <div className="flex items-center justify-between gap-4 p-4 relative z-10">
             <button
@@ -542,10 +545,10 @@ export default function AlbumDetailPage() {
                           ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
                           : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
                         : hideAlbumArt
-                        ? shouldSplitRef.current
-                          ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
-                          : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
-                        : 'translateX(0)',  // Center position
+                          ? shouldSplitRef.current
+                            ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
+                            : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
+                          : 'translateX(0)',  // Center position
                     opacity: 1,  // Always fully opaque - no fading
                     transitionProperty: 'transform',
                     transitionDuration: '500ms',
@@ -670,13 +673,13 @@ export default function AlbumDetailPage() {
                 }
                 tracksByDisc.get(discNumber)!.push(track)
               })
-              
+
               // Check if we have multiple discs
               const hasMultipleDiscs = tracksByDisc.size > 1
-              
+
               // Sort disc numbers
               const sortedDiscNumbers = Array.from(tracksByDisc.keys()).sort((a, b) => a - b)
-              
+
               return sortedDiscNumbers.map(discNumber => {
                 const discTracks = tracksByDisc.get(discNumber)!
                 return (

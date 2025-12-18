@@ -57,11 +57,10 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${
-          currentTrack?.Id === track.Id 
-            ? 'text-[var(--accent-color)]' 
-            : 'text-white group-hover:text-[var(--accent-color)]'
-        }`}>
+        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
+          ? 'text-[var(--accent-color)]'
+          : 'text-white group-hover:text-[var(--accent-color)]'
+          }`}>
           {track.Name}
         </div>
         <div className="text-xs text-gray-400 truncate">
@@ -88,10 +87,13 @@ export default function PlaylistDetailPage() {
   const [loading, setLoading] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [playlistContextMenuOpen, setPlaylistContextMenuOpen] = useState(false)
   const [playlistContextMenuMode, setPlaylistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [playlistContextMenuPosition, setPlaylistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   useEffect(() => {
     if (!id) return
@@ -101,11 +103,11 @@ export default function PlaylistDetailPage() {
       try {
         const tracksList = await jellyfinClient.getAlbumTracks(id)
         setTracks(tracksList)
-        
+
         // Get playlist info
         const playlistsResult = await jellyfinClient.getPlaylists({ limit: 1000 })
         const foundPlaylist = playlistsResult.Items.find(p => p.Id === id)
-        
+
         if (foundPlaylist) {
           setPlaylist(foundPlaylist)
         } else if (tracksList.length > 0) {
@@ -184,31 +186,34 @@ export default function PlaylistDetailPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+      <div
+        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+      >
         <div className="max-w-[768px] mx-auto">
           <div className="flex items-center justify-between gap-4 px-4" style={{ paddingTop: 'calc(1rem + 8px)', paddingBottom: '1rem' }}>
-          <button
-            onClick={() => navigate(-1)}
-            className="text-white hover:text-zinc-300 transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          {playlist && (
             <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                setPlaylistContextMenuMode('desktop')
-                setPlaylistContextMenuPosition({
-                  x: rect.left + rect.width / 2,
-                  y: rect.bottom + 5
-                })
-                setPlaylistContextMenuOpen(true)
-              }}
+              onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors"
             >
-              <MoreHorizontal className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6" />
             </button>
-          )}
+            {playlist && (
+              <button
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setPlaylistContextMenuMode('desktop')
+                  setPlaylistContextMenuPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5
+                  })
+                  setPlaylistContextMenuOpen(true)
+                }}
+                className="text-white hover:text-zinc-300 transition-colors"
+              >
+                <MoreHorizontal className="w-6 h-6" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -270,6 +275,8 @@ export default function PlaylistDetailPage() {
           setContextMenuOpen(false)
           setContextMenuItem(null)
         }}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
       />
       <ContextMenu
         item={playlist}

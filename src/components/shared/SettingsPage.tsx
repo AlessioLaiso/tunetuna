@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
+import { usePlayerStore } from '../../stores/playerStore'
 import BottomSheet from '../shared/BottomSheet'
 
 const tailwindColors = [
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [copied, setCopied] = useState(false)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
   const [syncOptions, setSyncOptions] = useState({
@@ -92,16 +94,19 @@ export default function SettingsPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+      <div
+        className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+      >
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center gap-4 p-4 lg:pl-8">
-          <button
-            onClick={() => navigate('/')}
-            className="text-white hover:text-zinc-300 transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-xl font-bold flex-1">Settings</h1>
+          <div className="flex items-center gap-4 p-4">
+            <button
+              onClick={() => navigate('/')}
+              className="text-white hover:text-zinc-300 transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-bold flex-1">Settings</h1>
           </div>
         </div>
       </div>
@@ -119,14 +124,12 @@ export default function SettingsPage() {
                 <label className="text-white capitalize font-medium">{page}</label>
                 <button
                   onClick={() => togglePage(page)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
-                    pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
-                  }`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
+                    }`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
-                    }`}
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -142,11 +145,10 @@ export default function SettingsPage() {
               <button
                 key={color.name}
                 onClick={() => setAccentColor(color.name)}
-                className={`aspect-square rounded-lg transition-all ${
-                  accentColor === color.name
+                className={`aspect-square rounded-lg transition-all ${accentColor === color.name
                     ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
                     : 'hover:scale-105'
-                }`}
+                  }`}
                 style={{ backgroundColor: color.hex }}
                 aria-label={`Select ${color.name} color`}
               />
@@ -186,11 +188,10 @@ export default function SettingsPage() {
               type="button"
               onClick={handleCopyServerUrl}
               disabled={!serverUrl}
-              className={`text-left text-xs break-all transition-colors ${
-                serverUrl
+              className={`text-left text-xs break-all transition-colors ${serverUrl
                   ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
                   : 'text-gray-600 cursor-not-allowed'
-              }`}
+                }`}
             >
               {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
             </button>

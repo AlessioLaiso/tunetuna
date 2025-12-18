@@ -36,7 +36,7 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumIt
     },
     onClick: () => onNavigate(album.Id),
   })
-  
+
   return (
     <button
       onClick={() => onNavigate(album.Id)}
@@ -87,6 +87,7 @@ export default function GenreSongsPage() {
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const [isShufflingGenre, setIsShufflingGenre] = useState(false)
   const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Reset loading state after a timeout to prevent permanent disabling
   useEffect(() => {
@@ -111,7 +112,7 @@ export default function GenreSongsPage() {
         if (genresList.length === 0) {
           genresList = await jellyfinClient.getGenres()
         }
-        
+
         const foundGenre = genresList.find(g => g.Id === id)
         if (foundGenre) {
           setGenre(foundGenre)
@@ -128,23 +129,23 @@ export default function GenreSongsPage() {
         if (genresList.length === 0) {
           genresList = await jellyfinClient.getGenres()
         }
-        
+
         const foundGenre = genresList.find(g => g.Id === id)
         if (!foundGenre) {
           setLoading(false)
           return
         }
         setGenre(foundGenre)
-        
+
         const genreName = foundGenre.Name
         if (!genreName) {
           setLoading(false)
           return
         }
-        
+
         // Load songs for this genre using the helper function
         const filtered = await jellyfinClient.getGenreSongs(id, genreName)
-        
+
         // Cache the songs
         setGenreSongs(id, filtered)
         setSongs(filtered)
@@ -213,12 +214,12 @@ export default function GenreSongsPage() {
     return Array.from(albumMap.values()).sort((a, b) => {
       const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
       const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
-      
+
       // Sort by year (newest first)
       if (yearA !== yearB) {
         return yearB - yearA
       }
-      
+
       // If same year, sort by name
       const nameA = a.Name || ''
       const nameB = b.Name || ''
@@ -472,28 +473,31 @@ export default function GenreSongsPage() {
 
   return (
     <div className="pb-20">
-      <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `env(safe-area-inset-top)` }}>
+      <div
+        className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+      >
         <div className="max-w-[768px] mx-auto">
           <div className="flex items-center gap-4 p-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-white hover:text-zinc-300 transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-xl font-bold flex-1 truncate">{genre.Name}</h1>
-          <button
-            onClick={handleShufflePlay}
-            disabled={isShufflingGenre}
-            className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
-            aria-label="Shuffle genre songs"
-          >
-            {isShufflingGenre ? (
-              <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              <Shuffle className="w-5 h-5" />
-            )}
-          </button>
+            <button
+              onClick={() => navigate(-1)}
+              className="text-white hover:text-zinc-300 transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-bold flex-1 truncate">{genre.Name}</h1>
+            <button
+              onClick={handleShufflePlay}
+              disabled={isShufflingGenre}
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+              aria-label="Shuffle genre songs"
+            >
+              {isShufflingGenre ? (
+                <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <Shuffle className="w-5 h-5" />
+              )}
+            </button>
           </div>
         </div>
       </div>

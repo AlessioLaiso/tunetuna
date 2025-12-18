@@ -6,6 +6,8 @@ import { useRecommendations } from '../../hooks/useRecommendations'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSyncStore } from '../../stores/syncStore'
+import { usePlayerStore } from '../../stores/playerStore'
+import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { LightweightSong, BaseItemDto } from '../../api/types'
 
@@ -44,12 +46,14 @@ export default function Layout({ children }: LayoutProps) {
   const { genres, songs, genreSongs } = useMusicStore()
   const { state: syncState } = useSyncStore()
 
+  const { isQueueSidebarOpen } = usePlayerStore()
+
   // Fisher-Yates shuffle algorithm
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array]
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
   }
@@ -187,9 +191,9 @@ export default function Layout({ children }: LayoutProps) {
         style={{ width: '4rem' }}
       />
       <div
-        className="min-h-screen bg-black text-white lg:pl-8"
+        className={`min-h-screen bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'xl:pr-[320px]' : ''}`}
         style={{
-          paddingBottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)`,
+          paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
           paddingTop: syncState !== 'idle' ? '28px' : '0',
           overflowX: 'hidden',
           maxWidth: '100vw',
@@ -204,6 +208,7 @@ export default function Layout({ children }: LayoutProps) {
         <PlayerBar />
         <TabBar />
       </div>
+      <QueueSidebar />
     </>
   )
 }

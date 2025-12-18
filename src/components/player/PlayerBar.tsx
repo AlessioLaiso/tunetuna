@@ -7,7 +7,7 @@ import Image from '../shared/Image'
 import PlayerModal from './PlayerModal'
 import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
-import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1 } from 'lucide-react'
+import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1, ListVideo } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
 export default function PlayerBar() {
@@ -417,8 +417,24 @@ export default function PlayerBar() {
             </button>
           </div>
 
-          {/* Right: Volume control */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          {/* Right: Volume control and Queue */}
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+            {/* Queue Button for Desktop > 1280px */}
+            <div className="hidden xl:block">
+              {!usePlayerStore(state => state.isQueueSidebarOpen) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    usePlayerStore.getState().toggleQueueSidebar()
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors flex items-center justify-center w-10 h-10"
+                  title="Open Queue"
+                >
+                  <ListVideo className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
             <div className="hidden lg:block">
               <VolumeControl variant="horizontal" />
             </div>

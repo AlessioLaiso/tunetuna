@@ -48,7 +48,7 @@ function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
 }
@@ -130,6 +130,10 @@ interface PlayerState {
 
   // Track management
   refreshCurrentTrack: () => Promise<void>
+
+  // Sidebar state
+  isQueueSidebarOpen: boolean
+  toggleQueueSidebar: () => void
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -154,7 +158,9 @@ export const usePlayerStore = create<PlayerState>()(
       lastPlayedTrack: null,
       isShuffleAllActive: false,
       isShuffleGenreActive: false,
+
       manuallyCleared: false,
+      isQueueSidebarOpen: false,
 
       setAudioElement: (element) => {
         set({ audioElement: element })
@@ -391,8 +397,8 @@ export const usePlayerStore = create<PlayerState>()(
       reorderQueue: (fromIndex, toIndex) => {
         set((state) => {
           if (fromIndex < 0 || toIndex < 0 ||
-              fromIndex >= state.songs.length || toIndex >= state.songs.length ||
-              fromIndex === toIndex) {
+            fromIndex >= state.songs.length || toIndex >= state.songs.length ||
+            fromIndex === toIndex) {
             return state
           }
 
@@ -426,29 +432,29 @@ export const usePlayerStore = create<PlayerState>()(
               newOrder.splice(insertIndex, 0, fromSong.Id)
 
               const newCurrentIndex = toIndex === state.currentIndex ? toIndex :
-                                   fromIndex === state.currentIndex ? toIndex :
-                                   state.currentIndex
+                fromIndex === state.currentIndex ? toIndex :
+                  state.currentIndex
               return {
                 songs: newSongs,
                 [orderArray]: newOrder,
                 currentIndex: newCurrentIndex,
                 previousIndex: toIndex === state.previousIndex ? toIndex :
-                              fromIndex === state.previousIndex ? toIndex :
-                              state.previousIndex,
+                  fromIndex === state.previousIndex ? toIndex :
+                    state.previousIndex,
               }
             }
           }
 
           // For recommendations, just update indices
           const newCurrentIndex2 = toIndex === state.currentIndex ? toIndex :
-                                  fromIndex === state.currentIndex ? toIndex :
-                                  state.currentIndex
+            fromIndex === state.currentIndex ? toIndex :
+              state.currentIndex
           return {
             songs: newSongs,
             currentIndex: newCurrentIndex2,
             previousIndex: toIndex === state.previousIndex ? toIndex :
-                          fromIndex === state.previousIndex ? toIndex :
-                          state.previousIndex,
+              fromIndex === state.previousIndex ? toIndex :
+                state.previousIndex,
           }
         })
       },
@@ -669,7 +675,8 @@ export const usePlayerStore = create<PlayerState>()(
           isPlaying: false,
           currentTime: 0,
           duration: 0,
-          manuallyCleared: false, // Allow recommendations for fresh queue
+          manuallyCleared: false,
+
         })
 
         // Start playback
@@ -689,7 +696,8 @@ export const usePlayerStore = create<PlayerState>()(
           isPlaying: false,
           currentTime: 0,
           duration: 0,
-          manuallyCleared: false, // Allow recommendations for fresh queue
+          manuallyCleared: false,
+
         })
 
         // Start playback
@@ -714,7 +722,8 @@ export const usePlayerStore = create<PlayerState>()(
           isPlaying: false,
           currentTime: 0,
           duration: 0,
-          manuallyCleared: false, // Allow recommendations for fresh queue
+          manuallyCleared: false,
+
         })
 
         // Start playback
@@ -997,6 +1006,10 @@ export const usePlayerStore = create<PlayerState>()(
           console.error('Failed to refresh current track:', error)
         }
       },
+
+      toggleQueueSidebar: () => {
+        set((state) => ({ isQueueSidebarOpen: !state.isQueueSidebarOpen }))
+      },
     }),
     {
       name: 'player-storage',
@@ -1016,6 +1029,7 @@ export const usePlayerStore = create<PlayerState>()(
         isShuffleAllActive: state.isShuffleAllActive,
         isShuffleGenreActive: state.isShuffleGenreActive,
         manuallyCleared: state.manuallyCleared,
+        isQueueSidebarOpen: state.isQueueSidebarOpen,
       }),
 
       onRehydrateStorage: (state) => {

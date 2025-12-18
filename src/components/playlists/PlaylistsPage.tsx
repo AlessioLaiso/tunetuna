@@ -69,7 +69,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       isCancelled = true
     }
   }, [artist.Id, artist.ImageTags])
-  
+
   const handleClick = (e: React.MouseEvent) => {
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
       e.preventDefault()
@@ -79,7 +79,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     }
     onClick(artist.Id)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -89,7 +89,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       contextMenuJustOpenedRef.current = false
     }, 100)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
@@ -98,7 +98,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     },
     onClick: handleClick,
   })
-  
+
   return (
     <button
       onClick={handleClick}
@@ -143,7 +143,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
-  
+
   const handleClick = (e: React.MouseEvent) => {
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
       e.preventDefault()
@@ -153,7 +153,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     }
     onClick(album.Id)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -163,7 +163,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
       contextMenuJustOpenedRef.current = false
     }, 100)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
@@ -172,7 +172,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     },
     onClick: handleClick,
   })
-  
+
   return (
     <button
       onClick={handleClick}
@@ -214,14 +214,14 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const [imageError, setImageError] = useState(false)
-  
+
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
-  
+
   const handleClick = (e: React.MouseEvent) => {
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
       e.preventDefault()
@@ -231,7 +231,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     }
     onClick(song)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -241,7 +241,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
       contextMenuJustOpenedRef.current = false
     }, 100)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
@@ -250,7 +250,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     },
     onClick: handleClick,
   })
-  
+
   return (
     <button
       onClick={handleClick}
@@ -304,7 +304,7 @@ export default function PlaylistsPage() {
   const prevSortOrderRef = useRef(sortOrder)
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -321,6 +321,7 @@ export default function PlaylistsPage() {
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
+  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   useEffect(() => {
     if (!isSearchOpen) {
@@ -512,241 +513,244 @@ export default function PlaylistsPage() {
   return (
     <>
       <div className="pb-20">
-        <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+        <div
+          className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+          style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
+        >
           <div className="max-w-[768px] mx-auto">
-            <div className="p-4 lg:pl-8">
-            {/* Header with title and search icon */}
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-2xl font-bold text-white">Playlists</h1>
-              <button
-                onClick={() => setIsSearchOpen(true)}
-                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-                aria-label="Search"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </button>
-            </div>
-            {/* Sorting control */}
-            {!isSearchOpen && (
-              <div className="flex items-center justify-between gap-2">
+            <div className="p-4">
+              {/* Header with title and search icon */}
+              <div className="flex items-center justify-between mb-3">
+                <h1 className="text-2xl font-bold text-white">Playlists</h1>
                 <button
-                  onClick={() => setSortPreference('playlists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
-                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                  aria-label="Search"
                 >
-                  {sortOrder === 'RecentlyAdded' ? 'Recently Added' : 'Alphabetically'}
-                  <ArrowUpDown className="w-4 h-4" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
                 </button>
-                {loading && !isInitialLoad.current && (
-                  <div className="flex items-center">
-                    <Spinner />
-                  </div>
-                )}
               </div>
-            )}
+              {/* Sorting control */}
+              {!isSearchOpen && (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setSortPreference('playlists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
+                    className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                  >
+                    {sortOrder === 'RecentlyAdded' ? 'Recently Added' : 'Alphabetically'}
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+                  {loading && !isInitialLoad.current && (
+                    <div className="flex items-center">
+                      <Spinner />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
-        {!isSearchOpen && (
-          <div className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}>
-            {playlists.length === 0 && !loading ? (
-              <div className="flex items-center justify-center py-16 text-gray-400">
-                <p>No playlists found</p>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {playlists.map((playlist) => (
-                  <PlaylistItem key={playlist.Id} playlist={playlist} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          {!isSearchOpen && (
+            <div className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}>
+              {playlists.length === 0 && !loading ? (
+                <div className="flex items-center justify-center py-16 text-gray-400">
+                  <p>No playlists found</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {playlists.map((playlist) => (
+                    <PlaylistItem key={playlist.Id} playlist={playlist} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Full-page search overlay - rendered via portal to escape stacking context */}
       {isSearchOpen && createPortal(
         <>
-        <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0">
-          {/* Fixed overlay to hide content behind status bar */}
-          <div 
-            className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
-            style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
-          />
-          {/* Fixed search header with Cancel button */}
-          <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
-            <div className="max-w-[768px] mx-auto w-full">
-              <div className="flex items-center gap-3 px-4 pt-4">
-                <div className="flex-1">
-                  <SearchInput
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    showClearButton={searchQuery.trim().length > 0}
-                    onClear={handleClearSearch}
-                  />
+          <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0">
+            {/* Fixed overlay to hide content behind status bar */}
+            <div
+              className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
+              style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
+            />
+            {/* Fixed search header with Cancel button */}
+            <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
+              <div className="max-w-[768px] mx-auto w-full">
+                <div className="flex items-center gap-3 px-4 pt-4">
+                  <div className="flex-1">
+                    <SearchInput
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={handleSearch}
+                      showClearButton={searchQuery.trim().length > 0}
+                      onClear={handleClearSearch}
+                    />
+                  </div>
+                  <button
+                    onClick={handleCancelSearch}
+                    className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <button
-                  onClick={handleCancelSearch}
-                  className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                  Cancel
-                </button>
               </div>
             </div>
-          </div>
 
-          <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
 
-            {/* Search results */}
-            <div className="pb-32 pt-4">
-            {isSearching ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
-              </div>
-            ) : searchResults ? (
-              <div className="space-y-8">
-                {/* Playlists first */}
-                {searchResults.playlists.length > 0 && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4 px-4">Playlists</h2>
-                    <div className="space-y-0">
-                      {searchResults.playlists.map((playlist) => (
-                        <button
-                          key={playlist.Id}
-                          onClick={() => handlePlaylistClick(playlist.Id)}
-                          onContextMenu={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
-                          }}
-                          className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
-                        >
-                          <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-                            <img
-                              src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
-                              alt={playlist.Name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                              {playlist.Name}
-                            </div>
-                            <div className="text-xs text-gray-400 truncate">
-                              {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+              {/* Search results */}
+              <div className="pb-32 pt-4">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
                   </div>
-                )}
-
-                {/* Artists */}
-                {searchResults.artists.length > 0 && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4 px-4">Artists</h2>
-                    <div className="space-y-0">
-                      {searchResults.artists.slice(0, 5).map((artist) => (
-                        <SearchArtistItem
-                          key={artist.Id}
-                          artist={artist}
-                          onClick={handleArtistClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Albums */}
-                {searchResults.albums.length > 0 && (
-                  <div className="px-4">
-                    <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
-                    <div className="grid grid-cols-3 gap-4">
-                      {searchResults.albums.slice(0, 12).map((album) => (
-                        <SearchAlbumItem
-                          key={album.Id}
-                          album={album}
-                          onClick={handleAlbumClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Songs */}
-                {searchResults.songs.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4 px-4">
-                      <h2 className="text-xl font-bold text-white">Songs</h2>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handlePlayAllSongs}
-                          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
-                          aria-label="Play all songs"
-                        >
-                          <Play className="w-5 h-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddSongsToQueue}
-                          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
-                          aria-label="Add all songs to queue"
-                        >
-                          <ListEnd className="w-5 h-5" />
-                        </button>
+                ) : searchResults ? (
+                  <div className="space-y-8">
+                    {/* Playlists first */}
+                    {searchResults.playlists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4 px-4">Playlists</h2>
+                        <div className="space-y-0">
+                          {searchResults.playlists.map((playlist) => (
+                            <button
+                              key={playlist.Id}
+                              onClick={() => handlePlaylistClick(playlist.Id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
+                              }}
+                              className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+                            >
+                              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+                                <img
+                                  src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+                                  alt={playlist.Name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                                  {playlist.Name}
+                                </div>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-0">
-                      {searchResults.songs.map((song, index) => (
-                        <SearchSongItem
-                          key={song.Id}
-                          song={song}
-                          onClick={handleSongClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                          showImage={index < visibleSearchSongImageCount}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {searchResults.playlists.length === 0 && searchResults.artists.length === 0 && searchResults.albums.length === 0 && searchResults.songs.length === 0 && (
+                    {/* Artists */}
+                    {searchResults.artists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4 px-4">Artists</h2>
+                        <div className="space-y-0">
+                          {searchResults.artists.slice(0, 5).map((artist) => (
+                            <SearchArtistItem
+                              key={artist.Id}
+                              artist={artist}
+                              onClick={handleArtistClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Albums */}
+                    {searchResults.albums.length > 0 && (
+                      <div className="px-4">
+                        <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
+                        <div className="grid grid-cols-3 gap-4">
+                          {searchResults.albums.slice(0, 12).map((album) => (
+                            <SearchAlbumItem
+                              key={album.Id}
+                              album={album}
+                              onClick={handleAlbumClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Songs */}
+                    {searchResults.songs.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-4 px-4">
+                          <h2 className="text-xl font-bold text-white">Songs</h2>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handlePlayAllSongs}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Play all songs"
+                            >
+                              <Play className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSongsToQueue}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Add all songs to queue"
+                            >
+                              <ListEnd className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-0">
+                          {searchResults.songs.map((song, index) => (
+                            <SearchSongItem
+                              key={song.Id}
+                              song={song}
+                              onClick={handleSongClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                              showImage={index < visibleSearchSongImageCount}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {searchResults.playlists.length === 0 && searchResults.artists.length === 0 && searchResults.albums.length === 0 && searchResults.songs.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
+                        <div className="text-lg mb-2">No results found</div>
+                        <div className="text-sm">Try a different search term</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
-                    <div className="text-lg mb-2">No results found</div>
-                    <div className="text-sm">Try a different search term</div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
-              </div>
-            )}
             </div>
           </div>
-        </div>
         </>,
         document.body
       )}
