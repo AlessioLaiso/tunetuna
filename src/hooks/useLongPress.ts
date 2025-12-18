@@ -21,13 +21,14 @@ export function useLongPress({
 
   const start = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault()
       longPressTriggeredRef.current = false
       hasMovedRef.current = false
       targetRef.current = e.target
 
       // Ignore right clicks (or other non-primary clicks)
       if ('button' in e && e.button !== 0) return
+
+      e.preventDefault()
 
       // Store initial touch position for touch events
       if ('touches' in e && e.touches.length > 0) {
@@ -74,6 +75,15 @@ export function useLongPress({
 
   const clear = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
+      // Ignore right clicks and other non-primary clicks
+      if ('button' in e && e.button !== 0) {
+        longPressTriggeredRef.current = false
+        hasMovedRef.current = false
+        targetRef.current = null
+        touchStartPosRef.current = null
+        return
+      }
+
       const wasLongPress = longPressTriggeredRef.current
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)

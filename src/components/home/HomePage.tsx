@@ -31,14 +31,25 @@ export default function HomePage() {
   return (
     <div className="pb-20">
       <div
-        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] mx-auto px-4">
+        <div className="max-w-[768px] mx-auto">
           <SearchBar onSearchStateChange={setIsSearchActive} />
         </div>
       </div>
-      <div className={isSearchActive ? 'hidden' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 7.5rem)` }}>
+
+      {/* Gradient overlay below top bar */}
+      <div
+        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+        style={{
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7.5rem - 2px)`,
+          height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+        }}
+      />
+
+      <div className={isSearchActive ? 'hidden' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 7.5rem + 24px)` }}>
         <div className="max-w-[768px] mx-auto">
           {/* Always render components so they can load data via useEffect */}
           <RecentlyAdded />

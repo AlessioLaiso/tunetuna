@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { ArrowUpDown, Guitar, Calendar, User, Disc, Play, ListEnd } from 'lucide-react'
@@ -89,7 +89,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -163,7 +163,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -241,7 +241,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -295,7 +295,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
   )
 }
 
-const ITEMS_PER_PAGE = 90
+const ITEMS_PER_PAGE = 84
 const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
 const INITIAL_VISIBLE_SEARCH_SONG_IMAGES = 45
@@ -555,20 +555,6 @@ export default function AlbumsPage() {
   }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'AlbumsPage.tsx:openContextMenu',
-        message: 'openContextMenu called',
-        data: { itemId: item.Id, itemName: item.Name, type, mode, hasPosition: !!position },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'B'
-      })
-    }).catch(() => { });
-    // #endregion
 
     setContextMenuItem(item)
     setContextMenuItemType(type)
@@ -579,20 +565,6 @@ export default function AlbumsPage() {
 
   useEffect(() => {
     const handleGlobalContextMenu = (e: MouseEvent) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AlbumsPage.tsx:global',
-          message: 'Global contextMenu event detected',
-          data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName, x: e.clientX, y: e.clientY },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'H'
-        })
-      }).catch(() => { });
-      // #endregion
     };
 
     document.addEventListener('contextmenu', handleGlobalContextMenu, true); // Use capture phase
@@ -614,24 +586,40 @@ export default function AlbumsPage() {
   }, [searchQuery, isSearchOpen, rawSearchResults?.songs.length])
 
   // Incrementally reveal more search song images as the user scrolls near the bottom
+  const handleSearchScroll = useCallback(() => {
+    if (!isSearchOpen || !(rawSearchResults?.songs?.length)) return
+
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = document.documentElement.scrollHeight
+
+    if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+      setVisibleSearchSongImageCount((prev) =>
+        Math.min(prev + VISIBLE_SEARCH_SONG_IMAGES_INCREMENT, rawSearchResults.songs.length)
+      )
+    }
+  }, [isSearchOpen, rawSearchResults?.songs.length])
+
   useEffect(() => {
     if (!isSearchOpen || !(rawSearchResults?.songs?.length)) return
 
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleSearchScroll, { passive: true, capture: true })
 
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleSearchSongImageCount((prev) =>
-          Math.min(prev + VISIBLE_SEARCH_SONG_IMAGES_INCREMENT, rawSearchResults.songs.length)
-        )
-      }
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleSearchScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleSearchScroll, { passive: true })
+    document.addEventListener('touchend', handleSearchScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleSearchScroll, { capture: true })
+      window.removeEventListener('scroll', handleSearchScroll)
+      document.removeEventListener('touchmove', handleSearchScroll)
+      document.removeEventListener('touchend', handleSearchScroll)
     }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [isSearchOpen, rawSearchResults?.songs.length])
+  }, [handleSearchScroll])
 
   // Reset visible albums window when page or album list changes
   useEffect(() => {
@@ -639,23 +627,37 @@ export default function AlbumsPage() {
   }, [currentPage, albums.length])
 
   // Incrementally reveal more albums as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+  const handleScroll = useCallback(() => {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = document.documentElement.scrollHeight
 
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleAlbumsCount((prev) =>
-          Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
-        )
-      }
+    // When the user is within ~1.5 viewports of the bottom, load more rows
+    if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
+      setVisibleAlbumsCount((prev) =>
+        Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
+      )
     }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
   }, [albums.length])
+
+  useEffect(() => {
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleScroll, { passive: true })
+    document.addEventListener('touchend', handleScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true })
+      window.removeEventListener('scroll', handleScroll)
+      document.removeEventListener('touchmove', handleScroll)
+      document.removeEventListener('touchend', handleScroll)
+    }
+  }, [handleScroll])
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -711,7 +713,7 @@ export default function AlbumsPage() {
     <>
       <div className="pb-20">
         <div
-          className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+          className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
@@ -768,43 +770,25 @@ export default function AlbumsPage() {
           </div>
         </div>
 
+        {/* Gradient overlay below top bar */}
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7rem - 8px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+
         <div
           style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}
           onContextMenu={(e) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'AlbumsPage.tsx:container',
-                message: 'Container contextMenu event intercepted',
-                data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                hypothesisId: 'G'
-              })
-            }).catch(() => { });
-            // #endregion
           }}
         >
           {!isSearchOpen && (
             <div
               className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}
               onContextMenu={(e) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    location: 'AlbumsPage.tsx:innerContainer',
-                    message: 'Inner container contextMenu event intercepted',
-                    data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
-                    timestamp: Date.now(),
-                    sessionId: 'debug-session',
-                    hypothesisId: 'G'
-                  })
-                }).catch(() => { });
-                // #endregion
               }}
             >
               {albums.length === 0 && !loading.albums ? (
@@ -817,30 +801,16 @@ export default function AlbumsPage() {
                     <div
                       className="grid grid-cols-3 md:grid-cols-4 gap-3"
                       onContextMenu={(e) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            location: 'AlbumsPage.tsx:grid',
-                            message: 'Grid contextMenu event intercepted',
-                            data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
-                            timestamp: Date.now(),
-                            sessionId: 'debug-session',
-                            hypothesisId: 'G'
-                          })
-                        }).catch(() => { });
-                        // #endregion
                       }}
                     >
                       {albums
-                        .slice(0, visibleAlbumsCount)
-                        .map((album) => (
+                        .map((album, index) => (
                           <AlbumCard
                             key={album.Id}
                             album={album}
                             onContextMenu={openContextMenu}
                             contextMenuItemId={contextMenuItem?.Id || null}
+                            showImage={index < visibleAlbumsCount}
                           />
                         ))}
                     </div>
@@ -891,9 +861,9 @@ export default function AlbumsPage() {
               </div>
             </div>
 
-            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(52px + env(safe-area-inset-top))` }}>
               {/* Sticky filter icons */}
-              <div className="sticky bg-black z-10 pt-3 pb-4 border-b border-zinc-800" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
+              <div className="sticky bg-black z-10 pt-3 pb-4" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
                 <div className="flex items-center gap-3 px-4">
                   <button
                     onClick={() => openFilterSheet('genre')}
@@ -921,8 +891,18 @@ export default function AlbumsPage() {
                 </div>
               </div>
 
+              {/* Gradient overlay below filter section */}
+              <div
+                className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+                style={{
+                  top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 76px + 4rem)`,
+                  height: '24px',
+                  background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+                }}
+              />
+
               {/* Search results */}
-              <div className="pb-32 pt-4">
+              <div className="pb-32" style={{ paddingTop: '40px' }}>
                 {isSearching ? (
                   <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>

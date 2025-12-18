@@ -95,7 +95,7 @@ export default function SettingsPage() {
   return (
     <div className="pb-20">
       <div
-        className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
@@ -111,7 +111,17 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 4.5rem + 1rem)` }}>
+      {/* Gradient overlay below top bar */}
+      <div
+        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+        style={{
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5.5rem - 28px)`,
+          height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+        }}
+      />
+
+      <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 5.5rem + 24px)` }}>
         {/* Page Visibility Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Page Visibility</h2>

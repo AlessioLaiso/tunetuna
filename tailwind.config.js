@@ -24,6 +24,9 @@ export default {
           900: '#18181b',
         },
       },
+      screens: {
+        '2xl': '1440px',
+      },
     },
   },
   plugins: [],

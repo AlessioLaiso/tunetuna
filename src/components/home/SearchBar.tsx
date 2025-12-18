@@ -73,7 +73,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       isCancelled = true
     }
   }, [artist.Id, artist.ImageTags])
-  
+
   const handleClick = (e: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
@@ -84,7 +84,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     }
     onClick(artist.Id)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -93,21 +93,33 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     // Reset the flag after a short delay
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
       onContextMenu(artist, 'artist', 'mobile')
     },
-    onClick: handleClick,
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      handleClick({} as React.MouseEvent)
+    },
   })
-  
+
   return (
     <button
-      onClick={handleClick}
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        handleClick({} as React.MouseEvent)
+      }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
@@ -149,7 +161,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
-  
+
   const handleClick = (e: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
@@ -160,7 +172,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     }
     onClick(album.Id)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -169,21 +181,33 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     // Reset the flag after a short delay
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
       onContextMenu(album, 'album', 'mobile')
     },
-    onClick: handleClick,
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      handleClick({} as React.MouseEvent)
+    },
   })
-  
+
   return (
     <button
-      onClick={handleClick}
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        handleClick({} as React.MouseEvent)
+      }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className="text-left group"
@@ -224,14 +248,14 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const [imageError, setImageError] = useState(false)
-  
+
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
-  
+
   const handleClick = (e: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
@@ -242,7 +266,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     }
     onClick(song)
   }
-  
+
   const handleContextMenuClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -251,21 +275,33 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     // Reset the flag after a short delay
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
-  
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
       contextMenuJustOpenedRef.current = true
       onContextMenu(song, 'song', 'mobile')
     },
-    onClick: handleClick,
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      handleClick({} as React.MouseEvent)
+    },
   })
-  
+
   return (
     <button
-      onClick={handleClick}
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        handleClick({} as React.MouseEvent)
+      }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
@@ -290,11 +326,10 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
         )}
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${
-          currentTrack?.Id === song.Id 
-            ? 'text-[var(--accent-color)]' 
-            : 'text-white group-hover:text-[var(--accent-color)]'
-        }`}>
+        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
+          ? 'text-[var(--accent-color)]'
+          : 'text-white group-hover:text-[var(--accent-color)]'
+          }`}>
           {song.Name}
         </div>
         <div className="text-xs text-gray-400 truncate">
@@ -327,21 +362,21 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Filter state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [yearRange, setYearRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null })
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
-  
+
   // Filter values
   const { genres } = useMusicStore()
   const [years, setYears] = useState<number[]>([])
   const [loadingFilterValues, setLoadingFilterValues] = useState(false)
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
-  
+
   // Player functions
-  const { playAlbum, addToQueue, playTrack, shuffleAllSongs } = usePlayerStore()
+  const { playAlbum, addToQueue, playTrack, shuffleAllSongs, isQueueSidebarOpen } = usePlayerStore()
 
   // Loading state for shuffle button
   const [isShuffling, setIsShuffling] = useState(false)
@@ -355,7 +390,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
       return () => clearTimeout(timeout)
     }
   }, [isShuffling])
-  
+
   const navigate = useNavigate()
 
   // Load filter values on mount
@@ -364,7 +399,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
       setLoadingFilterValues(true)
       try {
         const store = useMusicStore.getState()
-        
+
         // Load years
         if (store.years.length > 0) {
           setYears(store.years)
@@ -378,7 +413,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
         setLoadingFilterValues(false)
       }
     }
-    
+
     loadFilterValues()
   }, [])
 
@@ -387,7 +422,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
 
   useEffect(() => {
     const hasQuery = searchQuery.trim().length > 0
-    
+
     // Search if there's a query OR if filters are active
     if (hasQuery || hasActiveFilters) {
       setIsSearching(true)
@@ -482,7 +517,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
       if (yearRange.min !== null || yearRange.max !== null) {
         const itemYear = item.ProductionYear
         if (!itemYear || itemYear <= 0) return false
-        
+
         if (yearRange.min !== null && itemYear < yearRange.min) return false
         if (yearRange.max !== null && itemYear > yearRange.max) return false
       }
@@ -523,14 +558,14 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
     navigate(`/artist/${artistId}`)
     setIsSearchOpen(false)
     setSearchQuery('')
-    setSearchResults(null)
+    setRawSearchResults(null)
   }
 
   const handleAlbumClick = (albumId: string) => {
     navigate(`/album/${albumId}`)
     setIsSearchOpen(false)
     setSearchQuery('')
-    setSearchResults(null)
+    setRawSearchResults(null)
   }
 
   const handleSongClick = (song: BaseItemDto) => {
@@ -543,7 +578,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
     navigate(`/playlist/${playlistId}`)
     setIsSearchOpen(false)
     setSearchQuery('')
-    setSearchResults(null)
+    setRawSearchResults(null)
   }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
@@ -621,7 +656,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
 
   return (
     <>
-      <div className="p-4 lg:pl-8">
+      <div className="px-4 pt-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-lg font-semibold text-white">
             Tunetuna
@@ -691,211 +726,219 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
       {/* Full-page search overlay - rendered via portal to escape stacking context */}
       {isSearchOpen && createPortal(
         <>
-        <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0">
-          {/* Fixed overlay to hide content behind status bar */}
-          <div 
-            className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
-            style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
-          />
-          {/* Fixed search header with Cancel button */}
-          <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
-            <div className="max-w-[768px] mx-auto w-full">
-              <div className="flex items-center gap-3 px-4 pt-4">
-                <div className="flex-1">
-                  <SearchInput
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    showClearButton={searchQuery.trim().length > 0}
-                    onClear={handleClearSearch}
-                  />
+          <div className="fixed inset-0 bg-black z-[9999] overflow-y-scroll p-0 m-0">
+            {/* Fixed overlay to hide content behind status bar */}
+            <div
+              className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
+              style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
+            />
+            {/* Fixed search header with Cancel button */}
+            <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
+              <div className="max-w-[768px] mx-auto w-full">
+                <div className="flex items-center gap-3 pl-2 pr-4 pt-4">
+                  <div className="flex-1">
+                    <SearchInput
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={handleSearch}
+                      showClearButton={searchQuery.trim().length > 0}
+                      onClear={handleClearSearch}
+                    />
+                  </div>
+                  <button
+                    onClick={handleCancelSearch}
+                    className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <button
-                  onClick={handleCancelSearch}
-                  className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
-            {/* Sticky filter icons */}
-            <div className="sticky bg-black z-10 pt-3 pb-4 border-b border-zinc-800" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
-              <div className="flex items-center gap-3 px-4">
-              <button
-                onClick={() => openFilterSheet('genre')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  selectedGenres.length > 0
-                    ? 'bg-[var(--accent-color)] text-white'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                aria-label="Filter by genre"
-              >
-                <Guitar className="w-4 h-4" />
-                <span className="text-sm font-medium">Genre</span>
-              </button>
-              
-              <button
-                onClick={() => openFilterSheet('year')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  yearRange.min !== null || yearRange.max !== null
-                    ? 'bg-[var(--accent-color)] text-white'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                aria-label="Filter by year"
-              >
-                <Calendar className="w-4 h-4" />
-                <span className="text-sm font-medium">Year</span>
-              </button>
               </div>
             </div>
 
-            {/* Search results */}
-            <div className="pb-32 pt-4">
-            {isSearching ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
+              {/* Sticky filter icons */}
+              <div className="sticky bg-black z-10 pt-3 pb-4" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
+                <div className="flex items-center gap-3 pl-2 pr-4">
+                  <button
+                    onClick={() => openFilterSheet('genre')}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${selectedGenres.length > 0
+                      ? 'bg-[var(--accent-color)] text-white'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    aria-label="Filter by genre"
+                  >
+                    <Guitar className="w-4 h-4" />
+                    <span className="text-sm font-medium">Genre</span>
+                  </button>
+
+                  <button
+                    onClick={() => openFilterSheet('year')}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${yearRange.min !== null || yearRange.max !== null
+                      ? 'bg-[var(--accent-color)] text-white'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    aria-label="Filter by year"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">Year</span>
+                  </button>
+                </div>
               </div>
-            ) : searchResults ? (
-              <div className="space-y-8">
-                {searchResults.artists.length > 0 && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4 px-4">Artists</h2>
-                    <div className="space-y-0">
-                      {searchResults.artists.slice(0, 5).map((artist) => (
-                        <SearchArtistItem
-                          key={artist.Id}
-                          artist={artist}
-                          onClick={handleArtistClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
 
-                {searchResults.albums.length > 0 && (
-                  <div className="px-4">
-                    <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                      {searchResults.albums.slice(0, 12).map((album) => (
-                        <SearchAlbumItem
-                          key={album.Id}
-                          album={album}
-                          onClick={handleAlbumClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+              {/* Gradient overlay below filter section */}
+              <div
+                className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+                style={{
+                  top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 76px + 4rem)`,
+                  height: '24px',
+                  background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+                }}
+              />
 
-                {searchResults.playlists && searchResults.playlists.length > 0 && (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-4 px-4">Playlists</h2>
-                    <div className="space-y-0">
-                      {searchResults.playlists.map((playlist) => (
-                        <button
-                          key={playlist.Id}
-                          onClick={() => handlePlaylistClick(playlist.Id)}
-                          onContextMenu={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
-                          }}
-                          className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
-                        >
-                          <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-                            <img
-                              src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
-                              alt={playlist.Name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
+              {/* Search results */}
+              <div className="pb-32" style={{ paddingTop: '40px' }}>
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
+                  </div>
+                ) : searchResults ? (
+                  <div className="space-y-8">
+                    {searchResults.artists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4 pl-2 pr-4">Artists</h2>
+                        <div className="space-y-0">
+                          {searchResults.artists.slice(0, 5).map((artist) => (
+                            <SearchArtistItem
+                              key={artist.Id}
+                              artist={artist}
+                              onClick={handleArtistClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
                             />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                              {playlist.Name}
-                            </div>
-                            <div className="text-xs text-gray-400 truncate">
-                              {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {searchResults.songs.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4 px-4">
-                      <h2 className="text-xl font-bold text-white">Songs</h2>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handlePlayAllSongs}
-                          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
-                          aria-label="Play all songs"
-                        >
-                          <Play className="w-5 h-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddSongsToQueue}
-                          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
-                          aria-label="Add all songs to queue"
-                        >
-                          <ListEnd className="w-5 h-5" />
-                        </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-0">
-                      {searchResults.songs.map((song, index) => (
-                        <SearchSongItem
-                          key={song.Id}
-                          song={song}
-                          onClick={handleSongClick}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                          showImage={index < visibleSearchSongImageCount}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {searchResults.artists.length === 0 && searchResults.albums.length === 0 && (!searchResults.playlists || searchResults.playlists.length === 0) && searchResults.songs.length === 0 && (
+                    {searchResults.albums.length > 0 && (
+                      <div className="pl-2 pr-4">
+                        <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                          {searchResults.albums.slice(0, 12).map((album) => (
+                            <SearchAlbumItem
+                              key={album.Id}
+                              album={album}
+                              onClick={handleAlbumClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {searchResults.playlists && searchResults.playlists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4 pl-2 pr-4">Playlists</h2>
+                        <div className="space-y-0">
+                          {searchResults.playlists.map((playlist) => (
+                            <button
+                              key={playlist.Id}
+                              onClick={() => handlePlaylistClick(playlist.Id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
+                              }}
+                              className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+                            >
+                              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+                                <img
+                                  src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+                                  alt={playlist.Name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                                  {playlist.Name}
+                                </div>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {searchResults.songs.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-4 pl-2 pr-4">
+                          <h2 className="text-xl font-bold text-white">Songs</h2>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handlePlayAllSongs}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Play all songs"
+                            >
+                              <Play className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSongsToQueue}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Add all songs to queue"
+                            >
+                              <ListEnd className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-0">
+                          {searchResults.songs.map((song, index) => (
+                            <SearchSongItem
+                              key={song.Id}
+                              song={song}
+                              onClick={handleSongClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                              showImage={index < visibleSearchSongImageCount}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {searchResults.artists.length === 0 && searchResults.albums.length === 0 && (!searchResults.playlists || searchResults.playlists.length === 0) && searchResults.songs.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
+                        <div className="text-lg mb-2">No results found</div>
+                        <div className="text-sm">Try a different search term</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
-                    <div className="text-lg mb-2">No results found</div>
-                    <div className="text-sm">Try a different search term</div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
-              </div>
-            )}
             </div>
           </div>
-        </div>
-        <ContextMenu
-          item={contextMenuItem}
-          itemType={contextMenuItemType}
-          isOpen={contextMenuOpen}
-          onClose={() => {
-            setContextMenuOpen(false)
-            setContextMenuItem(null)
-            setContextMenuItemType(null)
-          }}
-          zIndex={999999}
-          mode={contextMenuMode}
-          position={contextMenuPosition || undefined}
-        />
+          <ContextMenu
+            item={contextMenuItem}
+            itemType={contextMenuItemType}
+            isOpen={contextMenuOpen}
+            onClose={() => {
+              setContextMenuOpen(false)
+              setContextMenuItem(null)
+              setContextMenuItemType(null)
+            }}
+            zIndex={999999}
+            mode={contextMenuMode}
+            position={contextMenuPosition || undefined}
+          />
         </>,
         document.body
       )}
@@ -911,7 +954,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
           onApply={handleGenreApply}
         />
       )}
-      
+
       {activeFilterType === 'year' && (
         <FilterBottomSheet
           isOpen={isFilterSheetOpen}

@@ -87,7 +87,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     onContextMenu(artist, 'artist')
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -161,7 +161,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     onContextMenu(album, 'album')
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -239,7 +239,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     onContextMenu(song, 'song')
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -514,7 +514,7 @@ export default function PlaylistsPage() {
     <>
       <div className="pb-20">
         <div
-          className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+          className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
@@ -562,6 +562,16 @@ export default function PlaylistsPage() {
             </div>
           </div>
         </div>
+
+        {/* Gradient overlay below top bar */}
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7rem - 8px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           {!isSearchOpen && (
@@ -614,7 +624,17 @@ export default function PlaylistsPage() {
               </div>
             </div>
 
-            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
+            {/* Gradient overlay below search header */}
+            <div
+              className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+              style={{
+                top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 76px)`,
+                height: '24px',
+                background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+              }}
+            />
+
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(52px + env(safe-area-inset-top))` }}>
 
               {/* Search results */}
               <div className="pb-32 pt-4">

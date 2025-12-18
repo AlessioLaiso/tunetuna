@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
-import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 
-interface LyricsModalProps {
-  onClose: () => void
-}
-
-export default function LyricsModal({ onClose }: LyricsModalProps) {
+export default function LyricsModal() {
   const currentTrack = useCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
 
@@ -38,7 +33,7 @@ export default function LyricsModal({ onClose }: LyricsModalProps) {
     }
 
     fetchLyrics()
-  }, [displayTrack])
+  }, [displayTrack?.Id])
 
   if (!displayTrack) {
     return null

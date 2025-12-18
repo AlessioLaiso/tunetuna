@@ -94,7 +94,7 @@ export default function TabBar() {
                 key={tab.path}
                 to={tab.path}
                 onClick={(e) => handleTabClick(e, tab.path)}
-                className={`flex flex-col items-center justify-center py-6 transition-colors ${
+                className={`flex flex-col items-center justify-center py-5 transition-colors ${
                   isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 } ${index < tabs.length - 1 ? 'mb-0' : ''}`}
                 style={{ marginBottom: index < tabs.length - 1 ? '0px' : '0' }}

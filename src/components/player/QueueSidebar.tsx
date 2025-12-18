@@ -21,13 +21,14 @@ export default function QueueSidebar() {
 
     return (
         <div
-            className="fixed top-0 right-0 bottom-0 w-[320px] bg-black border-l border-zinc-800 z-30 flex flex-col hidden xl:flex shadow-xl"
+            className="fixed top-0 right-0 bottom-0 bg-black border-l border-zinc-800 z-30 flex flex-col hidden xl:flex shadow-xl"
             style={{
+                width: 'var(--sidebar-width)',
                 paddingTop: 'var(--header-offset, 0px)',
             }}
         >
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-                <h2 className="text-sm font-bold text-white tracking-wider">Queue</h2>
+                <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
                 <button
                     onClick={toggleQueueSidebar}
                     className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-zinc-800"

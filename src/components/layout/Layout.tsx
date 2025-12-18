@@ -191,13 +191,15 @@ export default function Layout({ children }: LayoutProps) {
         style={{ width: '4rem' }}
       />
       <div
-        className={`min-h-screen bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'xl:pr-[320px]' : ''}`}
+        className={`main-scrollable h-screen bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
         style={{
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
           paddingTop: syncState !== 'idle' ? '28px' : '0',
+          overflowY: 'auto',
           overflowX: 'hidden',
           maxWidth: '100vw',
-          width: '100%'
+          width: '100%',
+          scrollbarGutter: 'stable'
         }}
       >
         <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center">

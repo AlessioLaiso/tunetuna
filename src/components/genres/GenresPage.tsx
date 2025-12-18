@@ -37,9 +37,9 @@ export default function GenresPage() {
   }, [genres.length, setGenres, setLoading])
 
   return (
-    <div className="pb-20">
+      <div className="pb-20">
       <div
-        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
@@ -57,6 +57,17 @@ export default function GenresPage() {
           </div>
         </div>
       </div>
+
+      {/* Gradient overlay below top bar */}
+      <div
+        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+        style={{
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 6rem - 16px)`,
+          height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+        }}
+      />
+
       <div className="pb-4" style={{ paddingTop: `calc(env(safe-area-inset-top) + 6rem)` }}>
         {genres.length === 0 && !loading.genres && (
           <div className="flex items-center justify-center py-8 text-gray-400">

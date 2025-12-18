@@ -1,7 +1,9 @@
 import { useSyncStore } from '../../stores/syncStore'
+import { usePlayerStore } from '../../stores/playerStore'
 
 export default function SyncStatusBar() {
   const { state, message, cancelSync } = useSyncStore()
+  const { isQueueSidebarOpen } = usePlayerStore()
 
   if (state === 'idle') return null
 
@@ -16,13 +18,15 @@ export default function SyncStatusBar() {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-[10002] ${getBackgroundColor()} transition-colors duration-300`}
+      className={`fixed top-0 left-0 right-0 z-[10002] ${getBackgroundColor()} transition-colors duration-300 lg:pl-16`}
       style={{
         height: '28px',
-        top: '0px'
+        top: '0px',
+        paddingRight: isQueueSidebarOpen ? 'var(--sidebar-width)' : '0px'
       }}
     >
-      <div className="max-w-[768px] mx-auto h-full flex items-center justify-between px-4">
+      <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center h-full">
+        <div className="w-full max-w-[768px] h-full flex items-center justify-between px-4">
         <span className="text-white text-sm font-medium truncate">
           {message}
         </span>
@@ -34,6 +38,7 @@ export default function SyncStatusBar() {
             Cancel
           </button>
         )}
+        </div>
       </div>
     </div>
   )

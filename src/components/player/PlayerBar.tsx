@@ -435,7 +435,7 @@ export default function PlayerBar() {
               )}
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden lg:block" onClick={(e) => e.stopPropagation()}>
               <VolumeControl variant="horizontal" />
             </div>
             <div className="hidden md:block lg:hidden">

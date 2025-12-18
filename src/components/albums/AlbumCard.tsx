@@ -11,9 +11,10 @@ interface AlbumCardProps {
   album: BaseItemDto
   onContextMenu?: (item: BaseItemDto, type: 'album', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId?: string | null
+  showImage?: boolean
 }
 
-export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: AlbumCardProps) {
+export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true }: AlbumCardProps) {
   const navigate = useNavigate()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
@@ -22,20 +23,6 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'AlbumCard.tsx:render',
-      message: 'AlbumCard component rendered',
-      data: { albumId: album.Id, albumName: album.Name, hasOnContextMenu: !!onContextMenu, contextMenuItemId },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      hypothesisId: 'E'
-    })
-  }).catch(() => { });
-  // #endregion
 
   const handleClick = (e: React.MouseEvent) => {
     // Don't navigate if context menu was just opened
@@ -48,20 +35,6 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
   }
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'AlbumCard.tsx:handleContextMenu',
-        message: 'Right-click detected on album',
-        data: { albumId: album.Id, albumName: album.Name, hasOnContextMenu: !!onContextMenu },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'A'
-      })
-    }).catch(() => { });
-    // #endregion
 
     e.preventDefault()
     e.stopPropagation()
@@ -73,20 +46,6 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
     contextMenuJustOpenedRef.current = true
 
     if (onContextMenu) {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AlbumCard.tsx:handleContextMenu',
-          message: 'Calling parent onContextMenu',
-          data: { albumId: album.Id, type: 'album' },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'A'
-        })
-      }).catch(() => { });
-      // #endregion
 
       onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
     } else {
@@ -123,75 +82,19 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
     <>
       <button
         onClick={(e) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'AlbumCard.tsx:button',
-              message: 'Button click event received',
-              data: { albumId: album.Id, eventType: 'click' },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              hypothesisId: 'F'
-            })
-          }).catch(() => { });
-          // #endregion
 
           // Prevent click if context menu is open or was just opened
           if (contextMenuOpen || contextMenuJustOpenedRef.current) {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'AlbumCard.tsx:onClick',
-                message: 'Click prevented by context menu flag',
-                data: { contextMenuOpen, contextMenuJustOpened: contextMenuJustOpenedRef.current, albumId: album.Id },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                hypothesisId: 'C'
-              })
-            }).catch(() => { });
-            // #endregion
 
             e.preventDefault()
             e.stopPropagation()
             return
           }
 
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'AlbumCard.tsx:onClick',
-              message: 'Click proceeding to navigation',
-              data: { albumId: album.Id, albumName: album.Name },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              hypothesisId: 'C'
-            })
-          }).catch(() => { });
-          // #endregion
 
           handleClick(e)
         }}
         onContextMenu={(e) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'AlbumCard.tsx:button',
-              message: 'Button contextMenu event received',
-              data: { albumId: album.Id, eventType: 'contextMenu' },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              hypothesisId: 'F'
-            })
-          }).catch(() => { });
-          // #endregion
 
           handleContextMenu(e)
         }}
@@ -201,7 +104,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
         <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 relative flex items-center justify-center">
           {imageError ? (
             <Disc className="w-12 h-12 text-gray-500" />
-          ) : (
+          ) : showImage ? (
             <Image
               src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
               alt={album.Name}
@@ -210,6 +113,8 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
               rounded="rounded"
               onError={() => setImageError(true)}
             />
+          ) : (
+            <div className="w-full h-full bg-zinc-900" />
           )}
         </div>
         <div className="text-sm font-medium text-white truncate">{album.Name}</div>

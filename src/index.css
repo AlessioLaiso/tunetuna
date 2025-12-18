@@ -17,6 +17,24 @@
   -moz-osx-font-smoothing: grayscale;
 
   --accent-color: #3b82f6;
+  --sidebar-width: 320px;
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --sidebar-width: 400px;
+  }
+}
+
+/* Apply sidebar offset only on xl screens and above (where sidebar is visible) */
+@media (min-width: 1280px) {
+  .sidebar-open-padding {
+    padding-right: var(--sidebar-width);
+  }
+
+  .sidebar-open-right-offset {
+    right: var(--sidebar-width) !important;
+  }
 }
 
 html {
@@ -28,10 +46,10 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100vh;
   touch-action: manipulation;
   -ms-touch-action: manipulation;
-  overflow-x: hidden;
+  overflow: hidden;
   max-width: 100vw;
   position: relative;
 }
@@ -115,6 +133,10 @@ button {
   }
 }
 
+.scrollbar-stable {
+  scrollbar-gutter: stable;
+}
+
 .vinyl-rotate {
   animation: rotate 10s linear infinite;
 }
@@ -170,6 +192,30 @@ input[type="range"].slider::-moz-range-thumb {
   position: relative;
   z-index: 2;
   margin-top: -3px;
+}
+
+/* Style the main scrollbar for desktop */
+.main-scrollable::-webkit-scrollbar {
+  width: 12px;
+}
+
+.main-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+}
+
+.main-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Firefox scrollbar */
+.main-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 /* Hide scrollbars on touch devices */

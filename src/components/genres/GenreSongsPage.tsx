@@ -1,20 +1,23 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Disc } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useSyncStore } from '../../stores/syncStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import SongItem from '../songs/SongItem'
 import Image from '../shared/Image'
 import { ArrowLeft, Shuffle, Pause, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
+import Pagination from '../shared/Pagination'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 
 const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
+const ALBUMS_PER_PAGE = 84
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
 
@@ -25,32 +28,55 @@ interface GenreAlbumItemProps {
   year: number | null
   onNavigate: (id: string) => void
   onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  showImage?: boolean
 }
 
-function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumItemProps) {
+function GenreAlbumItem({ album, year, onNavigate, onContextMenu, showImage = true }: GenreAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
+      contextMenuJustOpenedRef.current = true
       onContextMenu(album, 'mobile')
     },
-    onClick: () => onNavigate(album.Id),
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      onNavigate(album.Id)
+    },
   })
 
   return (
     <button
-      onClick={() => onNavigate(album.Id)}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        onNavigate(album.Id)
       }}
+      onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className="text-left group"
     >
       <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 flex items-center justify-center">
         {imageError ? (
           <Disc className="w-12 h-12 text-gray-500" />
-        ) : (
+        ) : showImage ? (
           <Image
             src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
             alt={album.Name}
@@ -59,6 +85,8 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu }: GenreAlbumIt
             rounded="rounded"
             onError={() => setImageError(true)}
           />
+        ) : (
+          <div className="w-full h-full bg-zinc-900" />
         )}
       </div>
       <div className="text-sm font-medium text-white truncate">{album.Name}</div>
@@ -75,6 +103,7 @@ export default function GenreSongsPage() {
   const { playAlbum, toggleShuffle, isPlaying, pause, shuffleGenreSongs, addToQueue } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const { genres, genreSongs, setGenreSongs } = useMusicStore()
+  const { state: syncState } = useSyncStore()
   const [genre, setGenre] = useState<BaseItemDto | null>(null)
   const [songs, setSongs] = useState<LightweightSong[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,8 +114,10 @@ export default function GenreSongsPage() {
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | null>(null)
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
+  const [syncTrigger, setSyncTrigger] = useState(0)
   const [isShufflingGenre, setIsShufflingGenre] = useState(false)
   const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
+  const [currentPage, setCurrentPage] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Reset loading state after a timeout to prevent permanent disabling
@@ -99,6 +130,14 @@ export default function GenreSongsPage() {
     }
   }, [isShufflingGenre])
 
+  // Refresh genre data when sync completes
+  useEffect(() => {
+    if (syncState === 'success' && id) {
+      // Trigger a re-fetch of genre data after sync
+      setSyncTrigger(prev => prev + 1)
+    }
+  }, [syncState, id])
+
   useEffect(() => {
     if (!id) return
 
@@ -106,7 +145,9 @@ export default function GenreSongsPage() {
       // Check cache first
       const cachedSongs = genreSongs[id]
 
+
       if (cachedSongs && cachedSongs.length > 0) {
+
         // Use cached genres from store if available, otherwise fetch
         let genresList = genres
         if (genresList.length === 0) {
@@ -119,6 +160,8 @@ export default function GenreSongsPage() {
         }
         setSongs(cachedSongs)
         setLoading(false)
+
+        // Cache is still fresh, no update needed
         return
       }
 
@@ -144,7 +187,9 @@ export default function GenreSongsPage() {
         }
 
         // Load songs for this genre using the helper function
+
         const filtered = await jellyfinClient.getGenreSongs(id, genreName)
+
 
         // Cache the songs
         setGenreSongs(id, filtered)
@@ -157,7 +202,7 @@ export default function GenreSongsPage() {
     }
 
     loadGenreSongs()
-  }, [id, genres, genreSongs, setGenreSongs])
+  }, [id, genres, genreSongs, setGenreSongs, syncTrigger])
 
   const handleShufflePlay = async () => {
 
@@ -200,14 +245,17 @@ export default function GenreSongsPage() {
     songs.forEach(song => {
       if (song.AlbumId && song.Album) {
         if (!albumMap.has(song.AlbumId)) {
-          albumMap.set(song.AlbumId, {
+          const albumData = {
             Id: song.AlbumId,
             Name: song.Album,
             AlbumArtist: song.AlbumArtist,
             ArtistItems: song.ArtistItems,
             ProductionYear: song.ProductionYear,
             PremiereDate: song.PremiereDate,
-          } as BaseItemDto)
+          } as BaseItemDto
+
+
+          albumMap.set(song.AlbumId, albumData)
         }
       }
     })
@@ -226,6 +274,18 @@ export default function GenreSongsPage() {
       return nameA.localeCompare(nameB)
     })
   }, [songs])
+
+  // Determine if we should use pagination for albums (when there are more than 84)
+  const usePaginationForAlbums = albums.length > 84
+
+  // Get paginated albums if using pagination, otherwise use all albums
+  const paginatedAlbums = useMemo(() => {
+    if (!usePaginationForAlbums) return albums
+
+    const startIndex = currentPage * ALBUMS_PER_PAGE
+    const endIndex = startIndex + ALBUMS_PER_PAGE
+    return albums.slice(startIndex, endIndex)
+  }, [albums, currentPage, usePaginationForAlbums])
 
   // Group songs by artist, then album by date, then track number
   const groupedSongs = useMemo(() => {
@@ -293,18 +353,22 @@ export default function GenreSongsPage() {
   // Helper function to get album date for a song
   const getSongAlbumDate = (song: LightweightSong, albums: BaseItemDto[]): number => {
     const album = albums.find(a => a.Id === song.AlbumId)
-    if (!album) return 0
-
-    if (album.ProductionYear) {
-      return album.ProductionYear
+    if (album) {
+      const year = album.ProductionYear || (album.PremiereDate ? new Date(album.PremiereDate).getFullYear() : 0)
+      // Return timestamp for proper sorting (newest first)
+      if (album.PremiereDate) {
+        return new Date(album.PremiereDate).getTime()
+      }
+      // If only year is available, use year * 10000 to make it sortable
+      return year * 10000
     }
 
-    if (album.PremiereDate) {
-      const date = new Date(album.PremiereDate)
-      return date.getFullYear()
+    // Fallback: try to get date from song itself
+    const year = song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
+    if (song.PremiereDate) {
+      return new Date(song.PremiereDate).getTime()
     }
-
-    return 0
+    return year * 10000
   }
 
   // Sort songs based on current sort order
@@ -327,11 +391,11 @@ export default function GenreSongsPage() {
         return songSortOrder === 'Newest' ? dateB - dateA : dateA - dateB
       }
 
-      // Secondary sort: by album ID (keeps songs from same album together)
-      const albumA = a.AlbumId || ''
-      const albumB = b.AlbumId || ''
-      if (albumA !== albumB) {
-        return albumA.localeCompare(albumB)
+      // Secondary sort: by album name alphabetically
+      const albumNameA = a.Album || ''
+      const albumNameB = b.Album || ''
+      if (albumNameA !== albumNameB) {
+        return albumNameA.localeCompare(albumNameB)
       }
 
       // Tertiary sort: by track number
@@ -371,58 +435,114 @@ export default function GenreSongsPage() {
     }
   }
 
-  // Reset visible albums window when albums change
+  // Reset visible albums window when albums change (only for scroll loading)
   useEffect(() => {
-    setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
-  }, [albums.length])
-
-  // Incrementally reveal more albums as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleAlbumsCount((prev) =>
-          Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
-        )
-      }
+    if (!usePaginationForAlbums) {
+      setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
     }
+  }, [albums.length, usePaginationForAlbums])
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [albums.length])
+  // Reset current page when albums change (when switching between genres)
+  useEffect(() => {
+    setCurrentPage(0)
+  }, [id])
+
+  // Albums use pagination buttons instead of scroll loading
 
   // Reset visible songs window when sortedSongs change
   useEffect(() => {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
   }, [sortedSongs.length])
 
-  // Incrementally reveal more songs as the user scrolls near the bottom
+  // Track visibleSongsCount changes
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+  }, [visibleSongsCount])
 
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleSongsCount((prev) =>
-          Math.min(prev + VISIBLE_SONGS_INCREMENT, sortedSongs.length)
-        )
-      }
+  // Incrementally reveal more songs as the user scrolls near the bottom
+  const handleScroll = useCallback(() => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.clientHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight
+    )
+
+    // When the user is within ~1.0 viewports of the bottom, load more rows
+    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
+      setVisibleSongsCount((prev) =>
+        Math.min(prev + VISIBLE_SONGS_INCREMENT, sortedSongs.length)
+      )
     }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
   }, [sortedSongs.length])
+
+  useEffect(() => {
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleScroll, { passive: true })
+    document.addEventListener('touchend', handleScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true })
+      window.removeEventListener('scroll', handleScroll)
+      document.removeEventListener('touchmove', handleScroll)
+      document.removeEventListener('touchend', handleScroll)
+    }
+  }, [handleScroll])
+
+  // Incrementally reveal more album images as the user scrolls near the bottom
+  const handleAlbumScroll = useCallback(() => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.clientHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight
+    )
+
+    // When the user is within ~1.0 viewports of the bottom, load more album images
+    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
+      setVisibleAlbumsCount((prev) =>
+        Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
+      )
+    }
+  }, [albums.length, usePaginationForAlbums])
+
+  useEffect(() => {
+    // Only set up scroll listeners if not using pagination
+    if (usePaginationForAlbums) return
+
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleAlbumScroll, { passive: true, capture: true })
+
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleAlbumScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleAlbumScroll, { passive: true })
+    document.addEventListener('touchend', handleAlbumScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleAlbumScroll, { capture: true })
+      window.removeEventListener('scroll', handleAlbumScroll)
+      document.removeEventListener('touchmove', handleAlbumScroll)
+      document.removeEventListener('touchend', handleAlbumScroll)
+    }
+  }, [handleAlbumScroll, usePaginationForAlbums])
 
   if (loading) {
     return (
       <div className="pb-20">
-        <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+        <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
           <div className="max-w-[768px] mx-auto">
             <div className="flex items-center gap-4 p-4">
               <button
@@ -449,7 +569,7 @@ export default function GenreSongsPage() {
   if (!genre || songs.length === 0) {
     return (
       <div className="pb-20">
-        <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+        <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
           <div className="max-w-[768px] mx-auto">
             <div className="flex items-center gap-4 p-4">
               <button
@@ -474,7 +594,7 @@ export default function GenreSongsPage() {
   return (
     <div className="pb-20">
       <div
-        className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
@@ -502,13 +622,23 @@ export default function GenreSongsPage() {
         </div>
       </div>
 
+      {/* Gradient overlay below top bar */}
+      <div
+        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+        style={{
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5rem - 16px)`,
+          height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+        }}
+      />
+
       <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 5rem)` }}>
         {/* Albums section */}
         {albums.length > 0 && (
           <div className="mb-10 px-4 pt-4">
             <h2 className="text-xl font-bold text-white mb-4">Albums ({albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {albums.slice(0, visibleAlbumsCount).map((album) => {
+              {(usePaginationForAlbums ? paginatedAlbums : albums).map((album, index) => {
                 const year = album.ProductionYear || (album.PremiereDate ? new Date(album.PremiereDate).getFullYear() : null)
                 return (
                   <GenreAlbumItem
@@ -523,10 +653,22 @@ export default function GenreSongsPage() {
                       setContextMenuPosition(position || null)
                       setContextMenuOpen(true)
                     }}
+                    showImage={usePaginationForAlbums ? true : index < visibleAlbumsCount}
                   />
                 )
               })}
             </div>
+          </div>
+        )}
+        {usePaginationForAlbums && albums.length > 0 && (
+          <div className="-mt-10 mb-10">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(albums.length / ALBUMS_PER_PAGE)}
+              onPageChange={setCurrentPage}
+              itemsPerPage={ALBUMS_PER_PAGE}
+              totalItems={albums.length}
+            />
           </div>
         )}
 
@@ -567,9 +709,10 @@ export default function GenreSongsPage() {
               </div>
             </div>
             <div className="space-y-0">
-              {sortedSongs.slice(0, visibleSongsCount).map((song) => (
-                <SongItem key={song.Id} song={song} />
-              ))}
+              {sortedSongs.map((song, index) => {
+                const shouldShowImage = index < visibleSongsCount
+                return <SongItem key={song.Id} song={song} showImage={shouldShowImage} />
+              })}
             </div>
           </div>
         )}
@@ -589,4 +732,5 @@ export default function GenreSongsPage() {
     </div>
   )
 }
+
 

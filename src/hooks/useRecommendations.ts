@@ -27,6 +27,9 @@ export function useRecommendations() {
   const recentQueueRef = useRef<typeof songs>([])
   const isRecommendingRef = useRef(false)
   const lastFailedAttemptRef = useRef<number>(0) // Track when we last failed to get recommendations
+  const lastSuccessAttemptRef = useRef<number>(0) // Track when we last succeeded to prevent rapid re-triggering
+  const retryCountRef = useRef<number>(0) // Track retry attempts for genre sync
+  const maxRetries = 3 // Maximum retry attempts before giving up
 
   useEffect(() => {
     // Update recent queue (last 20 tracks)
@@ -34,13 +37,17 @@ export function useRecommendations() {
   }, [songs])
 
   useEffect(() => {
-    // Reset failure timestamp when current track changes
+    // Reset timestamps when current track changes for immediate fetch
     lastFailedAttemptRef.current = 0
+    lastSuccessAttemptRef.current = 0
+    retryCountRef.current = 0
   }, [currentIndex])
 
   useEffect(() => {
-    // Reset failure timestamp when user manually toggles recommendations on/off
+    // Reset timestamps when user manually toggles recommendations on/off for immediate fetch
     lastFailedAttemptRef.current = 0
+    lastSuccessAttemptRef.current = 0
+    retryCountRef.current = 0
   }, [showQueueRecommendations])
 
   useEffect(() => {
@@ -50,18 +57,30 @@ export function useRecommendations() {
       .filter(song => song.source === 'recommendation').length
 
     // If recommendations are enabled, maintain exactly 12 upcoming recommendations
-    // Don't retry if we recently failed (within 10 seconds)
+    // Don't retry if we recently failed OR succeeded (cooldown to prevent rapid re-triggering)
     const timeSinceLastFailure = Date.now() - lastFailedAttemptRef.current
+    const timeSinceLastSuccess = Date.now() - lastSuccessAttemptRef.current
     const shouldTrigger = Boolean(
       showQueueRecommendations &&
         !isRecommendingRef.current &&
         !isFetchingRecommendations && // Don't trigger if already fetching
         currentIndex >= 0 &&
         upcomingRecommendations < 12 &&
-        timeSinceLastFailure > 10000 // Wait at least 10 seconds after a failed attempt
+        timeSinceLastFailure > 10000 && // Wait at least 10 seconds after a failed attempt
+        timeSinceLastSuccess > 5000 // Wait at least 5 seconds after a successful fetch
     )
 
-    if (!shouldTrigger) return
+    if (!shouldTrigger) {
+      // Debug: Log why we're not triggering
+      if (upcomingRecommendations >= 12) {
+        // This is the normal case - we have enough recommendations
+        return
+      }
+      if (timeSinceLastSuccess <= 5000) {
+        console.log(`[Recommendations] Waiting for cooldown (${5 - Math.floor(timeSinceLastSuccess / 1000)}s remaining)`)
+      }
+      return
+    }
 
     const runRecommendations = async () => {
       console.log('[Recommendations] Starting fetch, setting isRecommending = true')
@@ -95,10 +114,6 @@ export function useRecommendations() {
           }
         }
 
-        // DEBUG: Show which seed tracks are being used
-        console.log('[Recommendations] Using seed tracks:', seedTracks.map((seed, i) =>
-          `${i + 1}. ${seed.Name} (${seed.ProductionYear}) [${seed.Genres?.join(', ') || 'no genres'}]`
-        ))
 
         // Get recommendations for each seed
         const seedResults: Array<{recommendations: any[], hasGenreMatches: boolean}> = []
@@ -122,11 +137,23 @@ export function useRecommendations() {
 
           // If genre sync was triggered, skip this seed and schedule a retry
           if (result.triggeredGenreSync) {
-            console.log('[Recommendations] Genre sync triggered for this seed, skipping it and will retry in 5 seconds...')
+            retryCountRef.current += 1
+
+            if (retryCountRef.current > maxRetries) {
+              console.warn('[Recommendations] Max retries reached, giving up')
+              lastFailedAttemptRef.current = Date.now()
+              const { setRecommendationsQuality } = useSettingsStore.getState()
+              setRecommendationsQuality('failed')
+              return
+            }
+
+            // Exponential backoff: 15s, 30s, 60s
+            const backoffDelay = 15000 * Math.pow(2, retryCountRef.current - 1)
+            console.log(`[Recommendations] Genre sync triggered (attempt ${retryCountRef.current}/${maxRetries}), retry in ${backoffDelay/1000}s`)
+
             setTimeout(() => {
-              // Reset the failure timestamp to allow immediate retry
               lastFailedAttemptRef.current = 0
-            }, 5000)
+            }, backoffDelay)
             return // Skip adding this seed to results
           }
 
@@ -149,9 +176,20 @@ export function useRecommendations() {
           console.log('[Recommendations] No genre matches found - falling back to year/artist only')
         }
 
+        // Calculate how many we actually need to reach 12 total upcoming
+        const currentUpcoming = songs.slice(currentIndex + 1).filter(song => song.source === 'recommendation').length
+        const neededCount = Math.max(0, 12 - currentUpcoming)
+
+        if (neededCount === 0) {
+          console.log('[Recommendations] Already have 12 upcoming recommendations, skipping')
+          return
+        }
+
+        console.log(`[Recommendations] Currently have ${currentUpcoming} upcoming, need ${neededCount} more to reach 12`)
+
         // Distribute recommendations evenly across successful seeds (or all seeds if none successful)
         const seedsToUse = successfulSeeds.length > 0 ? successfulSeeds : seedResults
-        const targetPerSeed = Math.ceil(12 / seedsToUse.length)
+        const targetPerSeed = Math.ceil(neededCount / seedsToUse.length)
         const safeRecommendations: any[] = []
 
         for (const seedResult of seedsToUse) {
@@ -169,8 +207,8 @@ export function useRecommendations() {
           console.log(`[Recommendations] Added ${toAdd.length} recommendations from seed (${filtered.length} available, genreMatch: ${seedResult.hasGenreMatches})`)
         }
 
-        // Limit to final 12
-        const finalRecommendations = safeRecommendations.slice(0, 12)
+        // Limit to what we actually need
+        const finalRecommendations = safeRecommendations.slice(0, neededCount)
 
         // Shuffle the final recommendations to mix genres (independent of shuffle setting)
         const shuffledRecommendations = shuffleArray(finalRecommendations)
@@ -178,13 +216,16 @@ export function useRecommendations() {
         console.log(`[Recommendations] Final ${finalRecommendations.length} recommendations (distributed across ${seedTracks.length} seeds)`)
 
         if (shuffledRecommendations.length > 0) {
-          const upcomingAfterAdd = songs.slice(currentIndex + 1).filter(song => song.source === 'recommendation').length + shuffledRecommendations.length
-          console.log(`[Recommendations] Adding ${shuffledRecommendations.length} recommendations. Upcoming recommendations will be: ${upcomingAfterAdd}`)
+          console.log(`[Recommendations] Adding ${shuffledRecommendations.length} recommendations (had ${currentUpcoming}, will have ${currentUpcoming + shuffledRecommendations.length})`)
           console.log('[Recommendations] Recommendations to add:', shuffledRecommendations.map(r => r.Name))
+          // CRITICAL: Set success timestamp BEFORE adding to queue to prevent race condition
+          // When addToQueue updates state, React schedules re-render immediately
+          // We must set the timestamp first so the cooldown check sees the new value
+          lastFailedAttemptRef.current = 0
+          lastSuccessAttemptRef.current = Date.now()
+          retryCountRef.current = 0
           addToQueue(shuffledRecommendations, false, 'recommendation') // Add as recommendations
           console.log('[Recommendations] Successfully added recommendations to queue')
-          // Reset failure timestamp on success
-          lastFailedAttemptRef.current = 0
         } else {
           console.log('[Recommendations] No safe recommendations to add - marking as failed attempt')
           // Mark this as a failed attempt to prevent infinite retries

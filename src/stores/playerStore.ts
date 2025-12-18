@@ -211,22 +211,20 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addToQueue: (tracks, playNext = false, source = 'user') => {
-
         set((state) => {
-          const newSongs = tracks.map(track => ({ ...track, source: source as 'user' | 'recommendation' }))
+          const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
 
-          // Separate existing user songs and recommendations
-          const userSongs = state.songs.filter(song => song.source === 'user')
-          const recommendations = state.songs.filter(song => song.source === 'recommendation')
+          const newSongs = tracks.map(track => ({ ...track, source: source as 'user' | 'recommendation' }))
 
           let updatedUserSongs: QueueSong[]
           let newStandardOrder = [...state.standardOrder]
           let newShuffleOrder = [...state.shuffleOrder]
           let finalSongs: QueueSong[]
+          const songsToInsert = newSongs
 
           if (playNext) {
             // Add as play next - insert after current song in the overall queue
-            const songsToInsert = state.shuffle ? shuffleArray([...newSongs]) : newSongs
+            const songsToInsertShuffled = state.shuffle ? shuffleArray([...newSongs]) : newSongs
 
             // Insert after current song position
             const insertPosition = state.currentIndex + 1
@@ -236,16 +234,15 @@ export const usePlayerStore = create<PlayerState>()(
             // Rebuild the queue with new songs inserted
             finalSongs = [
               ...songsBeforeInsert,
-              ...songsToInsert,
+              ...songsToInsertShuffled,
               ...songsAfterInsert
             ]
 
             // Separate user songs and recommendations
             updatedUserSongs = finalSongs.filter(song => song.source === 'user')
-            const newRecommendations = finalSongs.filter(song => song.source === 'recommendation')
 
             // Update order arrays
-            const newSongIds = songsToInsert.map(s => s.Id)
+            const newSongIds = songsToInsertShuffled.map(s => s.Id)
 
             if (state.shuffle) {
               // For shuffle mode, insert new songs after current position in shuffle order
@@ -260,26 +257,29 @@ export const usePlayerStore = create<PlayerState>()(
               newStandardOrder = updatedUserSongs.map(s => s.Id)
             }
           } else {
-            // Add to queue with priority over recommendations
-            const songsToInsert = newSongs
-
-            // If current song is a recommendation, insert user songs after current but before remaining recommendations
-            const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
-            if (currentSong?.source === 'recommendation') {
-              // Find remaining recommendations after current song
-              const remainingRecommendations = state.songs.slice(state.currentIndex + 1).filter(song => song.source === 'recommendation')
-              const insertPosition = state.currentIndex + 1
-
-              // Insert user songs after current song, before remaining recommendations
-              finalSongs = [
-                ...state.songs.slice(0, insertPosition),
-                ...songsToInsert,
-                ...remainingRecommendations,
-                ...state.songs.slice(state.currentIndex + 1 + remainingRecommendations.length)
-              ]
-            } else {
-              // Add to end of overall queue
+            // Different logic for user tracks vs recommendations
+            if (source === 'recommendation') {
+              // Recommendations: always append to the end of the queue
+              // This prevents shifting currently playing recommendations
               finalSongs = [...state.songs, ...songsToInsert]
+            } else {
+              // User tracks: insert after current position, before upcoming recommendations
+              // Find first recommendation AFTER current position
+              const firstUpcomingRecoIdx = state.songs.findIndex((song, idx) =>
+                idx > state.currentIndex && song.source === 'recommendation'
+              )
+
+              if (firstUpcomingRecoIdx !== -1) {
+                // Insert before first upcoming recommendation (after current position)
+                finalSongs = [
+                  ...state.songs.slice(0, firstUpcomingRecoIdx),
+                  ...songsToInsert,
+                  ...state.songs.slice(firstUpcomingRecoIdx)
+                ]
+              } else {
+                // No upcoming recommendations, just append to the end
+                finalSongs = [...state.songs, ...songsToInsert]
+              }
             }
 
             // Separate user songs and recommendations for order arrays
@@ -308,29 +308,27 @@ export const usePlayerStore = create<PlayerState>()(
 
           // Update indices if current song moved
           let newCurrentIndex = state.currentIndex
-          if (playNext) {
-            // For playNext, current song stays at the same index
-            newCurrentIndex = state.currentIndex
-          } else if (state.currentIndex >= 0) {
-            // For regular add, find where current song moved to
-            const currentSong = state.songs[state.currentIndex]
+          if (!playNext && state.currentIndex >= 0 && source === 'user') {
+            // Only need to update index if we inserted user tracks (which may shift recommendations)
+            // Recommendations are always appended to the end, so they don't shift anything
+            const oldIndex = state.currentIndex
             newCurrentIndex = finalSongs.findIndex(s => s.Id === currentSong?.Id)
+            if (newCurrentIndex === -1) {
+              console.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
+              // Fallback: keep old index if song not found
+              newCurrentIndex = oldIndex
+            }
           }
 
           // Enforce max queue size (1000 songs total)
           let trimmedSongs = finalSongs
           if (finalSongs.length > 1000) {
-            // Keep newest 5 previous songs, then current song, then next songs up to 1000 total
-            const currentSong = newCurrentIndex >= 0 ? finalSongs[newCurrentIndex] : null
             const songsBeforeCurrent = finalSongs.slice(0, newCurrentIndex)
             const songsAfterCurrent = finalSongs.slice(newCurrentIndex + 1)
 
-            // Keep newest 5 previous songs
             const keepPrevious = songsBeforeCurrent.slice(-5)
-            // Keep all songs after current
             const keepAfter = songsAfterCurrent
 
-            // Calculate how many more we can keep before current
             const remainingSlots = 1000 - keepPrevious.length - (currentSong ? 1 : 0) - keepAfter.length
             const keepBefore = songsBeforeCurrent.slice(-Math.max(0, remainingSlots))
 
@@ -340,17 +338,15 @@ export const usePlayerStore = create<PlayerState>()(
               ...keepAfter
             ]
 
-            // Adjust current index
             newCurrentIndex = currentSong ? keepBefore.length : -1
           }
-
 
           return {
             songs: trimmedSongs,
             currentIndex: newCurrentIndex,
             standardOrder: newStandardOrder,
             shuffleOrder: newShuffleOrder,
-            manuallyCleared: false, // Allow recommendations again since user added songs
+            manuallyCleared: false,
           }
         })
       },
@@ -504,60 +500,64 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       next: () => {
-        const { songs, currentIndex, repeat, previousIndex } = get()
+        // Use functional form of set() to ensure we always work with latest state
+        // This prevents race conditions with addToQueue() modifying the array
+        set((state) => {
+          if (state.songs.length === 0) return state
 
-        if (songs.length === 0) return
+          let nextIndex = state.currentIndex + 1
 
-        let nextIndex = currentIndex + 1
-
-        // Handle end of queue
-        if (nextIndex >= songs.length) {
-          if (repeat === 'all') {
-            nextIndex = 0
-          } else {
-            return // Can't go next
+          // Handle end of queue
+          if (nextIndex >= state.songs.length) {
+            if (state.repeat === 'all') {
+              nextIndex = 0
+            } else {
+              return state // Can't go next
+            }
           }
-        }
 
-        // Update previous index and move current
-        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
-        set({
-          previousIndex: currentIndex, // Remember where we came from for back navigation
-          currentIndex: nextIndex,
-          lastPlayedTrack: currentTrack,
+          // Update previous index and move current
+          const currentTrack = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
+
+          return {
+            previousIndex: state.currentIndex, // Remember where we came from for back navigation
+            currentIndex: nextIndex,
+            lastPlayedTrack: currentTrack,
+          }
         })
 
-        // Play the next track
+        // Play the next track (this reads fresh state after the update)
         get().play()
       },
 
       previous: () => {
-        const { songs, currentIndex, previousIndex } = get()
+        // Use functional form of set() to ensure we always work with latest state
+        // This prevents race conditions with addToQueue() modifying the array
+        set((state) => {
+          if (state.songs.length === 0) return state
 
-        if (songs.length === 0) return
+          let newCurrentIndex = state.currentIndex
+          let newPreviousIndex = state.currentIndex // Remember where we came from
 
-        let newCurrentIndex = currentIndex
-        let newPreviousIndex = currentIndex // Remember where we came from
-
-        if (currentIndex > 0) {
-          // Go to previous song in queue
-          newCurrentIndex = currentIndex - 1
-        } else {
-          // At start of queue, wrap around if repeat all
-          const { repeat } = get()
-          if (repeat === 'all') {
-            newCurrentIndex = songs.length - 1
+          if (state.currentIndex > 0) {
+            // Go to previous song in queue
+            newCurrentIndex = state.currentIndex - 1
           } else {
-            return // Can't go previous
+            // At start of queue, wrap around if repeat all
+            if (state.repeat === 'all') {
+              newCurrentIndex = state.songs.length - 1
+            } else {
+              return state // Can't go previous
+            }
           }
-        }
 
-        set({
-          currentIndex: newCurrentIndex,
-          previousIndex: newPreviousIndex,
+          return {
+            currentIndex: newCurrentIndex,
+            previousIndex: newPreviousIndex,
+          }
         })
 
-        // Play the previous track
+        // Play the previous track (this reads fresh state after the update)
         get().play()
       },
 

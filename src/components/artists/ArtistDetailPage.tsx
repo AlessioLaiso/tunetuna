@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -22,9 +22,10 @@ interface ArtistAlbumItemProps {
   year: string | null
   onNavigate: (id: string) => void
   onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  showImage?: boolean
 }
 
-function ArtistAlbumItem({ album, year, onNavigate, onContextMenu }: ArtistAlbumItemProps) {
+function ArtistAlbumItem({ album, year, onNavigate, onContextMenu, showImage = true }: ArtistAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
 
@@ -67,7 +68,7 @@ function ArtistAlbumItem({ album, year, onNavigate, onContextMenu }: ArtistAlbum
       <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 flex items-center justify-center">
         {imageError ? (
           <Disc className="w-12 h-12 text-gray-500" />
-        ) : (
+        ) : showImage ? (
           <Image
             src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
             alt={album.Name}
@@ -76,6 +77,8 @@ function ArtistAlbumItem({ album, year, onNavigate, onContextMenu }: ArtistAlbum
             rounded="rounded"
             onError={() => setImageError(true)}
           />
+        ) : (
+          <div className="w-full h-full bg-zinc-900" />
         )}
       </div>
       <div className="text-sm font-medium text-white truncate">{album.Name}</div>
@@ -93,9 +96,10 @@ interface ArtistSongItemProps {
   onClick: (song: BaseItemDto) => void
   onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
+  showImage?: boolean
 }
 
-function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId }: ArtistSongItemProps) {
+function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const currentTrack = useCurrentTrack()
   const formatDuration = (ticks: number): string => {
@@ -121,14 +125,18 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenu
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-        <Image
-          src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
-          alt={song.Name}
-          className="w-full h-full object-cover"
-          showOutline={true}
-          rounded="rounded-sm"
-        />
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+        {showImage ? (
+          <Image
+            src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+            alt={song.Name}
+            className="w-full h-full object-cover"
+            showOutline={true}
+            rounded="rounded-sm"
+          />
+        ) : (
+          <div className="w-full h-full bg-zinc-900" />
+        )}
       </div>
       <div className="flex-1 min-w-0 text-left">
         <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
@@ -367,24 +375,7 @@ export default function ArtistDetailPage() {
     setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
   }, [albums.length])
 
-  // Incrementally reveal more albums as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleAlbumsCount((prev) =>
-          Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
-        )
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [albums.length])
+  // Albums use pagination buttons instead of scroll loading
 
   // Reset visible songs window when songs change
   useEffect(() => {
@@ -392,24 +383,76 @@ export default function ArtistDetailPage() {
   }, [songs.length])
 
   // Incrementally reveal more songs as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+  const handleScroll = useCallback(() => {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = document.documentElement.scrollHeight
 
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleSongsCount((prev) =>
-          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
-        )
-      }
+    // When the user is within ~1.0 viewports of the bottom, load more rows
+    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
+      setVisibleSongsCount((prev) =>
+        Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+      )
     }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
   }, [songs.length])
 
+  useEffect(() => {
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleScroll, { passive: true })
+    document.addEventListener('touchend', handleScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true })
+      window.removeEventListener('scroll', handleScroll)
+      document.removeEventListener('touchmove', handleScroll)
+      document.removeEventListener('touchend', handleScroll)
+    }
+  }, [handleScroll])
+
+  // Incrementally reveal more album images as the user scrolls near the bottom
+  const handleAlbumScroll = useCallback(() => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    const fullHeight = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.clientHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight
+    )
+
+    // When the user is within ~1.0 viewports of the bottom, load more album images
+    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
+      setVisibleAlbumsCount((prev) =>
+        Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
+      )
+    }
+  }, [albums.length])
+
+  useEffect(() => {
+    // Listen on document in capture phase for desktop scroll
+    document.addEventListener('scroll', handleAlbumScroll, { passive: true, capture: true })
+
+    // Also listen on window for good measure
+    window.addEventListener('scroll', handleAlbumScroll, { passive: true })
+
+    // Touch events for mobile
+    document.addEventListener('touchmove', handleAlbumScroll, { passive: true })
+    document.addEventListener('touchend', handleAlbumScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('scroll', handleAlbumScroll, { capture: true })
+      window.removeEventListener('scroll', handleAlbumScroll)
+      document.removeEventListener('touchmove', handleAlbumScroll)
+      document.removeEventListener('touchend', handleAlbumScroll)
+    }
+  }, [handleAlbumScroll])
 
   const handleShuffleAll = () => {
     if (sortedSongs.length > 0) {
@@ -450,28 +493,18 @@ export default function ArtistDetailPage() {
     return { album, year }
   }
 
+  // Use the same sorting logic as albums
   const getSongAlbumDate = (song: BaseItemDto): number => {
-    // Try to find the album in albums array to get date
+    // Find the album for this song
     if (song.AlbumId) {
       const albumData = albums.find(a => a.Id === song.AlbumId)
       if (albumData) {
-        const year = albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
-        const month = albumData.PremiereDate ? new Date(albumData.PremiereDate).getMonth() : 0
-        const day = albumData.PremiereDate ? new Date(albumData.PremiereDate).getDate() : 0
-        // Return timestamp for proper sorting (newest first)
-        if (albumData.PremiereDate) {
-          return new Date(albumData.PremiereDate).getTime()
-        }
-        // If only year is available, use year * 10000 to make it sortable
-        return year * 10000
+        // Use the same logic as album sorting
+        return albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
       }
     }
-    // Fallback: try to get date from song itself
-    const year = song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
-    if (song.PremiereDate) {
-      return new Date(song.PremiereDate).getTime()
-    }
-    return year * 10000
+    // Fallback to song data
+    return song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
   }
 
   const sortedSongs = useMemo(() => {
@@ -564,7 +597,7 @@ export default function ArtistDetailPage() {
     <div className="pb-20">
       {/* Fixed header with back button */}
       <div
-        className={`fixed top-0 left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
@@ -695,7 +728,7 @@ export default function ArtistDetailPage() {
       </div>
 
       {/* Content section */}
-      <div className="pt-6 md:pt-10">
+      <div className="pt-3 md:pt-7">
         {/* Bio section - always collapsed by default with chevron, regardless of length */}
         {artist.Overview && (
           <div className="mb-6 -mt-4 px-4">
@@ -750,7 +783,7 @@ export default function ArtistDetailPage() {
           <div className="mb-10 px-4">
             <h2 className="text-2xl font-bold text-white mb-4">Albums ({albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {albums.slice(0, visibleAlbumsCount).map((album) => {
+              {albums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (
                   <ArtistAlbumItem
@@ -765,6 +798,7 @@ export default function ArtistDetailPage() {
                       setContextMenuPosition(position || null)
                       setContextMenuOpen(true)
                     }}
+                    showImage={index < visibleAlbumsCount}
                   />
                 )
               })}
@@ -809,7 +843,7 @@ export default function ArtistDetailPage() {
               </div>
             </div>
             <div className="space-y-0">
-              {sortedSongs.slice(0, visibleSongsCount).map((song) => {
+              {sortedSongs.map((song, index) => {
                 const { album, year } = getSongAlbumAndYear(song)
                 return (
                   <ArtistSongItem
@@ -826,6 +860,7 @@ export default function ArtistDetailPage() {
                       setContextMenuOpen(true)
                     }}
                     contextMenuItemId={contextMenuItem?.Id || null}
+                    showImage={index < visibleSongsCount}
                   />
                 )
               })}

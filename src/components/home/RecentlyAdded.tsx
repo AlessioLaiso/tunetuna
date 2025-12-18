@@ -36,7 +36,7 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
     onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -45,11 +45,23 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
       contextMenuJustOpenedRef.current = true
       onContextMenu(album, 'mobile')
     },
-    onClick: handleClick,
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      handleClick({} as React.MouseEvent)
+    },
   })
   return (
     <button
-      onClick={handleClick}
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        handleClick({} as React.MouseEvent)
+      }}
       onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className="text-left group"

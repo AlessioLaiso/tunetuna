@@ -650,9 +650,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           </div>
         )}
         {showLyricsModal && (
-          <LyricsModal
-            onClose={() => setShowLyricsModal(false)}
-          />
+          <LyricsModal />
         )}
         {showVolumePopover && volumePopoverPosition && (
           <VolumeControl

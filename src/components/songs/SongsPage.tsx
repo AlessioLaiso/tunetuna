@@ -91,7 +91,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -164,7 +164,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -243,7 +243,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   const longPressHandlers = useLongPress({
@@ -657,7 +657,7 @@ export default function SongsPage() {
     <>
       <div className="pb-20">
         <div
-          className={`fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+          className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
@@ -705,6 +705,16 @@ export default function SongsPage() {
             </div>
           </div>
         </div>
+
+        {/* Gradient overlay below top bar */}
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7rem - 8px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           {!isSearchOpen && (
@@ -775,9 +785,9 @@ export default function SongsPage() {
               </div>
             </div>
 
-            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(52px + env(safe-area-inset-top))` }}>
               {/* Sticky filter icons */}
-              <div className="sticky bg-black z-10 pt-3 pb-4 border-b border-zinc-800" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
+              <div className="sticky bg-black z-10 pt-3 pb-4" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
                 <div className="flex items-center gap-3 px-4">
                   <button
                     onClick={() => openFilterSheet('genre')}
@@ -805,8 +815,18 @@ export default function SongsPage() {
                 </div>
               </div>
 
+              {/* Gradient overlay below filter section */}
+              <div
+                className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+                style={{
+                  top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 76px + 4rem)`,
+                  height: '24px',
+                  background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+                }}
+              />
+
               {/* Search results */}
-              <div className="pb-32 pt-4">
+              <div className="pb-32" style={{ paddingTop: '40px' }}>
                 {isSearching ? (
                   <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>

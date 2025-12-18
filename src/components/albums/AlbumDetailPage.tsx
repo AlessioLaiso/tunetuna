@@ -22,26 +22,49 @@ interface AlbumTrackItemProps {
 function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
+  const contextMenuJustOpenedRef = useRef(false)
+
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
+      contextMenuJustOpenedRef.current = true
       onContextMenu(track, 'mobile')
     },
-    onClick: () => onClick(track, tracks),
+    onClick: () => {
+      if (contextMenuJustOpenedRef.current) {
+        contextMenuJustOpenedRef.current = false
+        return
+      }
+      onClick(track, tracks)
+    },
   })
   return (
     <button
-      onClick={() => onClick(track, tracks)}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        onClick(track, tracks)
       }}
+      onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
@@ -419,7 +442,7 @@ export default function AlbumDetailPage() {
         }}
       />
       <div
-        className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'xl:right-[320px]' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto relative">

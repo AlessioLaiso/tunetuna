@@ -35,20 +35,6 @@ interface ContextMenuProps {
 
 
 export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position }: ContextMenuProps) {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'ContextMenu.tsx:render',
-      message: 'ContextMenu render check',
-      data: { isOpen, itemType, itemId: item?.Id, mode, hasPosition: !!position },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      hypothesisId: 'D'
-    })
-  }).catch(() => {});
-  // #endregion
 
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -58,21 +44,6 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const { genres } = useMusicStore()
 
   if (!item || !itemType) {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'ContextMenu.tsx:earlyReturn',
-        message: 'ContextMenu returning null - missing item or itemType',
-        data: { isOpen, itemType, itemId: item?.Id },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        hypothesisId: 'D'
-      })
-    }).catch(() => {});
-    // #endregion
-
     return null
   }
 

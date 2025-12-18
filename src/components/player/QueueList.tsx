@@ -139,6 +139,8 @@ function QueueTrackItem({
                         <>
                             <button
                                 draggable
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
                                 onDragStart={(e) => {
                                     e.stopPropagation()
                                     onReorderDragStart(e, index)
@@ -253,9 +255,40 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
     const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
 
     // Split queue into 4 sections
-    const previouslyPlayed = songs.filter((song, index) => index < currentIndex)
-    const comingUp = songs.filter((song, index) => song.source === 'user' && index > currentIndex)
-    const upcomingRecommendations = songs.filter((song, index) => song.source === 'recommendation' && index > currentIndex)
+    // Show songs in chronological playback order to match what actually plays
+    const previouslyPlayed = songs.filter((_, index) => index < currentIndex)
+
+    // Find the last user track in upcoming songs (if any)
+    let lastUserTrackIndex = -1
+    for (let i = songs.length - 1; i > currentIndex; i--) {
+      if (songs[i].source === 'user') {
+        lastUserTrackIndex = i
+        break
+      }
+    }
+
+    // "Coming Up" shows everything up to and including the last user track
+    // This ensures visual order matches playback order when user tracks are mixed with recommendations
+    const comingUp = songs.filter((_, index) => {
+      if (index <= currentIndex) return false
+      // If there are user tracks ahead, show everything up to the last one
+      if (lastUserTrackIndex !== -1) {
+        return index <= lastUserTrackIndex
+      }
+      // No user tracks ahead, don't show anything in "Coming Up"
+      return false
+    })
+
+    // "Recommendations" only shows recommendations AFTER the last user track
+    const upcomingRecommendations = songs.filter((song, index) => {
+      if (song.source !== 'recommendation' || index <= currentIndex) return false
+      // If there are user tracks, only show recos after the last user track
+      if (lastUserTrackIndex !== -1) {
+        return index > lastUserTrackIndex
+      }
+      // No user tracks, show all upcoming recommendations here
+      return true
+    })
 
     // Apply lazy loading limits - calculate total visible songs needed
     let remainingVisible = visibleSongsCount
