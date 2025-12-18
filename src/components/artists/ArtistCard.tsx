@@ -90,7 +90,6 @@ export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }:
         setContextMenuOpen(true)
       }
     },
-    onClick: handleClick,
   })
 
   const handleContextMenu = (e: React.MouseEvent) => {

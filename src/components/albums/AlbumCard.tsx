@@ -34,7 +34,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
       sessionId: 'debug-session',
       hypothesisId: 'E'
     })
-  }).catch(() => {});
+  }).catch(() => { });
   // #endregion
 
   const handleClick = (e: React.MouseEvent) => {
@@ -60,7 +60,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
         sessionId: 'debug-session',
         hypothesisId: 'A'
       })
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     e.preventDefault()
@@ -85,7 +85,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
           sessionId: 'debug-session',
           hypothesisId: 'A'
         })
-      }).catch(() => {});
+      }).catch(() => { });
       // #endregion
 
       onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
@@ -116,7 +116,6 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
         setContextMenuOpen(true)
       }
     },
-    onClick: handleClick,
   })
 
 
@@ -136,7 +135,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
               sessionId: 'debug-session',
               hypothesisId: 'F'
             })
-          }).catch(() => {});
+          }).catch(() => { });
           // #endregion
 
           // Prevent click if context menu is open or was just opened
@@ -153,7 +152,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
                 sessionId: 'debug-session',
                 hypothesisId: 'C'
               })
-            }).catch(() => {});
+            }).catch(() => { });
             // #endregion
 
             e.preventDefault()
@@ -173,7 +172,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
               sessionId: 'debug-session',
               hypothesisId: 'C'
             })
-          }).catch(() => {});
+          }).catch(() => { });
           // #endregion
 
           handleClick(e)
@@ -191,7 +190,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId }: A
               sessionId: 'debug-session',
               hypothesisId: 'F'
             })
-          }).catch(() => {});
+          }).catch(() => { });
           // #endregion
 
           handleContextMenu(e)

@@ -25,7 +25,10 @@ export function useLongPress({
       longPressTriggeredRef.current = false
       hasMovedRef.current = false
       targetRef.current = e.target
-      
+
+      // Ignore right clicks (or other non-primary clicks)
+      if ('button' in e && e.button !== 0) return
+
       // Store initial touch position for touch events
       if ('touches' in e && e.touches.length > 0) {
         touchStartPosRef.current = {
@@ -35,7 +38,7 @@ export function useLongPress({
       } else {
         touchStartPosRef.current = null
       }
-      
+
       timeoutRef.current = setTimeout(() => {
         // Only trigger long press if there was no significant movement
         if (!hasMovedRef.current) {
@@ -50,13 +53,13 @@ export function useLongPress({
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!touchStartPosRef.current || e.touches.length === 0) return
-      
+
       const currentX = e.touches[0].clientX
       const currentY = e.touches[0].clientY
       const deltaX = Math.abs(currentX - touchStartPosRef.current.x)
       const deltaY = Math.abs(currentY - touchStartPosRef.current.y)
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-      
+
       // If movement exceeds threshold, cancel long press
       if (distance > moveThreshold) {
         hasMovedRef.current = true

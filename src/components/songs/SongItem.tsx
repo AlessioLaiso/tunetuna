@@ -79,7 +79,6 @@ export default function SongItem({ song, showImage = true, onContextMenu, contex
         setContextMenuOpen(true)
       }
     },
-    onClick: handleClick,
   })
 
 
@@ -100,27 +99,26 @@ export default function SongItem({ song, showImage = true, onContextMenu, contex
         {...longPressHandlers}
       >
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
-        {imageError ? (
-          <Disc className="w-7 h-7 text-gray-500" />
-        ) : showImage ? (
-          <Image
-            src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
-            alt={song.Name}
-            className="w-full h-full object-cover"
-            showOutline={true}
-            rounded="rounded-sm"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-900" />
-        )}
+          {imageError ? (
+            <Disc className="w-7 h-7 text-gray-500" />
+          ) : showImage ? (
+            <Image
+              src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+              alt={song.Name}
+              className="w-full h-full object-cover"
+              showOutline={true}
+              rounded="rounded-sm"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full bg-zinc-900" />
+          )}
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <div className={`text-sm font-medium truncate transition-colors ${
-            currentTrack?.Id === song.Id 
-              ? 'text-[var(--accent-color)]' 
+          <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
+              ? 'text-[var(--accent-color)]'
               : 'text-white group-hover:text-[var(--accent-color)]'
-          }`}>
+            }`}>
             {song.Name}
           </div>
           <div className="text-xs text-gray-400 truncate">

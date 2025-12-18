@@ -14,6 +14,7 @@ export interface BaseItemDto {
   PremiereDate?: string
   ProductionYear?: number
   Overview?: string
+  ChildCount?: number
   ImageTags?: {
     Primary?: string
     Logo?: string

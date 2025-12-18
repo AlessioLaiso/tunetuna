@@ -35,7 +35,6 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
       setContextMenuPosition(null)
       setContextMenuOpen(true)
     },
-    onClick: handleClick,
   })
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -48,7 +47,7 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
     // Reset the flag after a short delay to allow click prevention
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   return (
@@ -67,32 +66,32 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
         {...longPressHandlers}
         className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
       >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-        <Image
-          src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
-          alt={playlist.Name}
-          className="w-full h-full object-cover"
-          showOutline={true}
-          rounded="rounded-sm"
-        />
-      </div>
-      <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
-        <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-          {playlist.Name}
+        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+          <Image
+            src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+            alt={playlist.Name}
+            className="w-full h-full object-cover"
+            showOutline={true}
+            rounded="rounded-sm"
+          />
         </div>
-        <div className="text-xs text-gray-400 truncate">
-          {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+        <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
+          <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+            {playlist.Name}
+          </div>
+          <div className="text-xs text-gray-400 truncate">
+            {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+          </div>
         </div>
-      </div>
-    </button>
-    <ContextMenu
-      item={playlist}
-      itemType="playlist"
-      isOpen={contextMenuOpen}
-      onClose={() => setContextMenuOpen(false)}
-      mode={contextMenuMode}
-      position={contextMenuPosition || undefined}
-    />
+      </button>
+      <ContextMenu
+        item={playlist}
+        itemType="playlist"
+        isOpen={contextMenuOpen}
+        onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
+      />
     </>
   )
 }
