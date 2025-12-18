@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
+import VolumeControl from '../layout/VolumeControl'
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, GripHorizontal } from 'lucide-react'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
@@ -162,6 +163,9 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const [showPrevious, setShowPrevious] = useState(false)
+  const [showVolumePopover, setShowVolumePopover] = useState(false)
+  const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
   const {
     songs,
     currentIndex,
@@ -275,6 +279,18 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
       return
     }
     setDragOverIndex(index)
+  }
+
+  // Handle volume popover opening
+  const handleOpenVolumePopover = () => {
+    if (volumeButtonElement) {
+      const rect = volumeButtonElement.getBoundingClientRect()
+      setVolumePopoverPosition({
+        top: rect.top,
+        left: rect.left + rect.width / 2
+      })
+      setShowVolumePopover(true)
+    }
   }
 
   // Incrementally reveal more songs as the user scrolls near the bottom
@@ -522,7 +538,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
         onNavigate={onNavigateFromContextMenu}
       />
       <div ref={controlsRef} className="px-6 pt-2 space-y-6 flex-shrink-0" style={{ paddingBottom: `1.5rem` }}>
-        <div className="flex items-center justify-center gap-8">
+        <div className="flex items-center justify-center gap-8 relative">
           <button
             onClick={toggleShuffle}
             className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
@@ -536,8 +552,8 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
             onClick={previous}
             disabled={!hasPrevious}
             className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
-              hasPrevious 
-                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+              hasPrevious
+                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                 : 'text-zinc-600 cursor-not-allowed'
             }`}
           >
@@ -559,8 +575,8 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
             onClick={next}
             disabled={!hasNext}
             className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
-              hasNext 
-                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+              hasNext
+                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                 : 'text-zinc-600 cursor-not-allowed'
             }`}
           >
@@ -579,8 +595,28 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
               <Repeat className="w-6 h-6" />
             )}
           </button>
+
+          {/* Volume control on 768-1024px, positioned at right edge */}
+          <VolumeControl
+            variant="compact"
+            onOpenPopover={handleOpenVolumePopover}
+            onRef={setVolumeButtonElement}
+            className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:flex lg:hidden"
+          />
+
+          {/* Volume control on 1024px+, horizontal variant on the right */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:flex">
+            <VolumeControl variant="horizontal" />
+          </div>
         </div>
       </div>
+      {showVolumePopover && volumePopoverPosition && (
+        <VolumeControl
+          variant="vertical"
+          onClose={() => setShowVolumePopover(false)}
+          popoverPosition={volumePopoverPosition}
+        />
+      )}
     </div>
   )
 }

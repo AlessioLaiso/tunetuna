@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { usePlayerStore, useCurrentTrack, useLastPlayedTrack } from '../../stores/playerStore'
+import { usePlayerStore } from '../../stores/playerStore'
+import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import PlayerModal from './PlayerModal'
+import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
 import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1 } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
@@ -35,9 +38,17 @@ export default function PlayerBar() {
   const [showModal, setShowModal] = useState(false)
   const [isModalClosing, setIsModalClosing] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [showVolumePopover, setShowVolumePopover] = useState(false)
+  const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
+  const [mobileVolumeButtonElement, setMobileVolumeButtonElement] = useState<HTMLElement | null>(null)
+
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const closeModalRef = useRef<(() => void) | null>(null)
   const location = useLocation()
+  const touchStartX = useRef<number | null>(null)
+  const touchStartTime = useRef<number | null>(null)
+  const playerBarRef = useRef<HTMLDivElement>(null)
 
   // Close modal when navigating to a different route
   useEffect(() => {
@@ -193,6 +204,60 @@ export default function PlayerBar() {
   // Previous should be active if there are songs before current index
   const hasPrevious = currentIndex > 0
 
+  // Handle volume popover opening
+  const handleOpenVolumePopover = () => {
+    // Determine which layout is active based on screen size
+    const isMobile = window.innerWidth < 768
+    const element = isMobile ? mobileVolumeButtonElement : volumeButtonElement
+
+    if (element) {
+      const rect = element.getBoundingClientRect()
+      setVolumePopoverPosition({
+        top: rect.top,
+        left: rect.left + rect.width / 2
+      })
+      setShowVolumePopover(true)
+    }
+  }
+
+  // Swipe gesture handlers for next/previous
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartTime.current = Date.now()
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartTime.current === null) {
+      touchStartX.current = null
+      touchStartTime.current = null
+      return
+    }
+
+    const touchEndX = e.changedTouches[0].clientX
+    const deltaX = touchEndX - touchStartX.current
+    const deltaTime = Date.now() - touchStartTime.current
+    const swipeThreshold = 50 // Minimum pixels to trigger swipe
+    const velocityThreshold = 0.3 // Minimum velocity (px/ms) to trigger swipe
+
+    const velocity = Math.abs(deltaX) / deltaTime
+
+    // Swipe right = previous track
+    if (deltaX > swipeThreshold || (deltaX > 30 && velocity > velocityThreshold)) {
+      if (hasPrevious) {
+        previous()
+      }
+    }
+    // Swipe left = next track
+    else if (deltaX < -swipeThreshold || (deltaX < -30 && velocity > velocityThreshold)) {
+      if (hasNext) {
+        next()
+      }
+    }
+
+    touchStartX.current = null
+    touchStartTime.current = null
+  }
+
   // Always show the bar if there's a track to display (current or last played)
   if (!displayTrack) {
     return null
@@ -201,11 +266,14 @@ export default function PlayerBar() {
   return (
     <>
       <div
+        ref={playerBarRef}
         className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40 cursor-pointer"
         style={{ bottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)` }}
         onClick={() => {
           setShowModal(true)
         }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
           <div className="flex items-center gap-3 py-3 pr-3 pl-4">
             {!imageError && (
@@ -232,8 +300,14 @@ export default function PlayerBar() {
                 {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
               </div>
             </div>
-            {/* Mobile layout: Play/Pause and Next buttons */}
-            <div className="flex items-center md:hidden">
+            {/* Mobile layout: Volume + Play/Pause buttons */}
+            <div className="flex items-center md:hidden gap-2">
+              <VolumeControl
+                variant="compact"
+                onOpenPopover={handleOpenVolumePopover}
+                onRef={setMobileVolumeButtonElement}
+                className="text-white hover:text-zinc-300 transition-colors"
+              />
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -244,7 +318,7 @@ export default function PlayerBar() {
                     playTrack(displayTrack)
                   }
                 }}
-                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors ml-4"
+                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
               >
                 {isPlaying && currentTrack ? (
                   <Pause className="w-5 h-5" />
@@ -252,26 +326,10 @@ export default function PlayerBar() {
                   <Play className="w-5 h-5" />
                 )}
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (hasNext) {
-                    next()
-                  }
-                }}
-                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ml-1 ${
-                  hasNext
-                    ? 'text-white hover:bg-zinc-800'
-                    : 'text-zinc-600 cursor-not-allowed'
-                }`}
-                disabled={!hasNext}
-              >
-                <SkipForward className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Desktop layout: All 5 buttons */}
-            <div className="hidden md:flex items-center gap-1 ml-4">
+            {/* Desktop layout: Controls with extra space around play button */}
+            <div className="hidden md:flex items-center ml-4">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -301,6 +359,7 @@ export default function PlayerBar() {
                 <SkipBack className="w-5 h-5" />
               </button>
 
+              {/* Play button with extra margin */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -311,7 +370,7 @@ export default function PlayerBar() {
                     playTrack(displayTrack)
                   }
                 }}
-                className="w-10 h-10 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-color)] hover:opacity-90"
+                className="w-10 h-10 mx-2 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-color)] hover:opacity-90"
               >
                 {isPlaying && currentTrack ? (
                   <Pause className="w-5 h-5" />
@@ -352,6 +411,14 @@ export default function PlayerBar() {
                   <Repeat className="w-5 h-5" />
                 )}
               </button>
+
+              {/* Volume control with extra spacing */}
+              <VolumeControl
+                variant="compact"
+                onOpenPopover={handleOpenVolumePopover}
+                onRef={setVolumeButtonElement}
+                className="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-zinc-300 transition-colors ml-2 lg:hidden"
+              />
             </div>
           </div>
           {displayTrack && (
@@ -381,10 +448,17 @@ export default function PlayerBar() {
           )}
       </div>
       {showModal && (
-        <PlayerModal 
-          onClose={handleCloseModal} 
+        <PlayerModal
+          onClose={handleCloseModal}
           onClosingStart={() => setIsModalClosing(true)}
           closeRef={closeModalRef}
+        />
+      )}
+      {showVolumePopover && volumePopoverPosition && (
+        <VolumeControl
+          variant="vertical"
+          onClose={() => setShowVolumePopover(false)}
+          popoverPosition={volumePopoverPosition}
         />
       )}
     </>

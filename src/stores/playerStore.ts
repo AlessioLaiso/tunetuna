@@ -132,18 +132,6 @@ interface PlayerState {
   refreshCurrentTrack: () => Promise<void>
 }
 
-// Custom hook to get current track (computed from songs and currentIndex)
-export const useCurrentTrack = () => {
-  const { songs, currentIndex } = usePlayerStore()
-  return currentIndex >= 0 && songs.length > currentIndex ? songs[currentIndex] : null
-}
-
-// Custom hook to get last played track
-export const useLastPlayedTrack = () => {
-  const { lastPlayedTrack } = usePlayerStore()
-  return lastPlayedTrack
-}
-
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({

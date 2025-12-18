@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Home, User, Disc, Music, Guitar, ListMusic } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
+import VolumeControl from './VolumeControl'
+import { useState } from 'react'
 
 const allTabs = [
   { path: '/', label: 'Home', icon: Home, key: 'home' },
@@ -14,6 +16,7 @@ const allTabs = [
 export default function TabBar() {
   const location = useLocation()
   const { pageVisibility } = useSettingsStore()
+  const [showVolumePopover, setShowVolumePopover] = useState(false)
 
   const tabs = allTabs.filter((tab) => {
     if (tab.key === 'home') return true
@@ -35,27 +38,36 @@ export default function TabBar() {
       className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40" 
       style={{ bottom: `calc(env(safe-area-inset-bottom) - 8px)` }}
     >
-      <div className="max-w-[768px] mx-auto">
-        <div className="flex justify-around items-center h-16">
-          {tabs.map((tab) => {
-            const isActive = location.pathname === tab.path
-            const Icon = tab.icon
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                onClick={(e) => handleTabClick(e, tab.path)}
-                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                  isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
-                }`}
-              >
-                <Icon className="w-5 h-5 mb-1" />
-                <span className="text-xs font-medium">{tab.label}</span>
-              </Link>
-            )
-          })}
+      <div className="relative h-16">
+        <div className="max-w-[600px] mx-auto h-full">
+          <div className="flex justify-around items-center h-full">
+            {tabs.map((tab) => {
+              const isActive = location.pathname === tab.path
+              const Icon = tab.icon
+              return (
+                <Link
+                  key={tab.path}
+                  to={tab.path}
+                  onClick={(e) => handleTabClick(e, tab.path)}
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                    isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-medium">{tab.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+        {/* Volume control on 1024px+ screens, aligned with tab icons */}
+        <div className="absolute right-4 top-3.5 hidden lg:block">
+          <VolumeControl variant="horizontal" />
         </div>
       </div>
+      {showVolumePopover && (
+        <VolumeControl variant="vertical" onClose={() => setShowVolumePopover(false)} />
+      )}
     </nav>
   )
 }

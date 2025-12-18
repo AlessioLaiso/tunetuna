@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react'
-import { usePlayerStore, useCurrentTrack, useLastPlayedTrack } from '../../stores/playerStore'
+import React, { useEffect, useRef } from 'react'
+import { usePlayerStore } from '../../stores/playerStore'
+import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import QueueView from './QueueView'
 import LyricsModal from './LyricsModal'
+import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -46,6 +49,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     setShowQueue(false)
   }, [])
   const [showLyricsModal, setShowLyricsModal] = useState(false)
+  const [showVolumePopover, setShowVolumePopover] = useState(false)
+  const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const [volumePopoverDirection, setVolumePopoverDirection] = useState<'up' | 'down'>('up')
+  const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
+  const [volumeHeaderButtonElement, setVolumeHeaderButtonElement] = useState<HTMLElement | null>(null)
   const [hasLyrics, setHasLyrics] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -281,6 +289,20 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     }, 300) // Match transition duration
   }
 
+  // Handle volume popover opening
+  const handleOpenVolumePopover = (direction: 'up' | 'down' = 'up') => {
+    const element = direction === 'down' ? volumeHeaderButtonElement : volumeButtonElement
+    if (element) {
+      const rect = element.getBoundingClientRect()
+      setVolumePopoverPosition({
+        top: direction === 'down' ? rect.bottom : rect.top,
+        left: rect.left + rect.width / 2
+      })
+      setVolumePopoverDirection(direction)
+      setShowVolumePopover(true)
+    }
+  }
+
   // Expose close function via ref so parent can trigger it with animation
   useEffect(() => {
     if (closeRef) {
@@ -390,24 +412,36 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       }}
     >
       <div className="flex items-center justify-between p-4 relative">
-        <button
-          onClick={handleClose}
-          className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
-        >
-          <ChevronDown className="w-8 h-8" />
-        </button>
+        <div className="flex items-center gap-2 z-10 flex-shrink-0">
+          <button
+            onClick={handleClose}
+            className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
+          >
+            <ChevronDown className="w-8 h-8" />
+          </button>
+        </div>
         {showLyricsModal && displayTrack && (
           <h2 className="absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
             {getDisplayName()}
           </h2>
         )}
         <div className="flex items-center gap-2 z-10 flex-shrink-0">
+          {/* Volume button on <768px screens, next to lyrics and queue */}
+          <div className={`md:hidden ${showLyricsModal ? 'hidden' : ''}`}>
+            <VolumeControl
+              variant="compact"
+              onOpenPopover={() => handleOpenVolumePopover('down')}
+              onRef={setVolumeHeaderButtonElement}
+              className="text-white hover:text-zinc-300 transition-colors p-2"
+            />
+          </div>
+          {/* Lyrics button on all screens */}
           {hasLyrics && !showQueue && (
             <button
               onClick={() => setShowLyricsModal(!showLyricsModal)}
-              className={`transition-colors pr-2 ${
-                showLyricsModal 
-                  ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]' 
+              className={`transition-colors p-2 ${
+                showLyricsModal
+                  ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]'
                   : 'text-white hover:text-zinc-300'
               }`}
             >
@@ -422,7 +456,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               }
               setShowQueue(!showQueue)
             }}
-            className="text-white hover:text-zinc-300 transition-colors"
+            className="text-white hover:text-zinc-300 transition-colors p-2"
           >
             {showQueue ? (
               <SquarePlay className="w-6 h-6" />
@@ -549,7 +583,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-8 px-6">
+            <div className="flex items-center justify-center gap-8 px-6 relative">
               <button
                 onClick={toggleShuffle}
                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
@@ -563,8 +597,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 onClick={previous}
                 disabled={!hasPrevious}
                 className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
-                  hasPrevious 
-                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+                  hasPrevious
+                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                     : 'text-gray-600 cursor-not-allowed'
                 }`}
               >
@@ -589,12 +623,13 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 )}
               </button>
 
+              {/* Next button hidden on <768px screens */}
               <button
                 onClick={next}
                 disabled={!hasNext}
                 className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${
-                  hasNext 
-                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800' 
+                  hasNext
+                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                     : 'text-gray-600 cursor-not-allowed'
                 }`}
               >
@@ -613,6 +648,20 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   <Repeat className="w-6 h-6" />
                 )}
               </button>
+
+              {/* Volume control on 768-1024px, positioned at right edge */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:flex lg:hidden">
+                <VolumeControl
+                  variant="compact"
+                  onOpenPopover={() => handleOpenVolumePopover('up')}
+                  onRef={setVolumeButtonElement}
+                />
+              </div>
+
+              {/* Volume control on 1024px+, horizontal variant on the right */}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:flex">
+                <VolumeControl variant="horizontal" />
+              </div>
             </div>
           </div>
         </div>
@@ -620,6 +669,14 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       {showLyricsModal && (
         <LyricsModal
           onClose={() => setShowLyricsModal(false)}
+        />
+      )}
+      {showVolumePopover && volumePopoverPosition && (
+        <VolumeControl
+          variant="vertical"
+          onClose={() => setShowVolumePopover(false)}
+          popoverPosition={volumePopoverPosition}
+          popoverDirection={volumePopoverDirection}
         />
       )}
     </div>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { usePlayerStore, useCurrentTrack, useLastPlayedTrack } from '../../stores/playerStore'
+import { usePlayerStore } from '../../stores/playerStore'
+import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 
 interface LyricsModalProps {
