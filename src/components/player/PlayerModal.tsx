@@ -11,6 +11,7 @@ import LyricsModal from './LyricsModal'
 import VolumeControl from '../layout/VolumeControl'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { isIOS } from '../../utils/formatting'
 
 interface PlayerModalProps {
   onClose: () => void
@@ -425,12 +426,14 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           <div className="flex items-center gap-2 z-10 flex-shrink-0">
             {/* Volume button on <768px screens, next to lyrics and queue */}
             <div className={`md:hidden ${showLyricsModal ? 'hidden' : ''}`}>
-              <VolumeControl
-                variant="compact"
-                onOpenPopover={() => handleOpenVolumePopover('down')}
-                onRef={setVolumeHeaderButtonElement}
-                className="text-white hover:text-zinc-300 transition-colors p-2"
-              />
+              {!isIOS() && (
+                <VolumeControl
+                  variant="compact"
+                  onOpenPopover={() => handleOpenVolumePopover('down')}
+                  onRef={setVolumeHeaderButtonElement}
+                  className="text-white hover:text-zinc-300 transition-colors p-2"
+                />
+              )}
             </div>
             {/* Lyrics button on all screens */}
             {hasLyrics && !showQueue && (
@@ -643,7 +646,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
                 {/* Volume control on 768px+, horizontal variant on the right */}
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex">
-                  <VolumeControl variant="horizontal" />
+                  {!isIOS() && <VolumeControl variant="horizontal" />}
                 </div>
               </div>
             </div>
@@ -652,7 +655,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         {showLyricsModal && (
           <LyricsModal />
         )}
-        {showVolumePopover && volumePopoverPosition && (
+        {showVolumePopover && volumePopoverPosition && !isIOS() && (
           <VolumeControl
             variant="vertical"
             onClose={() => setShowVolumePopover(false)}

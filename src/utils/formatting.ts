@@ -35,10 +35,18 @@ export function normalizeQuotes(text: string): string {
  */
 export function normalizeForSearch(text: string): string {
   if (!text) return text
-  
+
   return normalizeQuotes(text)
     // Remove apostrophes for search matching
     .replace(/'/g, '')
+}
+
+/**
+ * Detects if the current device is running iOS (iPhone, iPad, iPod)
+ * iOS Safari doesn't allow programmatic volume control in web apps/PWAs
+ */
+export function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
 }
 
 

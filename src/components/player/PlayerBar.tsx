@@ -9,6 +9,7 @@ import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
 import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1, ListVideo } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
+import { isIOS } from '../../utils/formatting'
 
 export default function PlayerBar() {
   const {
@@ -436,15 +437,17 @@ export default function PlayerBar() {
             </div>
 
             <div className="hidden lg:block" onClick={(e) => e.stopPropagation()}>
-              <VolumeControl variant="horizontal" />
+              {!isIOS() && <VolumeControl variant="horizontal" />}
             </div>
             <div className="hidden md:block lg:hidden">
-              <VolumeControl
-                variant="compact"
-                onOpenPopover={handleOpenVolumePopover}
-                onRef={setVolumeButtonElement}
-                className="w-10 h-10 flex items-center justify-center text-white hover:text-zinc-300 transition-colors"
-              />
+              {!isIOS() && (
+                <VolumeControl
+                  variant="compact"
+                  onOpenPopover={handleOpenVolumePopover}
+                  onRef={setVolumeButtonElement}
+                  className="w-10 h-10 flex items-center justify-center text-white hover:text-zinc-300 transition-colors"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -477,12 +480,14 @@ export default function PlayerBar() {
           </div>
           {/* Mobile layout: Volume + Play/Pause buttons */}
           <div className="flex items-center gap-2">
-            <VolumeControl
-              variant="compact"
-              onOpenPopover={handleOpenVolumePopover}
-              onRef={setMobileVolumeButtonElement}
-              className="text-white hover:text-zinc-300 transition-colors"
-            />
+            {!isIOS() && (
+              <VolumeControl
+                variant="compact"
+                onOpenPopover={handleOpenVolumePopover}
+                onRef={setMobileVolumeButtonElement}
+                className="text-white hover:text-zinc-300 transition-colors"
+              />
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -539,7 +544,7 @@ export default function PlayerBar() {
           closeRef={closeModalRef}
         />
       )}
-      {showVolumePopover && volumePopoverPosition && (
+      {showVolumePopover && volumePopoverPosition && !isIOS() && (
         <VolumeControl
           variant="vertical"
           onClose={() => setShowVolumePopover(false)}

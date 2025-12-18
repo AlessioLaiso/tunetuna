@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useSyncStore } from '../../stores/syncStore'
 import VolumeControl from './VolumeControl'
 import { useState } from 'react'
+import { isIOS } from '../../utils/formatting'
 
 const allTabs = [
   { path: '/', label: 'Home', icon: Home, key: 'home' },
@@ -69,10 +70,10 @@ export default function TabBar() {
           </div>
           {/* Volume control on 1024px+ screens, aligned with tab icons */}
           <div className="absolute right-4 top-3.5 hidden lg:block">
-            <VolumeControl variant="horizontal" />
+            {!isIOS() && <VolumeControl variant="horizontal" />}
           </div>
         </div>
-        {showVolumePopover && (
+        {showVolumePopover && !isIOS() && (
           <VolumeControl variant="vertical" onClose={() => setShowVolumePopover(false)} />
         )}
       </nav>

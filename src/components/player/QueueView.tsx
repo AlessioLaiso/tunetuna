@@ -3,6 +3,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import VolumeControl from '../layout/VolumeControl'
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1 } from 'lucide-react'
 import QueueList from './QueueList'
+import { isIOS } from '../../utils/formatting'
 
 interface QueueViewProps {
   onClose: () => void
@@ -92,11 +93,11 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
 
           {/* Volume control on 768px+, horizontal variant on the right */}
           <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex md:-mr-6">
-            <VolumeControl variant="horizontal" />
+            {!isIOS() && <VolumeControl variant="horizontal" />}
           </div>
         </div>
       </div>
-      {showVolumePopover && volumePopoverPosition && (
+      {showVolumePopover && volumePopoverPosition && !isIOS() && (
         <VolumeControl
           variant="vertical"
           onClose={() => setShowVolumePopover(false)}
