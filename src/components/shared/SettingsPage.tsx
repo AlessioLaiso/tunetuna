@@ -94,7 +94,7 @@ export default function SettingsPage() {
     <div className="pb-20">
       <div className="fixed top-0 left-0 right-0 bg-black z-10 border-b border-zinc-800" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center gap-4 p-4">
+          <div className="flex items-center gap-4 p-4 lg:pl-8">
           <button
             onClick={() => navigate('/')}
             className="text-white hover:text-zinc-300 transition-colors"

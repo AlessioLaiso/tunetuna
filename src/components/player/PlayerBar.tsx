@@ -267,69 +267,77 @@ export default function PlayerBar() {
     <>
       <div
         ref={playerBarRef}
-        className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40 cursor-pointer"
-        style={{ bottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)` }}
+        className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40 cursor-pointer bottom-[calc(4rem-8px)] lg:bottom-0"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom)'
+        }}
         onClick={() => {
           setShowModal(true)
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-          <div className="flex items-center gap-3 py-3 pr-3 pl-4">
-            {!imageError && (
-              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
-                <Image
-                  key={currentTrack?.Id || displayTrack.Id}
-                  src={jellyfinClient.getAlbumArtUrl(
-                    (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
-                    96
-                  )}
-                  alt={(currentTrack || displayTrack).Name}
-                  className="w-full h-full object-cover"
-                  showOutline={true}
-                  rounded="rounded-sm"
-                  onError={() => setImageError(true)}
-                />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
-                {(currentTrack || displayTrack).Name}
-              </div>
-              <div className="text-xs text-gray-400 truncate">
-                {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
-              </div>
-            </div>
-            {/* Mobile layout: Volume + Play/Pause buttons */}
-            <div className="flex items-center md:hidden gap-2">
-              <VolumeControl
-                variant="compact"
-                onOpenPopover={handleOpenVolumePopover}
-                onRef={setMobileVolumeButtonElement}
-                className="text-white hover:text-zinc-300 transition-colors"
+        {/* Seek bar moved to top for desktop */}
+        <div className="hidden lg:block">
+          {displayTrack && (
+            <div
+              className="h-1 bg-zinc-800 hover:bg-zinc-600 cursor-pointer transition-colors duration-200"
+              onClick={(e) => {
+                e.stopPropagation() // Prevent opening the modal
+                if (!duration) return
+                const rect = e.currentTarget.getBoundingClientRect()
+                const percent = (e.clientX - rect.left) / rect.width
+                seek(Math.max(0, Math.min(1, percent)) * duration)
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation() // Prevent opening the modal
+                if (!duration) return
+                const touch = e.touches[0]
+                const rect = e.currentTarget.getBoundingClientRect()
+                const percent = (touch.clientX - rect.left) / rect.width
+                seek(Math.max(0, Math.min(1, percent)) * duration)
+              }}
+            >
+              <div
+                className="h-full bg-[var(--accent-color)] transition-all"
+                style={{ width: `${progressPercent}%` }}
               />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (currentTrack) {
-                    togglePlayPause()
-                  } else if (displayTrack) {
-                    // Resume last played track
-                    playTrack(displayTrack)
-                  }
-                }}
-                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-              >
-                {isPlaying && currentTrack ? (
-                  <Pause className="w-5 h-5" />
-                ) : (
-                  <Play className="w-5 h-5" />
-                )}
-              </button>
+            </div>
+          )}
+        </div>
+
+          {/* Desktop layout: absolute positioning for perfect centering */}
+          <div className="hidden lg:block lg:relative lg:px-4 lg:py-3">
+            {/* Left: Album art + song info with max width to prevent overlap */}
+            <div className="flex items-center gap-3 min-w-0 max-w-[37%]">
+              {!imageError && (
+                <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
+                  <Image
+                    key={currentTrack?.Id || displayTrack.Id}
+                    src={jellyfinClient.getAlbumArtUrl(
+                      (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
+                      96
+                    )}
+                    alt={(currentTrack || displayTrack).Name}
+                    className="w-full h-full object-cover"
+                    showOutline={true}
+                    rounded="rounded-sm"
+                    onError={() => setImageError(true)}
+                  />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-white truncate">
+                  {(currentTrack || displayTrack).Name}
+                </div>
+                <div className="text-xs text-gray-400 truncate">
+                  {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
+                </div>
+              </div>
             </div>
 
-            {/* Desktop layout: Controls with extra space around play button */}
-            <div className="hidden md:flex items-center ml-4">
+            {/* Absolutely centered: Player controls */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -411,16 +419,72 @@ export default function PlayerBar() {
                   <Repeat className="w-5 h-5" />
                 )}
               </button>
+            </div>
 
-              {/* Volume control with extra spacing */}
+            {/* Right: Volume control */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              <VolumeControl variant="horizontal" />
+            </div>
+          </div>
+
+          {/* Mobile layout */}
+          <div className="flex items-center gap-3 py-3 pr-3 pl-4 lg:hidden">
+            {!imageError && (
+              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
+                <Image
+                  key={currentTrack?.Id || displayTrack.Id}
+                  src={jellyfinClient.getAlbumArtUrl(
+                    (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
+                    96
+                  )}
+                  alt={(currentTrack || displayTrack).Name}
+                  className="w-full h-full object-cover"
+                  showOutline={true}
+                  rounded="rounded-sm"
+                  onError={() => setImageError(true)}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">
+                {(currentTrack || displayTrack).Name}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
+              </div>
+            </div>
+            {/* Mobile layout: Volume + Play/Pause buttons */}
+            <div className="flex items-center gap-2">
               <VolumeControl
                 variant="compact"
                 onOpenPopover={handleOpenVolumePopover}
-                onRef={setVolumeButtonElement}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-zinc-300 transition-colors ml-2 lg:hidden"
+                onRef={setMobileVolumeButtonElement}
+                className="text-white hover:text-zinc-300 transition-colors"
               />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (currentTrack) {
+                    togglePlayPause()
+                  } else if (displayTrack) {
+                    // Resume last played track
+                    playTrack(displayTrack)
+                  }
+                }}
+                className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              >
+                {isPlaying && currentTrack ? (
+                  <Pause className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5" />
+                )}
+              </button>
             </div>
           </div>
+        </div>
+
+        {/* Mobile seek bar - keep at bottom */}
+        <div className="lg:hidden">
           {displayTrack && (
             <div
               className="h-1 bg-zinc-800 hover:bg-zinc-600 cursor-pointer transition-colors duration-200"
@@ -446,21 +510,21 @@ export default function PlayerBar() {
               />
             </div>
           )}
-      </div>
-      {showModal && (
-        <PlayerModal
-          onClose={handleCloseModal}
-          onClosingStart={() => setIsModalClosing(true)}
-          closeRef={closeModalRef}
-        />
-      )}
-      {showVolumePopover && volumePopoverPosition && (
-        <VolumeControl
-          variant="vertical"
-          onClose={() => setShowVolumePopover(false)}
-          popoverPosition={volumePopoverPosition}
-        />
-      )}
+        </div>
+        {showModal && (
+          <PlayerModal
+            onClose={handleCloseModal}
+            onClosingStart={() => setIsModalClosing(true)}
+            closeRef={closeModalRef}
+          />
+        )}
+        {showVolumePopover && volumePopoverPosition && (
+          <VolumeControl
+            variant="vertical"
+            onClose={() => setShowVolumePopover(false)}
+            popoverPosition={volumePopoverPosition}
+          />
+        )}
     </>
   )
 }

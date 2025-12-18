@@ -38,7 +38,7 @@ export default function GenresPage() {
     <div className="pb-20">
       <div className="fixed top-0 left-0 right-0 bg-black z-10" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
         <div className="max-w-[768px] mx-auto">
-          <div className="p-4">
+          <div className="p-4 lg:pl-8">
           {/* Header with title and loading indicator */}
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-2xl font-bold text-white">Genres</h1>

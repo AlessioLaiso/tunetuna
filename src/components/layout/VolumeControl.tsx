@@ -91,6 +91,16 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
     handleVolumeChange(e)
   }
 
+  const handleMouseDownSlider = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    handleMouseDown(e)
+  }
+
+  const handleTouchStartSlider = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    handleTouchStart(e)
+  }
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isDragging) {
       e.preventDefault()
@@ -133,6 +143,10 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
     }
   }
 
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+  }
+
   // Add global mouse event listeners when dragging
   useEffect(() => {
     if (isDragging) {
@@ -172,7 +186,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
 
   if (variant === 'horizontal') {
     return (
-      <div ref={setContainerRef} className="flex items-center gap-2 px-2 select-none" style={{ width: '120px' }}>
+      <div ref={setContainerRef} className="flex items-center gap-2 px-2 select-none" style={{ width: '120px' }} onClick={handleContainerClick}>
         <button
           onClick={handleIconClick}
           className="text-gray-400 hover:text-zinc-300 flex-shrink-0"
@@ -183,8 +197,8 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           ref={containerRef}
           className="flex-1 relative cursor-pointer"
           style={{ height: '24px' }}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
+          onMouseDown={handleMouseDownSlider}
+          onTouchStart={handleTouchStartSlider}
         >
           <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-zinc-800 rounded-full overflow-hidden">
             <div

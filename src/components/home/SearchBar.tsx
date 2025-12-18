@@ -621,7 +621,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
 
   return (
     <>
-      <div className="p-4">
+      <div className="p-4 lg:pl-8">
         <div className="flex items-center justify-between mb-3">
           <div className="text-lg font-semibold text-white">
             Tunetuna

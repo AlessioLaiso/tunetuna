@@ -169,20 +169,25 @@ export default function Layout({ children }: LayoutProps) {
     <>
       {/* Fixed overlay to hide content behind status bar */}
       <div
-        className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
+        className="fixed top-0 right-0 bg-black z-50 pointer-events-none left-0 lg:left-8"
         style={{
           height: `env(safe-area-inset-top)`,
           top: syncState !== 'idle' ? '28px' : '0px'
         }}
       />
       <SyncStatusBar />
-      {/* Fixed overlay to hide content behind TabBar */}
+      {/* Fixed overlay to hide content behind TabBar - only on mobile */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none lg:hidden"
         style={{ height: `calc(4rem + env(safe-area-inset-bottom) - 8px)` }}
       />
+      {/* Fixed overlay to hide content behind vertical TabBar - only on desktop */}
       <div
-        className="min-h-screen bg-black text-white"
+        className="fixed top-0 left-0 bottom-0 bg-black z-30 pointer-events-none hidden lg:block"
+        style={{ width: '4rem' }}
+      />
+      <div
+        className="min-h-screen bg-black text-white lg:pl-8"
         style={{
           paddingBottom: `calc(4rem + env(safe-area-inset-bottom) - 8px)`,
           paddingTop: syncState !== 'idle' ? '28px' : '0',
@@ -191,8 +196,10 @@ export default function Layout({ children }: LayoutProps) {
           width: '100%'
         }}
       >
-        <div className="max-w-[768px] mx-auto w-full">
-          {children}
+        <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center">
+          <div className="w-full max-w-[768px]">
+            {children}
+          </div>
         </div>
         <PlayerBar />
         <TabBar />
