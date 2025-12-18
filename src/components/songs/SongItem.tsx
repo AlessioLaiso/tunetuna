@@ -11,9 +11,11 @@ import { Disc } from 'lucide-react'
 interface SongItemProps {
   song: LightweightSong
   showImage?: boolean
+  onContextMenu?: (item: LightweightSong, type: 'song', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId?: string | null
 }
 
-export default function SongItem({ song, showImage = true }: SongItemProps) {
+export default function SongItem({ song, showImage = true, onContextMenu, contextMenuItemId }: SongItemProps) {
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -21,6 +23,7 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const contextMenuJustOpenedRef = useRef(false)
   const [imageError, setImageError] = useState(false)
+  const isThisItemMenuOpen = contextMenuItemId === song.Id
 
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -39,29 +42,46 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
     playTrack(song)
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Prevent any default browser behavior
+    e.nativeEvent?.preventDefault?.()
+    e.nativeEvent?.stopImmediatePropagation?.()
+
+    // Prevent any click action for the next 300ms
+    contextMenuJustOpenedRef.current = true
+    if (onContextMenu) {
+      onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
+    } else {
+      // Fallback to local context menu
+      setContextMenuMode('desktop')
+      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+      setContextMenuOpen(true)
+    }
+    // Reset the flag after a longer delay
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      setContextMenuMode('mobile')
-      setContextMenuPosition(null)
-      setContextMenuOpen(true)
+      if (onContextMenu) {
+        contextMenuJustOpenedRef.current = true
+        onContextMenu(song, 'song', 'mobile')
+      } else {
+        // Fallback to local context menu
+        contextMenuJustOpenedRef.current = true
+        setContextMenuMode('mobile')
+        setContextMenuPosition(null)
+        setContextMenuOpen(true)
+      }
     },
     onClick: handleClick,
   })
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    setContextMenuMode('desktop')
-    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-    setContextMenuOpen(true)
-    // Reset the flag after a short delay to allow click prevention
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 100)
-  }
 
   return (
     <>
@@ -76,8 +96,8 @@ export default function SongItem({ song, showImage = true }: SongItemProps) {
           handleClick(e)
         }}
         onContextMenu={handleContextMenu}
+        className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
         {...longPressHandlers}
-        className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${contextMenuOpen ? 'bg-white/10' : ''}`}
       >
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
         {imageError ? (

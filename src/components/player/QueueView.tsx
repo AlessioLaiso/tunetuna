@@ -316,8 +316,9 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   }, [songs.length])
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 max-w-[768px] mx-auto w-full" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
-      <div className="flex-1 overflow-y-auto min-h-0 queue-container" style={{ paddingBottom: '8rem' }}>
+    <div className="flex-1 flex flex-col min-h-0 w-full" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+      <div className="flex-1 overflow-y-auto min-h-0 queue-container w-full" style={{ paddingBottom: '8rem' }}>
+        <div className="max-w-[864px] mx-auto w-full">
         {songs.length === 0 && !currentTrack ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             <p>Queue is empty</p>
@@ -537,7 +538,8 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
         }}
         onNavigate={onNavigateFromContextMenu}
       />
-      <div ref={controlsRef} className="px-6 pt-2 space-y-6 flex-shrink-0" style={{ paddingBottom: `1.5rem` }}>
+      </div>
+      <div ref={controlsRef} className="px-6 pt-2 space-y-6 flex-shrink-0 max-w-[864px] mx-auto w-full" style={{ paddingBottom: `1.5rem` }}>
         <div className="flex items-center justify-center gap-8 relative">
           <button
             onClick={toggleShuffle}
@@ -596,16 +598,8 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
             )}
           </button>
 
-          {/* Volume control on 768-1024px, positioned at right edge */}
-          <VolumeControl
-            variant="compact"
-            onOpenPopover={handleOpenVolumePopover}
-            onRef={setVolumeButtonElement}
-            className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:flex lg:hidden"
-          />
-
-          {/* Volume control on 1024px+, horizontal variant on the right */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:flex">
+          {/* Volume control on 768px+, horizontal variant on the right */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex md:-mr-6">
             <VolumeControl variant="horizontal" />
           </div>
         </div>

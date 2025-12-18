@@ -8,11 +8,13 @@ import { useLongPress } from '../../hooks/useLongPress'
 
 interface ArtistCardProps {
   artist: BaseItemDto
+  onContextMenu?: (item: BaseItemDto, type: 'artist', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId?: string | null
 }
 
 const artistAlbumArtCache = new Map<string, string | null>()
 
-export default function ArtistCard({ artist }: ArtistCardProps) {
+export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }: ArtistCardProps) {
   const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -20,6 +22,7 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const contextMenuJustOpenedRef = useRef(false)
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
+  const isThisItemMenuOpen = contextMenuItemId === artist.Id
 
   useEffect(() => {
     // If the artist already has a primary image, we don't need a fallback
@@ -76,10 +79,16 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      setContextMenuMode('mobile')
-      setContextMenuPosition(null)
-      setContextMenuOpen(true)
+      if (onContextMenu) {
+        contextMenuJustOpenedRef.current = true
+        onContextMenu(artist, 'artist', 'mobile')
+      } else {
+        // Fallback to local context menu
+        contextMenuJustOpenedRef.current = true
+        setContextMenuMode('mobile')
+        setContextMenuPosition(null)
+        setContextMenuOpen(true)
+      }
     },
     onClick: handleClick,
   })
@@ -87,23 +96,43 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // Prevent any default browser behavior
+    e.nativeEvent?.preventDefault?.()
+    e.nativeEvent?.stopImmediatePropagation?.()
+
+    // Prevent navigation/click for the next 300ms
     contextMenuJustOpenedRef.current = true
-    setContextMenuMode('desktop')
-    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-    setContextMenuOpen(true)
-    // Reset the flag after a short delay to allow click prevention
+
+    if (onContextMenu) {
+      onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
+    } else {
+      // Fallback to local context menu
+      setContextMenuMode('desktop')
+      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+      setContextMenuOpen(true)
+    }
+
+    // Reset the flag after a longer delay
     setTimeout(() => {
       contextMenuJustOpenedRef.current = false
-    }, 100)
+    }, 300)
   }
 
   return (
     <>
       <button
-        onClick={handleClick}
+        onClick={(e) => {
+          // Prevent click if context menu is open or was just opened
+          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+          handleClick(e)
+        }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${contextMenuOpen ? 'bg-white/10' : ''}`}
+        className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       >
         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
           {imageError ? (

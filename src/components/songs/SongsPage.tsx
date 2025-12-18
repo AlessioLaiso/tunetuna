@@ -717,6 +717,8 @@ export default function SongsPage() {
                       key={song.Id}
                       song={song}
                       showImage={index < visibleSongsCount}
+                      onContextMenu={openContextMenu}
+                      contextMenuItemId={contextMenuItem?.Id || null}
                     />
                   ))}
                 </div>

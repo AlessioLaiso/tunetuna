@@ -674,7 +674,14 @@ export default function ArtistsPage() {
                   {artists
                     .slice(0, visibleArtistsCount)
                     .map((artist) => {
-                      return <ArtistCard key={artist.Id} artist={artist} />
+                      return (
+                        <ArtistCard
+                          key={artist.Id}
+                          artist={artist}
+                          onContextMenu={openContextMenu}
+                          contextMenuItemId={contextMenuItem?.Id || null}
+                        />
+                      )
                     })}
                 </div>
                 <Pagination

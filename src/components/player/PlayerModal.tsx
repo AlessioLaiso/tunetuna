@@ -649,17 +649,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 )}
               </button>
 
-              {/* Volume control on 768-1024px, positioned at right edge */}
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:flex lg:hidden">
-                <VolumeControl
-                  variant="compact"
-                  onOpenPopover={() => handleOpenVolumePopover('up')}
-                  onRef={setVolumeButtonElement}
-                />
-              </div>
-
-              {/* Volume control on 1024px+, horizontal variant on the right */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:flex">
+              {/* Volume control on 768px+, horizontal variant on the right */}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex">
                 <VolumeControl variant="horizontal" />
               </div>
             </div>

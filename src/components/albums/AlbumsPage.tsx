@@ -554,12 +554,52 @@ export default function AlbumsPage() {
   }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'AlbumsPage.tsx:openContextMenu',
+        message: 'openContextMenu called',
+        data: { itemId: item.Id, itemName: item.Name, type, mode, hasPosition: !!position },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'B'
+      })
+    }).catch(() => {});
+    // #endregion
+
     setContextMenuItem(item)
     setContextMenuItemType(type)
     setContextMenuMode(mode)
     setContextMenuPosition(position || null)
     setContextMenuOpen(true)
   }
+
+  useEffect(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'AlbumsPage.tsx:global',
+          message: 'Global contextMenu event detected',
+          data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName, x: e.clientX, y: e.clientY },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'H'
+        })
+      }).catch(() => {});
+      // #endregion
+    };
+
+    document.addEventListener('contextmenu', handleGlobalContextMenu, true); // Use capture phase
+
+    return () => {
+      document.removeEventListener('contextmenu', handleGlobalContextMenu, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -724,9 +764,45 @@ export default function AlbumsPage() {
           </div>
         </div>
 
-        <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
+        <div
+          style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}
+          onContextMenu={(e) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'AlbumsPage.tsx:container',
+                message: 'Container contextMenu event intercepted',
+                data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                hypothesisId: 'G'
+              })
+            }).catch(() => {});
+            // #endregion
+          }}
+        >
         {!isSearchOpen && (
-          <div className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}>
+          <div
+            className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}
+            onContextMenu={(e) => {
+              // #region agent log
+              fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'AlbumsPage.tsx:innerContainer',
+                  message: 'Inner container contextMenu event intercepted',
+                  data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  hypothesisId: 'G'
+                })
+              }).catch(() => {});
+              // #endregion
+            }}
+          >
             {albums.length === 0 && !loading.albums ? (
               <div className="flex items-center justify-center py-16 text-gray-400">
                 <p>No albums found</p>
@@ -734,12 +810,35 @@ export default function AlbumsPage() {
             ) : (
               <>
                 <div className="p-4">
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                    {albums
-                      .slice(0, visibleAlbumsCount)
-                      .map((album) => (
-                        <AlbumCard key={album.Id} album={album} />
-                      ))}
+                <div
+                  className="grid grid-cols-3 md:grid-cols-4 gap-3"
+                  onContextMenu={(e) => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7244/ingest/db317f2b-adc3-4aff-b0fa-c76ea1078e11', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        location: 'AlbumsPage.tsx:grid',
+                        message: 'Grid contextMenu event intercepted',
+                        data: { eventTarget: e.target?.tagName, eventCurrentTarget: e.currentTarget?.tagName },
+                        timestamp: Date.now(),
+                        sessionId: 'debug-session',
+                        hypothesisId: 'G'
+                      })
+                    }).catch(() => {});
+                    // #endregion
+                  }}
+                >
+                  {albums
+                    .slice(0, visibleAlbumsCount)
+                    .map((album) => (
+                      <AlbumCard
+                        key={album.Id}
+                        album={album}
+                        onContextMenu={openContextMenu}
+                        contextMenuItemId={contextMenuItem?.Id || null}
+                      />
+                    ))}
                   </div>
                 </div>
                 <Pagination
