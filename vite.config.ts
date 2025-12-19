@@ -2,8 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Generate build timestamp for cache busting
+const buildTimestamp = Date.now().toString();
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    // Make build timestamp available in the app
+    __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+  },
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 5173,
@@ -51,6 +58,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cacheId: `tunetuna-${buildTimestamp}`,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp)/,
