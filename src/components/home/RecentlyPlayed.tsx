@@ -91,6 +91,7 @@ export default function RecentlyPlayed() {
     playTrack(song, recentlyPlayed)
   }
 
+  // Always render hooks before any conditional returns
   if (!recentlyPlayed || recentlyPlayed.length === 0) {
     return null
   }

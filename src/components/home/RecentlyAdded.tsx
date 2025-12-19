@@ -114,7 +114,6 @@ export default function RecentlyAdded() {
     loadRecentlyAdded()
   }, [setRecentlyAdded, setLoading])
 
-
   // Handle scroll to update current page
   const handleScroll = () => {
     if (!scrollContainerRef.current) return
@@ -136,6 +135,8 @@ export default function RecentlyAdded() {
     })
   }
 
+  // Always render hooks before any conditional returns
+  // Only return null if we have no data, but after all hooks are called
   if (!recentlyAdded || recentlyAdded.length === 0) {
     return null
   }
