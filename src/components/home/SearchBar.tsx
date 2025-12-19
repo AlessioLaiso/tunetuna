@@ -356,6 +356,7 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
     songs: BaseItemDto[]
   } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -421,36 +422,52 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
   const hasActiveFilters = selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null
 
   useEffect(() => {
+    // Cancel any previous search
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort()
+    }
+
     const hasQuery = searchQuery.trim().length > 0
 
     // Search if there's a query OR if filters are active
     if (hasQuery || hasActiveFilters) {
       setIsSearching(true)
-      const timeoutId = window.setTimeout(() => {
-        const performSearch = async () => {
-          try {
-            if (hasQuery) {
-              const results = await unifiedSearch(searchQuery, 450)
-              setRawSearchResults(results)
-            } else {
-              // When no query but filters are active, fetch a large slice directly
-              const results = await fetchAllLibraryItems(450)
-              setRawSearchResults(results)
-            }
-          } catch (error) {
+      searchAbortControllerRef.current = new AbortController()
+
+      const timeoutId = window.setTimeout(async () => {
+        if (searchAbortControllerRef.current?.signal.aborted) return
+
+        try {
+          let results
+          if (hasQuery) {
+            results = await unifiedSearch(searchQuery, 450)
+          } else {
+            // When no query but filters are active, fetch a large slice directly
+            results = await fetchAllLibraryItems(450)
+          }
+          if (!searchAbortControllerRef.current?.signal.aborted) {
+            setRawSearchResults(results)
+          }
+        } catch (error) {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             console.error('Search failed:', error)
             setRawSearchResults(null)
-          } finally {
+          }
+        } finally {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             setIsSearching(false)
           }
         }
-        void performSearch()
       }, 250)
 
       return () => {
         window.clearTimeout(timeoutId)
+        if (searchAbortControllerRef.current) {
+          searchAbortControllerRef.current.abort()
+        }
       }
     } else {
+      searchAbortControllerRef.current = null
       setRawSearchResults(null)
       setIsSearching(false)
     }
@@ -653,6 +670,15 @@ export default function SearchBar({ onSearchStateChange }: SearchBarProps) {
       }
     }
   }, [isSearchOpen])
+
+  // Cleanup search abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   return (
     <>

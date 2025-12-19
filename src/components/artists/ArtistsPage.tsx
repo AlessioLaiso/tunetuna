@@ -311,6 +311,7 @@ export default function ArtistsPage() {
     songs: BaseItemDto[]
   } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -338,34 +339,50 @@ export default function ArtistsPage() {
   const hasActiveFilters = selectedGenres.length > 0
 
   useEffect(() => {
+    // Cancel any previous search
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort()
+    }
+
     const hasQuery = searchQuery.trim().length > 0
 
     if (hasQuery || hasActiveFilters) {
       setIsSearching(true)
-      const timeoutId = window.setTimeout(() => {
-        const performSearch = async () => {
-          try {
-            if (hasQuery) {
-              const results = await unifiedSearch(searchQuery, 450)
-              setRawSearchResults(results)
-            } else {
-              const results = await fetchAllLibraryItems(450)
-              setRawSearchResults(results)
-            }
-          } catch (error) {
+      searchAbortControllerRef.current = new AbortController()
+
+      const timeoutId = window.setTimeout(async () => {
+        if (searchAbortControllerRef.current?.signal.aborted) return
+
+        try {
+          let results
+          if (hasQuery) {
+            results = await unifiedSearch(searchQuery, 450)
+          } else {
+            results = await fetchAllLibraryItems(450)
+          }
+          if (!searchAbortControllerRef.current?.signal.aborted) {
+            setRawSearchResults(results)
+          }
+        } catch (error) {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             console.error('Search failed:', error)
             setRawSearchResults(null)
-          } finally {
+          }
+        } finally {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             setIsSearching(false)
           }
         }
-        void performSearch()
       }, 250)
 
       return () => {
         window.clearTimeout(timeoutId)
+        if (searchAbortControllerRef.current) {
+          searchAbortControllerRef.current.abort()
+        }
       }
     } else {
+      searchAbortControllerRef.current = null
       setRawSearchResults(null)
       setIsSearching(false)
     }
@@ -417,6 +434,15 @@ export default function ArtistsPage() {
       }
     }
   }, [isSearchOpen])
+
+  // Cleanup search abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
