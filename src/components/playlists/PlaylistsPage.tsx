@@ -315,6 +315,7 @@ export default function PlaylistsPage() {
     songs: BaseItemDto[]
   } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
@@ -342,27 +343,43 @@ export default function PlaylistsPage() {
   }, [])
 
   useEffect(() => {
+    // Cancel any previous search
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort()
+    }
+
     if (searchQuery.trim()) {
       setIsSearching(true)
-      const timeoutId = window.setTimeout(() => {
-        const performSearch = async () => {
-          try {
-            const results = await unifiedSearch(searchQuery, 450)
+      searchAbortControllerRef.current = new AbortController()
+
+      const timeoutId = window.setTimeout(async () => {
+        if (searchAbortControllerRef.current?.signal.aborted) return
+
+        try {
+          const results = await unifiedSearch(searchQuery, 450)
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             setRawSearchResults(results)
-          } catch (error) {
+          }
+        } catch (error) {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             console.error('Search failed:', error)
             setRawSearchResults(null)
-          } finally {
+          }
+        } finally {
+          if (!searchAbortControllerRef.current?.signal.aborted) {
             setIsSearching(false)
           }
         }
-        void performSearch()
       }, 250)
 
       return () => {
         window.clearTimeout(timeoutId)
+        if (searchAbortControllerRef.current) {
+          searchAbortControllerRef.current.abort()
+        }
       }
     } else {
+      searchAbortControllerRef.current = null
       setRawSearchResults(null)
       setIsSearching(false)
     }
@@ -404,6 +421,15 @@ export default function PlaylistsPage() {
       }
     }
   }, [isSearchOpen])
+
+  // Cleanup search abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   const loadPlaylists = async () => {
     setLoading(true)
