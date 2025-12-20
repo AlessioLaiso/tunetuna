@@ -291,43 +291,41 @@ export default function PlayerBar() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Seek bar moved to top for desktop - 24px touch target with 4px visual bar centered */}
-        <div className="hidden lg:block" style={{ marginTop: '-12px' }}>
-          {displayTrack && (
-            <div
-              className="relative cursor-pointer group flex items-center"
-              style={{ height: '24px' }}
-              onClick={(e) => {
-                e.stopPropagation() // Prevent opening the modal
-                if (!duration) return
-                const rect = e.currentTarget.getBoundingClientRect()
-                const percent = (e.clientX - rect.left) / rect.width
-                seek(Math.max(0, Math.min(1, percent)) * duration)
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation() // Prevent opening the modal
-                if (!duration) return
-                const touch = e.touches[0]
-                const rect = e.currentTarget.getBoundingClientRect()
-                const percent = (touch.clientX - rect.left) / rect.width
-                seek(Math.max(0, Math.min(1, percent)) * duration)
-              }}
-              role="slider"
-              aria-label="Seek"
-              aria-valuemin={0}
-              aria-valuemax={duration || 100}
-              aria-valuenow={currentTime}
-            >
-              {/* Visual bar - centered within touch target */}
-              <div className="absolute left-0 right-0 h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
-                <div
-                  className="h-full bg-[var(--accent-color)] transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
+        {/* Seek bar at top for desktop - positioned absolutely to not affect layout */}
+        {displayTrack && (
+          <div
+            className="hidden lg:block absolute left-0 right-0 cursor-pointer group"
+            style={{ top: '-10px', height: '24px' }}
+            onClick={(e) => {
+              e.stopPropagation() // Prevent opening the modal
+              if (!duration) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const percent = (e.clientX - rect.left) / rect.width
+              seek(Math.max(0, Math.min(1, percent)) * duration)
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation() // Prevent opening the modal
+              if (!duration) return
+              const touch = e.touches[0]
+              const rect = e.currentTarget.getBoundingClientRect()
+              const percent = (touch.clientX - rect.left) / rect.width
+              seek(Math.max(0, Math.min(1, percent)) * duration)
+            }}
+            role="slider"
+            aria-label="Seek"
+            aria-valuemin={0}
+            aria-valuemax={duration || 100}
+            aria-valuenow={currentTime}
+          >
+            {/* Visual bar - positioned at bottom of touch target to align with player bar top edge */}
+            <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
+              <div
+                className="h-full bg-[var(--accent-color)] transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Desktop layout: absolute positioning for perfect centering */}
         <div className="hidden md:block md:relative md:px-4 md:py-3">
