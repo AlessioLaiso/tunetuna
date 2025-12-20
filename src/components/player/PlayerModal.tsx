@@ -395,7 +395,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`fixed left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out ${isClosing
+        className={`fixed left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out overflow-hidden ${isClosing
           ? 'translate-y-full'
           : isAnimating
             ? 'translate-y-0'
@@ -409,6 +409,20 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           transition: touchStartY.current === null ? 'transform 300ms ease-out' : 'none'
         }}
       >
+        {/* Blurred album art background when lyrics are not shown and album art exists */}
+        {!showLyricsModal && !showQueue && !imageError && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)})`,
+                filter: 'blur(80px)',
+                transform: 'scale(1.2)',
+              }}
+            />
+            <div className="absolute inset-0 bg-black/40" />
+          </>
+        )}
         <div className="flex items-center justify-between p-4 relative">
           <div className="flex items-center gap-2 z-10 flex-shrink-0">
             <button
@@ -467,14 +481,16 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         </div>
 
         {showQueue ? (
-          <QueueView
-            onClose={() => setShowQueue(false)}
-            onNavigateFromContextMenu={() => {
-              // When navigating from the queue's context menu (e.g. to album/artist/genre),
-              // close the full-screen player modal so the destination page is visible.
-              handleClose()
-            }}
-          />
+          <div className="flex-1 bg-zinc-900 relative z-10">
+            <QueueView
+              onClose={() => setShowQueue(false)}
+              onNavigateFromContextMenu={() => {
+                // When navigating from the queue's context menu (e.g. to album/artist/genre),
+                // close the full-screen player modal so the destination page is visible.
+                handleClose()
+              }}
+            />
+          </div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
             <div className="flex-1 overflow-hidden min-h-0 flex items-center justify-center">
@@ -524,9 +540,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                             navigate(`/artist/${artistId}`)
                           }
                         }}
-                        className="flex items-center justify-start landscape:justify-start gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left max-w-full min-w-0"
+                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left max-w-full min-w-0"
                       >
-                        <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <User className="w-4 h-4 text-white/50 flex-shrink-0" />
                         <span className="break-words min-w-0">{getArtistName()}</span>
                       </button>
                     )}
@@ -536,9 +552,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                           onClose()
                           navigate(`/album/${displayTrack.AlbumId}`)
                         }}
-                        className="flex items-center justify-start landscape:justify-start gap-2 text-gray-400 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left mt-1 max-w-full min-w-0"
+                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left mt-1 max-w-full min-w-0"
                       >
-                        <Disc className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <Disc className="w-4 h-4 text-white/50 flex-shrink-0" />
                         <span className="break-words min-w-0">{displayTrack.Album}</span>
                       </button>
                     )}
@@ -555,7 +571,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <div className="max-w-[768px] lg:max-w-[864px] mx-auto">
                   <div
                     ref={progressRef}
-                    className="h-2 bg-zinc-800 rounded-full cursor-pointer w-full select-none overflow-hidden"
+                    className="h-2 bg-zinc-800/35 rounded-full cursor-pointer w-full select-none overflow-hidden"
                     onClick={handleProgressClick}
                     onMouseDown={handleProgressMouseDown}
                     onMouseUp={handleProgressMouseUp}
@@ -575,7 +591,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-2">
+                  <div className="flex justify-between text-xs text-white/70 mt-2">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
@@ -585,7 +601,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <div className="flex items-center justify-center gap-8 px-6 relative">
                 <button
                   onClick={toggleShuffle}
-                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-white/70 hover:text-white'
                     }`}
                 >
                   <Shuffle className="w-6 h-6" />
@@ -595,8 +611,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   onClick={previous}
                   disabled={!hasPrevious}
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
-                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
-                    : 'text-gray-600 cursor-not-allowed'
+                    ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
+                    : 'text-white/30 cursor-not-allowed'
                     }`}
                 >
                   <SkipBack className="w-8 h-8" />
@@ -625,8 +641,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   onClick={next}
                   disabled={!hasNext}
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
-                    ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
-                    : 'text-gray-600 cursor-not-allowed'
+                    ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
+                    : 'text-white/30 cursor-not-allowed'
                     }`}
                 >
                   <SkipForward className="w-8 h-8" />
@@ -634,7 +650,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
                 <button
                   onClick={toggleRepeat}
-                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                  className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/70 hover:text-white'
                     }`}
                 >
                   {repeat === 'one' ? (
