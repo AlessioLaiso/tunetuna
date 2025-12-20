@@ -389,6 +389,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       @media (min-width: 1024px) {
         .lg\\:max-w-\\[864px\\] { max-width: 864px; }
       }
+
     `}</style>
       <div
         ref={modalRef}
@@ -416,11 +417,15 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               className="absolute inset-0 bg-cover bg-center"
               style={{
                 backgroundImage: `url(${jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)})`,
-                filter: 'blur(80px)',
+                filter: 'blur(100px)',
                 transform: 'scale(1.2)',
               }}
             />
             <div className="absolute inset-0 bg-black/40" />
+            {/* Zinc gradient overlay */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-[300px] bg-gradient-to-t from-zinc-900/30 to-zinc-900/0"
+            />
           </>
         )}
         <div className="flex items-center justify-between p-4 relative">
