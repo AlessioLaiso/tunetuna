@@ -130,7 +130,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
             {song.Name}
           </div>
           <div className="text-xs text-gray-400 truncate">
-            {song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+            {song.ArtistItems?.[0]?.Name || song.AlbumArtist || 'Unknown Artist'}
             {song.Album && ` • ${song.Album}`}
           </div>
         </div>

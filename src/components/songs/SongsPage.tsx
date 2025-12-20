@@ -152,7 +152,7 @@ const SearchSongItem = memo(function SearchSongItem({ song, onClick, onContextMe
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
-      aria-label={`Play ${song.Name} by ${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}`}
+      aria-label={`Play ${song.Name} by ${song.ArtistItems?.[0]?.Name || song.AlbumArtist || 'Unknown Artist'}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center relative flex items-center justify-center">
         {imageError ? (
@@ -176,7 +176,7 @@ const SearchSongItem = memo(function SearchSongItem({ song, onClick, onContextMe
       <div className="flex-1 min-w-0 text-left">
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{song.Name}</div>
         <div className="text-xs text-gray-400 truncate">
-          {song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+          {song.ArtistItems?.[0]?.Name || song.AlbumArtist || 'Unknown Artist'}
           {song.Album && ` • ${song.Album}`}
         </div>
       </div>
@@ -516,10 +516,14 @@ export default function SongsPage() {
 
   // Incrementally reveal more songs as the user scrolls near the bottom
   useEffect(() => {
+    // The layout uses a .main-scrollable container with overflow-y: auto
+    const container = document.querySelector('.main-scrollable')
+    if (!container) return
+
     const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+      const scrollTop = container.scrollTop
+      const viewportHeight = container.clientHeight
+      const fullHeight = container.scrollHeight
 
       // When the user is within ~1.5 viewports of the bottom, load more rows
       if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
@@ -529,9 +533,9 @@ export default function SongsPage() {
       }
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [songs.length])
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [songs.length, visibleSongsCount])
 
   useEffect(() => {
     if (!searchQuery.trim()) {

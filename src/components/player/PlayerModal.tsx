@@ -143,7 +143,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   // Get artist name if available
   const getArtistNameForMetadata = (track: typeof displayTrack) => {
     if (!track) return ''
-    return track.AlbumArtist || track.ArtistItems?.[0]?.Name || ''
+    return track.ArtistItems?.[0]?.Name || track.AlbumArtist || ''
   }
 
   useEffect(() => {
@@ -201,7 +201,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   // Get artist name if available
   const getArtistName = () => {
-    return displayTrack.AlbumArtist || displayTrack.ArtistItems?.[0]?.Name
+    return displayTrack.ArtistItems?.[0]?.Name || displayTrack.AlbumArtist
   }
 
   // Check if album exists

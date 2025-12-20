@@ -352,7 +352,7 @@ export default function PlayerBar() {
                 {(currentTrack || displayTrack).Name}
               </div>
               <div className="text-xs text-gray-400 truncate">
-                {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
+                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
               </div>
             </div>
           </div>
@@ -504,7 +504,7 @@ export default function PlayerBar() {
               {(currentTrack || displayTrack).Name}
             </div>
             <div className="text-xs text-gray-400 truncate">
-              {(currentTrack || displayTrack).AlbumArtist || (currentTrack || displayTrack).ArtistItems?.[0]?.Name || 'Unknown Artist'}
+              {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
             </div>
           </div>
           {/* Mobile layout: Volume + Play/Pause buttons */}

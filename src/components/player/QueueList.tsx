@@ -106,7 +106,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             onContextMenu={handleContextMenuClick}
             tabIndex={0}
             role="button"
-            aria-label={`${track.Name} by ${track.AlbumArtist || track.ArtistItems?.[0]?.Name || 'Unknown Artist'}`}
+            aria-label={`${track.Name} by ${track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown Artist'}`}
             {...longPressHandlers}
         >
             {isDragOver && !isCurrent && (
@@ -129,7 +129,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                     {track.Name}
                 </div>
                 <div className="text-xs text-gray-400 truncate">
-                    {track.AlbumArtist || track.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+                    {track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown Artist'}
                 </div>
             </div>
 
