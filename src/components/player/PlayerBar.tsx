@@ -31,6 +31,9 @@ export default function PlayerBar() {
     toggleRepeat,
     previous,
     seek,
+    skipToTrack,
+    isQueueSidebarOpen,
+    toggleQueueSidebar,
   } = usePlayerStore()
 
   const currentTrack = useCurrentTrack()
@@ -124,6 +127,14 @@ export default function PlayerBar() {
           // Error already logged in markItemAsPlayed
         }
       }
+
+      // Handle repeat mode 'one' - replay the current track
+      if (repeat === 'one' && audio) {
+        audio.currentTime = 0
+        audio.play()
+        return
+      }
+
       next()
     }
 
@@ -186,7 +197,9 @@ export default function PlayerBar() {
     }
   }, [audioElement, currentTrack, isPlaying])
 
-  const displayTrack = currentTrack || lastPlayedTrack
+  // Show player bar if there's a current track, last played track, or songs in queue
+  const firstQueueTrack = songs.length > 0 ? songs[0] : null
+  const displayTrack = currentTrack || lastPlayedTrack || firstQueueTrack
 
   // Reset image error when track changes
   useEffect(() => {
@@ -278,11 +291,12 @@ export default function PlayerBar() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Seek bar moved to top for desktop */}
-        <div className="hidden lg:block">
+        {/* Seek bar moved to top for desktop - 24px touch target with 4px visual bar centered */}
+        <div className="hidden lg:block" style={{ marginTop: '-12px' }}>
           {displayTrack && (
             <div
-              className="h-1 bg-zinc-800 hover:bg-zinc-600 cursor-pointer transition-colors duration-200"
+              className="relative cursor-pointer group flex items-center"
+              style={{ height: '24px' }}
               onClick={(e) => {
                 e.stopPropagation() // Prevent opening the modal
                 if (!duration) return
@@ -298,11 +312,19 @@ export default function PlayerBar() {
                 const percent = (touch.clientX - rect.left) / rect.width
                 seek(Math.max(0, Math.min(1, percent)) * duration)
               }}
+              role="slider"
+              aria-label="Seek"
+              aria-valuemin={0}
+              aria-valuemax={duration || 100}
+              aria-valuenow={currentTime}
             >
-              <div
-                className="h-full bg-[var(--accent-color)] transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
+              {/* Visual bar - centered within touch target */}
+              <div className="absolute left-0 right-0 h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
+                <div
+                  className="h-full bg-[var(--accent-color)] transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -344,6 +366,7 @@ export default function PlayerBar() {
                 e.stopPropagation()
                 toggleShuffle()
               }}
+              aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
             >
@@ -358,6 +381,7 @@ export default function PlayerBar() {
                 }
               }}
               disabled={!hasPrevious}
+              aria-label="Previous track"
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${hasPrevious
                 ? 'text-white hover:bg-zinc-800'
                 : 'text-gray-600 cursor-not-allowed'
@@ -372,11 +396,15 @@ export default function PlayerBar() {
                 e.stopPropagation()
                 if (currentTrack) {
                   togglePlayPause()
+                } else if (songs.length > 0) {
+                  // Start playing from the beginning of the queue
+                  skipToTrack(0)
                 } else if (displayTrack) {
                   // Resume last played track
                   playTrack(displayTrack)
                 }
               }}
+              aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
               className="w-10 h-10 mx-2 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-color)] hover:opacity-90"
             >
               {isPlaying && currentTrack ? (
@@ -394,6 +422,7 @@ export default function PlayerBar() {
                 }
               }}
               disabled={!hasNext}
+              aria-label="Next track"
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${hasNext
                 ? 'text-white hover:bg-zinc-800'
                 : 'text-gray-600 cursor-not-allowed'
@@ -407,6 +436,7 @@ export default function PlayerBar() {
                 e.stopPropagation()
                 toggleRepeat()
               }}
+              aria-label={repeat === 'off' ? 'Enable repeat' : repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
             >
@@ -422,14 +452,15 @@ export default function PlayerBar() {
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
             {/* Queue Button for Desktop > 1280px */}
             <div className="hidden xl:block">
-              {!usePlayerStore(state => state.isQueueSidebarOpen) && (
+              {!isQueueSidebarOpen && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    usePlayerStore.getState().toggleQueueSidebar()
+                    toggleQueueSidebar()
                   }}
                   className="text-gray-400 hover:text-white transition-colors flex items-center justify-center w-10 h-10"
                   title="Open Queue"
+                  aria-label="Open queue"
                 >
                   <ListVideo className="w-5 h-5" />
                 </button>
@@ -493,11 +524,15 @@ export default function PlayerBar() {
                 e.stopPropagation()
                 if (currentTrack) {
                   togglePlayPause()
+                } else if (songs.length > 0) {
+                  // Start playing from the beginning of the queue
+                  skipToTrack(0)
                 } else if (displayTrack) {
                   // Resume last played track
                   playTrack(displayTrack)
                 }
               }}
+              aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
               className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
             >
               {isPlaying && currentTrack ? (
@@ -508,11 +543,12 @@ export default function PlayerBar() {
             </button>
           </div>
         </div>
-        {/* Mobile seek bar - keep at bottom */}
-        <div className="lg:hidden">
+        {/* Mobile seek bar - keep at bottom, 24px touch target with 4px visual bar centered */}
+        <div className="lg:hidden" style={{ marginBottom: '-10px' }}>
           {displayTrack && (
             <div
-              className="h-1 bg-zinc-800 hover:bg-zinc-600 cursor-pointer transition-colors duration-200"
+              className="relative cursor-pointer group flex items-center"
+              style={{ height: '24px' }}
               onClick={(e) => {
                 e.stopPropagation() // Prevent opening the modal
                 if (!duration) return
@@ -528,11 +564,19 @@ export default function PlayerBar() {
                 const percent = (touch.clientX - rect.left) / rect.width
                 seek(Math.max(0, Math.min(1, percent)) * duration)
               }}
+              role="slider"
+              aria-label="Seek"
+              aria-valuemin={0}
+              aria-valuemax={duration || 100}
+              aria-valuenow={currentTime}
             >
-              <div
-                className="h-full bg-[var(--accent-color)] transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
+              {/* Visual bar - centered within touch target */}
+              <div className="absolute left-0 right-0 h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
+                <div
+                  className="h-full bg-[var(--accent-color)] transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
           )}
         </div>

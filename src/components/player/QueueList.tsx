@@ -1,10 +1,10 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback, memo } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
-import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, GripHorizontal } from 'lucide-react'
+import { Play, Pause, GripHorizontal } from 'lucide-react'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
@@ -28,7 +28,8 @@ interface QueueTrackItemProps {
     onDragEnterRow: (index: number) => void
 }
 
-function QueueTrackItem({
+// Memoized queue track item to prevent unnecessary re-renders
+const QueueTrackItem = memo(function QueueTrackItem({
     track,
     index,
     isCurrent,
@@ -58,40 +59,54 @@ function QueueTrackItem({
     })
 
     // Wrap external onClick to respect context menu state
-    const handleRowClick = (e: React.MouseEvent) => {
+    const handleRowClick = useCallback((e: React.MouseEvent) => {
         if (contextMenuJustOpenedRef.current) {
             e.preventDefault()
             e.stopPropagation()
             return
         }
         onClick()
-    }
+    }, [onClick])
+
+    const handleContextMenuClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault()
+        contextMenuJustOpenedRef.current = true
+        onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
+        setTimeout(() => {
+            contextMenuJustOpenedRef.current = false
+        }, 300)
+    }, [onContextMenu, track])
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+    }, [])
+
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        if (!isCurrent) {
+            onDragEnterRow(index)
+        }
+    }, [isCurrent, onDragEnterRow, index])
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        if (!isCurrent) {
+            onReorderDrop(e, index)
+        }
+    }, [isCurrent, onReorderDrop, index])
 
     return (
         <div
-            onDragOver={(e) => {
-                e.preventDefault()
-                e.dataTransfer.dropEffect = 'move'
-            }}
-            onDragEnter={(e) => {
-                e.preventDefault()
-                if (!isCurrent) {
-                    onDragEnterRow(index)
-                }
-            }}
-            onDrop={(e) => !isCurrent && onReorderDrop(e, index)}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDrop={handleDrop}
             className={`queue-row flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
-                } ${isCurrent ? 'bg-zinc-900' : ''} relative`}
+                } ${isCurrent ? 'bg-zinc-900' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
             onClick={isCurrent ? undefined : handleRowClick}
-            onContextMenu={(e) => {
-                e.preventDefault()
-                contextMenuJustOpenedRef.current = true
-                onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
-                // Reset after delay
-                setTimeout(() => {
-                    contextMenuJustOpenedRef.current = false
-                }, 300)
-            }}
+            onContextMenu={handleContextMenuClick}
+            tabIndex={0}
+            role="button"
+            aria-label={`${track.Name} by ${track.AlbumArtist || track.ArtistItems?.[0]?.Name || 'Unknown Artist'}`}
             {...longPressHandlers}
         >
             {isDragOver && !isCurrent && (
@@ -125,7 +140,8 @@ function QueueTrackItem({
                         e.stopPropagation()
                         onClick()
                     }}
-                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2"
+                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
                     {isPlaying ? (
                         <Pause className="w-5 h-5" />
@@ -149,7 +165,8 @@ function QueueTrackItem({
                                     e.stopPropagation()
                                     onReorderDragEnd()
                                 }}
-                                className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing"
+                                className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                                aria-label="Drag to reorder"
                             >
                                 <GripHorizontal className="w-4 h-4" />
                             </button>
@@ -159,7 +176,8 @@ function QueueTrackItem({
                                         e.stopPropagation()
                                         onRemove()
                                     }}
-                                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2"
+                                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                                    aria-label="Remove from queue"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -172,7 +190,7 @@ function QueueTrackItem({
             )}
         </div>
     )
-}
+})
 
 interface QueueListProps {
     onNavigateFromContextMenu?: () => void
@@ -190,6 +208,7 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
     const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
     const [showPrevious, setShowPrevious] = useState(false)
     const [showSyncingMessage, setShowSyncingMessage] = useState(false)
+    const draggingIndexRef = useRef<number | null>(null)
 
     const {
         songs,
@@ -205,13 +224,14 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
 
     const { showQueueRecommendations, setShowQueueRecommendations, recommendationsQuality } = useSettingsStore()
 
-    const handleDragStart = (e: React.DragEvent, index: number) => {
+    // Stable callbacks for memoized QueueTrackItem
+    const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', index.toString())
         setDraggingIndex(index)
+        draggingIndexRef.current = index
 
-        // Use the album art (or the whole row as fallback) as the drag preview so it
-        // looks like you're dragging the song, not just the small drag icon.
+        // Use the album art (or the whole row as fallback) as the drag preview
         const gripEl = e.currentTarget as HTMLElement | null
         const rowEl = gripEl?.closest('.queue-row') as HTMLElement | null
         if (rowEl && e.dataTransfer.setDragImage) {
@@ -220,14 +240,15 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
             const rect = dragEl.getBoundingClientRect()
             e.dataTransfer.setDragImage(dragEl, rect.width / 2, rect.height / 2)
         }
-    }
+    }, [])
 
-    const handleDragEnd = () => {
+    const handleDragEnd = useCallback(() => {
         setDraggingIndex(null)
         setDragOverIndex(null)
-    }
+        draggingIndexRef.current = null
+    }, [])
 
-    const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
         e.preventDefault()
         const data =
             e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/html')
@@ -236,12 +257,14 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
             return
         }
         // Prevent dropping across user-added / recommendation boundary
-        const fromIdx = draggingIndex ?? dragIndex
-        const fromTrack = songs[fromIdx]
-        const toTrack = songs[dropIndex]
+        const fromIdx = draggingIndexRef.current ?? dragIndex
+        const currentSongs = usePlayerStore.getState().songs
+        const fromTrack = currentSongs[fromIdx]
+        const toTrack = currentSongs[dropIndex]
         if (fromTrack && toTrack && fromTrack.source !== toTrack.source) {
             setDragOverIndex(null)
             setDraggingIndex(null)
+            draggingIndexRef.current = null
             return
         }
 
@@ -250,7 +273,29 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
         }
         setDragOverIndex(null)
         setDraggingIndex(null)
-    }
+        draggingIndexRef.current = null
+    }, [reorderQueue])
+
+    const handleItemContextMenu = useCallback((track: BaseItemDto, mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
+        setContextMenuItem(track)
+        setContextMenuMode(mode)
+        setContextMenuPosition(position || null)
+        setContextMenuOpen(true)
+    }, [])
+
+    const handleDragEnterRow = useCallback((index: number) => {
+        // Only show drop indicator when dragging within the same section
+        if (draggingIndexRef.current == null) return
+        const currentSongs = usePlayerStore.getState().songs
+        const fromTrack = currentSongs[draggingIndexRef.current]
+        const toTrack = currentSongs[index]
+        if (!fromTrack || !toTrack) return
+        if (fromTrack.source !== toTrack.source) {
+            setDragOverIndex(null)
+            return
+        }
+        setDragOverIndex(index)
+    }, [])
 
     // Get current track
     const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
@@ -301,26 +346,6 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
     remainingVisible -= visibleComingUp.length
 
     const visibleUpcomingRecommendations = upcomingRecommendations.slice(0, Math.max(0, remainingVisible))
-
-    const handleItemContextMenu = (track: BaseItemDto, mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
-        setContextMenuItem(track)
-        setContextMenuMode(mode)
-        setContextMenuPosition(position || null)
-        setContextMenuOpen(true)
-    }
-
-    const handleDragEnterRow = (index: number) => {
-        // Only show drop indicator when dragging within the same section
-        if (draggingIndex == null) return
-        const fromTrack = songs[draggingIndex]
-        const toTrack = songs[index]
-        if (!fromTrack || !toTrack) return
-        if (fromTrack.source !== toTrack.source) {
-            setDragOverIndex(null)
-            return
-        }
-        setDragOverIndex(index)
-    }
 
     // Incrementally reveal more songs as the user scrolls near the bottom
     useEffect(() => {

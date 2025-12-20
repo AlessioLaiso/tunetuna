@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Disc } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
@@ -6,6 +6,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import SongItem from '../songs/SongItem'
 import Image from '../shared/Image'
 import { ArrowLeft, Shuffle, Pause, ArrowUpDown, Play, ListEnd } from 'lucide-react'
@@ -141,6 +142,9 @@ export default function GenreSongsPage() {
   useEffect(() => {
     if (!id) return
 
+    // Track if component is still mounted to prevent state updates after unmount
+    let isMounted = true
+
     const loadGenreSongs = async () => {
       // Check cache first
       const cachedSongs = genreSongs[id]
@@ -153,6 +157,8 @@ export default function GenreSongsPage() {
         if (genresList.length === 0) {
           genresList = await jellyfinClient.getGenres()
         }
+
+        if (!isMounted) return
 
         const foundGenre = genresList.find(g => g.Id === id)
         if (foundGenre) {
@@ -173,6 +179,8 @@ export default function GenreSongsPage() {
           genresList = await jellyfinClient.getGenres()
         }
 
+        if (!isMounted) return
+
         const foundGenre = genresList.find(g => g.Id === id)
         if (!foundGenre) {
           setLoading(false)
@@ -190,18 +198,26 @@ export default function GenreSongsPage() {
 
         const filtered = await jellyfinClient.getGenreSongs(id, genreName)
 
+        if (!isMounted) return
 
         // Cache the songs
         setGenreSongs(id, filtered)
         setSongs(filtered)
       } catch (error) {
+        if (!isMounted) return
         console.error('Failed to load genre songs:', error)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadGenreSongs()
+
+    return () => {
+      isMounted = false
+    }
   }, [id, genres, genreSongs, setGenreSongs, syncTrigger])
 
   const handleShufflePlay = async () => {
@@ -454,90 +470,24 @@ export default function GenreSongsPage() {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
   }, [sortedSongs.length])
 
-  // Track visibleSongsCount changes
-  useEffect(() => {
-  }, [visibleSongsCount])
+  // Consolidated scroll-based lazy loading for songs and albums
+  // Uses single efficient scroll listener instead of 4+ duplicate listeners
+  useScrollLazyLoad({
+    totalCount: sortedSongs.length,
+    visibleCount: visibleSongsCount,
+    increment: VISIBLE_SONGS_INCREMENT,
+    setVisibleCount: setVisibleSongsCount,
+    threshold: 1.0
+  })
 
-  // Incrementally reveal more songs as the user scrolls near the bottom
-  const handleScroll = useCallback(() => {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-    const fullHeight = Math.max(
-      document.body.scrollHeight,
-      document.body.offsetHeight,
-      document.documentElement.clientHeight,
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight
-    )
-
-    // When the user is within ~1.0 viewports of the bottom, load more rows
-    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
-      setVisibleSongsCount((prev) =>
-        Math.min(prev + VISIBLE_SONGS_INCREMENT, sortedSongs.length)
-      )
-    }
-  }, [sortedSongs.length])
-
-  useEffect(() => {
-    // Listen on document in capture phase for desktop scroll
-    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
-
-    // Also listen on window for good measure
-    window.addEventListener('scroll', handleScroll, { passive: true })
-
-    // Touch events for mobile
-    document.addEventListener('touchmove', handleScroll, { passive: true })
-    document.addEventListener('touchend', handleScroll, { passive: true })
-
-    return () => {
-      document.removeEventListener('scroll', handleScroll, { capture: true })
-      window.removeEventListener('scroll', handleScroll)
-      document.removeEventListener('touchmove', handleScroll)
-      document.removeEventListener('touchend', handleScroll)
-    }
-  }, [handleScroll])
-
-  // Incrementally reveal more album images as the user scrolls near the bottom
-  const handleAlbumScroll = useCallback(() => {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-    const fullHeight = Math.max(
-      document.body.scrollHeight,
-      document.body.offsetHeight,
-      document.documentElement.clientHeight,
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight
-    )
-
-    // When the user is within ~1.0 viewports of the bottom, load more album images
-    if (scrollTop + viewportHeight * 1.0 >= fullHeight) {
-      setVisibleAlbumsCount((prev) =>
-        Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
-      )
-    }
-  }, [albums.length, usePaginationForAlbums])
-
-  useEffect(() => {
-    // Only set up scroll listeners if not using pagination
-    if (usePaginationForAlbums) return
-
-    // Listen on document in capture phase for desktop scroll
-    document.addEventListener('scroll', handleAlbumScroll, { passive: true, capture: true })
-
-    // Also listen on window for good measure
-    window.addEventListener('scroll', handleAlbumScroll, { passive: true })
-
-    // Touch events for mobile
-    document.addEventListener('touchmove', handleAlbumScroll, { passive: true })
-    document.addEventListener('touchend', handleAlbumScroll, { passive: true })
-
-    return () => {
-      document.removeEventListener('scroll', handleAlbumScroll, { capture: true })
-      window.removeEventListener('scroll', handleAlbumScroll)
-      document.removeEventListener('touchmove', handleAlbumScroll)
-      document.removeEventListener('touchend', handleAlbumScroll)
-    }
-  }, [handleAlbumScroll, usePaginationForAlbums])
+  useScrollLazyLoad({
+    totalCount: albums.length,
+    visibleCount: visibleAlbumsCount,
+    increment: VISIBLE_ALBUMS_INCREMENT,
+    setVisibleCount: setVisibleAlbumsCount,
+    threshold: 1.0,
+    enabled: !usePaginationForAlbums
+  })
 
   if (loading) {
     return (

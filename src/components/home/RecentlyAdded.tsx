@@ -19,10 +19,10 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e?: React.MouseEvent) => {
     if (contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
+      e?.preventDefault()
+      e?.stopPropagation()
       contextMenuJustOpenedRef.current = false
       return
     }
@@ -50,7 +50,7 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
         contextMenuJustOpenedRef.current = false
         return
       }
-      handleClick({} as React.MouseEvent)
+      handleClick()
     },
   })
   return (
@@ -60,7 +60,7 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
           contextMenuJustOpenedRef.current = false
           return
         }
-        handleClick({} as React.MouseEvent)
+        handleClick()
       }}
       onContextMenu={handleContextMenu}
       {...longPressHandlers}

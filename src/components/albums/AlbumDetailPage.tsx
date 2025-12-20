@@ -136,10 +136,15 @@ export default function AlbumDetailPage() {
   useEffect(() => {
     if (!id) return
 
+    // Track if component is still mounted to prevent state updates after unmount
+    let isMounted = true
+
     const loadAlbumData = async () => {
       setLoading(true)
       try {
         const tracksList = await jellyfinClient.getAlbumTracks(id)
+
+        if (!isMounted) return
         setTracks(tracksList)
 
         // Get album info with Overview field
@@ -153,6 +158,8 @@ export default function AlbumDetailPage() {
             currentAlbum = foundAlbum
           }
         }
+
+        if (!isMounted) return
 
         if (!currentAlbum) {
           // Try to get from tracks
@@ -175,6 +182,7 @@ export default function AlbumDetailPage() {
         if (artistId) {
           try {
             const artist = await jellyfinClient.getArtistById(artistId)
+            if (!isMounted) return
             if (artist?.ImageTags?.Logo) {
               setArtistLogoUrl(jellyfinClient.getImageUrl(artistId, 'Logo'))
               setHasArtistLogo(true)
@@ -183,6 +191,7 @@ export default function AlbumDetailPage() {
               setArtistLogoUrl(null)
             }
           } catch (error) {
+            if (!isMounted) return
             console.warn('Failed to load artist logo:', error)
             setHasArtistLogo(false)
             setArtistLogoUrl(null)
@@ -192,13 +201,20 @@ export default function AlbumDetailPage() {
           setArtistLogoUrl(null)
         }
       } catch (error) {
+        if (!isMounted) return
         console.error('Failed to load album data:', error)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadAlbumData()
+
+    return () => {
+      isMounted = false
+    }
   }, [id])
 
   // Handle vinyl visibility with animation delay

@@ -14,6 +14,41 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+/**
+ * Reorders recommendations to avoid consecutive songs by the same artist.
+ * Shuffles first, then selects tracks to maximize artist diversity.
+ */
+function reorderForArtistDiversity(recommendations: BaseItemDto[]): BaseItemDto[] {
+  if (recommendations.length <= 1) return recommendations
+
+  const shuffled = shuffleArray(recommendations)
+  const reordered: BaseItemDto[] = []
+  const pool = [...shuffled]
+
+  while (pool.length > 0) {
+    let index = -1
+
+    if (reordered.length > 0) {
+      const lastSong = reordered[reordered.length - 1]
+      const lastArtistIds = lastSong.ArtistItems?.map(a => a.Id) || []
+
+      // Find first song in pool that shares NO artists with last song
+      index = pool.findIndex(candidate => {
+        const candidateArtistIds = candidate.ArtistItems?.map(a => a.Id) || []
+        return !candidateArtistIds.some(id => lastArtistIds.includes(id))
+      })
+    }
+
+    // If no safe option found (or first iteration), just take the first one
+    if (index === -1) index = 0
+
+    const selected = pool.splice(index, 1)[0]
+    reordered.push(selected)
+  }
+
+  return reordered
+}
+
 export function useRecommendations() {
   const {
     songs,
@@ -212,8 +247,8 @@ export function useRecommendations() {
         // Limit to what we actually need
         const finalRecommendations = safeRecommendations.slice(0, neededCount)
 
-        // Shuffle the final recommendations to mix genres (independent of shuffle setting)
-        const shuffledRecommendations = shuffleArray(finalRecommendations)
+        // Reorder to avoid consecutive songs by the same artist while mixing genres
+        const shuffledRecommendations = reorderForArtistDiversity(finalRecommendations)
 
         logger.log(`[Recommendations] Final ${finalRecommendations.length} recommendations (distributed across ${seedTracks.length} seeds)`)
 

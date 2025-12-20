@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, memo, useMemo } from 'react'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -15,8 +15,10 @@ interface SongItemProps {
   contextMenuItemId?: string | null
 }
 
-export default function SongItem({ song, showImage = true, onContextMenu, contextMenuItemId }: SongItemProps) {
-  const { playTrack } = usePlayerStore()
+// Memoized component to prevent unnecessary re-renders when parent updates
+const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu, contextMenuItemId }: SongItemProps) {
+  // Use selector to only get playTrack function - stable reference
+  const playTrack = usePlayerStore((state) => state.playTrack)
   const currentTrack = useCurrentTrack()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
@@ -24,6 +26,12 @@ export default function SongItem({ song, showImage = true, onContextMenu, contex
   const contextMenuJustOpenedRef = useRef(false)
   const [imageError, setImageError] = useState(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
+
+  // Memoize the image URL to prevent recalculation on every render
+  const imageUrl = useMemo(() =>
+    jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96),
+    [song.AlbumId, song.Id]
+  )
 
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -103,7 +111,7 @@ export default function SongItem({ song, showImage = true, onContextMenu, contex
             <Disc className="w-7 h-7 text-gray-500" />
           ) : showImage ? (
             <Image
-              src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+              src={imageUrl}
               alt={song.Name}
               className="w-full h-full object-cover"
               showOutline={true}
@@ -142,7 +150,9 @@ export default function SongItem({ song, showImage = true, onContextMenu, contex
       />
     </>
   )
-}
+})
+
+export default SongItem
 
 
 

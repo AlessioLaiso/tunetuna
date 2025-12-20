@@ -4,6 +4,7 @@ import type { BaseItemDto, LightweightSong } from '../api/types'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
 import { useSettingsStore } from './settingsStore'
+import { useToastStore } from './toastStore'
 
 // Track which items have been reported to prevent duplicate API calls
 const reportedItems = new Set<string>()
@@ -111,6 +112,7 @@ interface PlayerState {
   // Queue management
   clearQueue: () => void
   addToQueue: (tracks: BaseItemDto[], playNext?: boolean, source?: 'user' | 'recommendation') => void
+  addToQueueWithToast: (tracks: BaseItemDto[]) => void
   removeFromQueue: (index: number) => void
   reorderQueue: (fromIndex: number, toIndex: number) => void
 
@@ -225,9 +227,6 @@ export const usePlayerStore = create<PlayerState>()(
 
           const newSongs = tracks.map(track => ({ ...track, source: source as 'user' | 'recommendation' }))
 
-          let updatedUserSongs: QueueSong[]
-          let newStandardOrder = [...state.standardOrder]
-          let newShuffleOrder = [...state.shuffleOrder]
           let finalSongs: QueueSong[]
           const songsToInsert = newSongs
 
@@ -246,25 +245,6 @@ export const usePlayerStore = create<PlayerState>()(
               ...songsToInsertShuffled,
               ...songsAfterInsert
             ]
-
-            // Separate user songs and recommendations
-            updatedUserSongs = finalSongs.filter(song => song.source === 'user')
-
-            // Update order arrays
-            const newSongIds = songsToInsertShuffled.map(s => s.Id)
-
-            if (state.shuffle) {
-              // For shuffle mode, insert new songs after current position in shuffle order
-              const currentShuffleIndex = state.currentIndex
-              newShuffleOrder = [
-                ...state.shuffleOrder.slice(0, currentShuffleIndex + 1),
-                ...newSongIds,
-                ...state.shuffleOrder.slice(currentShuffleIndex + 1)
-              ]
-            } else {
-              // For standard mode, maintain the order of updatedUserSongs
-              newStandardOrder = updatedUserSongs.map(s => s.Id)
-            }
           } else {
             // Different logic for user tracks vs recommendations
             if (source === 'recommendation') {
@@ -290,42 +270,17 @@ export const usePlayerStore = create<PlayerState>()(
                 finalSongs = [...state.songs, ...songsToInsert]
               }
             }
-
-            // Separate user songs and recommendations for order arrays
-            updatedUserSongs = finalSongs.filter(song => song.source === 'user')
-
-            // Update order arrays
-            const newSongIds = songsToInsert.map(s => s.Id)
-            if (state.shuffle) {
-              // For shuffle mode, insert new songs at the right position in shuffle order
-              const insertPos = currentSong?.source === 'recommendation' ? state.currentIndex + 1 : state.shuffleOrder.length
-              newShuffleOrder = [
-                ...state.shuffleOrder.slice(0, insertPos),
-                ...newSongIds,
-                ...state.shuffleOrder.slice(insertPos)
-              ]
-            } else {
-              // For standard mode, insert new songs at the right position in standard order
-              const insertPos = currentSong?.source === 'recommendation' ? state.currentIndex + 1 : state.standardOrder.length
-              newStandardOrder = [
-                ...state.standardOrder.slice(0, insertPos),
-                ...newSongIds,
-                ...state.standardOrder.slice(insertPos)
-              ]
-            }
           }
 
-          // Update indices if current song moved
+          // Update current index if current song moved (only when inserting user tracks before it)
           let newCurrentIndex = state.currentIndex
-          if (!playNext && state.currentIndex >= 0 && source === 'user') {
-            // Only need to update index if we inserted user tracks (which may shift recommendations)
-            // Recommendations are always appended to the end, so they don't shift anything
-            const oldIndex = state.currentIndex
-            newCurrentIndex = finalSongs.findIndex(s => s.Id === currentSong?.Id)
-            if (newCurrentIndex === -1) {
+          if (state.currentIndex >= 0 && currentSong) {
+            // Find current song in the new queue by ID
+            const foundIndex = finalSongs.findIndex(s => s.Id === currentSong.Id)
+            if (foundIndex !== -1) {
+              newCurrentIndex = foundIndex
+            } else {
               console.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
-              // Fallback: keep old index if song not found
-              newCurrentIndex = oldIndex
             }
           }
 
@@ -350,14 +305,30 @@ export const usePlayerStore = create<PlayerState>()(
             newCurrentIndex = currentSong ? keepBefore.length : -1
           }
 
+          // CRITICAL: Always rebuild order arrays from actual user songs in the final queue
+          // This ensures order arrays are always in sync with the queue
+          const userSongsInOrder = trimmedSongs.filter(s => s.source === 'user')
+          const newOrderArray = userSongsInOrder.map(s => s.Id)
+
           return {
             songs: trimmedSongs,
             currentIndex: newCurrentIndex,
-            standardOrder: newStandardOrder,
-            shuffleOrder: newShuffleOrder,
+            // Both arrays now reflect the actual order of user songs in the queue
+            standardOrder: newOrderArray,
+            shuffleOrder: newOrderArray,
             manuallyCleared: false,
           }
         })
+      },
+
+      addToQueueWithToast: (tracks) => {
+        get().addToQueue(tracks, false, 'user')
+        // Show toast notification
+        const count = tracks.length
+        const message = count === 1
+          ? 'Added to queue'
+          : `${count} songs added to queue`
+        useToastStore.getState().addToast(message, 'success', 2000)
       },
 
       removeFromQueue: (index) => {
@@ -511,31 +482,33 @@ export const usePlayerStore = create<PlayerState>()(
       next: () => {
         // Use functional form of set() to ensure we always work with latest state
         // This prevents race conditions with addToQueue() modifying the array
-        set((state) => {
-          if (state.songs.length === 0) return state
+        const state = get()
 
-          let nextIndex = state.currentIndex + 1
+        if (state.songs.length === 0) return
 
-          // Handle end of queue
-          if (nextIndex >= state.songs.length) {
-            if (state.repeat === 'all') {
-              nextIndex = 0
-            } else {
-              return state // Can't go next
-            }
+        let nextIndex = state.currentIndex + 1
+
+        // Handle end of queue
+        if (nextIndex >= state.songs.length) {
+          if (state.repeat === 'all') {
+            nextIndex = 0
+          } else {
+            // At end of queue with repeat off - pause playback, don't restart the track
+            get().pause()
+            return
           }
+        }
 
-          // Update previous index and move current
-          const currentTrack = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
+        // Update previous index and move current
+        const currentTrack = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
 
-          return {
-            previousIndex: state.currentIndex, // Remember where we came from for back navigation
-            currentIndex: nextIndex,
-            lastPlayedTrack: currentTrack,
-          }
+        set({
+          previousIndex: state.currentIndex, // Remember where we came from for back navigation
+          currentIndex: nextIndex,
+          lastPlayedTrack: currentTrack,
         })
 
-        // Play the next track (this reads fresh state after the update)
+        // Play the next track
         get().play()
       },
 
@@ -715,6 +688,12 @@ export const usePlayerStore = create<PlayerState>()(
 
       playNext: (tracks) => {
         get().addToQueue(tracks, true) // playNext = true
+        // Show toast notification
+        const count = tracks.length
+        const message = count === 1
+          ? 'Playing next'
+          : `${count} songs playing next`
+        useToastStore.getState().addToast(message, 'success', 2000)
       },
 
       shuffleArtist: (songs) => {
@@ -880,20 +859,46 @@ export const usePlayerStore = create<PlayerState>()(
               const additionalSongs = shuffleArray(availablePool).slice(0, additionalNeeded)
               const additionalQueueSongs = additionalSongs.map(t => ({ ...t, source: 'user' as const }))
 
-              // Add to queue
-              const newQueueSongs = [...instantQueueSongs, ...additionalQueueSongs]
+              // Use functional set to safely merge with any user-added songs during expansion
+              set((state) => {
+                // Find songs added by user during the background expansion
+                const instantSongIds = new Set(instantQueueSongs.map(s => s.Id))
+                const userAddedDuringExpansion = state.songs.filter(
+                  s => !instantSongIds.has(s.Id) && s.source === 'user'
+                )
 
-              set({
-                songs: newQueueSongs,
-                standardOrder: newQueueSongs.map(s => s.Id),
-                shuffleOrder: newQueueSongs.map(s => s.Id),
-                shuffleHasMoreSongs: availablePool.length > additionalNeeded
+                // Merge: instant songs + user-added + expansion songs
+                const newQueueSongs = [
+                  ...instantQueueSongs,
+                  ...userAddedDuringExpansion,
+                  ...additionalQueueSongs
+                ]
+
+                // Recalculate current index if user songs were added
+                let newCurrentIndex = state.currentIndex
+                if (userAddedDuringExpansion.length > 0 && state.currentIndex >= instantQueueSongs.length) {
+                  // Adjust index to account for reordering
+                  const currentSong = state.songs[state.currentIndex]
+                  if (currentSong) {
+                    newCurrentIndex = newQueueSongs.findIndex(s => s.Id === currentSong.Id)
+                  }
+                }
+
+                return {
+                  songs: newQueueSongs,
+                  currentIndex: newCurrentIndex >= 0 ? newCurrentIndex : state.currentIndex,
+                  standardOrder: newQueueSongs.map(s => s.Id),
+                  shuffleOrder: newQueueSongs.map(s => s.Id),
+                  shuffleHasMoreSongs: availablePool.length > additionalNeeded,
+                  // Reset manuallyCleared after shuffle expansion completes
+                  // so recommendations can resume if user enables them
+                  manuallyCleared: false
+                }
               })
 
               // Refresh shuffle pool after shuffle operation
               useMusicStore.getState().refreshShufflePool()
 
-            } else {
             }
           } catch (error) {
             console.error('Failed to expand shuffle queue:', error)
@@ -963,13 +968,39 @@ export const usePlayerStore = create<PlayerState>()(
               const additionalSongs = shuffleArray(remainingGenreSongs).slice(0, additionalNeeded)
               const additionalQueueSongs = additionalSongs.map(t => ({ ...t, source: 'user' as const }))
 
-              const newQueueSongs = [...instantQueueSongs, ...additionalQueueSongs]
+              // Use functional set to safely merge with any user-added songs during expansion
+              set((state) => {
+                // Find songs added by user during the background expansion
+                const instantSongIds = new Set(instantQueueSongs.map(s => s.Id))
+                const userAddedDuringExpansion = state.songs.filter(
+                  s => !instantSongIds.has(s.Id) && s.source === 'user'
+                )
 
-              set({
-                songs: newQueueSongs,
-                standardOrder: newQueueSongs.map(s => s.Id),
-                shuffleOrder: newQueueSongs.map(s => s.Id),
-                shuffleHasMoreSongs: remainingGenreSongs.length > additionalNeeded
+                // Merge: instant songs + user-added + expansion songs
+                const newQueueSongs = [
+                  ...instantQueueSongs,
+                  ...userAddedDuringExpansion,
+                  ...additionalQueueSongs
+                ]
+
+                // Recalculate current index if user songs were added
+                let newCurrentIndex = state.currentIndex
+                if (userAddedDuringExpansion.length > 0 && state.currentIndex >= instantQueueSongs.length) {
+                  const currentSong = state.songs[state.currentIndex]
+                  if (currentSong) {
+                    newCurrentIndex = newQueueSongs.findIndex(s => s.Id === currentSong.Id)
+                  }
+                }
+
+                return {
+                  songs: newQueueSongs,
+                  currentIndex: newCurrentIndex >= 0 ? newCurrentIndex : state.currentIndex,
+                  standardOrder: newQueueSongs.map(s => s.Id),
+                  shuffleOrder: newQueueSongs.map(s => s.Id),
+                  shuffleHasMoreSongs: remainingGenreSongs.length > additionalNeeded,
+                  // Reset manuallyCleared after shuffle expansion completes
+                  manuallyCleared: false
+                }
               })
             }
           } catch (error) {

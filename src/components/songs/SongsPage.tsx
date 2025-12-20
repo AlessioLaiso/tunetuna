@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { ArrowUpDown, Guitar, Calendar, User, Disc, Play, ListEnd } from 'lucide-react'
+import { ArrowUpDown, Guitar, Calendar, Disc, Play, ListEnd } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import SearchInput from '../shared/SearchInput'
+import SearchArtistItem from '../shared/SearchArtistItem'
 import SongItem from './SongItem'
 import Pagination from '../shared/Pagination'
 import FilterBottomSheet from '../home/FilterBottomSheet'
@@ -16,125 +17,6 @@ import type { BaseItemDto } from '../../api/types'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
 
-interface SearchArtistItemProps {
-  artist: BaseItemDto
-  onClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'artist', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
-  contextMenuItemId: string | null
-}
-
-const searchArtistAlbumArtCache = new Map<string, string | null>()
-
-function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }: SearchArtistItemProps) {
-  const [imageError, setImageError] = useState(false)
-  const contextMenuJustOpenedRef = useRef(false)
-  const isThisItemMenuOpen = contextMenuItemId === artist.Id
-  const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Match the artists list behavior: if the artist already has a primary image,
-    // prefer that and don't compute a fallback here.
-    if (artist.ImageTags?.Primary) {
-      setFallbackAlbumArtUrl(null)
-      return
-    }
-
-    const cached = searchArtistAlbumArtCache.get(artist.Id)
-    if (cached !== undefined) {
-      setFallbackAlbumArtUrl(cached)
-      return
-    }
-
-    let isCancelled = false
-
-    const loadFallback = async () => {
-      try {
-        const { albums, songs } = await jellyfinClient.getArtistItems(artist.Id)
-
-        // Prefer an album if available, otherwise fall back to a song's album art.
-        const firstAlbum = albums[0]
-        const firstSongWithAlbum = songs.find((song) => song.AlbumId) || songs[0]
-        const artItem = firstAlbum || firstSongWithAlbum
-        const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
-        const url = artId ? jellyfinClient.getAlbumArtUrl(artId, 96) : null
-        searchArtistAlbumArtCache.set(artist.Id, url)
-        if (!isCancelled) {
-          setFallbackAlbumArtUrl(url)
-        }
-      } catch (error) {
-        console.error('Failed to load fallback album art for artist (search item):', artist.Id, error)
-        searchArtistAlbumArtCache.set(artist.Id, null)
-      }
-    }
-
-    loadFallback()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [artist.Id, artist.ImageTags])
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    onClick(artist.Id)
-  }
-
-  const handleContextMenuClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(artist, 'artist', 'mobile')
-    },
-    onClick: handleClick,
-  })
-
-  return (
-    <button
-      onClick={handleClick}
-      onContextMenu={handleContextMenuClick}
-      {...longPressHandlers}
-      className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
-    >
-      <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
-        {imageError ? (
-          <User className="w-6 h-6 text-gray-500" />
-        ) : fallbackAlbumArtUrl || artist.ImageTags?.Primary ? (
-          <img
-            src={
-              fallbackAlbumArtUrl ||
-              jellyfinClient.getArtistImageUrl(artist.Id, 96)
-            }
-            alt={artist.Name}
-            className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
-            loading="lazy"
-          />
-        ) : (
-          <User className="w-6 h-6 text-gray-500" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-base font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{artist.Name}</div>
-      </div>
-    </button>
-  )
-}
-
 interface SearchAlbumItemProps {
   album: BaseItemDto
   onClick: (id: string) => void
@@ -142,10 +24,14 @@ interface SearchAlbumItemProps {
   contextMenuItemId: string | null
 }
 
-function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: SearchAlbumItemProps) {
+// Memoized to prevent re-renders when parent state changes
+const SearchAlbumItem = memo(function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: SearchAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
+
+  // Memoize the image URL to prevent recalculation on every render
+  const imageUrl = useMemo(() => jellyfinClient.getAlbumArtUrl(album.Id, 474), [album.Id])
 
   const handleClick = (e: React.MouseEvent) => {
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
@@ -182,6 +68,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className="text-left group"
+      aria-label={`Album: ${album.Name} by ${album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}`}
     >
       <div className="aspect-square rounded overflow-hidden mb-3 bg-zinc-900 shadow-lg relative flex items-center justify-center">
         {imageError ? (
@@ -189,7 +76,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
         ) : (
           <>
             <img
-              src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
+              src={imageUrl}
               alt={album.Name}
               className="w-full h-full object-cover"
               onError={() => setImageError(true)}
@@ -204,7 +91,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
       </div>
     </button>
   )
-}
+})
 
 interface SearchSongItemProps {
   song: BaseItemDto
@@ -214,10 +101,14 @@ interface SearchSongItemProps {
   showImage?: boolean
 }
 
-function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
+// Memoized to prevent re-renders when parent state changes
+const SearchSongItem = memo(function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const [imageError, setImageError] = useState(false)
+
+  // Memoize the image URL to prevent recalculation on every render
+  const imageUrl = useMemo(() => jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96), [song.AlbumId, song.Id])
 
   const formatDuration = (ticks: number): string => {
     const seconds = Math.floor(ticks / 10000000)
@@ -261,6 +152,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+      aria-label={`Play ${song.Name} by ${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}`}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center relative flex items-center justify-center">
         {imageError ? (
@@ -268,7 +160,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
         ) : (
           <>
             <img
-              src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+              src={imageUrl}
               alt={song.Name}
               className="w-full h-full object-cover"
               loading="lazy"
@@ -295,7 +187,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
       )}
     </button>
   )
-}
+})
 
 const ITEMS_PER_PAGE = 90
 const INITIAL_VISIBLE_SONGS = 45
@@ -304,9 +196,18 @@ const INITIAL_VISIBLE_SEARCH_SONG_IMAGES = 45
 const VISIBLE_SEARCH_SONG_IMAGES_INCREMENT = 45
 
 export default function SongsPage() {
-  const { songs, setSongs, sortPreferences, setSortPreference, setLoading, loading, genres } = useMusicStore()
-  const { playTrack, playAlbum, addToQueue } = usePlayerStore()
-  const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  // Use selectors for better performance - only re-render when specific values change
+  const songs = useMusicStore((state) => state.songs)
+  const setSongs = useMusicStore((state) => state.setSongs)
+  const sortPreferences = useMusicStore((state) => state.sortPreferences)
+  const setSortPreference = useMusicStore((state) => state.setSortPreference)
+  const setLoading = useMusicStore((state) => state.setLoading)
+  const loading = useMusicStore((state) => state.loading)
+  const genres = useMusicStore((state) => state.genres)
+  const playTrack = usePlayerStore((state) => state.playTrack)
+  const playAlbum = usePlayerStore((state) => state.playAlbum)
+  const addToQueue = usePlayerStore((state) => state.addToQueue)
+  const isQueueSidebarOpen = usePlayerStore((state) => state.isQueueSidebarOpen)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [rawSearchResults, setRawSearchResults] = useState<{

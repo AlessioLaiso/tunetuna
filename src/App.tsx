@@ -5,6 +5,7 @@ import { useSettingsStore } from './stores/settingsStore'
 import LoginForm from './components/auth/LoginForm'
 import Layout from './components/layout/Layout'
 import ScrollToTop from './ScrollToTop'
+import ToastContainer from './components/shared/Toast'
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
@@ -45,47 +46,55 @@ function App() {
 
 
   if (!isAuthenticated) {
-    return <LoginForm />
+    return (
+      <>
+        <LoginForm />
+        <ToastContainer />
+      </>
+    )
   }
 
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Layout>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            {pageVisibility.artists && (
-              <>
-                <Route path="/artists" element={<ArtistsPage />} />
-                <Route path="/artist/:id" element={<ArtistDetailPage />} />
-              </>
-            )}
-            {pageVisibility.albums && (
-              <>
-                <Route path="/albums" element={<AlbumsPage />} />
-                <Route path="/album/:id" element={<AlbumDetailPage />} />
-              </>
-            )}
-            {pageVisibility.songs && <Route path="/songs" element={<SongsPage />} />}
-            {pageVisibility.genres && (
-              <>
-                <Route path="/genres" element={<GenresPage />} />
-                <Route path="/genre/:id" element={<GenreSongsPage />} />
-              </>
-            )}
-            {pageVisibility.playlists && (
-              <>
-                <Route path="/playlists" element={<PlaylistsPage />} />
-                <Route path="/playlist/:id" element={<PlaylistDetailPage />} />
-              </>
-            )}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </Layout>
-    </BrowserRouter>
+    <>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Layout>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              {pageVisibility.artists && (
+                <>
+                  <Route path="/artists" element={<ArtistsPage />} />
+                  <Route path="/artist/:id" element={<ArtistDetailPage />} />
+                </>
+              )}
+              {pageVisibility.albums && (
+                <>
+                  <Route path="/albums" element={<AlbumsPage />} />
+                  <Route path="/album/:id" element={<AlbumDetailPage />} />
+                </>
+              )}
+              {pageVisibility.songs && <Route path="/songs" element={<SongsPage />} />}
+              {pageVisibility.genres && (
+                <>
+                  <Route path="/genres" element={<GenresPage />} />
+                  <Route path="/genre/:id" element={<GenreSongsPage />} />
+                </>
+              )}
+              {pageVisibility.playlists && (
+                <>
+                  <Route path="/playlists" element={<PlaylistsPage />} />
+                  <Route path="/playlist/:id" element={<PlaylistDetailPage />} />
+                </>
+              )}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </BrowserRouter>
+      <ToastContainer />
+    </>
   )
 }
 

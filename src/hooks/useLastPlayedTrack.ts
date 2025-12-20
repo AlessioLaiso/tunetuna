@@ -1,6 +1,9 @@
 import { usePlayerStore } from '../stores/playerStore'
 
+/**
+ * Selector hook that only re-renders when lastPlayedTrack changes
+ * Uses Zustand's selector pattern for optimal performance
+ */
 export function useLastPlayedTrack() {
-  const { lastPlayedTrack } = usePlayerStore()
-  return lastPlayedTrack
+  return usePlayerStore((state) => state.lastPlayedTrack)
 }

@@ -74,11 +74,11 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
     }
   }, [artist.Id, artist.ImageTags])
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e?: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
+      e?.preventDefault()
+      e?.stopPropagation()
       contextMenuJustOpenedRef.current = false
       return
     }
@@ -107,7 +107,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
         contextMenuJustOpenedRef.current = false
         return
       }
-      handleClick({} as React.MouseEvent)
+      handleClick()
     },
   })
 
@@ -118,7 +118,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
           contextMenuJustOpenedRef.current = false
           return
         }
-        handleClick({} as React.MouseEvent)
+        handleClick()
       }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
@@ -162,11 +162,11 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e?: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
+      e?.preventDefault()
+      e?.stopPropagation()
       contextMenuJustOpenedRef.current = false
       return
     }
@@ -195,7 +195,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
         contextMenuJustOpenedRef.current = false
         return
       }
-      handleClick({} as React.MouseEvent)
+      handleClick()
     },
   })
 
@@ -206,7 +206,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
           contextMenuJustOpenedRef.current = false
           return
         }
-        handleClick({} as React.MouseEvent)
+        handleClick()
       }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
@@ -256,11 +256,11 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e?: React.MouseEvent) => {
     // Prevent click if THIS item's context menu is open or was just opened
     if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
+      e?.preventDefault()
+      e?.stopPropagation()
       contextMenuJustOpenedRef.current = false
       return
     }
@@ -289,7 +289,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
         contextMenuJustOpenedRef.current = false
         return
       }
-      handleClick({} as React.MouseEvent)
+      handleClick()
     },
   })
 
@@ -300,7 +300,7 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
           contextMenuJustOpenedRef.current = false
           return
         }
-        handleClick({} as React.MouseEvent)
+        handleClick()
       }}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}

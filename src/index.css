@@ -149,6 +149,42 @@ button {
   animation: slideInRight 0.5s ease-in-out forwards;
 }
 
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.2s ease-out forwards;
+}
+
+/* Focus-visible styles for keyboard navigation */
+/* Applied globally so all interactive elements have consistent focus indicators */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-color);
+  border-radius: 4px;
+}
+
+/* Don't show focus ring for mouse/touch interactions */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
 /* Slider styles */
 input[type="range"].slider {
   -webkit-appearance: none;

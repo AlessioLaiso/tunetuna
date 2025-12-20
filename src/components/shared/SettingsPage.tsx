@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle } 
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
+import { useToastStore } from '../../stores/toastStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -36,8 +37,8 @@ export default function SettingsPage() {
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
+  const { addToast } = useToastStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const [copied, setCopied] = useState(false)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
   const [syncOptions, setSyncOptions] = useState({
     scope: 'incremental' as 'incremental' | 'full'
@@ -84,11 +85,30 @@ export default function SettingsPage() {
   const handleCopyServerUrl = async () => {
     if (!serverUrl) return
     try {
-      await navigator.clipboard.writeText(serverUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(serverUrl)
+        addToast('Server URL copied', 'success')
+        return
+      }
+      // Fallback for older browsers/PWA contexts
+      const textArea = document.createElement('textarea')
+      textArea.value = serverUrl
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      if (successful) {
+        addToast('Server URL copied', 'success')
+      } else {
+        addToast('Failed to copy URL', 'error')
+      }
     } catch {
-      // optional convenience; ignore errors
+      addToast('Failed to copy URL', 'error')
     }
   }
 
@@ -193,24 +213,17 @@ export default function SettingsPage() {
         {/* Jellyfin Library Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-1">Jellyfin Library</h2>
-          <div className="relative inline-block mb-2">
-            <button
-              type="button"
-              onClick={handleCopyServerUrl}
-              disabled={!serverUrl}
-              className={`text-left text-xs break-all transition-colors ${serverUrl
-                  ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
-                  : 'text-gray-600 cursor-not-allowed'
-                }`}
-            >
-              {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
-            </button>
-            {copied && (
-              <div className="absolute left-0 mt-1 px-2 py-1 rounded bg-zinc-800 text-[10px] text-white shadow-lg">
-                Copied to clipboard
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={handleCopyServerUrl}
+            disabled={!serverUrl}
+            className={`text-left text-xs break-all transition-colors mb-2 ${serverUrl
+                ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
+                : 'text-gray-600 cursor-not-allowed'
+              }`}
+          >
+            {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
+          </button>
           {syncState === 'idle' && lastSyncCompleted && (
             <div className="text-xs text-gray-400 mb-4">
               Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

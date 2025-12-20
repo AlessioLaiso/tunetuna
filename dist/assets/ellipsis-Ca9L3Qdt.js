@@ -1,4 +1,4 @@
-import{c}from"./index-AOm-apGX.js";/**
+import{c}from"./index-scgXBtC7.js";/**
  * @license lucide-react v0.560.0 - ISC
  *
  * This source code is licensed under the ISC license.
