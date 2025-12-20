@@ -146,140 +146,130 @@ export async function getRecommendedSongs({
   // Track recommendation quality
   let genreMatchSuccess = false
 
-  // Avoid consecutive songs by same artist in recommendations
-  const getRecommendedArtistIds = () => recommendations.flatMap(rec => rec.ArtistItems?.map(a => a.Id) || [])
+  // Year ranges for progressive expansion
+  const currentYear = currentTrack.ProductionYear
+  const yearRanges = currentYear ? [
+    { range: 3, years: Array.from({ length: 7 }, (_, i) => currentYear - 3 + i) }, // ±3 years
+    { range: 6, years: Array.from({ length: 13 }, (_, i) => currentYear - 6 + i) }, // ±6 years
+    { range: 10, years: Array.from({ length: 21 }, (_, i) => currentYear - 10 + i) }, // ±10 years
+  ] : []
 
-  // 1. Genre matches (highest priority) - exact synthetic genre matching
+  // Helper: check if song is valid candidate (not current, not in queue, not already recommended)
+  const isValidCandidate = (song: LightweightSong): boolean => {
+    const notCurrentTrack = song.Id !== currentTrack.Id
+    const notInQueue = !queue.some(queued => queued.Id === song.Id)
+    const notAlreadyRecommended = !recommendations.some(rec => rec.Id === song.Id)
+    return notCurrentTrack && notInQueue && notAlreadyRecommended
+  }
+
+  // Helper: check if song matches genre
+  const matchesGenre = (song: LightweightSong): boolean => {
+    if (genres.length === 0) return true // No genre filter if track has no genres
+    return song.Genres?.some(songGenre =>
+      genres.some(trackGenre =>
+        songGenre.toLowerCase() === trackGenre.toLowerCase()
+      )
+    ) ?? false
+  }
+
+  // Helper: check if song is in year range
+  const isInYearRange = (song: LightweightSong, years: number[]): boolean => {
+    if (!currentYear) return true // No year filter if track has no year
+    return song.ProductionYear !== undefined && years.includes(song.ProductionYear)
+  }
+
+  // Count total genre matches to detect if genre sync is needed
+  let totalGenreMatchCount = 0
   if (genres.length > 0) {
-    let genreMatchCount = 0
-    let filteredByCurrentTrack = 0
-    let filteredByQueue = 0
-    let filteredByArtist = 0
+    totalGenreMatchCount = availableSongs.filter(song => matchesGenre(song)).length
+    logger.log('[Recommendations] Total songs matching genre:', totalGenreMatchCount)
 
-    const genreMatches = availableSongs.filter(song => {
-      // Exact synthetic genre matching only
-      const hasGenreMatch = song.Genres?.some(songGenre =>
-        genres.some(trackGenre =>
-          songGenre.toLowerCase() === trackGenre.toLowerCase()
-        )
-      )
-
-      if (!hasGenreMatch) return false
-      genreMatchCount++
-
-      const notCurrentTrack = song.Id !== currentTrack.Id
-      if (!notCurrentTrack) {
-        filteredByCurrentTrack++
-        return false
-      }
-
-      const notInQueue = !queue.some(queued => queued.Id === song.Id)
-      if (!notInQueue) {
-        filteredByQueue++
-        return false
-      }
-
-      const notConsecutiveArtist = !song.ArtistItems?.some(songArtist =>
-        getRecommendedArtistIds().includes(songArtist.Id)
-      )
-      if (!notConsecutiveArtist) {
-        filteredByArtist++
-        return false
-      }
-
-      return true
-    })
-
-    logger.log('[Recommendations] Genre matching results:', {
-      totalGenreMatches: genreMatchCount,
-      filteredByCurrentTrack,
-      filteredByQueue,
-      filteredByArtist,
-      passedAllFilters: genreMatches.length
-    })
-
-    // If we found ZERO genre matches at all, trigger auto-sync for current track's genres
-    if (genreMatchCount === 0 && genres.length > 0) {
+    // If we found ZERO genre matches at all, trigger auto-sync
+    if (totalGenreMatchCount === 0) {
       logger.log('[Recommendations] No songs found matching genres:', genres)
       logger.log('[Recommendations] Triggering auto-sync for these genres...')
-      // Trigger sync for all genres (in background, don't wait)
       for (const genre of genres) {
         syncGenreForRecommendations(genre).catch(err =>
           logger.error(`[Recommendations] Genre sync failed for ${genre}:`, err)
         )
       }
-      // Return early with triggeredGenreSync flag
       return {
         recommendations: [],
         hasGenreMatches: false,
         triggeredGenreSync: true
       }
     }
-
-    // Shuffle genre matches to avoid alphabetical bias (always picking "A" songs)
-    const shuffledGenreMatches = shuffleArray(genreMatches)
-    recommendations.push(...shuffledGenreMatches.slice(0, 8))
-    logger.log(`[Recommendations] Added ${Math.min(shuffledGenreMatches.length, 8)} genre matches to recommendations`)
-
-    // Track genre match success
-    if (genres.length > 0 && genreMatches.length > 0) {
-      genreMatchSuccess = true
-    } else if (genres.length > 0 && genreMatches.length === 0) {
-      logger.warn('[Recommendations] No genre matches passed filters - falling back to year/artist matching')
-      genreMatchSuccess = false
-    }
-
-  } else {
-    logger.log('[Recommendations] No genres on current track')
   }
 
-  // 2. Year matches (if available) - progressive expansion ±3 → ±6 → ±10 → any year
-  const currentYear = currentTrack.ProductionYear
+  // Progressive matching: genre + year, expanding year range only when needed
+  // Each year range is tried in order; we only expand if we don't have 12 recommendations yet
+  for (const { range, years } of yearRanges) {
+    if (recommendations.length >= 12) {
+      logger.log(`[Recommendations] Have ${recommendations.length} recommendations, stopping at ±${range} year range`)
+      break
+    }
 
+    const neededCount = 12 - recommendations.length
 
-  if (currentYear && recommendations.length < 10) {
-    const yearRanges = [
-      { range: 3, years: Array.from({ length: 7 }, (_, i) => currentYear - 3 + i) }, // ±3 years
-      { range: 6, years: Array.from({ length: 13 }, (_, i) => currentYear - 6 + i) }, // ±6 years
-      { range: 10, years: Array.from({ length: 21 }, (_, i) => currentYear - 10 + i) }, // ±10 years
-    ]
+    // Find songs matching genre AND this year range
+    const rangeMatches = availableSongs.filter(song => {
+      if (!isValidCandidate(song)) return false
+      if (!matchesGenre(song)) return false
+      if (!isInYearRange(song, years)) return false
+      return true
+    })
 
-    let yearMatches: LightweightSong[] = []
+    logger.log(`[Recommendations] Year range ±${range}: found ${rangeMatches.length} candidates, need ${neededCount}`)
 
-    // Try each year range progressively, collecting all matches from each range
-    for (const { years } of yearRanges) {
-      if (yearMatches.length >= 12) {
-        break // We have enough for 12 recommendations
-      }
+    if (rangeMatches.length > 0) {
+      // Shuffle and take only what we need
+      const shuffled = shuffleArray(rangeMatches)
+      const toAdd = shuffled.slice(0, neededCount)
+      recommendations.push(...toAdd)
+      logger.log(`[Recommendations] Added ${toAdd.length} songs from ±${range} year range`)
+    }
+  }
 
-      const rangeMatches = availableSongs.filter(song => {
-        const inYearRange = song.ProductionYear && years.includes(song.ProductionYear)
-        const notInQueue = !queue.some(queued => queued.Id === song.Id)
-        const notAlreadyRecommended = !recommendations.some(rec => rec.Id === song.Id)
-        const notCurrentTrack = song.Id !== currentTrack.Id
-        const notConsecutiveArtist = !song.ArtistItems?.some(songArtist =>
-          getRecommendedArtistIds().includes(songArtist.Id)
-        )
+  // If we still don't have 12 and there's no year on the track, try genre-only matching
+  if (recommendations.length < 12 && !currentYear && genres.length > 0) {
+    const neededCount = 12 - recommendations.length
+    const genreOnlyMatches = availableSongs.filter(song => {
+      if (!isValidCandidate(song)) return false
+      if (!matchesGenre(song)) return false
+      return true
+    })
+    const shuffled = shuffleArray(genreOnlyMatches)
+    const toAdd = shuffled.slice(0, neededCount)
+    recommendations.push(...toAdd)
+    logger.log(`[Recommendations] Added ${toAdd.length} genre-only songs (no year on seed track)`)
+  }
 
-        return inYearRange && notCurrentTrack && notInQueue && notAlreadyRecommended && notConsecutiveArtist
+  // If we still don't have 12, try year-only matching (no genre on track)
+  if (recommendations.length < 12 && currentYear && genres.length === 0) {
+    for (const { range, years } of yearRanges) {
+      if (recommendations.length >= 12) break
+      const neededCount = 12 - recommendations.length
+      const yearOnlyMatches = availableSongs.filter(song => {
+        if (!isValidCandidate(song)) return false
+        if (!isInYearRange(song, years)) return false
+        return true
       })
-
-      yearMatches.push(...rangeMatches)
+      const shuffled = shuffleArray(yearOnlyMatches)
+      const toAdd = shuffled.slice(0, neededCount)
+      recommendations.push(...toAdd)
+      logger.log(`[Recommendations] Added ${toAdd.length} year-only songs from ±${range} range (no genre on seed track)`)
     }
-
-    // Deduplicate year matches (since ranges overlap)
-    const uniqueYearMatches = Array.from(
-      new Map(yearMatches.map(song => [song.Id, song])).values()
-    )
-
-    // Shuffle year matches to avoid alphabetical bias
-    const shuffledYearMatches = shuffleArray(uniqueYearMatches)
-    const selectedYearMatches = shuffledYearMatches.slice(0, 12)
-    recommendations.push(...selectedYearMatches)
-
-    logger.log(`[Recommendations] Total year matches used: ${selectedYearMatches.length}`)
-
   }
+
+  // Track genre match success
+  genreMatchSuccess = genres.length > 0 && recommendations.some(rec => matchesGenre(rec))
+
+  logger.log('[Recommendations] Matching results:', {
+    totalRecommendations: recommendations.length,
+    genreMatchSuccess,
+    hasGenres: genres.length > 0,
+    hasYear: !!currentYear
+  })
 
   // Shuffle and then reorder to avoid consecutive artists
   const shuffled = shuffleArray(recommendations)

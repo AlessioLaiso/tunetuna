@@ -536,14 +536,20 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                             const newValue = !showQueueRecommendations
                                             setShowQueueRecommendations(newValue)
                                             if (!newValue) {
-                                                // Clear all recommendations from queue when toggled off
-                                                const songsWithoutRecommendations = songs.filter(song => song.source !== 'recommendation')
-                                                const newCurrentIndex = Math.min(currentIndex, songsWithoutRecommendations.length - 1)
+                                                // Only remove FUTURE recommendations (after current index)
+                                                // Keep the currently playing song and all previous songs (including played recommendations)
+                                                const songsToKeep = songs.filter((song, index) => {
+                                                    // Keep all songs up to and including current
+                                                    if (index <= currentIndex) return true
+                                                    // Keep future user-added songs
+                                                    return song.source === 'user'
+                                                })
+                                                // Current index stays the same since we only removed songs after it
                                                 usePlayerStore.setState({
-                                                    songs: songsWithoutRecommendations,
-                                                    currentIndex: newCurrentIndex,
-                                                    standardOrder: songsWithoutRecommendations.filter(s => s.source === 'user').map(s => s.Id),
-                                                    shuffleOrder: songsWithoutRecommendations.filter(s => s.source === 'user').map(s => s.Id),
+                                                    songs: songsToKeep,
+                                                    currentIndex: currentIndex,
+                                                    standardOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
+                                                    shuffleOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
                                                 })
                                             }
                                         }}
