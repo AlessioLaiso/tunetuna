@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: jellyfin-music-client
+    container_name: tunetuna
     ports:
       - "8080:80"
     restart: unless-stopped
