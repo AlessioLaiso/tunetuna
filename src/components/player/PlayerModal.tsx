@@ -7,9 +7,10 @@ import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import QueueView from './QueueView'
+import QueueList from './QueueList'
 import LyricsModal from './LyricsModal'
 import VolumeControl from '../layout/VolumeControl'
-import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal } from 'lucide-react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { isIOS } from '../../utils/formatting'
 
@@ -37,6 +38,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     toggleShuffle,
     toggleRepeat,
     playTrack,
+    isQueueSidebarOpen,
+    toggleQueueSidebar,
   } = usePlayerStore()
 
   const currentTrack = useCurrentTrack()
@@ -390,13 +393,23 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         .lg\\:max-w-\\[864px\\] { max-width: 864px; }
       }
 
+      /* Queue sidebar in player modal - transparent backgrounds */
+      .queue-xl-container .bg-zinc-900 { background-color: transparent; }
+      .queue-xl-container .hover\\:bg-zinc-900:hover { background-color: rgba(255, 255, 255, 0.1); }
+      .queue-xl-container .hover\\:bg-zinc-800:hover { background-color: rgba(255, 255, 255, 0.1); }
+      .queue-xl-container .text-\\[var\\(--accent-color\\)\\] { color: white; }
+
+      /* Lyrics modal with sidebar - adjust right edge on xl screens */
+      @media (min-width: 1280px) {
+        .lyrics-with-sidebar { right: var(--sidebar-width) !important; }
+      }
     `}</style>
       <div
         ref={modalRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`fixed left-0 right-0 bg-zinc-900 z-[70] flex flex-col transition-transform duration-300 ease-out overflow-hidden ${isClosing
+        className={`fixed left-0 right-0 bg-zinc-900 z-[70] flex transition-transform duration-300 ease-out overflow-hidden ${isClosing
           ? 'translate-y-full'
           : isAnimating
             ? 'translate-y-0'
@@ -410,9 +423,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           transition: touchStartY.current === null ? 'transform 300ms ease-out' : 'none'
         }}
       >
-        {/* Blurred album art background when lyrics are not shown and album art exists */}
-        {!showLyricsModal && !showQueue && !imageError && (
-          <>
+        {/* Blurred album art background - covers entire modal including sidebar */}
+        {/* Hidden when mobile queue is shown, but always visible on xl (queue is sidebar there) */}
+        {!imageError && (
+          <div className={showQueue ? 'hidden xl:contents' : 'contents'}>
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{
@@ -426,8 +440,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             <div
               className="absolute bottom-0 left-0 right-0 h-[300px] bg-gradient-to-t from-zinc-900/30 to-zinc-900/0"
             />
-          </>
+          </div>
         )}
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="flex items-center justify-between p-4 relative">
           <div className="flex items-center gap-2 z-10 flex-shrink-0">
             <button
@@ -443,8 +460,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             </h2>
           )}
           <div className="flex items-center gap-2 z-10 flex-shrink-0">
-            {/* Volume button on <768px screens, next to lyrics and queue */}
-            <div className={`md:hidden ${showLyricsModal ? 'hidden' : ''}`}>
+            {/* Volume button - shown below 768 normally, below 1280 when in queue */}
+            <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'} ${showLyricsModal ? 'hidden' : ''}`}>
               {!isIOS() && (
                 <VolumeControl
                   variant="compact"
@@ -454,10 +471,15 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 />
               )}
             </div>
-            {/* Lyrics button on all screens */}
-            {hasLyrics && !showQueue && (
+            {/* Lyrics button - shown when has lyrics (in player or queue mode) */}
+            {hasLyrics && (
               <button
-                onClick={() => setShowLyricsModal(!showLyricsModal)}
+                onClick={() => {
+                  if (showQueue) {
+                    setShowQueue(false)
+                  }
+                  setShowLyricsModal(!showLyricsModal)
+                }}
                 className={`transition-colors p-2 ${showLyricsModal
                   ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]'
                   : 'text-white hover:text-zinc-300'
@@ -466,6 +488,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <MicVocal className="w-6 h-6" />
               </button>
             )}
+            {/* Queue/Player toggle button - below xl */}
             <button
               onClick={() => {
                 if (!showQueue) {
@@ -482,11 +505,21 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <ListVideo className="w-6 h-6" />
               )}
             </button>
+            {/* Queue button for xl screens - opens sidebar */}
+            {!isQueueSidebarOpen && (
+              <button
+                onClick={toggleQueueSidebar}
+                className="text-white hover:text-zinc-300 transition-colors p-2 hidden xl:block"
+              >
+                <ListVideo className="w-6 h-6" />
+              </button>
+            )}
           </div>
         </div>
 
-        {showQueue ? (
-          <div className="flex-1 bg-zinc-900 relative z-10">
+        {/* Mobile queue view - only shown below xl */}
+        {showQueue && (
+          <div className="flex-1 bg-zinc-900 relative z-10 xl:hidden">
             <QueueView
               onClose={() => setShowQueue(false)}
               onNavigateFromContextMenu={() => {
@@ -496,9 +529,12 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               }}
             />
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
-            <div className="flex-1 overflow-hidden min-h-0 flex items-center justify-center">
+        )}
+
+        {/* Player content - always shown on xl, or when queue is not shown */}
+        <div className={`flex-1 flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative ${showQueue ? 'hidden xl:flex' : 'flex'}`} style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+            {/* Album art and info - invisible when lyrics are shown (keeps space) */}
+            <div className={`flex-1 overflow-hidden min-h-0 flex items-center justify-center ${showLyricsModal ? 'invisible' : ''}`}>
               <div className="w-full flex flex-col items-center px-4 sm:px-8 md:pr-0">
                 <div className="w-full flex flex-col items-center landscape:flex-row landscape:items-center landscape:gap-8">
                   <div className="landscape:order-1 landscape:flex-shrink-0">
@@ -672,7 +708,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </div>
             </div>
           </div>
-        )}
+
         {showLyricsModal && (
           <LyricsModal />
         )}
@@ -683,6 +719,31 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             popoverPosition={volumePopoverPosition}
             popoverDirection={volumePopoverDirection}
           />
+        )}
+        </div>
+
+        {/* XL Queue Sidebar - full height */}
+        {isQueueSidebarOpen && (
+          <div
+            className="hidden xl:flex flex-col flex-shrink-0 border-l border-white/20 relative z-10"
+            style={{ width: 'var(--sidebar-width)' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 flex-shrink-0">
+              <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
+              <button
+                onClick={toggleQueueSidebar}
+                className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0 queue-xl-container [&_.text-gray-400]:text-white/60 [&_.text-gray-500]:text-white/50 [&_.text-gray-300]:text-white/70 [&_.border-zinc-800]:border-white/20 [&_.bg-zinc-600]:bg-white/30">
+              <QueueList
+                onNavigateFromContextMenu={handleClose}
+                contentPaddingBottom="2rem"
+              />
+            </div>
+          </div>
         )}
       </div>
     </>

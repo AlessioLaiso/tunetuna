@@ -1,9 +1,6 @@
-import { useRef, useState } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
-import VolumeControl from '../layout/VolumeControl'
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1 } from 'lucide-react'
 import QueueList from './QueueList'
-import { isIOS } from '../../utils/formatting'
 
 interface QueueViewProps {
   onClose: () => void
@@ -11,10 +8,6 @@ interface QueueViewProps {
 }
 
 export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueViewProps) {
-  const controlsRef = useRef<HTMLDivElement>(null)
-  const [showVolumePopover, setShowVolumePopover] = useState(false)
-  const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
-
   const {
     songs,
     currentIndex,
@@ -33,77 +26,67 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
   const hasPrevious = currentIndex > 0
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 w-full" style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+    <div className="absolute inset-0 flex flex-col">
       <QueueList onNavigateFromContextMenu={onNavigateFromContextMenu} contentPaddingBottom="8rem" />
 
-      <div ref={controlsRef} className="px-6 pt-2 space-y-6 flex-shrink-0 max-w-[864px] mx-auto w-full" style={{ paddingBottom: `1.5rem` }}>
-        <div className="flex items-center justify-center gap-8 relative">
-          <button
-            onClick={toggleShuffle}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
-              }`}
-          >
-            <Shuffle className="w-6 h-6" />
-          </button>
+      <div className="absolute bottom-0 left-0 right-0">
+        <div className="px-6 pt-2 max-w-[768px] lg:max-w-[864px] mx-auto w-full" style={{ paddingBottom: `calc(1.5rem + env(safe-area-inset-bottom))` }}>
+          <div className="flex items-center justify-center gap-8">
+            <button
+              onClick={toggleShuffle}
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                }`}
+            >
+              <Shuffle className="w-6 h-6" />
+            </button>
 
-          <button
-            onClick={previous}
-            disabled={!hasPrevious}
-            className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
-              ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
-              : 'text-zinc-600 cursor-not-allowed'
-              }`}
-          >
-            <SkipBack className="w-8 h-8" />
-          </button>
+            <button
+              onClick={previous}
+              disabled={!hasPrevious}
+              className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
+                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
+                : 'text-zinc-600 cursor-not-allowed'
+                }`}
+            >
+              <SkipBack className="w-8 h-8" />
+            </button>
 
-          <button
-            onClick={togglePlayPause}
-            className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
-          >
-            {isPlaying ? (
-              <Pause className="w-8 h-8" />
-            ) : (
-              <Play className="w-8 h-8" />
-            )}
-          </button>
+            <button
+              onClick={togglePlayPause}
+              className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
+            >
+              {isPlaying ? (
+                <Pause className="w-8 h-8" />
+              ) : (
+                <Play className="w-8 h-8" />
+              )}
+            </button>
 
-          <button
-            onClick={next}
-            disabled={!hasNext}
-            className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
-              ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
-              : 'text-zinc-600 cursor-not-allowed'
-              }`}
-          >
-            <SkipForward className="w-8 h-8" />
-          </button>
+            <button
+              onClick={next}
+              disabled={!hasNext}
+              className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
+                ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
+                : 'text-zinc-600 cursor-not-allowed'
+                }`}
+            >
+              <SkipForward className="w-8 h-8" />
+            </button>
 
-          <button
-            onClick={toggleRepeat}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
-              }`}
-          >
-            {repeat === 'one' ? (
-              <Repeat1 className="w-6 h-6" />
-            ) : (
-              <Repeat className="w-6 h-6" />
-            )}
-          </button>
-
-          {/* Volume control on 768px+, horizontal variant on the right */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex md:-mr-6">
-            {!isIOS() && <VolumeControl variant="horizontal" />}
+            <button
+              onClick={toggleRepeat}
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                }`}
+            >
+              {repeat === 'one' ? (
+                <Repeat1 className="w-6 h-6" />
+              ) : (
+                <Repeat className="w-6 h-6" />
+              )}
+            </button>
           </div>
         </div>
       </div>
-      {showVolumePopover && volumePopoverPosition && !isIOS() && (
-        <VolumeControl
-          variant="vertical"
-          onClose={() => setShowVolumePopover(false)}
-          popoverPosition={volumePopoverPosition}
-        />
-      )}
     </div>
   )
 }
