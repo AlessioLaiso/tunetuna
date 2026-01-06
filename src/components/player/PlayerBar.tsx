@@ -49,6 +49,7 @@ export default function PlayerBar() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const closeModalRef = useRef<(() => void) | null>(null)
+  const trackPlayedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const location = useLocation()
   const touchStartX = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
@@ -120,8 +121,14 @@ export default function PlayerBar() {
         try {
           await jellyfinClient.markItemAsPlayed(currentTrack.Id)
           // Trigger a custom event to notify RecentlyPlayed to refresh after a short delay
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: currentTrack.Id } }))
+          // Clear any existing timeout before setting a new one
+          if (trackPlayedTimeoutRef.current) {
+            clearTimeout(trackPlayedTimeoutRef.current)
+          }
+          const trackId = currentTrack.Id
+          trackPlayedTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
+            trackPlayedTimeoutRef.current = null
           }, 4000)
         } catch (error) {
           // Error already logged in markItemAsPlayed
@@ -158,6 +165,11 @@ export default function PlayerBar() {
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
+      // Clear any pending trackPlayed timeout
+      if (trackPlayedTimeoutRef.current) {
+        clearTimeout(trackPlayedTimeoutRef.current)
+        trackPlayedTimeoutRef.current = null
+      }
     }
   }, [setAudioElement, setCurrentTime, setDuration, next])
 
@@ -456,7 +468,7 @@ export default function PlayerBar() {
                     e.stopPropagation()
                     toggleQueueSidebar()
                   }}
-                  className="text-gray-400 hover:text-white transition-colors flex items-center justify-center w-10 h-10"
+                  className="text-gray-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center justify-center w-10 h-10 rounded-full"
                   title="Open Queue"
                   aria-label="Open queue"
                 >
@@ -474,7 +486,7 @@ export default function PlayerBar() {
                   variant="compact"
                   onOpenPopover={handleOpenVolumePopover}
                   onRef={setVolumeButtonElement}
-                  className="w-10 h-10 flex items-center justify-center text-white hover:text-zinc-300 transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-white hover:text-zinc-300 hover:bg-zinc-800 rounded-full transition-colors"
                 />
               )}
             </div>

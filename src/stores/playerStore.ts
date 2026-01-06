@@ -9,6 +9,8 @@ import { useToastStore } from './toastStore'
 // Track which items have been reported to prevent duplicate API calls
 const reportedItems = new Set<string>()
 const reportingTimeouts = new Map<string, NodeJS.Timeout>()
+const refreshTimeouts = new Set<NodeJS.Timeout>() // Track nested refresh timeouts
+let shuffleExpansionTimeout: NodeJS.Timeout | null = null // Track shuffle expansion timeout
 
 // Clear playback tracking state (call on logout to prevent memory leaks)
 export function clearPlaybackTrackingState() {
@@ -17,6 +19,14 @@ export function clearPlaybackTrackingState() {
     clearTimeout(timeout)
   }
   reportingTimeouts.clear()
+  for (const timeout of refreshTimeouts) {
+    clearTimeout(timeout)
+  }
+  refreshTimeouts.clear()
+  if (shuffleExpansionTimeout) {
+    clearTimeout(shuffleExpansionTimeout)
+    shuffleExpansionTimeout = null
+  }
 }
 
 // Helper function to report playback after a delay
@@ -30,9 +40,11 @@ function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseIte
         await jellyfinClient.markItemAsPlayed(trackId)
         reportedItems.add(trackId)
         // Trigger event to refresh RecentlyPlayed after server updates
-        setTimeout(() => {
+        const refreshTimeout = setTimeout(() => {
           window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
+          refreshTimeouts.delete(refreshTimeout)
         }, 4000)
+        refreshTimeouts.add(refreshTimeout)
       } catch (error) {
         // Error already logged in markItemAsPlayed
       }
@@ -205,6 +217,11 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       clearQueue: () => {
+        // Cancel any pending shuffle expansion
+        if (shuffleExpansionTimeout) {
+          clearTimeout(shuffleExpansionTimeout)
+          shuffleExpansionTimeout = null
+        }
         set((state) => {
           // Keep only the currently playing song, clear everything else
           const currentSong = state.currentIndex >= 0 ? [state.songs[state.currentIndex]] : []
@@ -818,7 +835,12 @@ export const usePlayerStore = create<PlayerState>()(
 
 
         // PHASE 2: Background load remaining songs (up to maxSongs - initialSongCount)
-        setTimeout(async () => {
+        // Clear any previous shuffle expansion timeout
+        if (shuffleExpansionTimeout) {
+          clearTimeout(shuffleExpansionTimeout)
+        }
+        shuffleExpansionTimeout = setTimeout(async () => {
+          shuffleExpansionTimeout = null // Clear reference once started
 
           try {
             const currentState = get()
@@ -954,7 +976,13 @@ export const usePlayerStore = create<PlayerState>()(
         get().play()
 
         // Background load remaining genre songs
-        setTimeout(async () => {
+        // Clear any previous shuffle expansion timeout
+        if (shuffleExpansionTimeout) {
+          clearTimeout(shuffleExpansionTimeout)
+        }
+        shuffleExpansionTimeout = setTimeout(async () => {
+          shuffleExpansionTimeout = null // Clear reference once started
+
           try {
             const currentState = get()
 

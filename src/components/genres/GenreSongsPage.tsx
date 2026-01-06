@@ -638,7 +638,7 @@ export default function GenreSongsPage() {
                   <button
                     type="button"
                     onClick={handlePlayAllSongsFromGenre}
-                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
                     aria-label="Play all songs"
                   >
                     <Play className="w-5 h-5" />
@@ -646,7 +646,7 @@ export default function GenreSongsPage() {
                   <button
                     type="button"
                     onClick={handleAddAllSongsFromGenreToQueue}
-                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
                     aria-label="Add all songs to queue"
                   >
                     <ListEnd className="w-5 h-5" />

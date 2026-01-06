@@ -117,7 +117,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                     src={jellyfinClient.getAlbumArtUrl(track.AlbumId || track.Id, 96)}
                     alt={track.Name}
                     className="w-full h-full object-cover"
-                    showOutline={true}
+                    showOutline={false}
                     rounded="rounded-sm"
                 />
             </div>

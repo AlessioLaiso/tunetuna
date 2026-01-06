@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
@@ -9,6 +9,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import BottomSheet from '../shared/BottomSheet'
+import { isServerUrlLocked } from '../../utils/config'
 
 const tailwindColors = [
   { name: 'zinc', hex: '#71717a' },
@@ -43,6 +44,9 @@ export default function SettingsPage() {
   const [syncOptions, setSyncOptions] = useState({
     scope: 'incremental' as 'incremental' | 'full'
   })
+
+  // Check if server URL is locked by administrator
+  const serverLocked = isServerUrlLocked()
 
   // Reset sync options when modal closes
   const handleCloseSyncOptions = () => {
@@ -213,17 +217,25 @@ export default function SettingsPage() {
         {/* Jellyfin Library Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-1">Jellyfin Library</h2>
-          <button
-            type="button"
-            onClick={handleCopyServerUrl}
-            disabled={!serverUrl}
-            className={`text-left text-xs break-all transition-colors mb-2 ${serverUrl
-                ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
-                : 'text-gray-600 cursor-not-allowed'
-              }`}
-          >
-            {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
-          </button>
+          <div className="mb-2">
+            <button
+              type="button"
+              onClick={handleCopyServerUrl}
+              disabled={!serverUrl}
+              className={`text-left text-xs break-all transition-colors flex items-center gap-1 ${serverUrl
+                  ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
+                  : 'text-gray-600 cursor-not-allowed'
+                }`}
+            >
+              {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
+              {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
+            </button>
+            {serverLocked && (
+              <p className="text-xs text-gray-500 mt-1">
+                Server URL is locked by administrator
+              </p>
+            )}
+          </div>
           {syncState === 'idle' && lastSyncCompleted && (
             <div className="text-xs text-gray-400 mb-4">
               Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

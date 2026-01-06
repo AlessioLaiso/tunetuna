@@ -43,7 +43,7 @@ class JellyfinClient {
   }
 
   private getDeviceId(): string {
-    let deviceId = storage.get('deviceId')
+    let deviceId = storage.get<string>('deviceId')
     if (!deviceId) {
       deviceId = generateUUID()
       storage.set('deviceId', deviceId)
@@ -365,15 +365,15 @@ class JellyfinClient {
         let newestDate = 0
         for (const item of items) {
           // Check DateCreated for new items
-          if (item.DateCreated) {
-            const itemDate = new Date(item.DateCreated).getTime()
+          if ((item as any).DateCreated) {
+            const itemDate = new Date((item as any).DateCreated).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
           }
           // Check DateLastSaved for modified items
-          if (item.DateLastSaved) {
-            const itemDate = new Date(item.DateLastSaved).getTime()
+          if ((item as any).DateLastSaved) {
+            const itemDate = new Date((item as any).DateLastSaved).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
@@ -575,8 +575,8 @@ class JellyfinClient {
         
         let newestDate = 0
         for (const item of items) {
-          if (item.DateCreated) {
-            const itemDate = new Date(item.DateCreated).getTime()
+          if ((item as any).DateCreated) {
+            const itemDate = new Date((item as any).DateCreated).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }

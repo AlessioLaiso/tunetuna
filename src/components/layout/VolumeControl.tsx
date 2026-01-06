@@ -189,7 +189,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
       <div ref={setContainerRef} className="flex items-center gap-2 px-2 select-none" style={{ width: '120px' }} onClick={handleContainerClick}>
         <button
           onClick={handleIconClick}
-          className="text-white/70 hover:text-zinc-300 flex-shrink-0"
+          className="text-white/70 hover:text-white hover:bg-zinc-800 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
         >
           <Icon className="w-5 h-5" />
         </button>

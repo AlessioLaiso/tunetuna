@@ -7,6 +7,13 @@ services:
     ports:
       - "8080:80"
     restart: unless-stopped
+    environment:
+      # Optional: Restrict users to a specific Jellyfin server
+      # When set, users cannot change the server URL from the login screen
+      # (they can still see the current server URL in Settings)
+      # Uncomment and set your server URL to enable this feature:
+      # JELLYFIN_SERVER_URL: https://your-jellyfin-server.com
+      - JELLYFIN_SERVER_URL=${JELLYFIN_SERVER_URL:-}
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s

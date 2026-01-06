@@ -63,6 +63,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   const [isClosing, setIsClosing] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
+  const [prevBackgroundUrl, setPrevBackgroundUrl] = useState<string | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
@@ -175,6 +177,37 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   useEffect(() => {
     setImageError(false)
   }, [displayTrack?.Id])
+
+  // Preload background image and crossfade to prevent flash
+  useEffect(() => {
+    if (!displayTrack) return
+
+    const newUrl = jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)
+
+    // If no background yet, set it immediately
+    if (!backgroundUrl) {
+      setBackgroundUrl(newUrl)
+      return
+    }
+
+    // If URL is the same, no need to preload
+    if (newUrl === backgroundUrl) return
+
+    // Preload the new image before switching
+    const img = new window.Image()
+    const handleLoaded = () => {
+      // Save current as previous for crossfade
+      setPrevBackgroundUrl(backgroundUrl)
+      setBackgroundUrl(newUrl)
+      // Clear previous after animation completes (1s animation + buffer)
+      setTimeout(() => {
+        setPrevBackgroundUrl(null)
+      }, 1100)
+    }
+    img.onload = handleLoaded
+    img.onerror = handleLoaded
+    img.src = newUrl
+  }, [displayTrack?.Id, displayTrack?.AlbumId])
 
   if (!displayTrack) {
     return null
@@ -393,11 +426,20 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         .lg\\:max-w-\\[864px\\] { max-width: 864px; }
       }
 
-      /* Queue sidebar in player modal - transparent backgrounds */
-      .queue-xl-container .bg-zinc-900 { background-color: transparent; }
-      .queue-xl-container .hover\\:bg-zinc-900:hover { background-color: rgba(255, 255, 255, 0.1); }
+      /* Queue sidebar in player modal - transparent backgrounds (exclude fixed elements like context menus) */
+      .queue-xl-container .bg-zinc-900:not([style*="position: fixed"]):not(.fixed) { background-color: transparent; }
+      .queue-xl-container .hover\\:bg-zinc-900:hover:not([style*="position: fixed"]):not(.fixed) { background-color: rgba(255, 255, 255, 0.1); }
       .queue-xl-container .hover\\:bg-zinc-800:hover { background-color: rgba(255, 255, 255, 0.1); }
       .queue-xl-container .text-\\[var\\(--accent-color\\)\\] { color: white; }
+
+      /* Background crossfade animation */
+      @keyframes bgFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .bg-fade-in {
+        animation: bgFadeIn 1s ease-out forwards;
+      }
 
       /* Lyrics modal with sidebar - adjust right edge on xl screens */
       @media (min-width: 1280px) {
@@ -425,26 +467,50 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       >
         {/* Blurred album art background - covers entire modal including sidebar */}
         {/* Hidden when mobile queue is shown, but always visible on xl (queue is sidebar there) */}
-        {!imageError && (
+        {!imageError && (backgroundUrl || prevBackgroundUrl) && (
           <div className={showQueue ? 'hidden xl:contents' : 'contents'}>
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)})`,
-                filter: 'blur(100px)',
-                transform: 'scale(1.2)',
-              }}
-            />
-            <div className="absolute inset-0 bg-black/40" />
-            {/* Zinc gradient overlay */}
-            <div
-              className="absolute bottom-0 left-0 right-0 h-[300px] bg-gradient-to-t from-zinc-900/30 to-zinc-900/0"
-            />
+            {/* Previous background (stays visible underneath during transition) */}
+            {prevBackgroundUrl && (
+              <>
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url(${prevBackgroundUrl})`,
+                    filter: 'blur(100px)',
+                    transform: 'scale(1.2)',
+                  }}
+                />
+                {/* Edge gradients for previous background */}
+                <div className="absolute top-0 left-0 right-0 h-[150px] bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-zinc-900/50 to-transparent pointer-events-none" />
+              </>
+            )}
+            {/* Current background (fades in on top) */}
+            {backgroundUrl && (
+              <div key={backgroundUrl} className="absolute inset-0 bg-fade-in">
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url(${backgroundUrl})`,
+                    filter: 'blur(100px)',
+                    transform: 'scale(1.2)',
+                  }}
+                />
+                {/* Edge gradients for current background */}
+                <div className="absolute top-0 left-0 right-0 h-[150px] bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-zinc-900/50 to-transparent pointer-events-none" />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Overlay - always visible */}
+        <div className={showQueue ? 'hidden xl:contents' : 'contents'}>
+          <div className="absolute inset-0 bg-black/40 z-[1] pointer-events-none" />
+        </div>
+
+        {/* Main content area - z-[2] to be above overlays */}
+        <div className="flex-1 flex flex-col min-w-0 relative z-[2]">
         <div className="flex items-center justify-between p-4 relative">
           <div className="flex items-center gap-2 z-10 flex-shrink-0">
             <button
@@ -467,12 +533,12 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   variant="compact"
                   onOpenPopover={() => handleOpenVolumePopover('down')}
                   onRef={setVolumeHeaderButtonElement}
-                  className="text-white hover:text-zinc-300 transition-colors p-2"
+                  className="text-white hover:text-zinc-300 hover:bg-white/10 rounded-full transition-colors p-2"
                 />
               )}
             </div>
-            {/* Lyrics button - shown when has lyrics (in player or queue mode) */}
-            {hasLyrics && (
+            {/* Lyrics button - shown when has lyrics OR when lyrics modal is open (to allow closing it) */}
+            {(hasLyrics || showLyricsModal) && (
               <button
                 onClick={() => {
                   if (showQueue) {
@@ -480,9 +546,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }
                   setShowLyricsModal(!showLyricsModal)
                 }}
-                className={`transition-colors p-2 ${showLyricsModal
-                  ? 'text-[var(--accent-color)] hover:text-[var(--accent-color)]'
-                  : 'text-white hover:text-zinc-300'
+                className={`transition-colors p-2 rounded-full hover:bg-white/10 ${showLyricsModal
+                  ? 'text-[var(--accent-color)]'
+                  : 'text-white'
                   }`}
               >
                 <MicVocal className="w-6 h-6" />
@@ -497,7 +563,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 }
                 setShowQueue(!showQueue)
               }}
-              className="text-white hover:text-zinc-300 transition-colors p-2 xl:hidden"
+              className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
             >
               {showQueue ? (
                 <SquarePlay className="w-6 h-6" />
@@ -509,7 +575,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             {!isQueueSidebarOpen && (
               <button
                 onClick={toggleQueueSidebar}
-                className="text-white hover:text-zinc-300 transition-colors p-2 hidden xl:block"
+                className="text-white hover:bg-white/10 rounded-full transition-colors p-2 hidden xl:block"
               >
                 <ListVideo className="w-6 h-6" />
               </button>

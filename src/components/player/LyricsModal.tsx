@@ -49,13 +49,13 @@ export default function LyricsModal() {
         bottom: `calc(11rem + env(safe-area-inset-bottom))`
       }}
     >
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 relative">
+      <div className="flex-1 overflow-y-auto min-h-0 py-4 relative">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center h-full px-6">
             <div className="text-white/50">Loading lyrics...</div>
           </div>
         ) : lyrics ? (
-          <div className="max-w-[768px] mx-auto pb-8">
+          <div className="max-w-[768px] lg:max-w-[864px] mx-auto pb-8 pl-8 pr-4">
             <div className="text-white text-center whitespace-pre-line leading-relaxed text-base lg:text-xl">
               {lyrics.split('\n').map((line, index) => (
                 <div key={index} className="mb-2">
@@ -65,7 +65,7 @@ export default function LyricsModal() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center h-full px-6">
             <div className="text-white/50 text-center">This song has no lyrics</div>
           </div>
         )}

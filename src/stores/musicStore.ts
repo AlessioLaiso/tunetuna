@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, type StorageValue } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder } from '../api/types'
 
 // Singleton IndexedDB connection to prevent race conditions
@@ -51,7 +51,7 @@ function getDB(): Promise<IDBDatabase> {
 
 // Custom IndexedDB storage adapter for larger data capacity
 const indexedDBStorage = {
-  getItem: async (name: string): Promise<string | null> => {
+  getItem: async (name: string): Promise<StorageValue<MusicState> | null> => {
     try {
       const db = await getDB()
       return new Promise((resolve) => {
@@ -59,7 +59,12 @@ const indexedDBStorage = {
         const store = transaction.objectStore('zustand')
         const getRequest = store.get(name)
         getRequest.onsuccess = () => {
-          resolve(getRequest.result || null)
+          const result = getRequest.result
+          if (result) {
+            resolve(JSON.parse(result))
+          } else {
+            resolve(null)
+          }
         }
         getRequest.onerror = () => {
           resolve(null)
@@ -69,12 +74,12 @@ const indexedDBStorage = {
       return null
     }
   },
-  setItem: async (name: string, value: string): Promise<void> => {
+  setItem: async (name: string, value: StorageValue<MusicState>): Promise<void> => {
     const db = await getDB()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(['zustand'], 'readwrite')
       const store = transaction.objectStore('zustand')
-      const setRequest = store.put(value, name)
+      const setRequest = store.put(JSON.stringify(value), name)
       setRequest.onsuccess = () => {
         resolve()
       }

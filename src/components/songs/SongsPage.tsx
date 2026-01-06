@@ -710,7 +710,7 @@ export default function SongsPage() {
             className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? '' : 'right-0'}`}
             style={isQueueSidebarOpen ? { right: 'var(--sidebar-width)' } : undefined}
           >
-            <div className="w-[768px] max-h-[80vh] overflow-y-auto bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto">
+            <div className="w-[768px] max-h-[80vh] overflow-y-auto bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800">
               {/* Desktop header */}
               <div className="px-4 pt-4 pb-4">
                 <div className="flex items-center justify-between mb-3">
