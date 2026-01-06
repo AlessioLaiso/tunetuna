@@ -49,7 +49,7 @@ export default function HomePage() {
         }}
       />
 
-      <div className={isSearchActive ? 'hidden' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 7.5rem + 24px)` }}>
+      <div className={isSearchActive ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 7.5rem + 24px)` }}>
         <div className="max-w-[768px] mx-auto">
           {/* Always render components so they can load data via useEffect */}
           <RecentlyAdded />

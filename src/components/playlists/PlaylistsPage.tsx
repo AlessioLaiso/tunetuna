@@ -304,6 +304,7 @@ export default function PlaylistsPage() {
   const prevSortOrderRef = useRef(sortOrder)
   const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -413,13 +414,30 @@ export default function PlaylistsPage() {
   // Focus search input when overlay opens
   useEffect(() => {
     if (isSearchOpen) {
-      searchInputRef.current?.focus()
-      // Set cursor position to end of input
-      if (searchInputRef.current) {
-        const length = searchInputRef.current.value.length
-        searchInputRef.current.setSelectionRange(length, length)
+      const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)').matches
+      const inputRef = isDesktop ? desktopSearchInputRef : searchInputRef
+      setTimeout(() => {
+        inputRef.current?.focus()
+        if (inputRef.current) {
+          const length = inputRef.current.value.length
+          inputRef.current.setSelectionRange(length, length)
+        }
+      }, 50)
+    }
+  }, [isSearchOpen])
+
+  // Handle escape key to close search (all devices)
+  useEffect(() => {
+    if (!isSearchOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleCancelSearch()
       }
     }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isSearchOpen])
 
   // Cleanup search abort controller on unmount
@@ -600,9 +618,8 @@ export default function PlaylistsPage() {
         />
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
-          {!isSearchOpen && (
-            <div className={isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''}>
-              {playlists.length === 0 && !loading ? (
+          <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
+            {playlists.length === 0 && !loading ? (
                 <div className="flex items-center justify-center py-16 text-gray-400">
                   <p>No playlists found</p>
                 </div>
@@ -613,15 +630,172 @@ export default function PlaylistsPage() {
                   ))}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
       {/* Full-page search overlay - rendered via portal to escape stacking context */}
       {isSearchOpen && createPortal(
         <>
-          <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0">
+          {/* Backdrop for desktop dropdown mode - click to close */}
+          <div
+            className="hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block fixed inset-0 z-[9998] bg-black/50"
+            onClick={handleCancelSearch}
+          />
+          {/* Desktop: positioning wrapper that fills content area and centers the dropdown */}
+          <div
+            className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? '' : 'right-0'}`}
+            style={isQueueSidebarOpen ? { right: 'var(--sidebar-width)' } : undefined}
+          >
+            <div className="w-[768px] max-h-[80vh] overflow-y-auto bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto">
+              {/* Desktop header */}
+              <div className="px-4 pt-4 pb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-lg font-semibold text-white">Search</div>
+                  <button
+                    onClick={handleCancelSearch}
+                    className="px-3 py-1.5 text-white text-sm font-medium hover:bg-zinc-800 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <SearchInput
+                  ref={desktopSearchInputRef}
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  placeholder="Search for artists, albums, songs..."
+                  showClearButton={searchQuery.trim().length > 0}
+                  onClear={handleClearSearch}
+                />
+              </div>
+              {/* Desktop search results */}
+              <div className="px-4 pb-8">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
+                  </div>
+                ) : searchResults ? (
+                  <div className="space-y-8">
+                    {searchResults.playlists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4">Playlists</h2>
+                        <div className="space-y-0 -mx-4">
+                          {searchResults.playlists.map((playlist) => (
+                            <button
+                              key={playlist.Id}
+                              onClick={() => handlePlaylistClick(playlist.Id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                openContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
+                              }}
+                              className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+                            >
+                              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+                                <img
+                                  src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+                                  alt={playlist.Name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                                  {playlist.Name}
+                                </div>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {searchResults.artists.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4">Artists</h2>
+                        <div className="space-y-0 -mx-4">
+                          {searchResults.artists.slice(0, 5).map((artist) => (
+                            <SearchArtistItem
+                              key={artist.Id}
+                              artist={artist}
+                              onClick={handleArtistClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {searchResults.albums.length > 0 && (
+                      <div>
+                        <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                          {searchResults.albums.slice(0, 12).map((album) => (
+                            <SearchAlbumItem
+                              key={album.Id}
+                              album={album}
+                              onClick={handleAlbumClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {searchResults.songs.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-bold text-white">Songs</h2>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handlePlayAllSongs}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Play all songs"
+                            >
+                              <Play className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSongsToQueue}
+                              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
+                              aria-label="Add all songs to queue"
+                            >
+                              <ListEnd className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-0 -mx-4">
+                          {searchResults.songs.map((song, index) => (
+                            <SearchSongItem
+                              key={song.Id}
+                              song={song}
+                              onClick={handleSongClick}
+                              onContextMenu={openContextMenu}
+                              contextMenuItemId={contextMenuItem?.Id || null}
+                              showImage={index < visibleSearchSongImageCount}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {searchResults.playlists.length === 0 && searchResults.artists.length === 0 && searchResults.albums.length === 0 && searchResults.songs.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                        <div className="text-lg mb-2">No results found</div>
+                        <div className="text-sm">Try a different search term</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Mobile: fullscreen */}
+          <div className="fixed inset-0 bg-black z-[9999] overflow-y-auto p-0 m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden">
             {/* Fixed overlay to hide content behind status bar */}
             <div
               className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
@@ -660,8 +834,7 @@ export default function PlaylistsPage() {
               }}
             />
 
-            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(52px + env(safe-area-inset-top))` }}>
-
+            <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
               {/* Search results */}
               <div className="pb-32 pt-4">
                 {isSearching ? (
@@ -670,7 +843,6 @@ export default function PlaylistsPage() {
                   </div>
                 ) : searchResults ? (
                   <div className="space-y-8">
-                    {/* Playlists first */}
                     {searchResults.playlists.length > 0 && (
                       <div>
                         <h2 className="text-xl font-bold text-white mb-4 px-4">Playlists</h2>
@@ -707,8 +879,6 @@ export default function PlaylistsPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* Artists */}
                     {searchResults.artists.length > 0 && (
                       <div>
                         <h2 className="text-xl font-bold text-white mb-4 px-4">Artists</h2>
@@ -725,8 +895,6 @@ export default function PlaylistsPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* Albums */}
                     {searchResults.albums.length > 0 && (
                       <div className="px-4">
                         <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
@@ -743,8 +911,6 @@ export default function PlaylistsPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* Songs */}
                     {searchResults.songs.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-4 px-4">
@@ -782,7 +948,6 @@ export default function PlaylistsPage() {
                         </div>
                       </div>
                     )}
-
                     {searchResults.playlists.length === 0 && searchResults.artists.length === 0 && searchResults.albums.length === 0 && searchResults.songs.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
                         <div className="text-lg mb-2">No results found</div>
@@ -791,8 +956,7 @@ export default function PlaylistsPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4">
-                  </div>
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-4" />
                 )}
               </div>
             </div>
