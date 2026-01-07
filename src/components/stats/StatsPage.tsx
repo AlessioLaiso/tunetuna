@@ -477,8 +477,8 @@ export default function StatsPage() {
     return <EmptyState />
   }
 
-  const maxGenreHours = Math.max(...stats.topGenres.map(g => g.hours), 1)
-  const maxDecadeHours = Math.max(...stats.decades.map(d => d.hours), 1)
+  const maxGenreHours = Math.max(...stats.topGenres.map(g => g.hours))
+  const maxDecadeHours = Math.max(...stats.decades.map(d => d.hours))
 
   return (
     <div className="pb-32 lg:pb-20">
