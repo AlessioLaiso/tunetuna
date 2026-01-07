@@ -150,7 +150,7 @@ export default function SettingsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Page Visibility</h2>
           <div className="space-y-3">
-            {(['artists', 'albums', 'songs', 'genres', 'playlists'] as const).map((page) => (
+            {(['artists', 'albums', 'songs', 'genres', 'playlists', 'stats'] as const).map((page) => (
               <div
                 key={page}
                 className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg"

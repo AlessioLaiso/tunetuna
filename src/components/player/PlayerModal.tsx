@@ -629,7 +629,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                           src={jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)}
                           alt={displayTrack.Name}
                           className="w-full h-full object-cover"
-                          showOutline={true}
                           rounded="rounded"
                           onError={() => setImageError(true)}
                         />

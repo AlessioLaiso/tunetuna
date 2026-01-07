@@ -5,6 +5,7 @@ import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
 import { useSettingsStore } from './settingsStore'
 import { useToastStore } from './toastStore'
+import { useStatsStore } from './statsStore'
 
 // Track which items have been reported to prevent duplicate API calls
 const reportedItems = new Set<string>()
@@ -453,7 +454,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       play: () => {
-        const { audioElement, currentIndex, songs } = get()
+        const { audioElement, currentIndex, songs, currentTime } = get()
         if (audioElement && currentIndex >= 0 && currentIndex < songs.length) {
           const track = songs[currentIndex]
 
@@ -465,6 +466,14 @@ export const usePlayerStore = create<PlayerState>()(
           if (audioElement.src !== audioUrl) {
             audioElement.src = audioUrl
             audioElement.load()
+          } else if (currentTime === 0 && audioElement.currentTime > 0.5) {
+            // Same URL but state says we want to restart from beginning
+            // (e.g., clicking currently playing song from album/search)
+            audioElement.currentTime = 0
+            // Restore duration from audio element since loadedmetadata won't fire again
+            if (audioElement.duration && !isNaN(audioElement.duration)) {
+              set({ duration: audioElement.duration })
+            }
           }
 
           audioElement.play().then(() => {
@@ -472,6 +481,8 @@ export const usePlayerStore = create<PlayerState>()(
             reportPlaybackWithDelay(track.Id, () => get().songs[get().currentIndex] || null)
             // Track locally played songs for recently played list
             useMusicStore.getState().addToRecentlyPlayed(track)
+            // Start tracking for stats
+            useStatsStore.getState().startPlay(track)
           }).catch((error) => {
             console.error('Playback error:', error)
             set({ isPlaying: false })
@@ -502,6 +513,13 @@ export const usePlayerStore = create<PlayerState>()(
         const state = get()
 
         if (state.songs.length === 0) return
+
+        // Record stats for the track that just finished
+        if (state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+          const finishedTrack = state.songs[state.currentIndex]
+          const actualDurationMs = state.currentTime * 1000
+          useStatsStore.getState().recordPlay(finishedTrack, actualDurationMs)
+        }
 
         let nextIndex = state.currentIndex + 1
 
@@ -1048,6 +1066,9 @@ export const usePlayerStore = create<PlayerState>()(
           previousIndex: currentIndex >= 0 ? currentIndex : -1,
           currentIndex: trackIndex,
           lastPlayedTrack: currentTrack,
+          // Reset currentTime so play() knows to restart from beginning
+          // This handles duplicate songs in queue (same ID at different positions)
+          currentTime: 0,
         })
 
         // Start playback

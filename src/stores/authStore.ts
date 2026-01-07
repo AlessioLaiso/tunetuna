@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
           userId: '',
           isAuthenticated: false,
         })
-        sessionStorage.removeItem('auth-storage')
+        localStorage.removeItem('auth-storage')
       },
 
       setCredentials: (serverUrl: string, accessToken: string, userId: string) => {
@@ -67,14 +67,14 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       storage: {
         getItem: (name) => {
-          const str = sessionStorage.getItem(name)
+          const str = localStorage.getItem(name)
           return str ? JSON.parse(str) : null
         },
         setItem: (name, value) => {
-          sessionStorage.setItem(name, JSON.stringify(value))
+          localStorage.setItem(name, JSON.stringify(value))
         },
         removeItem: (name) => {
-          sessionStorage.removeItem(name)
+          localStorage.removeItem(name)
         },
       },
       onRehydrateStorage: () => (state) => {

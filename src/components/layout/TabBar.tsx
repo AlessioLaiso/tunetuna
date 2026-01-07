@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, User, Disc, Music, Guitar, ListMusic } from 'lucide-react'
+import { Home, User, Disc, Music, Guitar, ListMusic, BarChart3 } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSyncStore } from '../../stores/syncStore'
 import VolumeControl from './VolumeControl'
@@ -13,6 +13,7 @@ const allTabs = [
   { path: '/songs', label: 'Songs', icon: Music, key: 'songs' },
   { path: '/genres', label: 'Genres', icon: Guitar, key: 'genres' },
   { path: '/playlists', label: 'Playlists', icon: ListMusic, key: 'playlists' },
+  { path: '/stats', label: 'Stats', icon: BarChart3, key: 'stats' },
 ]
 
 export default function TabBar() {

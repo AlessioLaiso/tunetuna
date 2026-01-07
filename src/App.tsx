@@ -19,6 +19,7 @@ const SettingsPage = lazy(() => import('./components/shared/SettingsPage'))
 const ArtistDetailPage = lazy(() => import('./components/artists/ArtistDetailPage'))
 const AlbumDetailPage = lazy(() => import('./components/albums/AlbumDetailPage'))
 const GenreSongsPage = lazy(() => import('./components/genres/GenreSongsPage'))
+const StatsPage = lazy(() => import('./components/stats/StatsPage'))
 
 // Loading fallback component
 function PageLoader() {
@@ -87,6 +88,9 @@ function App() {
                   <Route path="/playlists" element={<PlaylistsPage />} />
                   <Route path="/playlist/:id" element={<PlaylistDetailPage />} />
                 </>
+              )}
+              {pageVisibility.stats && (
+                <Route path="/stats" element={<StatsPage />} />
               )}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

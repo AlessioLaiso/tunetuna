@@ -14,14 +14,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 5173,
+    allowedHosts: true, // Allow ngrok and other tunneling services
     proxy: {
-      // Proxy API requests to avoid CORS issues during development
-      // Usage: Use relative URLs like '/api/...' instead of full server URLs
-      // '/api': {
-      //   target: 'http://localhost:8096',
-      //   changeOrigin: true,
-      //   rewrite: (path) => path.replace(/^\/api/, ''),
-      // },
+      // Proxy stats API to local backend during development
+      '/api/stats': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

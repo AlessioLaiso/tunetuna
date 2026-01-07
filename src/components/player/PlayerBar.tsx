@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useStatsStore } from '../../stores/statsStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -137,6 +138,11 @@ export default function PlayerBar() {
 
       // Handle repeat mode 'one' - replay the current track
       if (repeat === 'one' && audio) {
+        // Record stats for the completed play before restarting
+        if (currentTrack) {
+          const actualDurationMs = audio.duration * 1000
+          useStatsStore.getState().recordPlay(currentTrack, actualDurationMs)
+        }
         audio.currentTime = 0
         audio.play()
         return

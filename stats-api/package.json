@@ -1,0 +1,14 @@
+{
+  "name": "tunetuna-stats-api",
+  "version": "1.0.0",
+  "description": "Stats API for Tunetuna listening history",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "fastify": "^5.0.0"
+  }
+}

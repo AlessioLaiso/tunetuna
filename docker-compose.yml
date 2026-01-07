@@ -7,6 +7,8 @@ services:
     ports:
       - "8080:80"
     restart: unless-stopped
+    depends_on:
+      - stats-api
     environment:
       # Optional: Restrict users to a specific Jellyfin server
       # When set, users cannot change the server URL from the login screen
@@ -20,4 +22,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  stats-api:
+    build:
+      context: ./stats-api
+      dockerfile: Dockerfile
+    container_name: tunetuna-stats
+    restart: unless-stopped
+    volumes:
+      - stats-data:/data
+    environment:
+      - DATA_DIR=/data
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/stats/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  stats-data:
 

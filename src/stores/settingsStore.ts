@@ -7,6 +7,7 @@ interface PageVisibility {
   songs: boolean
   genres: boolean
   playlists: boolean
+  stats: boolean
 }
 
 interface SettingsState {
@@ -32,7 +33,8 @@ export const useSettingsStore = create<SettingsState>()(
         albums: true,
         songs: true,
         genres: true,
-        playlists: true,
+        playlists: false,
+        stats: true,
       },
       setPageVisibility: (visibility) =>
         set((state) => ({
