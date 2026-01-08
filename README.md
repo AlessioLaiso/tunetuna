@@ -8,6 +8,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
 ## Key Features
 
   - Browse your library by Artists, Albums, Songs, Genres, and Playlists. You can toggle these pages on and off.
+  - Tunetuna Canned: your own listening stats synced across devices.
   - Home screen with recently added and recently played music.
   - Search by name and filter by genre and year.
   - Queue management with optional recommendations for similar songs.
