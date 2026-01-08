@@ -532,6 +532,12 @@ export const usePlayerStore = create<PlayerState>()(
           useStatsStore.getState().recordPlay(finishedTrack, actualDurationMs)
         }
 
+        if (state.repeat === 'one' && state.currentIndex >= 0) {
+          get().seek(0)
+          get().play()
+          return
+        }
+
         let nextIndex = state.currentIndex + 1
 
         // Handle end of queue

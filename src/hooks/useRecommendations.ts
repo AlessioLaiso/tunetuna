@@ -9,7 +9,7 @@ function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
 }
@@ -57,6 +57,7 @@ export function useRecommendations() {
     refreshCurrentTrack,
     isFetchingRecommendations,
     setIsFetchingRecommendations,
+    repeat,
   } = usePlayerStore()
 
   const { showQueueRecommendations } = useSettingsStore()
@@ -99,18 +100,23 @@ export function useRecommendations() {
     const timeSinceLastSuccess = Date.now() - lastSuccessAttemptRef.current
     const shouldTrigger = Boolean(
       showQueueRecommendations &&
-        !isRecommendingRef.current &&
-        !isFetchingRecommendations && // Don't trigger if already fetching
-        currentIndex >= 0 &&
-        upcomingRecommendations < 12 &&
-        timeSinceLastFailure > 10000 && // Wait at least 10 seconds after a failed attempt
-        timeSinceLastSuccess > 5000 // Wait at least 5 seconds after a successful fetch
+      repeat === 'off' && // Don't fetch recommendations if repeating (allows queue to loop)
+      !isRecommendingRef.current &&
+      !isFetchingRecommendations && // Don't trigger if already fetching
+      currentIndex >= 0 &&
+      upcomingRecommendations < 12 &&
+      timeSinceLastFailure > 10000 && // Wait at least 10 seconds after a failed attempt
+      timeSinceLastSuccess > 5000 // Wait at least 5 seconds after a successful fetch
     )
 
     if (!shouldTrigger) {
       // Debug: Log why we're not triggering
       if (upcomingRecommendations >= 12) {
         // This is the normal case - we have enough recommendations
+        return
+      }
+      if (repeat === 'all') {
+        // Expected when repeat all is active
         return
       }
       if (timeSinceLastSuccess <= 5000) {
@@ -153,7 +159,7 @@ export function useRecommendations() {
 
 
         // Get recommendations for each seed
-        const seedResults: Array<{recommendations: BaseItemDto[], hasGenreMatches: boolean}> = []
+        const seedResults: Array<{ recommendations: BaseItemDto[], hasGenreMatches: boolean }> = []
 
         for (const seed of seedTracks) {
           logger.log(`[Recommendations] Generating recommendations for seed: ${seed.Name}`)
@@ -186,7 +192,7 @@ export function useRecommendations() {
 
             // Exponential backoff: 15s, 30s, 60s
             const backoffDelay = 15000 * Math.pow(2, retryCountRef.current - 1)
-            logger.log(`[Recommendations] Genre sync triggered (attempt ${retryCountRef.current}/${maxRetries}), retry in ${backoffDelay/1000}s`)
+            logger.log(`[Recommendations] Genre sync triggered (attempt ${retryCountRef.current}/${maxRetries}), retry in ${backoffDelay / 1000}s`)
 
             setTimeout(() => {
               lastFailedAttemptRef.current = 0
@@ -291,6 +297,38 @@ export function useRecommendations() {
     showQueueRecommendations,
     isFetchingRecommendations,
     setIsFetchingRecommendations,
+    repeat
   ])
+
+  // Automatically turn off recommendations when repeat is active
+  useEffect(() => {
+    if (repeat !== 'off') {
+      if (showQueueRecommendations) {
+        useSettingsStore.getState().setShowQueueRecommendations(false)
+      }
+
+      // Check if there are any FUTURE recommendations to clear
+      // We keep current and previous tracks to avoid disrupting playback history
+      const hasFutureRecommendations = songs.some((s, i) => i > currentIndex && s.source === 'recommendation')
+
+      if (hasFutureRecommendations) {
+        logger.log('[Recommendations] Repeat active, clearing future recommendations')
+        const songsToKeep = songs.filter((song, index) => {
+          // Keep all songs up to and including current
+          if (index <= currentIndex) return true
+          // Keep future user-added songs
+          return song.source === 'user'
+        })
+
+        // Update queue directly via store
+        usePlayerStore.setState({
+          songs: songsToKeep,
+          // currentIndex stays same
+          standardOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
+          shuffleOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
+        })
+      }
+    }
+  }, [repeat, currentIndex, songs, showQueueRecommendations])
 }
 

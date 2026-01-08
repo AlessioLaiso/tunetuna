@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Settings, Guitar, Calendar, Play, ListEnd, User, Disc, Shuffle } from 'lucide-react'
 import SearchInput from '../shared/SearchInput'
@@ -395,6 +395,36 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   }, [isShuffling])
 
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Read URL parameters on mount and apply filters
+  useEffect(() => {
+    const yearMin = searchParams.get('yearMin')
+    const yearMax = searchParams.get('yearMax')
+    const genreParam = searchParams.get('genre')
+
+    let hasUrlFilters = false
+
+    if (yearMin || yearMax) {
+      setYearRange({
+        min: yearMin ? parseInt(yearMin, 10) : null,
+        max: yearMax ? parseInt(yearMax, 10) : null,
+      })
+      hasUrlFilters = true
+    }
+
+    if (genreParam) {
+      setSelectedGenres([genreParam])
+      hasUrlFilters = true
+    }
+
+    // Open search overlay if URL filters are present
+    if (hasUrlFilters) {
+      setIsSearchOpen(true)
+      // Clear the URL params after applying them
+      setSearchParams({}, { replace: true })
+    }
+  }, []) // Only run on mount
 
   // Load filter values on mount
   useEffect(() => {

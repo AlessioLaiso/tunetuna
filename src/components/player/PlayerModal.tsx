@@ -104,8 +104,12 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     })
   }, [])
 
-  const hasNext = currentIndex >= 0 && currentIndex < songs.length - 1
-  const hasPrevious = currentIndex > 0
+  const hasNext = songs.length > 0 && (
+    currentIndex < 0 ||
+    currentIndex < songs.length - 1 ||
+    repeat !== 'off'
+  )
+  const hasPrevious = currentIndex > 0 || (repeat === 'all' && songs.length > 0)
 
 
 
@@ -511,94 +515,94 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
         {/* Main content area - z-[2] to be above overlays */}
         <div className="flex-1 flex flex-col min-w-0 relative z-[2]">
-        <div className="flex items-center justify-between p-4 relative">
-          <div className="flex items-center gap-2 z-10 flex-shrink-0">
-            <button
-              onClick={handleClose}
-              className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
-            >
-              <ChevronDown className="w-8 h-8" />
-            </button>
-          </div>
-          {showLyricsModal && displayTrack && (
-            <h2 className="absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
-              {getDisplayName()}
-            </h2>
-          )}
-          <div className="flex items-center gap-2 z-10 flex-shrink-0">
-            {/* Volume button - shown below 768 normally, below 1280 when in queue */}
-            <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'} ${showLyricsModal ? 'hidden' : ''}`}>
-              {!isIOS() && (
-                <VolumeControl
-                  variant="compact"
-                  onOpenPopover={() => handleOpenVolumePopover('down')}
-                  onRef={setVolumeHeaderButtonElement}
-                  className="text-white hover:text-zinc-300 hover:bg-white/10 rounded-full transition-colors p-2"
-                />
-              )}
+          <div className="flex items-center justify-between p-4 relative">
+            <div className="flex items-center gap-2 z-10 flex-shrink-0">
+              <button
+                onClick={handleClose}
+                className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
+              >
+                <ChevronDown className="w-8 h-8" />
+              </button>
             </div>
-            {/* Lyrics button - shown when has lyrics OR when lyrics modal is open (to allow closing it) */}
-            {(hasLyrics || showLyricsModal) && (
+            {showLyricsModal && displayTrack && (
+              <h2 className="absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
+                {getDisplayName()}
+              </h2>
+            )}
+            <div className="flex items-center gap-2 z-10 flex-shrink-0">
+              {/* Volume button - shown below 768 normally, below 1280 when in queue */}
+              <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'} ${showLyricsModal ? 'hidden' : ''}`}>
+                {!isIOS() && (
+                  <VolumeControl
+                    variant="compact"
+                    onOpenPopover={() => handleOpenVolumePopover('down')}
+                    onRef={setVolumeHeaderButtonElement}
+                    className="text-white hover:text-zinc-300 hover:bg-white/10 rounded-full transition-colors p-2"
+                  />
+                )}
+              </div>
+              {/* Lyrics button - shown when has lyrics OR when lyrics modal is open (to allow closing it) */}
+              {(hasLyrics || showLyricsModal) && (
+                <button
+                  onClick={() => {
+                    if (showQueue) {
+                      setShowQueue(false)
+                    }
+                    setShowLyricsModal(!showLyricsModal)
+                  }}
+                  className={`transition-colors p-2 rounded-full hover:bg-white/10 ${showLyricsModal
+                    ? 'text-[var(--accent-color)]'
+                    : 'text-white'
+                    }`}
+                >
+                  <MicVocal className="w-6 h-6" />
+                </button>
+              )}
+              {/* Queue/Player toggle button - below xl */}
               <button
                 onClick={() => {
-                  if (showQueue) {
-                    setShowQueue(false)
+                  if (!showQueue) {
+                    // Opening queue - close lyrics modal
+                    setShowLyricsModal(false)
                   }
-                  setShowLyricsModal(!showLyricsModal)
+                  setShowQueue(!showQueue)
                 }}
-                className={`transition-colors p-2 rounded-full hover:bg-white/10 ${showLyricsModal
-                  ? 'text-[var(--accent-color)]'
-                  : 'text-white'
-                  }`}
+                className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
               >
-                <MicVocal className="w-6 h-6" />
+                {showQueue ? (
+                  <SquarePlay className="w-6 h-6" />
+                ) : (
+                  <ListVideo className="w-6 h-6" />
+                )}
               </button>
-            )}
-            {/* Queue/Player toggle button - below xl */}
-            <button
-              onClick={() => {
-                if (!showQueue) {
-                  // Opening queue - close lyrics modal
-                  setShowLyricsModal(false)
-                }
-                setShowQueue(!showQueue)
-              }}
-              className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
-            >
-              {showQueue ? (
-                <SquarePlay className="w-6 h-6" />
-              ) : (
-                <ListVideo className="w-6 h-6" />
+              {/* Queue button for xl screens - opens sidebar */}
+              {!isQueueSidebarOpen && (
+                <button
+                  onClick={toggleQueueSidebar}
+                  className="text-white hover:bg-white/10 rounded-full transition-colors p-2 hidden xl:block"
+                >
+                  <ListVideo className="w-6 h-6" />
+                </button>
               )}
-            </button>
-            {/* Queue button for xl screens - opens sidebar */}
-            {!isQueueSidebarOpen && (
-              <button
-                onClick={toggleQueueSidebar}
-                className="text-white hover:bg-white/10 rounded-full transition-colors p-2 hidden xl:block"
-              >
-                <ListVideo className="w-6 h-6" />
-              </button>
-            )}
+            </div>
           </div>
-        </div>
 
-        {/* Mobile queue view - only shown below xl */}
-        {showQueue && (
-          <div className="flex-1 bg-zinc-900 relative z-10 xl:hidden">
-            <QueueView
-              onClose={() => setShowQueue(false)}
-              onNavigateFromContextMenu={() => {
-                // When navigating from the queue's context menu (e.g. to album/artist/genre),
-                // close the full-screen player modal so the destination page is visible.
-                handleClose()
-              }}
-            />
-          </div>
-        )}
+          {/* Mobile queue view - only shown below xl */}
+          {showQueue && (
+            <div className="flex-1 bg-zinc-900 relative z-10 xl:hidden">
+              <QueueView
+                onClose={() => setShowQueue(false)}
+                onNavigateFromContextMenu={() => {
+                  // When navigating from the queue's context menu (e.g. to album/artist/genre),
+                  // close the full-screen player modal so the destination page is visible.
+                  handleClose()
+                }}
+              />
+            </div>
+          )}
 
-        {/* Player content - always shown on xl, or when queue is not shown */}
-        <div className={`flex-1 flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative ${showQueue ? 'hidden xl:flex' : 'flex'}`} style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
+          {/* Player content - always shown on xl, or when queue is not shown */}
+          <div className={`flex-1 flex-col min-h-0 max-w-[768px] lg:max-w-[864px] mx-auto w-full relative ${showQueue ? 'hidden xl:flex' : 'flex'}`} style={{ paddingBottom: `env(safe-area-inset-bottom)` }}>
             {/* Album art and info - invisible when lyrics are shown (keeps space) */}
             <div className={`flex-1 overflow-hidden min-h-0 flex items-center justify-center ${showLyricsModal ? 'invisible' : ''}`}>
               <div className="w-full flex flex-col items-center px-4 sm:px-8 md:pr-0">
@@ -774,17 +778,17 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             </div>
           </div>
 
-        {showLyricsModal && (
-          <LyricsModal />
-        )}
-        {showVolumePopover && volumePopoverPosition && !isIOS() && (
-          <VolumeControl
-            variant="vertical"
-            onClose={() => setShowVolumePopover(false)}
-            popoverPosition={volumePopoverPosition}
-            popoverDirection={volumePopoverDirection}
-          />
-        )}
+          {showLyricsModal && (
+            <LyricsModal />
+          )}
+          {showVolumePopover && volumePopoverPosition && !isIOS() && (
+            <VolumeControl
+              variant="vertical"
+              onClose={() => setShowVolumePopover(false)}
+              popoverPosition={volumePopoverPosition}
+              popoverDirection={volumePopoverDirection}
+            />
+          )}
         </div>
 
         {/* XL Queue Sidebar - full height */}

@@ -137,7 +137,8 @@ export default function PlayerBar() {
       }
 
       // Handle repeat mode 'one' - replay the current track
-      if (repeat === 'one' && audio) {
+      const currentRepeat = usePlayerStore.getState().repeat
+      if (currentRepeat === 'one' && audio) {
         // Record stats for short songs that weren't recorded during playback
         const hasRecorded = usePlayerStore.getState().hasRecordedCurrentTrackStats
         if (currentTrack && !hasRecorded) {
@@ -233,11 +234,11 @@ export default function PlayerBar() {
   const hasNext = songs.length > 0 && (
     currentIndex < 0 || // No current track, but queue has songs
     currentIndex < songs.length - 1 || // Not at the end of queue
-    repeat === 'all' // Repeat all is enabled
+    repeat !== 'off' // Repeat is enabled
   )
 
-  // Previous should be active if there are songs before current index
-  const hasPrevious = currentIndex > 0
+  // Previous should be active if there are songs before current index or repeat uses wrap-around
+  const hasPrevious = currentIndex > 0 || (repeat === 'all' && songs.length > 0)
 
   // Handle volume popover opening
   const handleOpenVolumePopover = () => {

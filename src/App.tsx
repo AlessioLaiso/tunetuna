@@ -90,7 +90,9 @@ function App() {
                 </>
               )}
               {pageVisibility.stats && (
-                <Route path="/stats" element={<StatsPage />} />
+                <>
+                  <Route path="/stats" element={<StatsPage />} />
+                </>
               )}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -220,6 +220,7 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
         reorderQueue,
         isFetchingRecommendations,
         isLoadingMoreSongs,
+        repeat,
     } = usePlayerStore()
 
     const { showQueueRecommendations, setShowQueueRecommendations, recommendationsQuality } = useSettingsStore()
@@ -307,33 +308,33 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
     // Find the last user track in upcoming songs (if any)
     let lastUserTrackIndex = -1
     for (let i = songs.length - 1; i > currentIndex; i--) {
-      if (songs[i].source === 'user') {
-        lastUserTrackIndex = i
-        break
-      }
+        if (songs[i].source === 'user') {
+            lastUserTrackIndex = i
+            break
+        }
     }
 
     // "Coming Up" shows everything up to and including the last user track
     // This ensures visual order matches playback order when user tracks are mixed with recommendations
     const comingUp = songs.filter((_, index) => {
-      if (index <= currentIndex) return false
-      // If there are user tracks ahead, show everything up to the last one
-      if (lastUserTrackIndex !== -1) {
-        return index <= lastUserTrackIndex
-      }
-      // No user tracks ahead, don't show anything in "Coming Up"
-      return false
+        if (index <= currentIndex) return false
+        // If there are user tracks ahead, show everything up to the last one
+        if (lastUserTrackIndex !== -1) {
+            return index <= lastUserTrackIndex
+        }
+        // No user tracks ahead, don't show anything in "Coming Up"
+        return false
     })
 
     // "Recommendations" only shows recommendations AFTER the last user track
     const upcomingRecommendations = songs.filter((song, index) => {
-      if (song.source !== 'recommendation' || index <= currentIndex) return false
-      // If there are user tracks, only show recos after the last user track
-      if (lastUserTrackIndex !== -1) {
-        return index > lastUserTrackIndex
-      }
-      // No user tracks, show all upcoming recommendations here
-      return true
+        if (song.source !== 'recommendation' || index <= currentIndex) return false
+        // If there are user tracks, only show recos after the last user track
+        if (lastUserTrackIndex !== -1) {
+            return index > lastUserTrackIndex
+        }
+        // No user tracks, show all upcoming recommendations here
+        return true
     })
 
     // Apply lazy loading limits - calculate total visible songs needed
@@ -532,6 +533,7 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                         Recommendations
                                     </div>
                                     <button
+                                        disabled={repeat !== 'off'}
                                         onClick={() => {
                                             const newValue = !showQueueRecommendations
                                             setShowQueueRecommendations(newValue)
@@ -553,31 +555,38 @@ export default function QueueList({ onNavigateFromContextMenu, header, contentPa
                                                 })
                                             }
                                         }}
-                                        className={`relative w-12 h-6 rounded-full transition-colors ${showQueueRecommendations ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
-                                            }`}
+                                        className={`relative w-12 h-6 rounded-full transition-colors ${showQueueRecommendations && repeat === 'off' ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
+                                            } ${repeat !== 'off' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <span
-                                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showQueueRecommendations ? 'translate-x-6' : 'translate-x-0'
+                                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showQueueRecommendations && repeat === 'off' ? 'translate-x-6' : 'translate-x-0'
                                                 }`}
                                         />
                                     </button>
                                 </div>
                                 {/* Status messages below header */}
-                                {(showSyncingMessage || recommendationsQuality === 'failed') && (
-                                    <div className="px-4 pb-2">
-                                        {showSyncingMessage && (
-                                            <span className="text-xs text-gray-400 font-normal">
-                                                Syncing genres...
-                                            </span>
-                                        )}
-                                        {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
-                                            <span className="text-xs text-gray-400 font-normal">
-                                                Sync library in settings
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                                {showQueueRecommendations && (
+                                <div className="px-4 pb-2">
+                                    {repeat !== 'off' && (
+                                        <span className="text-xs text-gray-400 font-normal block mb-1">
+                                            Disabled when repeat mode is active
+                                        </span>
+                                    )}
+                                    {(showSyncingMessage || recommendationsQuality === 'failed') && (
+                                        <>
+                                            {showSyncingMessage && (
+                                                <span className="text-xs text-gray-400 font-normal block">
+                                                    Syncing genres...
+                                                </span>
+                                            )}
+                                            {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
+                                                <span className="text-xs text-gray-400 font-normal block">
+                                                    Sync library in settings
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                                {showQueueRecommendations && repeat === 'off' && (
                                     <>
                                         {visibleUpcomingRecommendations.map((track, mapIndex) => {
                                             const index = songs.indexOf(track)

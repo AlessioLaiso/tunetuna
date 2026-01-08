@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Music,
@@ -11,11 +11,20 @@ import {
   Guitar,
   CalendarDays,
   GalleryHorizontalEnd,
+  Image as ImageIcon,
+  Download,
+  X,
+  CirclePlay,
 } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useMusicStore } from '../../stores/musicStore'
 import { computeStats } from '../../utils/statsComputer'
+import StatsCannedImage from './StatsCannedImage'
+import html2canvas from 'html2canvas'
+import ContextMenu from '../shared/ContextMenu'
+import { useLongPress } from '../../hooks/useLongPress'
 
 // Month names for display
 const SHORT_MONTH_NAMES = [
@@ -160,7 +169,29 @@ function TimelineCard({
   isTop: boolean
   onClick: () => void
 }) {
-  const imageUrl = jellyfinClient.getArtistImageUrl(artistId, 120)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    setImageUrl(jellyfinClient.getArtistImageUrl(artistId, 120))
+  }, [artistId])
+
+  const handleImageError = async () => {
+    try {
+      const { albums, songs } = await jellyfinClient.getArtistItems(artistId)
+      const firstAlbum = albums[0]
+      const firstSongWithAlbum = songs.find((song) => song.AlbumId) || songs[0]
+      const artItem = firstAlbum || firstSongWithAlbum
+      const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
+
+      if (artId) {
+        setImageUrl(jellyfinClient.getAlbumArtUrl(artId, 120))
+      } else {
+        setImageUrl(null)
+      }
+    } catch {
+      setImageUrl(null)
+    }
+  }
 
   return (
     <button
@@ -172,7 +203,7 @@ function TimelineCard({
       </div>
       <div className="w-16 h-16 rounded-full bg-zinc-700 overflow-hidden mb-2">
         {imageUrl ? (
-          <img src={imageUrl} alt={artistName} className="w-full h-full object-cover" />
+          <img src={imageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <User className="w-6 h-6 text-zinc-500" />
@@ -191,6 +222,7 @@ function TopSongItem({
   songId,
   songName,
   artistName,
+  artistId,
   albumId,
   plays,
   singleDayPlays,
@@ -201,6 +233,7 @@ function TopSongItem({
   songId: string
   songName: string
   artistName: string
+  artistId: string
   albumId: string
   plays: number
   singleDayPlays?: { count: number; date: string }
@@ -213,33 +246,89 @@ function TopSongItem({
   const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const songItem = {
+    Id: songId,
+    Name: songName,
+    AlbumId: albumId,
+    Album: 'Album', // Placeholder as we don't have album name
+    ArtistItems: [{ Id: artistId, Name: artistName }],
+    Type: 'Audio',
+    RunTimeTicks: 0
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
+    setContextMenuOpen(true)
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
+      setContextMenuOpen(true)
+    },
+  })
+
   return (
-    <button
-      onClick={() => onPlay(songId)}
-      className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
-    >
-      <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={songName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Music className={`${iconSize} text-zinc-500`} />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
-          <span className="text-zinc-500 mr-2">{rank}</span>{songName}
+    <>
+      <button
+        onClick={(e) => {
+          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+          onPlay(songId)
+        }}
+        onContextMenu={handleContextMenu}
+        {...longPressHandlers}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+      >
+        <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
+          {imageUrl ? (
+            <img src={imageUrl} alt={songName} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Music className={`${iconSize} text-zinc-500`} />
+            </div>
+          )}
         </div>
-        <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
-        {singleDayPlays && (
-          <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
-        )}
-      </div>
-      <div className="text-zinc-400 text-sm whitespace-nowrap">
-        {plays} plays
-      </div>
-    </button>
+        <div className="flex-1 min-w-0">
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+            <span className="text-zinc-500 mr-2">{rank}</span>{songName}
+          </div>
+          <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
+          {singleDayPlays && (
+            <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
+          )}
+        </div>
+        <div className="text-zinc-400 text-sm whitespace-nowrap">
+          {plays} plays
+        </div>
+      </button>
+      <ContextMenu
+        item={songItem as any}
+        itemType="song"
+        isOpen={contextMenuOpen}
+        onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
+      />
+    </>
   )
 }
 
@@ -262,30 +351,105 @@ function TopArtistItem({
   const iconSize = rank === 1 ? 'w-10 h-10' : rank === 2 ? 'w-8 h-8' : 'w-5 h-5'
   const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
   const imageUrl = jellyfinClient.getArtistImageUrl(artistId, imageSize)
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
+
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const artistItem = {
+    Id: artistId,
+    Name: artistName,
+    Type: 'MusicArtist'
+  }
+
+  useEffect(() => {
+    setCurrentImageUrl(imageUrl)
+  }, [imageUrl])
+
+  const handleImageError = async () => {
+    try {
+      const { albums, songs } = await jellyfinClient.getArtistItems(artistId)
+      const firstAlbum = albums[0]
+      const firstSongWithAlbum = songs.find((song) => song.AlbumId) || songs[0]
+      const artItem = firstAlbum || firstSongWithAlbum
+      const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
+
+      if (artId) {
+        setCurrentImageUrl(jellyfinClient.getAlbumArtUrl(artId, imageSize))
+      } else {
+        setCurrentImageUrl(null)
+      }
+    } catch {
+      setCurrentImageUrl(null)
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
+    setContextMenuOpen(true)
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
+      setContextMenuOpen(true)
+    },
+  })
 
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
-    >
-      <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0`}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={artistName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <User className={`${iconSize} text-zinc-500`} />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
-          <span className="text-zinc-500 mr-2">{rank}</span>{artistName}
+    <>
+      <button
+        onClick={(e) => {
+          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+          onClick()
+        }}
+        onContextMenu={handleContextMenu}
+        {...longPressHandlers}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+      >
+        <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0`}>
+          {currentImageUrl ? (
+            <img src={currentImageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User className={`${iconSize} text-zinc-500`} />
+            </div>
+          )}
         </div>
-      </div>
-      <div className="text-zinc-400 text-sm whitespace-nowrap">
-        {formatHours(hours)}
-      </div>
-    </button>
+        <div className="flex-1 min-w-0">
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+            <span className="text-zinc-500 mr-2">{rank}</span>{artistName}
+          </div>
+        </div>
+        <div className="text-zinc-400 text-sm whitespace-nowrap">
+          {formatHours(hours)}
+        </div>
+      </button>
+      <ContextMenu
+        item={artistItem as any}
+        itemType="artist"
+        isOpen={contextMenuOpen}
+        onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
+      />
+    </>
   )
 }
 
@@ -295,17 +459,24 @@ function HorizontalBar({
   value,
   maxValue,
   color = 'bg-[var(--accent-color)]',
+  onClick,
 }: {
   label: string
   value: number
   maxValue: number
   color?: string
+  onClick?: () => void
 }) {
   const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0
 
+  const Container = onClick ? 'button' : 'div'
+  const containerProps = onClick
+    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 -mx-2 px-2 transition-colors' }
+    : { className: 'flex items-center gap-3 mb-2' }
+
   return (
-    <div className="flex items-center gap-3 mb-2">
-      <div className="w-44 text-zinc-300 text-sm truncate flex-shrink-0">{label}</div>
+    <Container {...containerProps}>
+      <div className="w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left">{label}</div>
       <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
         <div
           className={`h-full ${color} rounded-full transition-all duration-500`}
@@ -313,7 +484,7 @@ function HorizontalBar({
         />
       </div>
       <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(value)}</div>
-    </div>
+    </Container>
   )
 }
 
@@ -373,6 +544,7 @@ function TopAlbumItem({
   rank,
   albumName,
   artistName,
+  artistId,
   albumId,
   hours,
   onClick,
@@ -380,6 +552,7 @@ function TopAlbumItem({
   rank: number
   albumName: string
   artistName: string
+  artistId: string
   albumId: string
   hours: number
   onClick: () => void
@@ -390,30 +563,83 @@ function TopAlbumItem({
   const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
+  const contextMenuJustOpenedRef = useRef(false)
+
+  const albumItem = {
+    Id: albumId,
+    Name: albumName,
+    ArtistItems: [{ Id: artistId, Name: artistName }],
+    Type: 'MusicAlbum'
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenuJustOpenedRef.current = true
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
+    setContextMenuOpen(true)
+    setTimeout(() => {
+      contextMenuJustOpenedRef.current = false
+    }, 300)
+  }
+
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      setContextMenuMode('mobile')
+      setContextMenuPosition(null)
+      setContextMenuOpen(true)
+    },
+  })
+
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
-    >
-      <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={albumName} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Disc className={`${iconSize} text-zinc-500`} />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
-          <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
+    <>
+      <button
+        onClick={(e) => {
+          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+          onClick()
+        }}
+        onContextMenu={handleContextMenu}
+        {...longPressHandlers}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+      >
+        <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
+          {imageUrl ? (
+            <img src={imageUrl} alt={albumName} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Disc className={`${iconSize} text-zinc-500`} />
+            </div>
+          )}
         </div>
-        <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
-      </div>
-      <div className="text-zinc-400 text-sm whitespace-nowrap">
-        {formatHours(hours)}
-      </div>
-    </button>
+        <div className="flex-1 min-w-0">
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+            <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
+          </div>
+          <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
+        </div>
+        <div className="text-zinc-400 text-sm whitespace-nowrap">
+          {formatHours(hours)}
+        </div>
+      </button>
+      <ContextMenu
+        item={albumItem as any}
+        itemType="album"
+        isOpen={contextMenuOpen}
+        onClose={() => setContextMenuOpen(false)}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
+      />
+    </>
   )
 }
 
@@ -421,6 +647,7 @@ function TopAlbumItem({
 export default function StatsPage() {
   const navigate = useNavigate()
   const { fetchEvents, cachedEvents } = useStatsStore()
+  const { genres } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const playTrack = usePlayerStore(state => state.playTrack)
 
@@ -432,10 +659,35 @@ export default function StatsPage() {
     }
   }
 
+  // Handler to download the stats image
+  const handleDownloadImage = async () => {
+    // We target the export version which is off-screen but full resolution and unscaled
+    const element = document.getElementById('stats-canned-image-export')
+    if (!element) return
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 1, // Capture at 1:1 scale of the element (which is 1015x1350)
+        backgroundColor: '#0a0a0a',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      })
+
+      const link = document.createElement('a')
+      link.download = `tunetuna-canned-${fromMonth}-${toMonth}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (error) {
+      console.error('Error generating image:', error)
+    }
+  }
+
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<PlayEvent[]>([])
   const [fromMonth, setFromMonth] = useState<string>('')
   const [toMonth, setToMonth] = useState<string>('')
+  const [showCannedModal, setShowCannedModal] = useState(false)
 
   // Get oldest event timestamp for month options
   const oldestTs = useMemo(() => {
@@ -511,19 +763,35 @@ export default function StatsPage() {
         <div className="max-w-[768px] mx-auto">
           <div className="p-4 pb-0 sm:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-              <h1 className="text-2xl font-bold text-white">Tunetuna Canned</h1>
+              <div className="flex items-center justify-between w-full sm:w-auto">
+                <h1 className="text-2xl font-bold text-white">Tunetuna Canned</h1>
+                <button
+                  onClick={() => setShowCannedModal(true)}
+                  className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                  aria-label="Generate shareable stats image"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </button>
+              </div>
               <div className="flex gap-2 items-center">
                 <MonthPicker
                   value={fromMonth}
                   options={monthOptions}
                   onChange={setFromMonth}
                 />
-                <span className="text-zinc-500">to</span>
+                <span className="text-zinc-500 text-sm">to</span>
                 <MonthPicker
                   value={toMonth}
                   options={monthOptions}
                   onChange={setToMonth}
                 />
+                <button
+                  onClick={() => setShowCannedModal(true)}
+                  className="hidden sm:flex w-8 h-8 items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                  aria-label="Generate shareable stats image"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -538,8 +806,8 @@ export default function StatsPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
             <div className="flex items-center gap-2 text-zinc-400 mb-2">
-              <Music className="w-5 h-5" />
-              <span className="text-sm font-medium">Songs Played</span>
+              <CirclePlay className="w-5 h-5" />
+              <span className="text-sm font-medium">Streams</span>
             </div>
             <div className="text-4xl font-bold text-white">
               {stats.totalSongs.toLocaleString()}
@@ -555,9 +823,9 @@ export default function StatsPage() {
                 const parts = formatHoursAndMinutesParts(stats.totalHours)
                 return (
                   <>
-                    {parts.value}<span className="text-lg font-normal text-zinc-400">{parts.unit}</span>
+                    {parts.value}<span className="text-lg font-normal text-white">{parts.unit}</span>
                     {parts.value2 !== undefined && (
-                      <> {parts.value2}<span className="text-lg font-normal text-zinc-400">{parts.unit2}</span></>
+                      <> {parts.value2}<span className="text-lg font-normal text-white">{parts.unit2}</span></>
                     )}
                   </>
                 )
@@ -571,8 +839,7 @@ export default function StatsPage() {
                 <span className="text-sm font-medium">
                   Top Day: {new Date(stats.mostListeningDay.date).toLocaleDateString('en-US', {
                     month: 'short',
-                    day: 'numeric',
-                    ...(rangeHasDuplicateMonths(fromMonth, toMonth) && { year: 'numeric' }),
+                    day: 'numeric'
                   })}
                 </span>
               </div>
@@ -581,9 +848,9 @@ export default function StatsPage() {
                   const parts = formatHoursAndMinutesParts(stats.mostListeningDay.hours)
                   return (
                     <>
-                      {parts.value}<span className="text-lg font-normal text-zinc-400">{parts.unit}</span>
+                      {parts.value}<span className="text-lg font-normal text-white">{parts.unit}</span>
                       {parts.value2 !== undefined && (
-                        <> {parts.value2}<span className="text-lg font-normal text-zinc-400">{parts.unit2}</span></>
+                        <> {parts.value2}<span className="text-lg font-normal text-white">{parts.unit2}</span></>
                       )}
                     </>
                   )
@@ -621,87 +888,88 @@ export default function StatsPage() {
         </div>
 
         {/* Top Songs */}
-        <SectionHeader icon={Music} title="Top Songs" />
-        <div className="space-y-1">
-          {(() => {
-            const top5 = stats.topSongs.slice(0, 5)
-            const showYear = rangeHasDuplicateMonths(fromMonth, toMonth)
-            // Find the song with the highest single-day plays among top 5
-            const bestDaySong = top5.reduce((best, song) => {
-              if (!song.obsessedDetail) return best
-              if (!best || (song.obsessedDetail.count > (best.obsessedDetail?.count || 0))) {
-                return song
-              }
-              return best
-            }, null as typeof top5[0] | null)
-
-            return top5.map((song, i) => (
-              <TopSongItem
-                key={song.songId}
-                rank={i + 1}
-                songId={song.songId}
-                songName={song.songName}
-                artistName={song.artistName}
-                albumId={song.albumId}
-                plays={song.plays}
-                singleDayPlays={bestDaySong?.songId === song.songId ? song.obsessedDetail : undefined}
-                showYear={showYear}
-                onPlay={handlePlaySong}
-              />
-            ))
-          })()}
-        </div>
+        {stats.topSongs.length > 0 && (
+          <div className="mt-8">
+            <SectionHeader icon={Music} title="Top Songs" />
+            <div className="space-y-1">
+              {stats.topSongs.map((song, i) => (
+                <TopSongItem
+                  key={song.songId}
+                  rank={i + 1}
+                  songId={song.songId}
+                  songName={song.songName}
+                  artistName={song.artistName}
+                  artistId={song.artistId}
+                  albumId={song.albumId}
+                  plays={song.plays}
+                  showYear={false}
+                  onPlay={handlePlaySong}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Top Artists */}
-        <SectionHeader icon={User} title="Top Artists" />
-        <div className="space-y-1">
-          {stats.topArtists.slice(0, 5).map((artist, i) => (
-            <TopArtistItem
-              key={artist.artistId}
-              rank={i + 1}
-              artistName={artist.artistName}
-              artistId={artist.artistId}
-              hours={artist.hours}
-              onClick={() => navigate(`/artist/${artist.artistId}`)}
-            />
-          ))}
-        </div>
+        {stats.topArtists.length > 0 && (
+          <div className="mt-8">
+            <SectionHeader icon={User} title="Top Artists" />
+            <div className="space-y-1">
+              {stats.topArtists.map((artist, i) => (
+                <TopArtistItem
+                  key={artist.artistId}
+                  rank={i + 1}
+                  artistName={artist.artistName}
+                  artistId={artist.artistId}
+                  hours={artist.hours}
+                  onClick={() => navigate(`/artist/${artist.artistId}`)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Top Albums */}
         {stats.topAlbums.length > 0 && (
-          <>
+          <div className="mt-8">
             <SectionHeader icon={Disc} title="Top Albums" />
             <div className="space-y-1">
-              {stats.topAlbums.slice(0, 5).map((album, i) => (
+              {stats.topAlbums.map((album, i) => (
                 <TopAlbumItem
                   key={album.albumId}
                   rank={i + 1}
                   albumName={album.albumName}
                   artistName={album.artistName}
+                  artistId={album.artistId}
                   albumId={album.albumId}
                   hours={album.hours}
                   onClick={() => navigate(`/album/${album.albumId}`)}
                 />
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {/* Top Genres */}
         {stats.topGenres.length > 0 && (
-          <>
+          <div className="mt-8">
             <SectionHeader icon={Guitar} title="Top Genres" />
             <div>
-              {stats.topGenres.slice(0, 5).map((genre) => (
-                <HorizontalBar
-                  key={genre.genre}
-                  label={genre.genre}
-                  value={genre.hours}
-                  maxValue={maxGenreHours}
-                />
-              ))}
+              {stats.topGenres.map((genre) => {
+                // Find genre ID from music store
+                const genreItem = genres.find(g => g.Name?.toLowerCase() === genre.genre.toLowerCase())
+                return (
+                  <HorizontalBar
+                    key={genre.genre}
+                    label={genre.genre}
+                    value={genre.hours}
+                    maxValue={maxGenreHours}
+                    onClick={genreItem ? () => navigate(`/genre/${genreItem.Id}`) : undefined}
+                  />
+                )
+              })}
             </div>
-          </>
+          </div>
         )}
 
         {/* Decades */}
@@ -709,14 +977,20 @@ export default function StatsPage() {
           <>
             <SectionHeader icon={Clock} title="Top Decades" />
             <div>
-              {stats.decades.slice().reverse().map((decade) => (
-                <HorizontalBar
-                  key={decade.decade}
-                  label={decade.decade}
-                  value={decade.hours}
-                  maxValue={maxDecadeHours}
-                />
-              ))}
+              {stats.decades.slice().reverse().map((decade) => {
+                // Parse decade string (e.g., "1990s") to get min/max years
+                const decadeStart = parseInt(decade.decade.replace('s', ''), 10)
+                const decadeEnd = decadeStart + 9
+                return (
+                  <HorizontalBar
+                    key={decade.decade}
+                    label={decade.decade}
+                    value={decade.hours}
+                    maxValue={maxDecadeHours}
+                    onClick={() => navigate(`/?yearMin=${decadeStart}&yearMax=${decadeEnd}`)}
+                  />
+                )
+              })}
             </div>
           </>
         )}
@@ -726,14 +1000,20 @@ export default function StatsPage() {
           <>
             <SectionHeader icon={GalleryHorizontalEnd} title="Top Genres × Decade" />
             <div>
-              {stats.topGenreDecades.map((combo) => (
-                <HorizontalBar
-                  key={`${combo.genre}-${combo.decade}`}
-                  label={`${combo.decade} ${combo.genre}`}
-                  value={combo.hours}
-                  maxValue={stats.topGenreDecades[0].hours}
-                />
-              ))}
+              {stats.topGenreDecades.map((combo) => {
+                // Parse decade string (e.g., "1990s") to get min/max years
+                const decadeStart = parseInt(combo.decade.replace('s', ''), 10)
+                const decadeEnd = decadeStart + 9
+                return (
+                  <HorizontalBar
+                    key={`${combo.genre}-${combo.decade}`}
+                    label={`${combo.decade} ${combo.genre}`}
+                    value={combo.hours}
+                    maxValue={stats.topGenreDecades[0].hours}
+                    onClick={() => navigate(`/?yearMin=${decadeStart}&yearMax=${decadeEnd}&genre=${encodeURIComponent(combo.genre)}`)}
+                  />
+                )
+              })}
             </div>
           </>
         )}
@@ -762,6 +1042,140 @@ export default function StatsPage() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Canned Image Modal */}
+      {showCannedModal && (
+        <StatsImageModal
+          stats={stats}
+          fromMonth={fromMonth}
+          toMonth={toMonth}
+          onClose={() => setShowCannedModal(false)}
+          onDownload={handleDownloadImage}
+        />
+      )}
+    </div>
+  )
+}
+
+function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { stats: any, fromMonth: string, toMonth: string, onClose: () => void, onDownload: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return
+
+      const { clientWidth, clientHeight } = containerRef.current
+      // On mobile (<768px), we want full bleed so no safety padding
+      // On desktop, we keep the 32px padding
+      const padding = window.innerWidth < 768 ? 0 : 32
+      const availableWidth = clientWidth - padding
+      const availableHeight = clientHeight - padding
+
+      const scaleX = availableWidth / 1015
+      const scaleY = availableHeight / 1350
+
+      // Use the smaller scale to fit both dimensions, capped at 0.9 on desktop, 1.0 on mobile
+      const maxScale = window.innerWidth < 768 ? 1.0 : 0.9
+      setScale(Math.min(scaleX, scaleY, maxScale))
+    }
+
+    updateScale() // Initial
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-0 md:p-4"
+      onClick={onClose}
+    >
+
+      {/* Modal Header/Controls - Close Button Aligned to Image */}
+      <div
+        className="flex justify-end mb-2 flex-shrink-0 relative z-50 px-4 md:px-0"
+        style={{ width: 1015 * scale }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="w-10 h-10 flex items-center justify-center text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Image Container - Fit to screen */}
+      <div
+        ref={containerRef}
+        className="relative flex items-center justify-center w-full flex-1 min-h-0 overflow-hidden pointer-events-none"
+      >
+        <div
+          id="stats-image-preview-wrapper"
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+            width: 1015,
+            height: 1350,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          <StatsCannedImage
+            id="stats-canned-image-preview"
+            fromMonth={fromMonth}
+            toMonth={toMonth}
+            totalHours={stats.totalHours}
+            totalStreams={stats.totalSongs}
+            uniqueArtists={stats.uniqueArtists}
+            uniqueAlbums={stats.uniqueAlbums}
+            uniqueSongs={stats.uniqueSongs}
+            topArtists={stats.topArtists.slice(0, 5).map((a: any) => ({ name: a.artistName, artistId: a.artistId }))}
+            topSongs={stats.topSongs.slice(0, 5).map((s: any) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
+            topAlbums={stats.topAlbums.slice(0, 3).map((a: any) => ({ name: a.albumName, albumId: a.albumId }))}
+            topGenres={stats.topGenres.slice(0, 3).map((g: any) => ({ name: g.genre }))}
+          />
+        </div>
+      </div>
+
+      {/* Hidden Export Version - Strict 1015x1350, no scaling, off-screen */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          transform: 'translateX(-9999px)',
+          width: 1015,
+          height: 1350,
+          opacity: 0, // Keep interactive (visible to HTML) but transparent
+          pointerEvents: 'none',
+          overflow: 'hidden',
+          zIndex: -1
+        }}
+      >
+        <StatsCannedImage
+          id="stats-canned-image-export"
+          fromMonth={fromMonth}
+          toMonth={toMonth}
+          totalHours={stats.totalHours}
+          totalStreams={stats.totalSongs}
+          uniqueArtists={stats.uniqueArtists}
+          uniqueAlbums={stats.uniqueAlbums}
+          uniqueSongs={stats.uniqueSongs}
+          topArtists={stats.topArtists.slice(0, 5).map((a: any) => ({ name: a.artistName, artistId: a.artistId }))}
+          topSongs={stats.topSongs.slice(0, 5).map((s: any) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
+          topAlbums={stats.topAlbums.slice(0, 3).map((a: any) => ({ name: a.albumName, albumId: a.albumId }))}
+          topGenres={stats.topGenres.slice(0, 3).map((g: any) => ({ name: g.genre }))}
+        />
       </div>
     </div>
   )

@@ -28,6 +28,7 @@ export interface ComputedStats {
     songId: string
     songName: string
     artistName: string
+    artistId: string
     albumId: string
     plays: number
     hours: number
@@ -48,6 +49,7 @@ export interface ComputedStats {
     albumId: string
     albumName: string
     artistName: string
+    artistId: string
     hours: number
     plays: number
   }>
@@ -181,11 +183,11 @@ export function computeStats(
 
   const busiestMonth = months.length >= 2
     ? Object.entries(byMonth)
-        .map(([month, evts]) => ({
-          month,
-          hours: msToHours(evts.reduce((sum, e) => sum + e.durationMs, 0))
-        }))
-        .sort((a, b) => b.hours - a.hours)[0]
+      .map(([month, evts]) => ({
+        month,
+        hours: msToHours(evts.reduce((sum, e) => sum + e.durationMs, 0))
+      }))
+      .sort((a, b) => b.hours - a.hours)[0]
     : null
 
   // Timeline: top artist per month
@@ -264,6 +266,7 @@ export function computeStats(
   const songStats = new Map<string, {
     name: string
     artistName: string
+    artistId: string
     albumId: string
     plays: number
     ms: number
@@ -278,6 +281,7 @@ export function computeStats(
       songStats.set(e.songId, {
         name: e.songName,
         artistName: e.artistNames[0] || 'Unknown',
+        artistId: e.artistIds[0] || '',
         albumId: e.albumId,
         plays: 0,
         ms: 0,
@@ -313,7 +317,7 @@ export function computeStats(
 
   const topSongs = [...songStats.entries()]
     .sort((a, b) => b[1].plays - a[1].plays)
-    .slice(0, 10)
+    .slice(0, 5)
     .map(([songId, stat]) => {
       const badges: Array<'obsessed' | 'on-repeat'> = []
       let obsessedDetail: { count: number; date: string } | undefined
@@ -340,6 +344,7 @@ export function computeStats(
         songId,
         songName: stat.name,
         artistName: stat.artistName,
+        artistId: stat.artistId,
         albumId: stat.albumId,
         plays: stat.plays,
         hours: msToHours(stat.ms),
@@ -366,7 +371,7 @@ export function computeStats(
 
   const topArtists = [...artistStats.entries()]
     .sort((a, b) => b[1].ms - a[1].ms)
-    .slice(0, 10)
+    .slice(0, 5)
     .map(([artistId, stat]) => ({
       artistId,
       artistName: stat.name,
@@ -376,7 +381,7 @@ export function computeStats(
     }))
 
   // Top albums
-  const albumStats = new Map<string, { name: string; artistName: string; plays: number; ms: number }>()
+  const albumStats = new Map<string, { name: string; artistName: string; artistId: string; plays: number; ms: number }>()
 
   filteredEvents.forEach(e => {
     if (!e.albumId) return
@@ -385,6 +390,7 @@ export function computeStats(
       albumStats.set(e.albumId, {
         name: e.albumName,
         artistName: e.artistNames[0] || 'Unknown',
+        artistId: e.artistIds[0] || '',
         plays: 0,
         ms: 0,
       })
@@ -396,11 +402,12 @@ export function computeStats(
 
   const topAlbums = [...albumStats.entries()]
     .sort((a, b) => b[1].ms - a[1].ms)
-    .slice(0, 10)
+    .slice(0, 5)
     .map(([albumId, stat]) => ({
       albumId,
       albumName: stat.name,
       artistName: stat.artistName,
+      artistId: stat.artistId,
       hours: msToHours(stat.ms),
       plays: stat.plays,
     }))
