@@ -100,8 +100,13 @@ export const useStatsStore = create<StatsState>()(
       recordPlay: (track, actualDurationMs) => {
         const { pendingEvents } = get()
 
-        // Only record if they listened for at least 30 seconds
-        if (actualDurationMs < 30000) return
+        // Get the song's full duration
+        const fullDurationMs = track.RunTimeTicks ? track.RunTimeTicks / 10000 : 0
+        const isShortSong = fullDurationMs > 0 && fullDurationMs < 60000
+
+        // Record if: listened for at least 1 minute, OR short song played mostly through (80%+)
+        const listenedEnough = actualDurationMs >= 60000 || (isShortSong && actualDurationMs >= fullDurationMs * 0.8)
+        if (!listenedEnough) return
 
         const event = createPlayEvent(track, actualDurationMs)
 

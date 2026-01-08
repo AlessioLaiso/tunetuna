@@ -4,6 +4,9 @@ export interface ComputedStats {
   // Summary
   totalSongs: number
   totalHours: number
+  uniqueSongs: number
+  uniqueArtists: number
+  uniqueAlbums: number
 
   // Records
   biggestDay: { date: string; count: number } | null
@@ -119,6 +122,9 @@ function emptyStats(): ComputedStats {
   return {
     totalSongs: 0,
     totalHours: 0,
+    uniqueSongs: 0,
+    uniqueArtists: 0,
+    uniqueAlbums: 0,
     biggestDay: null,
     mostListeningDay: null,
     busiestMonth: null,
@@ -451,6 +457,9 @@ export function computeStats(
   return {
     totalSongs,
     totalHours,
+    uniqueSongs: songStats.size,
+    uniqueArtists: artistStats.size,
+    uniqueAlbums: albumStats.size,
     biggestDay,
     mostListeningDay,
     busiestMonth,

@@ -63,16 +63,26 @@ function getDefaultRange(oldestTs: number | null): { from: string; to: string } 
 }
 
 function formatHours(hours: number): string {
-  if (hours < 1) {
-    return `${Math.round(hours * 60)} min`
+  if (hours >= 72) {
+    const days = Math.floor(hours / 24)
+    const remainingHours = Math.round(hours % 24)
+    return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`
   }
-  if (hours < 10) {
-    return `${hours.toFixed(1)}h`
-  }
-  return `${Math.round(hours)}h`
+  const totalMinutes = Math.round(hours * 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  if (h === 0) return `${m} min`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
 }
 
 function formatHoursAndMinutesParts(hours: number): { value: number; unit: string; value2?: number; unit2?: string } {
+  if (hours >= 72) {
+    const days = Math.floor(hours / 24)
+    const remainingHours = Math.round(hours % 24)
+    if (remainingHours === 0) return { value: days, unit: 'd' }
+    return { value: days, unit: 'd', value2: remainingHours, unit2: 'h' }
+  }
   const totalMinutes = Math.round(hours * 60)
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
@@ -178,22 +188,24 @@ function TimelineCard({
 // Top song item component
 function TopSongItem({
   rank,
+  songId,
   songName,
   artistName,
   albumId,
   plays,
   singleDayPlays,
   showYear,
-  onClick,
+  onPlay,
 }: {
   rank: number
+  songId: string
   songName: string
   artistName: string
   albumId: string
   plays: number
   singleDayPlays?: { count: number; date: string }
   showYear: boolean
-  onClick: () => void
+  onPlay: (songId: string) => void
 }) {
   const imageSize = rank === 1 ? 120 : rank === 2 ? 80 : 48
   const sizeClass = rank === 1 ? 'w-[120px] h-[120px]' : rank === 2 ? 'w-[80px] h-[80px]' : 'w-12 h-12'
@@ -203,7 +215,7 @@ function TopSongItem({
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => onPlay(songId)}
       className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
     >
       <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
@@ -219,9 +231,9 @@ function TopSongItem({
         <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
           <span className="text-zinc-500 mr-2">{rank}</span>{songName}
         </div>
-        <div className="text-zinc-400 text-sm truncate ml-5">{artistName}</div>
+        <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
         {singleDayPlays && (
-          <div className="ml-5"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
+          <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
         )}
       </div>
       <div className="text-zinc-400 text-sm whitespace-nowrap">
@@ -300,7 +312,7 @@ function HorizontalBar({
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <div className="w-14 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(value)}</div>
+      <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(value)}</div>
     </div>
   )
 }
@@ -396,7 +408,7 @@ function TopAlbumItem({
         <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
           <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
         </div>
-        <div className="text-zinc-400 text-sm truncate ml-5">{artistName}</div>
+        <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
       </div>
       <div className="text-zinc-400 text-sm whitespace-nowrap">
         {formatHours(hours)}
@@ -410,6 +422,15 @@ export default function StatsPage() {
   const navigate = useNavigate()
   const { fetchEvents, cachedEvents } = useStatsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  const playTrack = usePlayerStore(state => state.playTrack)
+
+  // Handler to play a song by ID
+  const handlePlaySong = async (songId: string) => {
+    const song = await jellyfinClient.getSongById(songId)
+    if (song) {
+      playTrack(song, [song])
+    }
+  }
 
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<PlayEvent[]>([])
@@ -514,8 +535,8 @@ export default function StatsPage() {
 
       <div className="px-4">
         {/* Summary cards */}
-        <div className="flex flex-col md:flex-row gap-4 mt-6">
-          <div className="flex-1 bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
             <div className="flex items-center gap-2 text-zinc-400 mb-2">
               <Music className="w-5 h-5" />
               <span className="text-sm font-medium">Songs Played</span>
@@ -524,7 +545,7 @@ export default function StatsPage() {
               {stats.totalSongs.toLocaleString()}
             </div>
           </div>
-          <div className="flex-1 bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
             <div className="flex items-center gap-2 text-zinc-400 mb-2">
               <Clock className="w-5 h-5" />
               <span className="text-sm font-medium">Time Listened</span>
@@ -544,7 +565,7 @@ export default function StatsPage() {
             </div>
           </div>
           {stats.mostListeningDay && (
-            <div className="flex-1 bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+            <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
               <div className="flex items-center gap-2 text-zinc-400 mb-2">
                 <TrendingUp className="w-5 h-5" />
                 <span className="text-sm font-medium">
@@ -570,6 +591,33 @@ export default function StatsPage() {
               </div>
             </div>
           )}
+          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+              <Music className="w-5 h-5" />
+              <span className="text-sm font-medium">Songs</span>
+            </div>
+            <div className="text-4xl font-bold text-white">
+              {stats.uniqueSongs.toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+              <User className="w-5 h-5" />
+              <span className="text-sm font-medium">Artists</span>
+            </div>
+            <div className="text-4xl font-bold text-white">
+              {stats.uniqueArtists.toLocaleString()}
+            </div>
+          </div>
+          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
+            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+              <Disc className="w-5 h-5" />
+              <span className="text-sm font-medium">Albums</span>
+            </div>
+            <div className="text-4xl font-bold text-white">
+              {stats.uniqueAlbums.toLocaleString()}
+            </div>
+          </div>
         </div>
 
         {/* Top Songs */}
@@ -591,13 +639,14 @@ export default function StatsPage() {
               <TopSongItem
                 key={song.songId}
                 rank={i + 1}
+                songId={song.songId}
                 songName={song.songName}
                 artistName={song.artistName}
                 albumId={song.albumId}
                 plays={song.plays}
                 singleDayPlays={bestDaySong?.songId === song.songId ? song.obsessedDetail : undefined}
                 showYear={showYear}
-                onClick={() => navigate(`/album/${song.albumId}`)}
+                onPlay={handlePlaySong}
               />
             ))
           })()}

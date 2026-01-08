@@ -113,6 +113,7 @@ interface PlayerState {
   isShuffleAllActive: boolean  // For backward compatibility
   isShuffleGenreActive: boolean  // For backward compatibility
   manuallyCleared: boolean  // Prevent recommendations after manual clearing
+  hasRecordedCurrentTrackStats: boolean  // Prevent double-recording stats for same track
 
   // Actions
   setAudioElement: (element: HTMLAudioElement | null) => void
@@ -184,6 +185,7 @@ export const usePlayerStore = create<PlayerState>()(
       isShuffleGenreActive: false,
 
       manuallyCleared: false,
+      hasRecordedCurrentTrackStats: false,
       isQueueSidebarOpen: false,
 
       setAudioElement: (element) => {
@@ -202,7 +204,15 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       setCurrentTime: (time) => {
+        const { currentIndex, songs, hasRecordedCurrentTrackStats } = get()
         set({ currentTime: time })
+
+        // Record stats when crossing 60s mark (for songs ≥1min)
+        if (time >= 60 && !hasRecordedCurrentTrackStats && currentIndex >= 0 && currentIndex < songs.length) {
+          const currentTrack = songs[currentIndex]
+          useStatsStore.getState().recordPlay(currentTrack, time * 1000)
+          set({ hasRecordedCurrentTrackStats: true })
+        }
       },
 
       setDuration: (duration) => {
@@ -477,7 +487,7 @@ export const usePlayerStore = create<PlayerState>()(
           }
 
           audioElement.play().then(() => {
-            set({ isPlaying: true })
+            set({ isPlaying: true, hasRecordedCurrentTrackStats: false })
             reportPlaybackWithDelay(track.Id, () => get().songs[get().currentIndex] || null)
             // Track locally played songs for recently played list
             useMusicStore.getState().addToRecentlyPlayed(track)
@@ -514,8 +524,9 @@ export const usePlayerStore = create<PlayerState>()(
 
         if (state.songs.length === 0) return
 
-        // Record stats for the track that just finished
-        if (state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+        // Record stats for short songs (<60s) that weren't recorded during playback
+        // Songs ≥60s are recorded when crossing the 60s mark in setCurrentTime
+        if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
           const finishedTrack = state.songs[state.currentIndex]
           const actualDurationMs = state.currentTime * 1000
           useStatsStore.getState().recordPlay(finishedTrack, actualDurationMs)

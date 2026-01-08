@@ -138,11 +138,14 @@ export default function PlayerBar() {
 
       // Handle repeat mode 'one' - replay the current track
       if (repeat === 'one' && audio) {
-        // Record stats for the completed play before restarting
-        if (currentTrack) {
-          const actualDurationMs = audio.duration * 1000
+        // Record stats for short songs that weren't recorded during playback
+        const hasRecorded = usePlayerStore.getState().hasRecordedCurrentTrackStats
+        if (currentTrack && !hasRecorded) {
+          const actualDurationMs = audio.currentTime * 1000
           useStatsStore.getState().recordPlay(currentTrack, actualDurationMs)
         }
+        // Reset flag for next loop iteration
+        usePlayerStore.setState({ hasRecordedCurrentTrackStats: false })
         audio.currentTime = 0
         audio.play()
         return
