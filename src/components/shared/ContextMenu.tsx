@@ -183,7 +183,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               tracks.forEach(track => {
                 updateEventMetadata('song', track.Id, {
                   songName: track.Name || 'Unknown',
-                  artistNames: track.ArtistItems?.map(a => a.Name || 'Unknown') || [track.AlbumArtist || 'Unknown'],
+                  artistNames: track.ArtistItems?.length ? track.ArtistItems.map(a => a.Name || 'Unknown') : [track.AlbumArtist || 'Unknown'],
                   albumName: track.Album || 'Unknown',
                   genres: track.Genres || [],
                   year: track.ProductionYear || null,
@@ -227,7 +227,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
                 // Update stats events with fresh metadata
                 updateEventMetadata('song', currentItem.Id, {
                   songName: updatedSong.Name || 'Unknown',
-                  artistNames: updatedSong.ArtistItems?.map(a => a.Name || 'Unknown') || [updatedSong.AlbumArtist || 'Unknown'],
+                  artistNames: updatedSong.ArtistItems?.length ? updatedSong.ArtistItems.map(a => a.Name || 'Unknown') : [updatedSong.AlbumArtist || 'Unknown'],
                   albumName: updatedSong.Album || 'Unknown',
                   genres: updatedSong.Genres || [],
                   year: updatedSong.ProductionYear || null,
@@ -259,7 +259,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               songs.forEach(track => {
                 updateEventMetadata('song', track.Id, {
                   songName: track.Name || 'Unknown',
-                  artistNames: track.ArtistItems?.map(a => a.Name || 'Unknown') || [track.AlbumArtist || 'Unknown'],
+                  artistNames: track.ArtistItems?.length ? track.ArtistItems.map(a => a.Name || 'Unknown') : [track.AlbumArtist || 'Unknown'],
                   albumName: track.Album || 'Unknown',
                   genres: track.Genres || [],
                   year: track.ProductionYear || null,
