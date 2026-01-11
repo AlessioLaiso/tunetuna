@@ -452,7 +452,7 @@ export default function PlaylistsPage() {
   const loadPlaylists = async () => {
     setLoading(true)
     try {
-      const options: any = {
+      const options: Parameters<typeof jellyfinClient.getPlaylists>[0] = {
         limit: 100,
       }
 

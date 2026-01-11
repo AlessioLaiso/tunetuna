@@ -10,6 +10,17 @@ import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
 import { useMusicStore } from '../stores/musicStore'
 import { normalizeQuotes } from '../utils/formatting'
+import {
+  AUTH_TIMEOUT_MS,
+  CACHE_COOLDOWN_MS,
+  API_PAGE_LIMIT,
+  ARTIST_FETCH_LIMIT,
+  SAFETY_FETCH_LIMIT,
+  VPN_IP_REGEX,
+  APP_CLIENT_NAME,
+  APP_DEVICE_TYPE,
+  APP_VERSION,
+} from '../utils/constants'
 
 class JellyfinClient {
   private baseUrl: string = ''
@@ -34,14 +45,6 @@ class JellyfinClient {
     this.genresCache = null
   }
 
-  private getHeaders(): HeadersInit {
-    return {
-      'Authorization': `MediaBrowser Token="${this.accessToken}"`,
-      'Content-Type': 'application/json',
-      'X-Emby-Authorization': `MediaBrowser Client="Tunetuna", Device="Web", DeviceId="${this.getDeviceId()}", Version="1.0.0"`,
-    }
-  }
-
   private getDeviceId(): string {
     let deviceId = storage.get<string>('deviceId')
     if (!deviceId) {
@@ -49,6 +52,24 @@ class JellyfinClient {
       storage.set('deviceId', deviceId)
     }
     return deviceId
+  }
+
+  private getEmbyAuthHeader(): string {
+    return `MediaBrowser Client="${APP_CLIENT_NAME}", Device="${APP_DEVICE_TYPE}", DeviceId="${this.getDeviceId()}", Version="${APP_VERSION}"`
+  }
+
+  private getVpnWarning(serverUrl: string): string {
+    const isVpnIp = VPN_IP_REGEX.test(serverUrl)
+    if (!isVpnIp) return ''
+    return '\n⚠️  VPN/Tailscale IP detected (100.x.x.x). Your phone may not be on the same VPN network.\n   Try using your local network IP instead (e.g., http://192.168.1.x:8096)\n'
+  }
+
+  private getHeaders(): HeadersInit {
+    return {
+      'Authorization': `MediaBrowser Token="${this.accessToken}"`,
+      'Content-Type': 'application/json',
+      'X-Emby-Authorization': this.getEmbyAuthHeader(),
+    }
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -77,9 +98,9 @@ class JellyfinClient {
     // Use AbortController for timeout
     const controller = new AbortController()
     const timeoutId = setTimeout(() => {
-      console.warn('Authentication request timed out after 30 seconds')
+      console.warn(`Authentication request timed out after ${AUTH_TIMEOUT_MS / 1000} seconds`)
       controller.abort()
-    }, 30000) // 30 second timeout
+    }, AUTH_TIMEOUT_MS)
 
     let response: Response
     try {
@@ -88,7 +109,7 @@ class JellyfinClient {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          'X-Emby-Authorization': `MediaBrowser Client="Tunetuna", Device="Web", DeviceId="${this.getDeviceId()}", Version="1.0.0"`,
+          'X-Emby-Authorization': this.getEmbyAuthHeader(),
         },
         body: JSON.stringify({
           Username: username,
@@ -103,23 +124,16 @@ class JellyfinClient {
         if (import.meta.env.DEV) {
           console.error('[JellyfinClient] Authentication timeout:', { url, serverUrl })
         }
-        
-        // Check if it's a VPN/Tailscale IP (100.x.x.x range)
-        const isVpnIp = /^https?:\/\/100\.\d+\.\d+\.\d+/.test(serverUrl)
-        const vpnNote = isVpnIp 
-          ? '\n⚠️  VPN/Tailscale IP detected (100.x.x.x). Your phone may not be on the same VPN network.\n   Try using your local network IP instead (e.g., http://192.168.1.x:8096)\n'
-          : ''
-        
-        throw new Error(`Request timeout - server did not respond within 30 seconds.\n\nPossible issues:\n- Server URL may be incorrect: ${url}\n- Server may be down or unreachable${vpnNote}- CORS may be blocking the request (check browser console/Network tab)\n- Network connectivity issues\n\nIf this was working earlier, check:\n- Is the Jellyfin server still running?\n- Are there any CORS errors in the browser console?\n- Try accessing ${url} directly in your browser\n- If using VPN/Tailscale IP, ensure your phone is on the same network`)
+
+        const vpnNote = this.getVpnWarning(serverUrl)
+
+        throw new Error(`Request timeout - server did not respond within ${AUTH_TIMEOUT_MS / 1000} seconds.\n\nPossible issues:\n- Server URL may be incorrect: ${url}\n- Server may be down or unreachable${vpnNote}- CORS may be blocking the request (check browser console/Network tab)\n- Network connectivity issues\n\nIf this was working earlier, check:\n- Is the Jellyfin server still running?\n- Are there any CORS errors in the browser console?\n- Try accessing ${url} directly in your browser\n- If using VPN/Tailscale IP, ensure your phone is on the same network`)
       }
       // Handle network errors (CORS, connection refused, etc.)
       if (error instanceof TypeError) {
         const errorMsg = error.message.toLowerCase()
         if (errorMsg.includes('failed to fetch') || errorMsg.includes('networkerror')) {
-          const isVpnIp = /^https?:\/\/100\.\d+\.\d+\.\d+/.test(serverUrl)
-          const vpnNote = isVpnIp 
-            ? '\n⚠️  VPN/Tailscale IP detected. Your phone may not be able to access this IP.\n   Try using your local network IP instead (e.g., http://192.168.1.x:8096)\n'
-            : ''
+          const vpnNote = this.getVpnWarning(serverUrl)
 
           throw new Error(`Network error - unable to reach server at ${url}\n\nPossible issues:\n- CORS is blocking the request (check Jellyfin server CORS settings)${vpnNote}- Server is not accessible from this network\n- Invalid server URL\n\nCheck browser console for detailed error information.`)
         }
@@ -184,7 +198,11 @@ class JellyfinClient {
       options.sortBy.forEach(sort => params.append('SortBy', sort))
     }
     if (options.sortOrder) {
-      params.append('SortOrder', options.sortOrder)
+      if (Array.isArray(options.sortOrder)) {
+        options.sortOrder.forEach(order => params.append('SortOrder', order))
+      } else {
+        params.append('SortOrder', options.sortOrder)
+      }
     }
     if (options.limit) {
       params.append('Limit', options.limit.toString())
@@ -335,13 +353,12 @@ class JellyfinClient {
     
     // Check persistent store first
     const store = useMusicStore.getState()
-    const COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
     
     if (!forceRefresh && store.genres.length > 0 && store.genresLastUpdated) {
       // Check if cooldown has expired
       const now = Date.now()
       const lastChecked = store.genresLastChecked || 0
-      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
+      const cooldownExpired = (now - lastChecked) >= CACHE_COOLDOWN_MS
       
       if (!cooldownExpired) {
         // Cooldown active, return cached genres
@@ -365,15 +382,15 @@ class JellyfinClient {
         let newestDate = 0
         for (const item of items) {
           // Check DateCreated for new items
-          if ((item as any).DateCreated) {
-            const itemDate = new Date((item as any).DateCreated).getTime()
+          if (item.DateCreated) {
+            const itemDate = new Date(item.DateCreated).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
           }
           // Check DateLastSaved for modified items
-          if ((item as any).DateLastSaved) {
-            const itemDate = new Date((item as any).DateLastSaved).getTime()
+          if (item.DateLastSaved) {
+            const itemDate = new Date(item.DateLastSaved).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
@@ -407,11 +424,10 @@ class JellyfinClient {
       
       // Get all albums in batches to extract all unique genres (much faster than songs)
       let startIndex = 0
-      const limit = 200
       let hasMore = true
-      
+
       while (hasMore) {
-        const musicItems = await this.getAlbums({ limit, startIndex })
+        const musicItems = await this.getAlbums({ limit: API_PAGE_LIMIT, startIndex })
         const items = musicItems.Items || []
         
         items.forEach(item => {
@@ -427,22 +443,22 @@ class JellyfinClient {
           }
         })
         
-        hasMore = items.length === limit
-        startIndex += limit
-        
+        hasMore = items.length === API_PAGE_LIMIT
+        startIndex += API_PAGE_LIMIT
+
         // Safety limit to avoid infinite loops
         if (startIndex > 10000) break
       }
-      
+
       // Now extract genres from songs to compare - only include genres that exist in songs
       const songGenreNames = new Set<string>()
       let startIndexSongs = 0
       let hasMoreSongs = true
-      
+
       while (hasMoreSongs) {
-        const songItems = await this.getSongs({ limit: 200, startIndex: startIndexSongs })
+        const songItems = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex: startIndexSongs })
         const songs = songItems.Items || []
-        
+
         songs.forEach(song => {
           if (song.Genres) {
             song.Genres.forEach(genreName => {
@@ -450,9 +466,9 @@ class JellyfinClient {
             })
           }
         })
-        
-        hasMoreSongs = songs.length === 200
-        startIndexSongs += 200
+
+        hasMoreSongs = songs.length === API_PAGE_LIMIT
+        startIndexSongs += API_PAGE_LIMIT
         if (startIndexSongs > 10000) break
       }
       
@@ -557,12 +573,11 @@ class JellyfinClient {
     }
     
     const store = useMusicStore.getState()
-    const COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
-    
+
     if (!forceRefresh && store.years.length > 0 && store.yearsLastUpdated) {
       const now = Date.now()
       const lastChecked = store.yearsLastChecked || 0
-      const cooldownExpired = (now - lastChecked) >= COOLDOWN_MS
+      const cooldownExpired = (now - lastChecked) >= CACHE_COOLDOWN_MS
       
       if (!cooldownExpired) {
         return store.years
@@ -575,8 +590,8 @@ class JellyfinClient {
         
         let newestDate = 0
         for (const item of items) {
-          if ((item as any).DateCreated) {
-            const itemDate = new Date((item as any).DateCreated).getTime()
+          if (item.DateCreated) {
+            const itemDate = new Date(item.DateCreated).getTime()
             if (itemDate > newestDate) {
               newestDate = itemDate
             }
@@ -598,22 +613,21 @@ class JellyfinClient {
     try {
       const uniqueYears = new Set<number>()
       let startIndex = 0
-      const limit = 200
       let hasMore = true
-      
+
       while (hasMore) {
-        const songItems = await this.getSongs({ limit, startIndex })
+        const songItems = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex })
         const songs = songItems.Items || []
-        
+
         songs.forEach(song => {
           if (song.ProductionYear && song.ProductionYear > 0) {
             uniqueYears.add(song.ProductionYear)
           }
         })
-        
-        hasMore = songs.length === limit
-        startIndex += limit
-        
+
+        hasMore = songs.length === API_PAGE_LIMIT
+        startIndex += API_PAGE_LIMIT
+
         if (startIndex > 10000) break
       }
       
@@ -647,36 +661,34 @@ class JellyfinClient {
       // Fetch all songs and filter client-side to get fresh metadata
       // Use cache-busting to ensure we get the latest data from server
       let startIndex = 0
-      const limit = 200
       let hasMore = true
-      
+
       while (hasMore) {
-        const result = await this.getSongs({ limit, startIndex }, true) // Cache-bust for fresh data
+        const result = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true) // Cache-bust for fresh data
         const items = result.Items || []
         allSongs.push(...items)
-        hasMore = items.length === limit
-        startIndex += limit
+        hasMore = items.length === API_PAGE_LIMIT
+        startIndex += API_PAGE_LIMIT
         // Safety limit to avoid infinite loops
-        if (startIndex > 50000) break
+        if (startIndex > SAFETY_FETCH_LIMIT) break
       }
     } else {
       // Real genre ID - use API filtering, but paginate to get all songs
       let startIndex = 0
-      const limit = 200
       let hasMore = true
-      
+
       while (hasMore) {
         const result = await this.getSongs({
           genreIds: [genreId],
-          limit,
+          limit: API_PAGE_LIMIT,
           startIndex,
         })
         const items = result.Items || []
         allSongs.push(...items)
-        hasMore = items.length === limit
-        startIndex += limit
+        hasMore = items.length === API_PAGE_LIMIT
+        startIndex += API_PAGE_LIMIT
         // Safety limit to avoid infinite loops
-        if (startIndex > 50000) break
+        if (startIndex > SAFETY_FETCH_LIMIT) break
       }
     }
     
@@ -721,21 +733,20 @@ class JellyfinClient {
       if (lastSync) {
         // Get songs modified since last sync
         let startIndex = 0
-        const limit = 200
         let hasMore = true
 
         while (hasMore) {
           const result = await this.getSongs({
             minDateLastSaved: new Date(lastSync),
-            limit,
+            limit: API_PAGE_LIMIT,
             startIndex
           }, true) // Cache bust to ensure fresh data
 
           const items = result.Items || []
           changedSongs.push(...items)
 
-          hasMore = items.length === limit
-          startIndex += limit
+          hasMore = items.length === API_PAGE_LIMIT
+          startIndex += API_PAGE_LIMIT
 
           // Safety limit
           if (startIndex > 10000) break
@@ -743,7 +754,7 @@ class JellyfinClient {
       } else {
         // First sync - get recent songs to start the cache
         const result = await this.getSongs({
-          limit: 1000,
+          limit: ARTIST_FETCH_LIMIT,
           sortBy: ['DateLastSaved'],
           sortOrder: 'Descending'
         })
@@ -890,7 +901,7 @@ class JellyfinClient {
     // If query is short (< 3 chars), fetch all artists and filter client-side
     if (shouldFetchAllArtists) {
       try {
-        const allArtistsResult = await this.getArtists({ limit: 1000 })
+        const allArtistsResult = await this.getArtists({ limit: ARTIST_FETCH_LIMIT })
         const queryLower = normalizedQuery.toLowerCase()
         
         // Filter artists client-side with normalized matching

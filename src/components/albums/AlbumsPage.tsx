@@ -606,7 +606,7 @@ export default function AlbumsPage() {
   const loadAlbums = async () => {
     setLoading('albums', true)
     try {
-      const options: any = {
+      const options: Parameters<typeof jellyfinClient.getAlbums>[0] = {
         limit: ITEMS_PER_PAGE,
         startIndex: currentPage * ITEMS_PER_PAGE,
       }

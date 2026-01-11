@@ -32,6 +32,9 @@ export interface BaseItemDto {
   Genres?: string[]
   MediaType?: string
   Type?: string
+  Path?: string
+  DateCreated?: string
+  DateLastSaved?: string
   UserData?: {
     Played?: boolean
     PlaybackPositionTicks?: number
@@ -72,7 +75,7 @@ export type SortOrder = 'RecentlyAdded' | 'Alphabetical' | 'Newest'
 
 export interface GetItemsOptions {
   sortBy?: string[]
-  sortOrder?: 'Ascending' | 'Descending'
+  sortOrder?: 'Ascending' | 'Descending' | ('Ascending' | 'Descending')[]
   limit?: number
   startIndex?: number
   includeItemTypes?: string[]

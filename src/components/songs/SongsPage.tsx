@@ -576,7 +576,7 @@ export default function SongsPage() {
   const loadSongs = async () => {
     setLoading('songs', true)
     try {
-      const options: any = {
+      const options: Parameters<typeof jellyfinClient.getSongs>[0] = {
         limit: ITEMS_PER_PAGE,
         startIndex: currentPage * ITEMS_PER_PAGE,
       }

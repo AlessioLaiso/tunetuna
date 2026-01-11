@@ -545,7 +545,7 @@ export default function ArtistsPage() {
     const loadStartTime = Date.now()
     setLoading('artists', true)
     try {
-      const options: any = {
+      const options: Parameters<typeof jellyfinClient.getArtists>[0] = {
         limit: ITEMS_PER_PAGE,
         startIndex: currentPage * ITEMS_PER_PAGE,
       }
