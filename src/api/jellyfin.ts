@@ -915,35 +915,38 @@ class JellyfinClient {
       }
     }
 
-    // If there's a search query, also fetch songs from matching artists
+    // If there's a search query, also fetch songs from matching artists (batched into single call)
     if (hasQuery && artists.length > 0) {
       const queryLower = normalizedQuery.toLowerCase()
-      
+
       // Filter artists that match the query (case-insensitive, with normalized quotes)
       const matchingArtists = artists.filter(artist => {
         const artistName = normalizeQuotes(artist.Name || '')
         return artistName.toLowerCase().includes(queryLower)
       })
-      
-      // Fetch songs from each matching artist
-      const artistSongsPromises = matchingArtists.map(artist => 
-        this.getArtistItems(artist.Id).catch(err => {
-          console.error(`Failed to fetch songs for artist ${artist.Id}:`, err)
-          return { albums: [], songs: [] }
-        })
-      )
-      
-      const artistSongsResults = await Promise.all(artistSongsPromises)
-      
-      // Combine all songs from artists, deduplicating by ID
-      artistSongsResults.forEach(({ songs: artistSongs }) => {
-        artistSongs.forEach(song => {
-          if (!songIds.has(song.Id)) {
-            songs.push(song)
-            songIds.add(song.Id)
-          }
-        })
-      })
+
+      // Batch fetch songs from all matching artists in a single API call
+      if (matchingArtists.length > 0) {
+        try {
+          const artistIds = matchingArtists.map(a => a.Id)
+          const query = this.buildQueryString({
+            artistIds,
+            includeItemTypes: ['Audio'],
+            recursive: true,
+          })
+          const artistSongsResult = await this.request<ItemsResult>(`/Items?${query}`)
+
+          // Add songs, deduplicating by ID
+          artistSongsResult.Items.forEach(song => {
+            if (!songIds.has(song.Id)) {
+              songs.push(song)
+              songIds.add(song.Id)
+            }
+          })
+        } catch (err) {
+          console.error('Failed to fetch songs for matching artists:', err)
+        }
+      }
     }
 
     return {

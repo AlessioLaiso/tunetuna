@@ -13,7 +13,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
   value,
   onChange,
   placeholder = 'Search...',
-  debounceMs = 300,
+  debounceMs = 150,
   showClearButton = false,
   onClear,
 }, ref) => {

@@ -468,7 +468,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
       const controller = new AbortController()
       searchAbortControllerRef.current = controller
 
-      const timeoutId = window.setTimeout(async () => {
+      // Execute search immediately - SearchInput already debounces
+      const doSearch = async () => {
         if (controller.signal.aborted) return
 
         try {
@@ -492,10 +493,11 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
             setIsSearching(false)
           }
         }
-      }, 250)
+      }
+
+      doSearch()
 
       return () => {
-        window.clearTimeout(timeoutId)
         controller.abort()
       }
     } else {
