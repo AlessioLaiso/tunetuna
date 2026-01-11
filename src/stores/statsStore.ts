@@ -49,6 +49,7 @@ interface StatsState {
   fetchEvents: (from: number, to: number) => Promise<PlayEvent[]>
   clearCache: () => void
   updateStatsKey: () => Promise<void>
+  updateEventMetadata: (itemType: 'song' | 'album' | 'artist', itemId: string, metadata: Partial<Pick<PlayEvent, 'songName' | 'artistNames' | 'albumName' | 'genres' | 'year'>>) => void
 }
 
 // Helper to generate stats key from server URL and user ID
@@ -217,6 +218,38 @@ export const useStatsStore = create<StatsState>()(
         set({
           cachedEvents: [],
           cacheRange: null,
+        })
+      },
+
+      updateEventMetadata: (itemType, itemId, metadata) => {
+        const { cachedEvents, pendingEvents } = get()
+
+        const updateEvent = (event: PlayEvent): PlayEvent => {
+          let shouldUpdate = false
+
+          if (itemType === 'song' && event.songId === itemId) {
+            shouldUpdate = true
+          } else if (itemType === 'album' && event.albumId === itemId) {
+            shouldUpdate = true
+          } else if (itemType === 'artist' && event.artistIds.includes(itemId)) {
+            shouldUpdate = true
+          }
+
+          if (!shouldUpdate) return event
+
+          return {
+            ...event,
+            ...(metadata.songName !== undefined && { songName: metadata.songName }),
+            ...(metadata.artistNames !== undefined && { artistNames: metadata.artistNames }),
+            ...(metadata.albumName !== undefined && { albumName: metadata.albumName }),
+            ...(metadata.genres !== undefined && { genres: metadata.genres }),
+            ...(metadata.year !== undefined && { year: metadata.year }),
+          }
+        }
+
+        set({
+          cachedEvents: cachedEvents.map(updateEvent),
+          pendingEvents: pendingEvents.map(updateEvent),
         })
       },
     }),

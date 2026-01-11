@@ -422,7 +422,7 @@ export function computeStats(
 
   const topGenres = [...genreStats.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
+    .slice(0, 7)
     .map(([genre, ms]) => ({ genre, hours: msToHours(ms) }))
 
   // Decades
@@ -454,7 +454,7 @@ export function computeStats(
 
   const topGenreDecades = [...genreDecadeStats.values()]
     .sort((a, b) => b.ms - a.ms)
-    .slice(0, 5)
+    .slice(0, 7)
     .map(({ genre, decade, ms }) => ({
       genre,
       decade,

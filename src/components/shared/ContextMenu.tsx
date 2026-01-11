@@ -6,6 +6,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { useStatsStore } from '../../stores/statsStore'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 
 interface ContextMenuProps {
@@ -43,6 +44,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
   const { startSync, completeSync } = useSyncStore()
   const { genres } = useMusicStore()
+  const { updateEventMetadata } = useStatsStore()
 
   // Use ref to always have access to the latest item and itemType in async callbacks
   // This prevents stale closure issues when item changes during async operations
@@ -176,7 +178,17 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             // Sync this album by preloading its tracks
             startSync('context-menu', `Syncing ${currentItem.Name}...`)
             try {
-              await jellyfinClient.getAlbumTracks(currentItem.Id)
+              const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+              // Update stats events for all songs in this album
+              tracks.forEach(track => {
+                updateEventMetadata('song', track.Id, {
+                  songName: track.Name || 'Unknown',
+                  artistNames: track.ArtistItems?.map(a => a.Name || 'Unknown') || [track.AlbumArtist || 'Unknown'],
+                  albumName: track.Album || 'Unknown',
+                  genres: track.Genres || [],
+                  year: track.ProductionYear || null,
+                })
+              })
               completeSync(true, `${currentItem.Name} synced`)
             } catch (error) {
               completeSync(false, `Failed to sync ${currentItem.Name}`)
@@ -212,6 +224,15 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
                   })
                 }
 
+                // Update stats events with fresh metadata
+                updateEventMetadata('song', currentItem.Id, {
+                  songName: updatedSong.Name || 'Unknown',
+                  artistNames: updatedSong.ArtistItems?.map(a => a.Name || 'Unknown') || [updatedSong.AlbumArtist || 'Unknown'],
+                  albumName: updatedSong.Album || 'Unknown',
+                  genres: updatedSong.Genres || [],
+                  year: updatedSong.ProductionYear || null,
+                })
+
                 completeSync(true, `${currentItem.Name} synced`)
               } catch (error) {
                 completeSync(false, `Failed to sync ${currentItem.Name}`)
@@ -233,7 +254,17 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             // Sync this artist by preloading their items
             startSync('context-menu', `Syncing ${currentItem.Name}...`)
             try {
-              await jellyfinClient.getArtistItems(currentItem.Id)
+              const { songs } = await jellyfinClient.getArtistItems(currentItem.Id)
+              // Update stats events for all songs by this artist
+              songs.forEach(track => {
+                updateEventMetadata('song', track.Id, {
+                  songName: track.Name || 'Unknown',
+                  artistNames: track.ArtistItems?.map(a => a.Name || 'Unknown') || [track.AlbumArtist || 'Unknown'],
+                  albumName: track.Album || 'Unknown',
+                  genres: track.Genres || [],
+                  year: track.ProductionYear || null,
+                })
+              })
               completeSync(true, `${currentItem.Name} synced`)
             } catch (error) {
               completeSync(false, `Failed to sync ${currentItem.Name}`)
