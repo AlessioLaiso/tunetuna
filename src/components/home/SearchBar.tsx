@@ -464,10 +464,12 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     // Search if there's a query OR if filters are active
     if (hasQuery || hasActiveFilters) {
       setIsSearching(true)
-      searchAbortControllerRef.current = new AbortController()
+      // Capture controller in closure to avoid race conditions
+      const controller = new AbortController()
+      searchAbortControllerRef.current = controller
 
       const timeoutId = window.setTimeout(async () => {
-        if (searchAbortControllerRef.current?.signal.aborted) return
+        if (controller.signal.aborted) return
 
         try {
           let results
@@ -477,16 +479,16 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
             // When no query but filters are active, fetch a large slice directly
             results = await fetchAllLibraryItems(450)
           }
-          if (!searchAbortControllerRef.current?.signal.aborted) {
+          if (!controller.signal.aborted) {
             setRawSearchResults(results)
           }
         } catch (error) {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
+          if (!controller.signal.aborted) {
             console.error('Search failed:', error)
             setRawSearchResults(null)
           }
         } finally {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
+          if (!controller.signal.aborted) {
             setIsSearching(false)
           }
         }
@@ -494,9 +496,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
       return () => {
         window.clearTimeout(timeoutId)
-        if (searchAbortControllerRef.current) {
-          searchAbortControllerRef.current.abort()
-        }
+        controller.abort()
       }
     } else {
       searchAbortControllerRef.current = null
