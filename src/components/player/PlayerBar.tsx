@@ -51,6 +51,7 @@ export default function PlayerBar() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const closeModalRef = useRef<(() => void) | null>(null)
   const trackPlayedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const preemptiveAdvanceRef = useRef<boolean>(false) // Track if we already advanced preemptively (iOS background fix)
   const location = useLocation()
   const touchStartX = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
@@ -110,13 +111,69 @@ export default function PlayerBar() {
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime)
+
+      // iOS PWA background playback fix: preemptively advance to next track
+      // when ~1 second remains. iOS suspends JS when app is backgrounded,
+      // so the 'ended' event handler may not fire. By advancing early while
+      // audio is still playing, we keep JS alive through the transition.
+      const remaining = audio.duration - audio.currentTime
+      if (
+        !preemptiveAdvanceRef.current &&
+        audio.duration > 0 &&
+        remaining <= 1 &&
+        remaining > 0
+      ) {
+        preemptiveAdvanceRef.current = true
+
+        // Get fresh track from store to avoid stale closure
+        const state = usePlayerStore.getState()
+        const track = state.currentIndex >= 0 && state.currentIndex < state.songs.length
+          ? state.songs[state.currentIndex]
+          : null
+
+        // Handle repeat 'one' mode - seek to beginning and reset flag
+        if (state.repeat === 'one') {
+          // Record stats for short songs that weren't recorded during playback
+          if (track && !state.hasRecordedCurrentTrackStats) {
+            const actualDurationMs = audio.currentTime * 1000
+            useStatsStore.getState().recordPlay(track, actualDurationMs)
+          }
+          usePlayerStore.setState({ hasRecordedCurrentTrackStats: false })
+          audio.currentTime = 0
+          preemptiveAdvanceRef.current = false // Reset for next loop
+          return
+        }
+
+        // Report playback before advancing
+        if (track) {
+          jellyfinClient.markItemAsPlayed(track.Id).catch(() => {})
+          if (trackPlayedTimeoutRef.current) {
+            clearTimeout(trackPlayedTimeoutRef.current)
+          }
+          const trackId = track.Id
+          trackPlayedTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
+            trackPlayedTimeoutRef.current = null
+          }, 4000)
+        }
+
+        next()
+      }
     }
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration)
+      // Reset preemptive advance flag for new track
+      preemptiveAdvanceRef.current = false
     }
 
     const handleEnded = async () => {
+      // Skip if we already advanced preemptively (iOS background playback fix)
+      if (preemptiveAdvanceRef.current) {
+        preemptiveAdvanceRef.current = false
+        return
+      }
+
       // Report playback when track ends
       if (currentTrack) {
         try {
@@ -188,6 +245,47 @@ export default function PlayerBar() {
       audioRef.current.volume = usePlayerStore.getState().volume
     }
   }, [])
+
+  // Set up Media Session metadata and action handlers (iOS PWA fix)
+  // This runs in PlayerBar which is always mounted, ensuring Media Session works
+  // even when PlayerModal is closed
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.Name || 'Unknown',
+        artist: currentTrack.ArtistItems?.[0]?.Name || currentTrack.AlbumArtist || '',
+        album: currentTrack.Album || '',
+        artwork: [
+          {
+            src: jellyfinClient.getAlbumArtUrl(currentTrack.AlbumId || currentTrack.Id, 512),
+            sizes: '512x512',
+            type: 'image/jpeg',
+          },
+        ],
+      })
+
+      navigator.mediaSession.setActionHandler('play', togglePlayPause)
+      navigator.mediaSession.setActionHandler('pause', togglePlayPause)
+      navigator.mediaSession.setActionHandler('previoustrack', previous)
+      navigator.mediaSession.setActionHandler('nexttrack', next)
+    }
+  }, [currentTrack, togglePlayPause, next, previous])
+
+  // Update Media Session position state to keep notification seek bar in sync (iOS PWA fix)
+  // This runs in PlayerBar which is always mounted, unlike PlayerModal
+  useEffect(() => {
+    if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1,
+          position: Math.min(currentTime, duration), // Clamp to prevent errors
+        })
+      } catch (e) {
+        // setPositionState can throw if values are invalid
+      }
+    }
+  }, [currentTime, duration])
 
   // Initialize playback if we have a current track but audio isn't playing
   useEffect(() => {

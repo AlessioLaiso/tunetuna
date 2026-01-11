@@ -177,6 +177,21 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     }
   }, [displayTrack, isPlaying, togglePlayPause, next, previous])
 
+  // Update Media Session position state to keep notification seek bar in sync (iOS PWA fix)
+  useEffect(() => {
+    if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1,
+          position: Math.min(currentTime, duration), // Clamp to prevent errors
+        })
+      } catch (e) {
+        // setPositionState can throw if values are invalid
+      }
+    }
+  }, [currentTime, duration])
+
   // Reset image error when track changes
   useEffect(() => {
     setImageError(false)
