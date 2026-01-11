@@ -436,13 +436,18 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       .queue-xl-container .hover\\:bg-zinc-800:hover { background-color: rgba(255, 255, 255, 0.1); }
       .queue-xl-container .text-\\[var\\(--accent-color\\)\\] { color: white; }
 
-      /* Background crossfade animation */
+      /* Background crossfade animation - only on large screens */
       @keyframes bgFadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
       }
       .bg-fade-in {
-        animation: bgFadeIn 1s ease-out forwards;
+        animation: none; /* Instant on smaller screens */
+      }
+      @media (min-width: 1280px) {
+        .bg-fade-in {
+          animation: bgFadeIn 1s ease-out forwards;
+        }
       }
 
       /* Lyrics modal with sidebar - adjust right edge on xl screens */
@@ -541,23 +546,23 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   />
                 )}
               </div>
-              {/* Lyrics button - shown when has lyrics OR when lyrics modal is open (to allow closing it) */}
-              {(hasLyrics || showLyricsModal) && (
-                <button
-                  onClick={() => {
-                    if (showQueue) {
-                      setShowQueue(false)
-                    }
-                    setShowLyricsModal(!showLyricsModal)
-                  }}
-                  className={`transition-colors p-2 rounded-full hover:bg-white/10 ${showLyricsModal
-                    ? 'text-[var(--accent-color)]'
-                    : 'text-white'
-                    }`}
-                >
-                  <MicVocal className="w-6 h-6" />
-                </button>
-              )}
+              {/* Lyrics button - always rendered to prevent layout shift, invisible when no lyrics */}
+              <button
+                onClick={() => {
+                  if (!hasLyrics && !showLyricsModal) return
+                  if (showQueue) {
+                    setShowQueue(false)
+                  }
+                  setShowLyricsModal(!showLyricsModal)
+                }}
+                className={`transition-colors p-2 rounded-full ${
+                  hasLyrics || showLyricsModal
+                    ? `hover:bg-white/10 ${showLyricsModal ? 'text-[var(--accent-color)]' : 'text-white'}`
+                    : 'invisible pointer-events-none'
+                }`}
+              >
+                <MicVocal className="w-6 h-6" />
+              </button>
               {/* Queue/Player toggle button - below xl */}
               <button
                 onClick={() => {
