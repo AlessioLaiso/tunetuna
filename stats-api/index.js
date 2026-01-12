@@ -158,6 +158,20 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
   }
 })
 
+// DELETE /api/stats/:key/events - Delete all events for a user
+fastify.delete('/api/stats/:key/events', async (request, reply) => {
+  const { key } = request.params
+
+  try {
+    const deleteEvents = db.prepare('DELETE FROM events WHERE user_key = ?')
+    const result = deleteEvents.run(key)
+    return { success: true, deleted: result.changes }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to delete events' })
+  }
+})
+
 // Health check
 fastify.get('/api/stats/health', async () => {
   return { status: 'ok' }

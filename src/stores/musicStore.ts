@@ -2,10 +2,22 @@ import { create } from 'zustand'
 import { persist, type StorageValue } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder } from '../api/types'
 
-// Singleton IndexedDB connection to prevent race conditions
+// ============================================================================
+// IndexedDB Storage Adapter
+// ============================================================================
+
+/**
+ * Singleton IndexedDB connection to prevent race conditions.
+ * Ensures only one database connection exists at a time.
+ */
 let dbInstance: IDBDatabase | null = null
 let dbPromise: Promise<IDBDatabase> | null = null
 
+/**
+ * Gets or creates the IndexedDB connection.
+ * Uses singleton pattern to ensure only one connection exists.
+ * Handles connection lifecycle including auto-reconnect on close.
+ */
 function getDB(): Promise<IDBDatabase> {
   // Return existing connection if available
   if (dbInstance) {
@@ -49,7 +61,11 @@ function getDB(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-// Custom IndexedDB storage adapter for larger data capacity
+/**
+ * Custom IndexedDB storage adapter for Zustand persist middleware.
+ * Provides larger storage capacity (~50MB+) compared to localStorage (~5-10MB).
+ * Used for caching large datasets like song metadata and genre mappings.
+ */
 const indexedDBStorage = {
   getItem: async (name: string): Promise<StorageValue<MusicState> | null> => {
     try {
@@ -108,22 +124,54 @@ const indexedDBStorage = {
   },
 }
 
+// ============================================================================
+// Store Types
+// ============================================================================
+
+/**
+ * Music store state and actions.
+ *
+ * This store manages:
+ * - Library data: Artists, albums, songs, genres, years
+ * - Cache timestamps: For smart refresh logic
+ * - UI state: Loading indicators, sort preferences
+ * - Playback helpers: Recently played, shuffle pool
+ *
+ * Persistence: Uses IndexedDB for large capacity (~50MB+).
+ * Selective persistence via partialize - loading states are transient.
+ */
 interface MusicState {
+  /** All artists in the library */
   artists: BaseItemDto[]
+  /** All albums in the library */
   albums: BaseItemDto[]
+  /** All songs with lightweight metadata for fast search */
   songs: LightweightSong[]
+  /** All genres for filtering and recommendations */
   genres: BaseItemDto[]
+  /** Timestamp when genres cache was last refreshed from server */
   genresLastUpdated: number | null
+  /** Timestamp when we last checked if genres need refresh */
   genresLastChecked: number | null
+  /** Map of genre ID to songs in that genre (for recommendations) */
   genreSongs: Record<string, LightweightSong[]>
+  /** Available production years for filtering */
   years: number[]
+  /** Timestamp when years cache was last refreshed */
   yearsLastUpdated: number | null
+  /** Timestamp when we last checked if years need refresh */
   yearsLastChecked: number | null
+  /** Timestamp of last full library sync */
   lastSyncCompleted: number | null
+  /** Recently added items for home screen */
   recentlyAdded: BaseItemDto[]
+  /** Recently played tracks for continuity */
   recentlyPlayed: BaseItemDto[]
-  shufflePool: LightweightSong[] // Pre-shuffled songs for instant playback
+  /** Pre-shuffled songs for instant shuffle playback */
+  shufflePool: LightweightSong[]
+  /** Timestamp when shuffle pool was last generated */
   lastPoolUpdate: number | null
+  /** Loading states for various data fetches (transient, not persisted) */
   loading: {
     artists: boolean
     albums: boolean
@@ -132,12 +180,15 @@ interface MusicState {
     recentlyAdded: boolean
     recentlyPlayed: boolean
   }
+  /** User's sort preferences per content type */
   sortPreferences: {
     artists: SortOrder
     albums: SortOrder
     songs: SortOrder
     playlists: SortOrder
   }
+
+  // Actions
   setArtists: (artists: BaseItemDto[]) => void
   setAlbums: (albums: BaseItemDto[]) => void
   setGenres: (genres: BaseItemDto[]) => void
@@ -155,10 +206,15 @@ interface MusicState {
   refreshShufflePool: () => void
 }
 
+// ============================================================================
+// Store Definition
+// ============================================================================
+
 export const useMusicStore = create<MusicState>()(
   persist(
     (set) => ({
-        artists: [],
+      // Initial state
+      artists: [],
       albums: [],
       songs: [],
       genres: [],
@@ -188,25 +244,36 @@ export const useMusicStore = create<MusicState>()(
         playlists: 'RecentlyAdded',
       },
 
+      // Simple setters
       setArtists: (artists) => set({ artists }),
       setAlbums: (albums) => set({ albums }),
       setGenres: (genres) => set({ genres }),
+
+      /** Caches songs for a specific genre (used by recommendations) */
       setGenreSongs: (genreId, songs) => set((state) => ({
         genreSongs: { ...state.genreSongs, [genreId]: songs },
       })),
+
+      /** Clears all genre-song mappings */
       clearGenreSongs: () => set({ genreSongs: {} }),
+
+      /** Clears songs for a specific genre */
       clearGenreSongsForGenre: (genreId) => set((state) => {
         const newGenreSongs = { ...state.genreSongs }
         delete newGenreSongs[genreId]
         return { genreSongs: newGenreSongs }
       }),
+
       setYears: (years) => set({ years }),
       setRecentlyAdded: (items) => set({ recentlyAdded: items }),
       setRecentlyPlayed: (items) => set({ recentlyPlayed: items }),
+
+      /**
+       * Adds a track to recently played list.
+       * Deduplicates and keeps only the 10 most recent.
+       */
       addToRecentlyPlayed: (track) => set((state) => {
-        // Remove the track if it already exists (to avoid duplicates)
         const filtered = state.recentlyPlayed.filter(item => item.Id !== track.Id)
-        // Add the new track at the beginning and keep only the last 10
         const updated = [track, ...filtered].slice(0, 10)
         return { recentlyPlayed: updated }
       }),
@@ -228,10 +295,15 @@ export const useMusicStore = create<MusicState>()(
 
       setLastSyncCompleted: (timestamp) => set({ lastSyncCompleted: timestamp }),
 
+      /**
+       * Generates a pre-shuffled pool of songs for instant shuffle playback.
+       * - Uses main songs if available, falls back to genre songs
+       * - Excludes recently played to avoid repetition
+       * - Uses Fisher-Yates shuffle for uniform randomness
+       */
       refreshShufflePool: () => set((state) => {
-
-        // Simple shuffle pool generation without external functions
         const poolSize = 30
+
         // Use main songs if available, otherwise use genre songs
         let availableSongs = state.songs
         const totalGenreSongs = Object.values(state.genreSongs).flat().length
@@ -256,7 +328,7 @@ export const useMusicStore = create<MusicState>()(
           ).filter(Boolean)]
         }
 
-        // Simple shuffle
+        // Fisher-Yates shuffle for uniform randomness
         const shuffled = [...poolSongs]
         for (let i = shuffled.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1))
@@ -264,7 +336,6 @@ export const useMusicStore = create<MusicState>()(
         }
 
         const newPool = shuffled.slice(0, poolSize)
-
 
         return {
           shufflePool: newPool,
@@ -274,23 +345,24 @@ export const useMusicStore = create<MusicState>()(
     }),
     {
       name: 'music-storage',
-      storage: indexedDBStorage, // Use IndexedDB for larger capacity
+      storage: indexedDBStorage,
+      /**
+       * Selective persistence - only persist cache data, not transient UI state.
+       * Excludes: artists, albums, loading states (fetched fresh each session)
+       * Includes: songs, genres, timestamps (expensive to refetch)
+       */
       partialize: (state) => ({
-        // Persist genres and related timestamps for caching across page refreshes
         genres: state.genres,
         genresLastUpdated: state.genresLastUpdated,
         genresLastChecked: state.genresLastChecked,
         genreSongs: state.genreSongs,
         songs: state.songs,
-        // Persist shuffle pool for instant playback
         shufflePool: state.shufflePool,
         lastPoolUpdate: state.lastPoolUpdate,
-        // Persist years for filter caching
         years: state.years,
         yearsLastUpdated: state.yearsLastUpdated,
         yearsLastChecked: state.yearsLastChecked,
         lastSyncCompleted: state.lastSyncCompleted,
-        // Persist recently played for client-side tracking
         recentlyPlayed: state.recentlyPlayed,
       }),
     }

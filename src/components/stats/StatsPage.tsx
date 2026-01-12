@@ -704,10 +704,11 @@ export default function StatsPage() {
     setToMonth(to)
   }, [oldestTs])
 
-  // Fetch events when range changes
+  // Fetch events when range changes or when cache is cleared
   useEffect(() => {
     if (!fromMonth || !toMonth) {
       setLoading(false)
+      setEvents([])
       return
     }
 
@@ -727,7 +728,7 @@ export default function StatsPage() {
     }
 
     fetchData()
-  }, [fromMonth, toMonth, fetchEvents])
+  }, [fromMonth, toMonth, fetchEvents, cachedEvents.length])
 
   // Compute stats from events
   const stats = useMemo(() => {

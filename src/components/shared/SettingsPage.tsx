@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
@@ -8,6 +8,7 @@ import { useToastStore } from '../../stores/toastStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useStatsStore } from '../../stores/statsStore'
 import BottomSheet from '../shared/BottomSheet'
 import { isServerUrlLocked } from '../../utils/config'
 
@@ -34,16 +35,32 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled } = useSettingsStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
   const { addToast } = useToastStore()
+  const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt } = useStatsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
   const [syncOptions, setSyncOptions] = useState({
     scope: 'incremental' as 'incremental' | 'full'
   })
+  const [showClearStatsConfirm, setShowClearStatsConfirm] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
+  const [statsExist, setStatsExist] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Check if stats exist on mount and when pendingEvents changes
+  useEffect(() => {
+    const checkStats = async () => {
+      const exists = await hasStats()
+      setStatsExist(exists)
+    }
+    checkStats()
+  }, [hasStats, pendingEvents.length, lastSyncedAt])
 
   // Check if server URL is locked by administrator
   const serverLocked = isServerUrlLocked()
@@ -113,6 +130,60 @@ export default function SettingsPage() {
       }
     } catch {
       addToast('Failed to copy URL', 'error')
+    }
+  }
+
+  const handleExportStats = async () => {
+    setIsExporting(true)
+    try {
+      await exportStats()
+      addToast('Stats exported successfully', 'success')
+    } catch {
+      addToast('Failed to export stats', 'error')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleClearAllStats = async () => {
+    setIsClearing(true)
+    try {
+      const success = await clearAllStats()
+      if (success) {
+        addToast('All stats cleared', 'success')
+        setStatsExist(false)
+      } else {
+        addToast('Local stats cleared, but server clear failed', 'info')
+      }
+    } catch {
+      addToast('Failed to clear stats', 'error')
+    } finally {
+      setIsClearing(false)
+      setShowClearStatsConfirm(false)
+    }
+  }
+
+  const handleImportStats = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    try {
+      const result = await importStats(file)
+      if (result.imported > 0) {
+        addToast(`Imported ${result.imported} events${result.skipped > 0 ? `, ${result.skipped} duplicates skipped` : ''}`, 'success')
+        setStatsExist(true)
+      } else {
+        addToast('No new events to import (all duplicates)', 'info')
+      }
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Failed to import stats', 'error')
+    } finally {
+      setIsImporting(false)
+      // Reset file input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -214,6 +285,91 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Stats Section */}
+        <section>
+          <h2 className="text-lg font-semibold text-white mb-1">Stats</h2>
+
+          {/* Stats Info */}
+          <div className="text-xs text-gray-400 mb-4">
+            {pendingEvents.length > 0 && (
+              <p>{pendingEvents.length} event{pendingEvents.length !== 1 ? 's' : ''} pending sync</p>
+            )}
+            {lastSyncedAt && (
+              <p>Last synced: {new Date(lastSyncedAt).toLocaleString()}</p>
+            )}
+          </div>
+
+          {/* Tracking Toggle */}
+          <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg mb-4">
+            <label className="text-white font-medium">Record Listening Stats</label>
+            <button
+              onClick={() => setStatsTrackingEnabled(!statsTrackingEnabled)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+              />
+            </button>
+          </div>
+
+          {/* Stats Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            >
+              {isImporting ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Importing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-5 h-5" />
+                  <span>Import</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleExportStats}
+              disabled={isExporting || !statsExist}
+              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            >
+              {isExporting ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  <span>Export</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => setShowClearStatsConfirm(true)}
+              disabled={isClearing || !statsExist}
+              className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>Clear</span>
+            </button>
+          </div>
+
+          {/* Hidden file input for import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportStats}
+            className="hidden"
+          />
+        </section>
+
         {/* Jellyfin Library Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-1">Jellyfin Library</h2>
@@ -307,6 +463,51 @@ export default function SettingsPage() {
               >
                 <Turtle className="w-5 h-5 text-white flex-shrink-0" />
                 <span className="font-medium">All files (slower)</span>
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+
+        {/* Clear Stats Confirmation Modal */}
+        <BottomSheet isOpen={showClearStatsConfirm} onClose={() => setShowClearStatsConfirm(false)} zIndex={10001}>
+          <div className="pb-6">
+            <div className="mb-6 pl-4 pr-4 flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-lg font-semibold text-white">
+                  Clear All Stats?
+                </div>
+                <div className="text-sm text-gray-400 mt-1">
+                  This will permanently delete all your listening history, both locally and from the server. This action cannot be undone.
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 px-4">
+              <button
+                onClick={handleClearAllStats}
+                disabled={isClearing}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
+              >
+                {isClearing ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    <span>Clear All Stats</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowClearStatsConfirm(false)}
+                disabled={isClearing}
+                className="w-full py-3 text-white font-medium rounded-full transition-colors hover:bg-white/10"
+              >
+                Cancel
               </button>
             </div>
           </div>

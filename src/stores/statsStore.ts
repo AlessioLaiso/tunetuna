@@ -1,45 +1,76 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, type StorageValue } from 'zustand/middleware'
 import type { BaseItemDto } from '../api/types'
 import { useAuthStore } from './authStore'
+import { useSettingsStore } from './settingsStore'
 
-// Stats API is bundled with the app - served from same origin
+/**
+ * Stats API endpoint - bundled with the app, served from same origin.
+ * Handles server-side persistence of play events in SQLite.
+ */
 const STATS_API_BASE = '/api/stats'
 
+/**
+ * Represents a single play event recorded when a user listens to a track.
+ * Events are stored locally until synced to the server.
+ */
 export interface PlayEvent {
+  /** Unix timestamp when the play was recorded */
   ts: number
+  /** Jellyfin item ID of the song */
   songId: string
+  /** Display name of the song */
   songName: string
+  /** Jellyfin item IDs of all artists */
   artistIds: string[]
+  /** Display names of all artists */
   artistNames: string[]
+  /** Jellyfin item ID of the album */
   albumId: string
+  /** Display name of the album */
   albumName: string
+  /** Genre names associated with the track */
   genres: string[]
+  /** Production year, if available */
   year: number | null
+  /** Actual listen duration in milliseconds */
   durationMs: number
+  /** Full track duration in milliseconds */
   fullDurationMs: number
 }
 
+/**
+ * Tracks the currently playing song for duration calculation.
+ * Used to determine actual listen time when recording a play.
+ */
 interface CurrentPlay {
   track: BaseItemDto
   startedAt: number
 }
 
+/**
+ * Stats store state and actions.
+ *
+ * This store manages:
+ * - Pending events: Play events waiting to be synced to server
+ * - Cached events: Events fetched from server for display
+ * - Current play: Active track for duration tracking
+ *
+ * Persistence: Uses IndexedDB for reliability and consistency with musicStore.
+ * Only pendingEvents and lastSyncedAt are persisted; cached data is transient.
+ */
 interface StatsState {
-  // Pending events (not yet synced to server)
+  /** Events recorded but not yet synced to server */
   pendingEvents: PlayEvent[]
-
-  // Last sync timestamp
+  /** Timestamp of last successful server sync */
   lastSyncedAt: number | null
-
-  // Cached events for current session (fetched from server)
+  /** Events fetched from server (transient, not persisted) */
   cachedEvents: PlayEvent[]
+  /** Time range of cached events for cache hit detection */
   cacheRange: { from: number; to: number } | null
-
-  // Currently playing track (for duration calculation)
+  /** Currently playing track for duration calculation */
   currentPlay: CurrentPlay | null
-
-  // Cached stats key for sync (updated when auth changes)
+  /** SHA-256 hash of serverUrl::userId for API calls */
   cachedStatsKey: string | null
 
   // Actions
@@ -50,9 +81,141 @@ interface StatsState {
   clearCache: () => void
   updateStatsKey: () => Promise<void>
   updateEventMetadata: (itemType: 'song' | 'album' | 'artist', itemId: string, metadata: Partial<Pick<PlayEvent, 'songName' | 'artistNames' | 'albumName' | 'genres' | 'year'>>) => void
+  /** Exports all stats (server + pending) as a downloadable JSON file */
+  exportStats: () => Promise<void>
+  /** Imports stats from a JSON file, deduplicating with existing data */
+  importStats: (file: File) => Promise<{ imported: number; skipped: number }>
+  /** Clears local pending events only */
+  clearLocalStats: () => void
+  /** Clears all stats (local + server) */
+  clearAllStats: () => Promise<boolean>
+  /** Returns true if there are any stats (pending or synced) */
+  hasStats: () => Promise<boolean>
 }
 
-// Helper to generate stats key from server URL and user ID
+// ============================================================================
+// IndexedDB Storage Adapter
+// ============================================================================
+
+/**
+ * Singleton IndexedDB connection to prevent race conditions.
+ * Shared pattern with musicStore for consistency.
+ */
+let dbInstance: IDBDatabase | null = null
+let dbPromise: Promise<IDBDatabase> | null = null
+
+/**
+ * Gets or creates the IndexedDB connection.
+ * Uses singleton pattern to ensure only one connection exists.
+ */
+function getDB(): Promise<IDBDatabase> {
+  if (dbInstance) {
+    return Promise.resolve(dbInstance)
+  }
+
+  if (dbPromise) {
+    return dbPromise
+  }
+
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open('tunetuna-stats-storage', 1)
+
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('zustand')) {
+        db.createObjectStore('zustand')
+      }
+    }
+
+    request.onsuccess = () => {
+      dbInstance = request.result
+      dbInstance.onclose = () => {
+        dbInstance = null
+        dbPromise = null
+      }
+      resolve(dbInstance)
+    }
+
+    request.onerror = () => {
+      dbPromise = null
+      reject(request.error)
+    }
+  })
+
+  return dbPromise
+}
+
+/**
+ * Custom IndexedDB storage adapter for Zustand persist middleware.
+ * Provides better reliability than localStorage for critical data like pending events.
+ */
+const indexedDBStorage = {
+  getItem: async (name: string): Promise<StorageValue<StatsState> | null> => {
+    try {
+      const db = await getDB()
+      return new Promise((resolve) => {
+        const transaction = db.transaction(['zustand'], 'readonly')
+        const store = transaction.objectStore('zustand')
+        const getRequest = store.get(name)
+        getRequest.onsuccess = () => {
+          const result = getRequest.result
+          if (result) {
+            resolve(JSON.parse(result))
+          } else {
+            resolve(null)
+          }
+        }
+        getRequest.onerror = () => {
+          resolve(null)
+        }
+      })
+    } catch {
+      return null
+    }
+  },
+  setItem: async (name: string, value: StorageValue<StatsState>): Promise<void> => {
+    const db = await getDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['zustand'], 'readwrite')
+      const store = transaction.objectStore('zustand')
+      const setRequest = store.put(JSON.stringify(value), name)
+      setRequest.onsuccess = () => {
+        resolve()
+      }
+      setRequest.onerror = () => {
+        reject(setRequest.error)
+      }
+    })
+  },
+  removeItem: async (name: string): Promise<void> => {
+    try {
+      const db = await getDB()
+      return new Promise((resolve) => {
+        const transaction = db.transaction(['zustand'], 'readwrite')
+        const store = transaction.objectStore('zustand')
+        const deleteRequest = store.delete(name)
+        deleteRequest.onsuccess = () => {
+          resolve()
+        }
+        deleteRequest.onerror = () => {
+          resolve()
+        }
+      })
+    } catch {
+      // Silently fail on remove errors
+    }
+  },
+}
+
+
+// ============================================================================
+// Helper Functions (internal to store module)
+// ============================================================================
+
+/**
+ * Generates a unique key for the stats API from server URL and user ID.
+ * Uses SHA-256 hash to create a consistent, URL-safe identifier.
+ */
 async function generateStatsKey(serverUrl: string, userId: string): Promise<string> {
   const data = `${serverUrl}::${userId}`
   const encoder = new TextEncoder()
@@ -61,7 +224,10 @@ async function generateStatsKey(serverUrl: string, userId: string): Promise<stri
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Create a PlayEvent from track data
+/**
+ * Creates a PlayEvent from track data and actual listen duration.
+ * Extracts all relevant metadata for stats tracking.
+ */
 function createPlayEvent(track: BaseItemDto, actualDurationMs: number): PlayEvent {
   return {
     ts: Date.now(),
@@ -78,6 +244,9 @@ function createPlayEvent(track: BaseItemDto, actualDurationMs: number): PlayEven
   }
 }
 
+// ============================================================================
+// Store Definition
+// ============================================================================
 
 export const useStatsStore = create<StatsState>()(
   persist(
@@ -89,6 +258,9 @@ export const useStatsStore = create<StatsState>()(
       currentPlay: null,
       cachedStatsKey: null,
 
+      /**
+       * Marks a track as currently playing for duration calculation.
+       */
       startPlay: (track) => {
         set({
           currentPlay: {
@@ -98,7 +270,16 @@ export const useStatsStore = create<StatsState>()(
         })
       },
 
+      /**
+       * Records a play event if the user listened long enough.
+       * Threshold: 1 minute, or 80% of short songs (<1 min).
+       * Auto-syncs to server when 5+ events are pending.
+       * Respects statsTrackingEnabled setting.
+       */
       recordPlay: (track, actualDurationMs) => {
+        // Check if tracking is enabled
+        if (!useSettingsStore.getState().statsTrackingEnabled) return
+
         const { pendingEvents } = get()
 
         // Get the song's full duration
@@ -122,6 +303,11 @@ export const useStatsStore = create<StatsState>()(
         }
       },
 
+      /**
+       * Syncs pending events to the server.
+       * Uses snapshot of events to prevent race conditions.
+       * Failed syncs preserve events for retry.
+       */
       syncToServer: async () => {
         const { pendingEvents } = get()
         if (pendingEvents.length === 0) return
@@ -161,6 +347,10 @@ export const useStatsStore = create<StatsState>()(
         }
       },
 
+      /**
+       * Updates the cached stats key when auth changes.
+       * Called on auth state changes and initial load.
+       */
       updateStatsKey: async () => {
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) {
@@ -171,6 +361,10 @@ export const useStatsStore = create<StatsState>()(
         set({ cachedStatsKey: key })
       },
 
+      /**
+       * Fetches events from server for a given time range.
+       * Uses cache if available, merges with pending events.
+       */
       fetchEvents: async (from, to) => {
         const { cacheRange, cachedEvents, pendingEvents } = get()
 
@@ -214,6 +408,10 @@ export const useStatsStore = create<StatsState>()(
         }
       },
 
+      /**
+       * Clears the in-memory cache of fetched events.
+       * Does not affect pending events or server data.
+       */
       clearCache: () => {
         set({
           cachedEvents: [],
@@ -221,6 +419,10 @@ export const useStatsStore = create<StatsState>()(
         })
       },
 
+      /**
+       * Updates metadata for cached/pending events when item metadata changes.
+       * Keeps stats in sync with library metadata updates.
+       */
       updateEventMetadata: (itemType, itemId, metadata) => {
         const { cachedEvents, pendingEvents } = get()
 
@@ -252,9 +454,224 @@ export const useStatsStore = create<StatsState>()(
           pendingEvents: pendingEvents.map(updateEvent),
         })
       },
+
+      /**
+       * Exports all stats as a downloadable JSON file.
+       * Fetches all events from server and merges with pending events.
+       */
+      exportStats: async () => {
+        const { pendingEvents } = get()
+        const { serverUrl, userId } = useAuthStore.getState()
+
+        let allEvents: PlayEvent[] = [...pendingEvents]
+
+        // Fetch all events from server if authenticated
+        if (serverUrl && userId) {
+          const key = await generateStatsKey(serverUrl, userId)
+          try {
+            // Fetch all events (use very wide time range)
+            const response = await fetch(
+              `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
+            )
+            if (response.ok) {
+              const data = await response.json()
+              const serverEvents: PlayEvent[] = data.events || []
+              // Merge and deduplicate by ts + songId
+              const existingKeys = new Set(allEvents.map(e => `${e.ts}-${e.songId}`))
+              for (const event of serverEvents) {
+                const key = `${event.ts}-${event.songId}`
+                if (!existingKeys.has(key)) {
+                  allEvents.push(event)
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to fetch server events for export:', error)
+          }
+        }
+
+        // Sort by timestamp
+        allEvents.sort((a, b) => a.ts - b.ts)
+
+        // Create and download JSON file
+        const blob = new Blob([JSON.stringify(allEvents, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `tunetuna-stats-${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      },
+
+      /**
+       * Clears local pending events only.
+       * Does not affect server data.
+       */
+      clearLocalStats: () => {
+        set({
+          pendingEvents: [],
+          cachedEvents: [],
+          cacheRange: null,
+          lastSyncedAt: null,
+        })
+      },
+
+      /**
+       * Clears all stats (local + server).
+       * Returns true if successful, false otherwise.
+       */
+      clearAllStats: async () => {
+        const { serverUrl, userId } = useAuthStore.getState()
+
+        // Clear local first
+        set({
+          pendingEvents: [],
+          cachedEvents: [],
+          cacheRange: null,
+          lastSyncedAt: null,
+        })
+
+        // Try to clear server data if authenticated
+        if (serverUrl && userId) {
+          const key = await generateStatsKey(serverUrl, userId)
+          try {
+            const response = await fetch(`${STATS_API_BASE}/${key}/events`, {
+              method: 'DELETE',
+            })
+            return response.ok
+          } catch (error) {
+            console.warn('Failed to clear server stats:', error)
+            return false
+          }
+        }
+
+        return true
+      },
+
+      /**
+       * Imports stats from a JSON file.
+       * Validates events and deduplicates with existing server data.
+       */
+      importStats: async (file: File) => {
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) {
+          throw new Error('Not authenticated')
+        }
+
+        // Read and parse file
+        const text = await file.text()
+        let events: PlayEvent[]
+        try {
+          events = JSON.parse(text)
+        } catch {
+          throw new Error('Invalid JSON file')
+        }
+
+        if (!Array.isArray(events)) {
+          throw new Error('File must contain an array of events')
+        }
+
+        // Validate events have required fields
+        const validEvents = events.filter(e =>
+          typeof e.ts === 'number' &&
+          typeof e.songId === 'string' &&
+          typeof e.songName === 'string' &&
+          Array.isArray(e.artistIds) &&
+          Array.isArray(e.artistNames) &&
+          typeof e.albumId === 'string' &&
+          typeof e.albumName === 'string' &&
+          Array.isArray(e.genres) &&
+          typeof e.durationMs === 'number' &&
+          typeof e.fullDurationMs === 'number'
+        )
+
+        if (validEvents.length === 0) {
+          throw new Error('No valid events found in file')
+        }
+
+        const key = await generateStatsKey(serverUrl, userId)
+
+        // Fetch existing events to check for duplicates
+        let existingKeys = new Set<string>()
+        try {
+          const response = await fetch(
+            `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
+          )
+          if (response.ok) {
+            const data = await response.json()
+            const existingEvents: PlayEvent[] = data.events || []
+            existingKeys = new Set(existingEvents.map(e => `${e.ts}-${e.songId}`))
+          }
+        } catch {
+          // Continue without deduplication if fetch fails
+        }
+
+        // Also check pending events
+        const { pendingEvents } = get()
+        for (const e of pendingEvents) {
+          existingKeys.add(`${e.ts}-${e.songId}`)
+        }
+
+        // Filter out duplicates
+        const newEvents = validEvents.filter(e => !existingKeys.has(`${e.ts}-${e.songId}`))
+
+        if (newEvents.length === 0) {
+          return { imported: 0, skipped: validEvents.length }
+        }
+
+        // Send to server
+        try {
+          const response = await fetch(`${STATS_API_BASE}/${key}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newEvents),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to upload events')
+          }
+
+          // Invalidate cache
+          set({ cacheRange: null })
+
+          return { imported: newEvents.length, skipped: validEvents.length - newEvents.length }
+        } catch (error) {
+          throw new Error('Failed to import events to server')
+        }
+      },
+
+      /**
+       * Checks if there are any stats (pending or on server).
+       */
+      hasStats: async () => {
+        const { pendingEvents } = get()
+        if (pendingEvents.length > 0) return true
+
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) return false
+
+        const key = await generateStatsKey(serverUrl, userId)
+        try {
+          // Just check if any events exist
+          const response = await fetch(
+            `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
+          )
+          if (response.ok) {
+            const data = await response.json()
+            return (data.events?.length || 0) > 0
+          }
+        } catch {
+          // Assume no stats if we can't check
+        }
+
+        return false
+      },
     }),
     {
       name: 'stats-storage',
+      storage: indexedDBStorage,
       partialize: (state) => ({
         pendingEvents: state.pendingEvents,
         lastSyncedAt: state.lastSyncedAt,

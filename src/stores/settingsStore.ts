@@ -21,6 +21,9 @@ interface SettingsState {
   setShowQueueRecommendations: (enabled: boolean) => void
   recommendationsQuality: 'good' | 'degraded' | 'failed'
   setRecommendationsQuality: (quality: 'good' | 'degraded' | 'failed') => void
+  /** Whether to track play statistics */
+  statsTrackingEnabled: boolean
+  setStatsTrackingEnabled: (enabled: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -46,6 +49,8 @@ export const useSettingsStore = create<SettingsState>()(
       setShowQueueRecommendations: (enabled) => set({ showQueueRecommendations: enabled }),
       recommendationsQuality: 'good',
       setRecommendationsQuality: (quality) => set({ recommendationsQuality: quality }),
+      statsTrackingEnabled: true,
+      setStatsTrackingEnabled: (enabled) => set({ statsTrackingEnabled: enabled }),
     }),
     {
       name: 'settings-storage',
