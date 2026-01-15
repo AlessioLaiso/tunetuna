@@ -15,6 +15,7 @@ import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { logger } from '../../utils/logger'
 
 interface SearchArtistItemProps {
   artist: BaseItemDto
@@ -62,7 +63,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
           setFallbackAlbumArtUrl(url)
         }
       } catch (error) {
-        console.error('Failed to load fallback album art for artist (search item):', artist.Id, error)
+        logger.error('Failed to load fallback album art for artist (search item):', artist.Id, error)
         searchArtistAlbumArtCache.set(artist.Id, null)
       }
     }
@@ -366,7 +367,7 @@ export default function ArtistsPage() {
           }
         } catch (error) {
           if (!searchAbortControllerRef.current?.signal.aborted) {
-            console.error('Search failed:', error)
+            logger.error('Search failed:', error)
             setRawSearchResults(null)
           }
         } finally {
@@ -573,7 +574,7 @@ export default function ArtistsPage() {
       const totalLoadTime = Date.now() - loadStartTime
       setArtists(artistsToSet)
     } catch (error) {
-      console.error('Failed to load artists:', error)
+      logger.error('Failed to load artists:', error)
       setArtists([])
       setTotalCount(0)
     } finally {

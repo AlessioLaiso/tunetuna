@@ -15,6 +15,7 @@ import ContextMenu from '../shared/ContextMenu'
 import Pagination from '../shared/Pagination'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
+import { logger } from '../../utils/logger'
 
 const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
@@ -205,7 +206,7 @@ export default function GenreSongsPage() {
         setSongs(filtered)
       } catch (error) {
         if (!isMounted) return
-        console.error('Failed to load genre songs:', error)
+        logger.error('Failed to load genre songs:', error)
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -243,7 +244,7 @@ export default function GenreSongsPage() {
       } catch (error) {
 
 
-        console.error('Failed to shuffle genre:', error)
+        logger.error('Failed to shuffle genre:', error)
       } finally {
         setIsShufflingGenre(false)
 

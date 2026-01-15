@@ -1,5 +1,8 @@
 // API and network timeouts
 export const AUTH_TIMEOUT_MS = 30000
+export const REQUEST_TIMEOUT_MS = 15000
+export const MAX_RETRIES = 2
+export const RETRY_DELAY_MS = 1000
 export const PLAYBACK_REPORT_DELAY_MS = 5000
 export const REFRESH_TIMEOUT_MS = 4000
 export const RECOMMENDATION_TIMEOUT_MS = 30000

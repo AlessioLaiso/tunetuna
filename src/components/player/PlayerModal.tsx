@@ -13,6 +13,7 @@ import VolumeControl from '../layout/VolumeControl'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { isIOS } from '../../utils/formatting'
+import { logger } from '../../utils/logger'
 
 interface PlayerModalProps {
   onClose: () => void
@@ -126,7 +127,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         const hasLyricsValue = lyrics !== null && lyrics.trim().length > 0
         setHasLyrics(hasLyricsValue)
       } catch (error) {
-        console.warn('[PlayerModal] Lyrics check failed:', error)
+        logger.warn('[PlayerModal] Lyrics check failed:', error)
         setHasLyrics(false)
       }
     }
@@ -643,7 +644,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                             alt="Vinyl Record"
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              console.error('Failed to load vinyl image')
+                              logger.error('Failed to load vinyl image')
                               e.currentTarget.style.display = 'none'
                             }}
                           />

@@ -386,11 +386,6 @@ export default function SettingsPage() {
               {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
               {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
             </button>
-            {serverLocked && (
-              <p className="text-xs text-gray-500 mt-1">
-                Server URL is locked by administrator
-              </p>
-            )}
           </div>
           {syncState === 'idle' && lastSyncCompleted && (
             <div className="text-xs text-gray-400 mb-4">

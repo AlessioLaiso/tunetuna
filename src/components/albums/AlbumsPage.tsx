@@ -16,6 +16,7 @@ import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { logger } from '../../utils/logger'
 
 interface SearchAlbumItemProps {
   album: BaseItemDto
@@ -269,7 +270,7 @@ export default function AlbumsPage() {
           setYears(yearsData)
         }
       } catch (error) {
-        console.error('Failed to load filter values:', error)
+        logger.error('Failed to load filter values:', error)
       }
     }
     loadFilterValues()
@@ -305,7 +306,7 @@ export default function AlbumsPage() {
           }
         } catch (error) {
           if (!searchAbortControllerRef.current?.signal.aborted) {
-            console.error('Search failed:', error)
+            logger.error('Search failed:', error)
             setRawSearchResults(null)
           }
         } finally {
@@ -626,7 +627,7 @@ export default function AlbumsPage() {
       setAlbums(result.Items)
       setTotalCount(result.TotalRecordCount || 0)
     } catch (error) {
-      console.error('Failed to load albums:', error)
+      logger.error('Failed to load albums:', error)
       setAlbums([])
       setTotalCount(0)
     } finally {

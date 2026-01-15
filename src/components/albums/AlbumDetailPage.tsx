@@ -9,6 +9,7 @@ import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from '
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
+import { logger } from '../../utils/logger'
 
 interface AlbumTrackItemProps {
   track: BaseItemDto
@@ -192,7 +193,7 @@ export default function AlbumDetailPage() {
             }
           } catch (error) {
             if (!isMounted) return
-            console.warn('Failed to load artist logo:', error)
+            logger.warn('Failed to load artist logo:', error)
             setHasArtistLogo(false)
             setArtistLogoUrl(null)
           }
@@ -202,7 +203,7 @@ export default function AlbumDetailPage() {
         }
       } catch (error) {
         if (!isMounted) return
-        console.error('Failed to load album data:', error)
+        logger.error('Failed to load album data:', error)
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -518,7 +519,7 @@ export default function AlbumDetailPage() {
                       alt="Vinyl Record"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        console.error('Failed to load vinyl image')
+                        logger.error('Failed to load vinyl image')
                         e.currentTarget.style.display = 'none'
                       }}
                     />

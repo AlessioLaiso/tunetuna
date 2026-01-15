@@ -1,4 +1,5 @@
 import { jellyfinClient } from '../api/jellyfin'
+import { logger } from './logger'
 
 // Shared cache for artist fallback album art across all components
 // This prevents duplicate API calls when the same artist appears in multiple places
@@ -35,7 +36,7 @@ export async function getArtistFallbackArt(artistId: string): Promise<string | n
       artistAlbumArtCache.set(artistId, url)
       return url
     } catch (error) {
-      console.error('Failed to load fallback album art for artist:', artistId, error)
+      logger.error('Failed to load fallback album art for artist:', artistId, error)
       artistAlbumArtCache.set(artistId, null)
       return null
     } finally {

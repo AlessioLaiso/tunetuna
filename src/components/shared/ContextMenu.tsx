@@ -8,6 +8,7 @@ import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore } from '../../stores/statsStore'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
+import { logger } from '../../utils/logger'
 
 interface ContextMenuProps {
   item: BaseItemDto | LightweightSong | null
@@ -76,7 +77,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           }
         }
       } catch (error) {
-        console.error('Failed to fetch genre:', error)
+        logger.error('Failed to fetch genre:', error)
       }
     }
 
@@ -198,13 +199,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         }
         case 'song': {
           if (action === 'play') {
-            console.log('ContextMenu: Playing song', currentItem.Name)
+            logger.log('ContextMenu: Playing song', currentItem.Name)
             playTrack(currentItem)
           } else if (action === 'playNext') {
-            console.log('ContextMenu: Adding song to play next', currentItem.Name)
+            logger.log('ContextMenu: Adding song to play next', currentItem.Name)
             playNext([currentItem])
           } else if (action === 'addToQueue') {
-            console.log('ContextMenu: Adding song to queue', currentItem.Name)
+            logger.log('ContextMenu: Adding song to queue', currentItem.Name)
             addToQueueWithToast([currentItem])
           } else if (action === 'sync') {
               // Sync this song and invalidate related genre caches
@@ -309,7 +310,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       }
       onClose()
     } catch (error) {
-      console.error('Context menu action failed:', error)
+      logger.error('Context menu action failed:', error)
     } finally {
       setLoading(false)
       setLoadingAction(null)

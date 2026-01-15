@@ -72,6 +72,10 @@ interface StatsState {
   currentPlay: CurrentPlay | null
   /** SHA-256 hash of serverUrl::userId for API calls */
   cachedStatsKey: string | null
+  /** Random auth token for stats API authentication (persisted per user) */
+  cachedStatsToken: string | null
+  /** Version counter that increments when event metadata changes, used to trigger UI updates */
+  metadataVersion: number
 
   // Actions
   startPlay: (track: BaseItemDto) => void
@@ -225,6 +229,16 @@ async function generateStatsKey(serverUrl: string, userId: string): Promise<stri
 }
 
 /**
+ * Generates a random 32-byte hex token for API authentication.
+ * Used to secure stats API requests beyond just the predictable key.
+ */
+function generateStatsToken(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
  * Creates a PlayEvent from track data and actual listen duration.
  * Extracts all relevant metadata for stats tracking.
  */
@@ -257,6 +271,8 @@ export const useStatsStore = create<StatsState>()(
       cacheRange: null,
       currentPlay: null,
       cachedStatsKey: null,
+      cachedStatsToken: null,
+      metadataVersion: 0,
 
       /**
        * Marks a track as currently playing for duration calculation.
@@ -315,17 +331,21 @@ export const useStatsStore = create<StatsState>()(
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) return
 
+        // Ensure we have a key and token
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) return
+
         // Capture the events we're syncing to avoid race condition
         const eventsToSync = [...pendingEvents]
-        const key = await generateStatsKey(serverUrl, userId)
-
-        // Update cached key for sendBeacon use
-        set({ cachedStatsKey: key })
 
         try {
-          const response = await fetch(`${STATS_API_BASE}/${key}/events`, {
+          const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Stats-Token': cachedStatsToken,
+            },
             body: JSON.stringify(eventsToSync),
           })
 
@@ -338,27 +358,29 @@ export const useStatsStore = create<StatsState>()(
               lastSyncedAt: Date.now(),
               cacheRange: null, // Invalidate cache since we have new data
             }))
-          } else {
-            console.warn('Failed to sync stats:', response.status)
           }
-        } catch (error) {
-          console.warn('Failed to sync stats:', error)
+          // Silently fail - events will retry on next sync
+        } catch {
           // Keep pending events for retry
         }
       },
 
       /**
-       * Updates the cached stats key when auth changes.
+       * Updates the cached stats key and token when auth changes.
        * Called on auth state changes and initial load.
+       * Token is generated once per key and persisted.
        */
       updateStatsKey: async () => {
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) {
-          set({ cachedStatsKey: null })
+          set({ cachedStatsKey: null, cachedStatsToken: null })
           return
         }
         const key = await generateStatsKey(serverUrl, userId)
-        set({ cachedStatsKey: key })
+        const { cachedStatsKey, cachedStatsToken } = get()
+        // Only generate a new token if the key changed or there's no token
+        const token = (cachedStatsKey === key && cachedStatsToken) ? cachedStatsToken : generateStatsToken()
+        set({ cachedStatsKey: key, cachedStatsToken: token })
       },
 
       /**
@@ -379,15 +401,20 @@ export const useStatsStore = create<StatsState>()(
           return [...filtered, ...pendingInRange].sort((a, b) => a.ts - b.ts)
         }
 
-        const key = await generateStatsKey(serverUrl, userId)
+        // Ensure we have a key and token
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) return []
 
         try {
           const response = await fetch(
-            `${STATS_API_BASE}/${key}/events?from=${from}&to=${to}`
+            `${STATS_API_BASE}/${cachedStatsKey}/events?from=${from}&to=${to}`,
+            {
+              headers: { 'X-Stats-Token': cachedStatsToken },
+            }
           )
 
           if (!response.ok) {
-            console.warn('Failed to fetch stats:', response.status)
             return []
           }
 
@@ -402,8 +429,7 @@ export const useStatsStore = create<StatsState>()(
           // Merge with pending events in range
           const pendingInRange = pendingEvents.filter(e => e.ts >= from && e.ts <= to)
           return [...events, ...pendingInRange].sort((a, b) => a.ts - b.ts)
-        } catch (error) {
-          console.warn('Failed to fetch stats:', error)
+        } catch {
           return []
         }
       },
@@ -422,6 +448,7 @@ export const useStatsStore = create<StatsState>()(
       /**
        * Updates metadata for cached/pending events when item metadata changes.
        * Keeps stats in sync with library metadata updates.
+       * Also syncs the update to the server so changes persist.
        */
       updateEventMetadata: (itemType, itemId, metadata) => {
         const { cachedEvents, pendingEvents } = get()
@@ -449,10 +476,36 @@ export const useStatsStore = create<StatsState>()(
           }
         }
 
-        set({
+        set((state) => ({
           cachedEvents: cachedEvents.map(updateEvent),
           pendingEvents: pendingEvents.map(updateEvent),
-        })
+          metadataVersion: state.metadataVersion + 1,
+        }))
+
+        // Sync metadata update to server (fire-and-forget, errors don't block)
+        ;(async () => {
+          const { serverUrl, userId } = useAuthStore.getState()
+          if (!serverUrl || !userId) return
+
+          // Ensure we have a key and token
+          await get().updateStatsKey()
+          const { cachedStatsKey, cachedStatsToken } = get()
+          if (!cachedStatsKey || !cachedStatsToken) return
+
+          try {
+            await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events/metadata`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Stats-Token': cachedStatsToken,
+              },
+              body: JSON.stringify({ itemType, itemId, metadata }),
+            })
+            // Silently fail - metadata will be correct on next full sync
+          } catch {
+            // Silently fail
+          }
+        })()
       },
 
       /**
@@ -467,26 +520,33 @@ export const useStatsStore = create<StatsState>()(
 
         // Fetch all events from server if authenticated
         if (serverUrl && userId) {
-          const key = await generateStatsKey(serverUrl, userId)
-          try {
-            // Fetch all events (use very wide time range)
-            const response = await fetch(
-              `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
-            )
-            if (response.ok) {
-              const data = await response.json()
-              const serverEvents: PlayEvent[] = data.events || []
-              // Merge and deduplicate by ts + songId
-              const existingKeys = new Set(allEvents.map(e => `${e.ts}-${e.songId}`))
-              for (const event of serverEvents) {
-                const key = `${event.ts}-${event.songId}`
-                if (!existingKeys.has(key)) {
-                  allEvents.push(event)
+          // Ensure we have a key and token
+          await get().updateStatsKey()
+          const { cachedStatsKey, cachedStatsToken } = get()
+          if (cachedStatsKey && cachedStatsToken) {
+            try {
+              // Fetch all events (use very wide time range)
+              const response = await fetch(
+                `${STATS_API_BASE}/${cachedStatsKey}/events?from=0&to=${Date.now()}`,
+                {
+                  headers: { 'X-Stats-Token': cachedStatsToken },
+                }
+              )
+              if (response.ok) {
+                const data = await response.json()
+                const serverEvents: PlayEvent[] = data.events || []
+                // Merge and deduplicate by ts + songId
+                const existingKeys = new Set(allEvents.map(e => `${e.ts}-${e.songId}`))
+                for (const event of serverEvents) {
+                  const eventKey = `${event.ts}-${event.songId}`
+                  if (!existingKeys.has(eventKey)) {
+                    allEvents.push(event)
+                  }
                 }
               }
+            } catch {
+              // Continue with local events only
             }
-          } catch (error) {
-            console.warn('Failed to fetch server events for export:', error)
           }
         }
 
@@ -535,15 +595,19 @@ export const useStatsStore = create<StatsState>()(
 
         // Try to clear server data if authenticated
         if (serverUrl && userId) {
-          const key = await generateStatsKey(serverUrl, userId)
-          try {
-            const response = await fetch(`${STATS_API_BASE}/${key}/events`, {
-              method: 'DELETE',
-            })
-            return response.ok
-          } catch (error) {
-            console.warn('Failed to clear server stats:', error)
-            return false
+          // Ensure we have a key and token
+          await get().updateStatsKey()
+          const { cachedStatsKey, cachedStatsToken } = get()
+          if (cachedStatsKey && cachedStatsToken) {
+            try {
+              const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+                method: 'DELETE',
+                headers: { 'X-Stats-Token': cachedStatsToken },
+              })
+              return response.ok
+            } catch {
+              return false
+            }
           }
         }
 
@@ -591,13 +655,21 @@ export const useStatsStore = create<StatsState>()(
           throw new Error('No valid events found in file')
         }
 
-        const key = await generateStatsKey(serverUrl, userId)
+        // Ensure we have a key and token
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) {
+          throw new Error('Failed to initialize stats authentication')
+        }
 
         // Fetch existing events to check for duplicates
         let existingKeys = new Set<string>()
         try {
           const response = await fetch(
-            `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
+            `${STATS_API_BASE}/${cachedStatsKey}/events?from=0&to=${Date.now()}`,
+            {
+              headers: { 'X-Stats-Token': cachedStatsToken },
+            }
           )
           if (response.ok) {
             const data = await response.json()
@@ -622,24 +694,23 @@ export const useStatsStore = create<StatsState>()(
         }
 
         // Send to server
-        try {
-          const response = await fetch(`${STATS_API_BASE}/${key}/events`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newEvents),
-          })
+        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Stats-Token': cachedStatsToken,
+          },
+          body: JSON.stringify(newEvents),
+        })
 
-          if (!response.ok) {
-            throw new Error('Failed to upload events')
-          }
-
-          // Invalidate cache
-          set({ cacheRange: null })
-
-          return { imported: newEvents.length, skipped: validEvents.length - newEvents.length }
-        } catch (error) {
-          throw new Error('Failed to import events to server')
+        if (!response.ok) {
+          throw new Error('Failed to upload events')
         }
+
+        // Invalidate cache
+        set({ cacheRange: null })
+
+        return { imported: newEvents.length, skipped: validEvents.length - newEvents.length }
       },
 
       /**
@@ -652,11 +723,18 @@ export const useStatsStore = create<StatsState>()(
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) return false
 
-        const key = await generateStatsKey(serverUrl, userId)
+        // Ensure we have a key and token
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) return false
+
         try {
           // Just check if any events exist
           const response = await fetch(
-            `${STATS_API_BASE}/${key}/events?from=0&to=${Date.now()}`
+            `${STATS_API_BASE}/${cachedStatsKey}/events?from=0&to=${Date.now()}`,
+            {
+              headers: { 'X-Stats-Token': cachedStatsToken },
+            }
           )
           if (response.ok) {
             const data = await response.json()
@@ -675,6 +753,7 @@ export const useStatsStore = create<StatsState>()(
       partialize: (state) => ({
         pendingEvents: state.pendingEvents,
         lastSyncedAt: state.lastSyncedAt,
+        cachedStatsToken: state.cachedStatsToken,
       }),
     }
   )
@@ -691,10 +770,11 @@ if (typeof document !== 'undefined') {
 
   // Use sendBeacon before page unload for reliable delivery
   window.addEventListener('beforeunload', () => {
-    const { pendingEvents, cachedStatsKey } = useStatsStore.getState()
-    if (pendingEvents.length > 0 && cachedStatsKey) {
-      // sendBeacon is synchronous and reliable for page close
-      const blob = new Blob([JSON.stringify(pendingEvents)], { type: 'application/json' })
+    const { pendingEvents, cachedStatsKey, cachedStatsToken } = useStatsStore.getState()
+    if (pendingEvents.length > 0 && cachedStatsKey && cachedStatsToken) {
+      // sendBeacon doesn't support headers, so include token in body
+      const payload = { _token: cachedStatsToken, events: pendingEvents }
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
       navigator.sendBeacon(`${STATS_API_BASE}/${cachedStatsKey}/events`, blob)
     }
   })

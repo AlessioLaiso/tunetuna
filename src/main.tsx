@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { logger } from './utils/logger'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -24,7 +25,7 @@ const checkForAppUpdates = async () => {
     if (registration) {
       // Check if there's a waiting service worker (new version available)
       if (registration.waiting) {
-        console.log('New app version available, activating...');
+        logger.log('New app version available, activating...');
         // Activate the new service worker immediately
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
@@ -35,7 +36,7 @@ const checkForAppUpdates = async () => {
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('New app version installed and ready');
+              logger.log('New app version installed and ready');
               // Optionally reload the page or show a notification
               // For now, we'll let the service worker handle activation automatically
             }
@@ -44,7 +45,7 @@ const checkForAppUpdates = async () => {
       });
     }
   } catch (error) {
-    console.log('Update check failed:', error);
+    logger.log('Update check failed:', error);
   }
 };
 

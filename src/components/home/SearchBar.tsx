@@ -13,6 +13,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { logger } from '../../utils/logger'
 
 interface SearchBarProps {
   onSearchStateChange?: (isActive: boolean) => void
@@ -63,7 +64,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
           setFallbackAlbumArtUrl(url)
         }
       } catch (error) {
-        console.error('Failed to load fallback album art for artist (home search):', artist.Id, error)
+        logger.error('Failed to load fallback album art for artist (home search):', artist.Id, error)
         homeSearchArtistAlbumArtCache.set(artist.Id, null)
       }
     }
@@ -441,7 +442,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
           setYears(yearsData)
         }
       } catch (error) {
-        console.error('Failed to load filter values:', error)
+        logger.error('Failed to load filter values:', error)
       } finally {
         setLoadingFilterValues(false)
       }
@@ -485,7 +486,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
           }
         } catch (error) {
           if (!controller.signal.aborted) {
-            console.error('Search failed:', error)
+            logger.error('Search failed:', error)
             setRawSearchResults(null)
           }
         } finally {
@@ -764,10 +765,10 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
                   await shuffleAllSongs()
 
                 } catch (error) {
-                  console.error('Home shuffle button - shuffleAllSongs failed:', error)
+                  logger.error('Home shuffle button - shuffleAllSongs failed:', error)
 
 
-                  console.error('Shuffle all failed:', error)
+                  logger.error('Shuffle all failed:', error)
                 } finally {
                   setIsShuffling(false)
 

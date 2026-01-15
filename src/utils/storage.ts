@@ -1,3 +1,5 @@
+import { logger } from './logger'
+
 export const storage = {
   get<T>(key: string): T | null {
     try {
@@ -12,7 +14,7 @@ export const storage = {
     try {
       localStorage.setItem(key, JSON.stringify(value))
     } catch (error) {
-      console.error('Failed to save to localStorage:', error)
+      logger.error('Failed to save to localStorage:', error)
     }
   },
 
@@ -20,7 +22,7 @@ export const storage = {
     try {
       localStorage.removeItem(key)
     } catch (error) {
-      console.error('Failed to remove from localStorage:', error)
+      logger.error('Failed to remove from localStorage:', error)
     }
   },
 
@@ -28,7 +30,7 @@ export const storage = {
     try {
       localStorage.clear()
     } catch (error) {
-      console.error('Failed to clear localStorage:', error)
+      logger.error('Failed to clear localStorage:', error)
     }
   },
 }

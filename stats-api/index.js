@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import cors from '@fastify/cors'
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'fs'
 import { dirname } from 'path'
@@ -17,7 +18,7 @@ try {
 // Initialize SQLite database
 const db = new Database(DB_PATH)
 
-// Create table if not exists
+// Create tables if not exists
 db.exec(`
   CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +38,18 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_events_user_ts ON events(user_key, ts);
+
+  -- Auth tokens table: stores the token for each user key
+  CREATE TABLE IF NOT EXISTS auth_tokens (
+    user_key TEXT PRIMARY KEY,
+    token TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  );
 `)
+
+// Prepared statements for auth
+const getAuthToken = db.prepare('SELECT token FROM auth_tokens WHERE user_key = ?')
+const setAuthToken = db.prepare('INSERT OR REPLACE INTO auth_tokens (user_key, token) VALUES (?, ?)')
 
 // Prepared statements
 const insertEvent = db.prepare(`
@@ -50,6 +62,24 @@ const selectEvents = db.prepare(`
   FROM events
   WHERE user_key = ? AND ts >= ? AND ts <= ?
   ORDER BY ts ASC
+`)
+
+// Prepared statements for metadata updates - use COALESCE to only update non-null values
+const updateSongMetadata = db.prepare(`
+  UPDATE events
+  SET
+    song_name = COALESCE(?, song_name),
+    artist_names = COALESCE(?, artist_names),
+    album_name = COALESCE(?, album_name),
+    genres = COALESCE(?, genres),
+    year = COALESCE(?, year)
+  WHERE user_key = ? AND song_id = ?
+`)
+
+const updateAlbumMetadata = db.prepare(`
+  UPDATE events
+  SET album_name = COALESCE(?, album_name)
+  WHERE user_key = ? AND album_id = ?
 `)
 
 const insertMany = db.transaction((userKey, events) => {
@@ -74,6 +104,72 @@ const insertMany = db.transaction((userKey, events) => {
 // Create Fastify server
 const fastify = Fastify({ logger: true })
 
+// Register CORS - allow same-origin and configured origins
+await fastify.register(cors, {
+  origin: (origin, cb) => {
+    // Allow requests with no origin (same-origin, mobile apps, curl)
+    if (!origin) {
+      cb(null, true)
+      return
+    }
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      cb(null, true)
+      return
+    }
+    // Allow configured origins via environment variable
+    const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || []
+    if (allowedOrigins.includes(origin)) {
+      cb(null, true)
+      return
+    }
+    // Reject unknown origins
+    cb(new Error('Not allowed by CORS'), false)
+  },
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'X-Stats-Token'],
+})
+
+/**
+ * Validates the auth token for a request.
+ * On first request for a key, registers the token.
+ * On subsequent requests, validates the token matches.
+ * Returns { valid: true } or { valid: false, error: string }
+ */
+function validateAuth(key, token) {
+  if (!token) {
+    return { valid: false, error: 'Missing X-Stats-Token header' }
+  }
+
+  // Check if this key already has a registered token
+  const existing = getAuthToken.get(key)
+
+  if (!existing) {
+    // First request for this key - register the token
+    setAuthToken.run(key, token)
+    return { valid: true, isNew: true }
+  }
+
+  // Validate token matches
+  if (existing.token !== token) {
+    return { valid: false, error: 'Invalid token' }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Escapes special characters in a string for use in SQL LIKE patterns.
+ * Prevents SQL injection via LIKE wildcards.
+ */
+function escapeLikePattern(str) {
+  return str
+    .replace(/\\/g, '\\\\')  // Escape backslashes first
+    .replace(/%/g, '\\%')    // Escape percent
+    .replace(/_/g, '\\_')    // Escape underscore
+    .replace(/"/g, '\\"')    // Escape quotes
+}
+
 // Validate a single event object
 function validateEvent(event) {
   if (!event || typeof event !== 'object') return false
@@ -95,7 +191,16 @@ function validateEvent(event) {
 // POST /api/stats/:key/events - Store events
 fastify.post('/api/stats/:key/events', async (request, reply) => {
   const { key } = request.params
-  const events = request.body
+  // Accept token from header or body (body for sendBeacon which doesn't support headers)
+  const body = request.body || {}
+  const token = request.headers['x-stats-token'] || body._token
+  const events = body._token ? body.events : body
+
+  // Validate auth
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
 
   if (!Array.isArray(events) || events.length === 0) {
     return reply.status(400).send({ error: 'Events array required' })
@@ -128,7 +233,14 @@ function safeJsonParse(str, fallback = []) {
 // GET /api/stats/:key/events - Fetch events
 fastify.get('/api/stats/:key/events', async (request, reply) => {
   const { key } = request.params
+  const token = request.headers['x-stats-token']
   const { from, to } = request.query
+
+  // Validate auth
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
 
   if (!from || !to) {
     return reply.status(400).send({ error: 'from and to query params required' })
@@ -161,6 +273,13 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
 // DELETE /api/stats/:key/events - Delete all events for a user
 fastify.delete('/api/stats/:key/events', async (request, reply) => {
   const { key } = request.params
+  const token = request.headers['x-stats-token']
+
+  // Validate auth
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
 
   try {
     const deleteEvents = db.prepare('DELETE FROM events WHERE user_key = ?')
@@ -172,7 +291,90 @@ fastify.delete('/api/stats/:key/events', async (request, reply) => {
   }
 })
 
-// Health check
+// PATCH /api/stats/:key/events/metadata - Update metadata for existing events
+// Body: { itemType: 'song' | 'album' | 'artist', itemId: string, metadata: { songName?, artistNames?, albumName?, genres?, year? } }
+fastify.patch('/api/stats/:key/events/metadata', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+  const { itemType, itemId, metadata } = request.body || {}
+
+  // Validate auth
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  if (!itemType || !itemId || !metadata) {
+    return reply.status(400).send({ error: 'itemType, itemId, and metadata required' })
+  }
+
+  if (!['song', 'album', 'artist'].includes(itemType)) {
+    return reply.status(400).send({ error: 'itemType must be song, album, or artist' })
+  }
+
+  try {
+    let result
+
+    if (itemType === 'song') {
+      // Update all fields for a specific song
+      result = updateSongMetadata.run(
+        metadata.songName ?? null,
+        metadata.artistNames ? JSON.stringify(metadata.artistNames) : null,
+        metadata.albumName ?? null,
+        metadata.genres ? JSON.stringify(metadata.genres) : null,
+        metadata.year ?? null,
+        key,
+        itemId
+      )
+    } else if (itemType === 'album') {
+      // Update album name for all events with this album
+      result = updateAlbumMetadata.run(
+        metadata.albumName ?? null,
+        key,
+        itemId
+      )
+    } else if (itemType === 'artist') {
+      // For artist updates, we need to update events that contain this artist
+      // This is more complex because artistIds is stored as JSON array
+      // We'll use a custom update that checks if the artist ID is in the array
+
+      // Escape special characters to prevent SQL injection via LIKE pattern
+      const escapedItemId = escapeLikePattern(itemId)
+      const selectByArtist = db.prepare(`
+        SELECT id, artist_ids, artist_names FROM events
+        WHERE user_key = ? AND artist_ids LIKE ? ESCAPE '\\'
+      `)
+      const updateById = db.prepare(`
+        UPDATE events SET artist_names = ? WHERE id = ?
+      `)
+
+      const rows = selectByArtist.all(key, `%"${escapedItemId}"%`)
+      let updated = 0
+
+      for (const row of rows) {
+        const artistIds = safeJsonParse(row.artist_ids, [])
+        const artistNames = safeJsonParse(row.artist_names, [])
+        const idx = artistIds.indexOf(itemId)
+
+        if (idx !== -1 && metadata.artistNames && metadata.artistNames[0]) {
+          // Update the artist name at this index
+          artistNames[idx] = metadata.artistNames[0]
+          updateById.run(JSON.stringify(artistNames), row.id)
+          updated++
+        }
+      }
+
+      result = { changes: updated }
+    }
+
+    return { success: true, updated: result?.changes || 0 }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to update metadata' })
+  }
+})
+
+// Health check (no auth required)
 fastify.get('/api/stats/health', async () => {
   return { status: 'ok' }
 })

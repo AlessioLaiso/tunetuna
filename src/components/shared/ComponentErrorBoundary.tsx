@@ -1,5 +1,6 @@
 import { Component, ReactNode } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
+import { logger } from '../../utils/logger'
 
 interface Props {
   children: ReactNode
@@ -29,7 +30,7 @@ export default class ComponentErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`[${this.props.componentName || 'Component'}] Error:`, error, errorInfo)
+    logger.error(`[${this.props.componentName || 'Component'}] Error:`, error, errorInfo)
   }
 
   handleReset = () => {

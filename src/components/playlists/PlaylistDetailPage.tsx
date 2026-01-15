@@ -8,6 +8,7 @@ import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
+import { logger } from '../../utils/logger'
 
 const INITIAL_VISIBLE_TRACKS = 45
 const VISIBLE_TRACKS_INCREMENT = 45
@@ -142,7 +143,7 @@ export default function PlaylistDetailPage() {
           } as BaseItemDto)
         }
       } catch (error) {
-        console.error('Failed to load playlist data:', error)
+        logger.error('Failed to load playlist data:', error)
       } finally {
         setLoading(false)
       }

@@ -5,6 +5,7 @@ import { User } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
+import { logger } from '../../utils/logger'
 
 interface ArtistCardProps {
   artist: BaseItemDto
@@ -54,7 +55,7 @@ export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }:
           setFallbackAlbumArtUrl(url)
         }
       } catch (error) {
-        console.error('Failed to load fallback album art for artist:', artist.Id, error)
+        logger.error('Failed to load fallback album art for artist:', artist.Id, error)
         artistAlbumArtCache.set(artist.Id, null)
       }
     }

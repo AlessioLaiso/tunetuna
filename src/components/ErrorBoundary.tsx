@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { logger } from '../utils/logger'
 
 interface Props {
   children: ReactNode
@@ -22,7 +23,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo)
+    // Always log errors even in production for debugging
+    logger.error('Uncaught error:', error, errorInfo)
   }
 
   private handleCopyError = async () => {
@@ -33,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
       setTimeout(() => this.setState({ showCopied: false }), 2000)
     } catch {
       // Fallback for browsers without clipboard API
-      console.log('Error details:', errorDetails)
+      logger.log('Error details:', errorDetails)
     }
   }
 

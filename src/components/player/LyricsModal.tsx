@@ -3,6 +3,7 @@ import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin' // Used for getLyrics
+import { logger } from '../../utils/logger'
 
 export default function LyricsModal() {
   const currentTrack = useCurrentTrack()
@@ -27,7 +28,7 @@ export default function LyricsModal() {
         const lyricsText = await jellyfinClient.getLyrics(displayTrack.Id)
         setLyrics(lyricsText)
       } catch (error) {
-        console.error('Failed to fetch lyrics:', error)
+        logger.error('Failed to fetch lyrics:', error)
         setLyrics(null)
       } finally {
         setIsLoading(false)

@@ -10,6 +10,7 @@ import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Spinner from '../shared/Spinner'
+import { logger } from '../../utils/logger'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -283,7 +284,7 @@ export default function ArtistDetailPage() {
         setSongs(result.songs)
       } catch (error) {
         if (!isMounted) return
-        console.error('Failed to load artist data:', error)
+        logger.error('Failed to load artist data:', error)
       } finally {
         if (isMounted) {
           setLoading(false)

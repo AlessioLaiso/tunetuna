@@ -7,6 +7,7 @@ import Image from '../shared/Image'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
+import { logger } from '../../utils/logger'
 
 interface RecentlyAddedAlbumItemProps {
   album: BaseItemDto
@@ -105,7 +106,7 @@ export default function RecentlyAdded() {
         const result = await jellyfinClient.getRecentlyAdded(18)
         setRecentlyAdded(result.Items || [])
       } catch (error) {
-        console.error('Failed to load recently added:', error)
+        logger.error('Failed to load recently added:', error)
       } finally {
         setLoading('recentlyAdded', false)
       }

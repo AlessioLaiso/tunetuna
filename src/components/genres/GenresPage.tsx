@@ -4,6 +4,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import GenreItem from './GenreItem'
 import Spinner from '../shared/Spinner'
+import { logger } from '../../utils/logger'
 
 export default function GenresPage() {
   const { genres, setGenres, setLoading, loading } = useMusicStore()
@@ -26,7 +27,7 @@ export default function GenresPage() {
         )
         setGenres(sorted)
       } catch (error) {
-        console.error('Failed to load genres:', error)
+        logger.error('Failed to load genres:', error)
         setGenres([])
       } finally {
         setLoading('genres', false)

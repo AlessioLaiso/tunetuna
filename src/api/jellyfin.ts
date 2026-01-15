@@ -10,8 +10,12 @@ import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
 import { useMusicStore } from '../stores/musicStore'
 import { normalizeQuotes } from '../utils/formatting'
+import { logger } from '../utils/logger'
 import {
   AUTH_TIMEOUT_MS,
+  REQUEST_TIMEOUT_MS,
+  MAX_RETRIES,
+  RETRY_DELAY_MS,
   CACHE_COOLDOWN_MS,
   API_PAGE_LIMIT,
   ARTIST_FETCH_LIMIT,
@@ -21,6 +25,7 @@ import {
   APP_DEVICE_TYPE,
   APP_VERSION,
 } from '../utils/constants'
+import { clearPlaybackTrackingState } from '../stores/playerStore'
 
 class JellyfinClient {
   private baseUrl: string = ''
@@ -74,22 +79,50 @@ class JellyfinClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getHeaders(),
-        ...options.headers,
-      },
-    })
+    let lastError: Error | null = null
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Unauthorized - please login again')
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            ...this.getHeaders(),
+            ...options.headers,
+          },
+        })
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Clear tracking state on auth failure to prevent memory leaks
+            clearPlaybackTrackingState()
+            throw new Error('Unauthorized - please login again')
+          }
+          throw new Error(`API request failed: ${response.statusText}`)
+        }
+
+        return response.json()
+      } catch (error) {
+        clearTimeout(timeoutId)
+        lastError = error instanceof Error ? error : new Error(String(error))
+
+        // Don't retry on auth errors or abort
+        if (lastError.message.includes('Unauthorized') || lastError.name === 'AbortError') {
+          break
+        }
+
+        // Wait before retry (exponential backoff)
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
+        }
       }
-      throw new Error(`API request failed: ${response.statusText}`)
     }
 
-    return response.json()
+    throw lastError || new Error('Request failed')
   }
 
   async authenticate(serverUrl: string, username: string, password: string): Promise<JellyfinAuthResponse> {
@@ -98,7 +131,7 @@ class JellyfinClient {
     // Use AbortController for timeout
     const controller = new AbortController()
     const timeoutId = setTimeout(() => {
-      console.warn(`Authentication request timed out after ${AUTH_TIMEOUT_MS / 1000} seconds`)
+      logger.warn(`Authentication request timed out after ${AUTH_TIMEOUT_MS / 1000} seconds`)
       controller.abort()
     }, AUTH_TIMEOUT_MS)
 
@@ -122,7 +155,7 @@ class JellyfinClient {
       // Handle abort (timeout)
       if (error instanceof Error && error.name === 'AbortError') {
         if (import.meta.env.DEV) {
-          console.error('[JellyfinClient] Authentication timeout:', { url, serverUrl })
+          logger.error('[JellyfinClient] Authentication timeout:', { url, serverUrl })
         }
 
         const vpnNote = this.getVpnWarning(serverUrl)
@@ -261,7 +294,7 @@ class JellyfinClient {
       const result = await this.request<BaseItemDto>(`/Items/${artistId}?${query}`)
       return result
     } catch (error) {
-      console.error('Failed to get artist by ID:', error)
+      logger.error('Failed to get artist by ID:', error)
       return null
     }
   }
@@ -301,7 +334,7 @@ class JellyfinClient {
       const result = await this.request<BaseItemDto>(`/Items/${albumId}?${query}`)
       return result
     } catch (error) {
-      console.error('Failed to get album by ID:', error)
+      logger.error('Failed to get album by ID:', error)
       return null
     }
   }
@@ -318,7 +351,7 @@ class JellyfinClient {
       const result = await this.request<BaseItemDto>(`/Items/${songId}?${query}`)
       return result
     } catch (error) {
-      console.error('Failed to get song by ID:', error)
+      logger.error('Failed to get song by ID:', error)
       return null
     }
   }
@@ -408,7 +441,7 @@ class JellyfinClient {
         }
       } catch (error) {
         // If check fails, gracefully fall back to cached genres
-        console.warn('[getGenres] Failed to check for new/modified tracks, using cached genres:', error)
+        logger.warn('[getGenres] Failed to check for new/modified tracks, using cached genres:', error)
         this.genresCache = store.genres
         return store.genres
       }
@@ -504,7 +537,7 @@ class JellyfinClient {
           }
         })
       } catch (error) {
-        console.warn('[getGenres] Failed to get genre IDs from API, will use synthetic IDs:', error)
+        logger.warn('[getGenres] Failed to get genre IDs from API, will use synthetic IDs:', error)
       }
       
       // Build genre objects: use API genre objects when available, otherwise create synthetic ones
@@ -556,7 +589,7 @@ class JellyfinClient {
       this.genresCache = musicGenres
       return musicGenres
     } catch (error) {
-      console.error('[getGenres] Failed to build music genres:', error)
+      logger.error('[getGenres] Failed to build music genres:', error)
       // Return cached genres from store if available, otherwise empty array
       if (store.genres.length > 0) {
         this.genresCache = store.genres
@@ -604,7 +637,7 @@ class JellyfinClient {
           return store.years
         }
       } catch (error) {
-        console.warn('[getYears] Failed to check for new tracks, using cached years:', error)
+        logger.warn('[getYears] Failed to check for new tracks, using cached years:', error)
         return store.years
       }
     }
@@ -642,7 +675,7 @@ class JellyfinClient {
       
       return years
     } catch (error) {
-      console.error('[getYears] Failed to extract years:', error)
+      logger.error('[getYears] Failed to extract years:', error)
       if (store.years.length > 0) {
         return store.years
       }
@@ -839,7 +872,7 @@ class JellyfinClient {
         const songs = await this.getGenreSongs(genre.Id, genre.Name)
         store.setGenreSongs(genre.Id, songs)
       } catch (error) {
-        console.warn(`[syncLibrary] Failed to load songs for genre ${genre.Name}:`, error)
+        logger.warn(`[syncLibrary] Failed to load songs for genre ${genre.Name}:`, error)
       }
     })
 
@@ -910,7 +943,7 @@ class JellyfinClient {
           return artistName.toLowerCase().includes(queryLower)
         })
       } catch (error) {
-        console.error('Failed to fetch all artists for short query:', error)
+        logger.error('Failed to fetch all artists for short query:', error)
         // Keep the empty artists array if fetch fails
       }
     }
@@ -944,7 +977,7 @@ class JellyfinClient {
             }
           })
         } catch (err) {
-          console.error('Failed to fetch songs for matching artists:', err)
+          logger.error('Failed to fetch songs for matching artists:', err)
         }
       }
     }
@@ -1060,7 +1093,7 @@ class JellyfinClient {
       })
     } catch (error) {
       // Log error but don't throw - playback should continue even if reporting fails
-      console.warn('Failed to mark item as played:', error)
+      logger.warn('Failed to mark item as played:', error)
     }
   }
 
@@ -1123,7 +1156,7 @@ class JellyfinClient {
       return null
     } catch (error) {
       // Return null if lyrics don't exist or there's an error
-      console.warn('[getLyrics] Failed to fetch lyrics:', error)
+      logger.warn('[getLyrics] Failed to fetch lyrics:', error)
       return null
     }
   }

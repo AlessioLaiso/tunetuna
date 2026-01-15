@@ -6,6 +6,7 @@ import { useMusicStore } from './musicStore'
 import { useSettingsStore } from './settingsStore'
 import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
+import { logger } from '../utils/logger'
 
 // Track which items have been reported to prevent duplicate API calls
 const reportedItems = new Set<string>()
@@ -308,7 +309,7 @@ export const usePlayerStore = create<PlayerState>()(
             if (foundIndex !== -1) {
               newCurrentIndex = foundIndex
             } else {
-              console.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
+              logger.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
             }
           }
 
@@ -494,7 +495,7 @@ export const usePlayerStore = create<PlayerState>()(
             // Start tracking for stats
             useStatsStore.getState().startPlay(track)
           }).catch((error) => {
-            console.error('Playback error:', error)
+            logger.error('Playback error:', error)
             set({ isPlaying: false })
           })
         }
@@ -822,7 +823,7 @@ export const usePlayerStore = create<PlayerState>()(
               })
               allSongs = result.Items || []
             } catch (error) {
-              console.error('Failed to fetch songs for shuffle all:', error)
+              logger.error('Failed to fetch songs for shuffle all:', error)
               return
             }
           }
@@ -958,7 +959,7 @@ export const usePlayerStore = create<PlayerState>()(
 
             }
           } catch (error) {
-            console.error('Failed to expand shuffle queue:', error)
+            logger.error('Failed to expand shuffle queue:', error)
             // Keep the initial 5 songs - better than nothing
           }
         }, 100)
@@ -980,7 +981,7 @@ export const usePlayerStore = create<PlayerState>()(
         const genreSongs = useMusicStore.getState().genreSongs[genreId]
 
         if (!genreSongs || genreSongs.length === 0) {
-          console.warn(`No songs found for genre: ${genreName}`)
+          logger.warn(`No songs found for genre: ${genreName}`)
           return
         }
 
@@ -1067,7 +1068,7 @@ export const usePlayerStore = create<PlayerState>()(
               })
             }
           } catch (error) {
-            console.error('Failed to expand genre shuffle queue:', error)
+            logger.error('Failed to expand genre shuffle queue:', error)
           }
         }, 100)
       },
@@ -1109,7 +1110,7 @@ export const usePlayerStore = create<PlayerState>()(
             })
           }
         } catch (error) {
-          console.error('Failed to refresh current track:', error)
+          logger.error('Failed to refresh current track:', error)
         }
       },
 

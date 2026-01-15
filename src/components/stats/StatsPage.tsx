@@ -20,9 +20,11 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
-import { computeStats } from '../../utils/statsComputer'
+import { computeStats, type ComputedStats } from '../../utils/statsComputer'
+import type { BaseItemDto } from '../../api/types'
 import StatsCannedImage from './StatsCannedImage'
 import html2canvas from 'html2canvas'
+import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 
@@ -321,7 +323,7 @@ function TopSongItem({
         </div>
       </button>
       <ContextMenu
-        item={songItem as any}
+        item={songItem as BaseItemDto}
         itemType="song"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
@@ -442,7 +444,7 @@ function TopArtistItem({
         </div>
       </button>
       <ContextMenu
-        item={artistItem as any}
+        item={artistItem as BaseItemDto}
         itemType="artist"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
@@ -632,7 +634,7 @@ function TopAlbumItem({
         </div>
       </button>
       <ContextMenu
-        item={albumItem as any}
+        item={albumItem as BaseItemDto}
         itemType="album"
         isOpen={contextMenuOpen}
         onClose={() => setContextMenuOpen(false)}
@@ -646,7 +648,7 @@ function TopAlbumItem({
 // Main component
 export default function StatsPage() {
   const navigate = useNavigate()
-  const { fetchEvents, cachedEvents } = useStatsStore()
+  const { fetchEvents, cachedEvents, metadataVersion } = useStatsStore()
   const { genres } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const playTrack = usePlayerStore(state => state.playTrack)
@@ -679,7 +681,7 @@ export default function StatsPage() {
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch (error) {
-      console.error('Error generating image:', error)
+      logger.error('Error generating image:', error)
     }
   }
 
@@ -728,7 +730,7 @@ export default function StatsPage() {
     }
 
     fetchData()
-  }, [fromMonth, toMonth, fetchEvents, cachedEvents.length])
+  }, [fromMonth, toMonth, fetchEvents, cachedEvents.length, metadataVersion])
 
   // Compute stats from events
   const stats = useMemo(() => {
@@ -1059,7 +1061,7 @@ export default function StatsPage() {
   )
 }
 
-function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { stats: any, fromMonth: string, toMonth: string, onClose: () => void, onDownload: () => void }) {
+function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { stats: ComputedStats, fromMonth: string, toMonth: string, onClose: () => void, onDownload: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
@@ -1140,10 +1142,10 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { s
             uniqueArtists={stats.uniqueArtists}
             uniqueAlbums={stats.uniqueAlbums}
             uniqueSongs={stats.uniqueSongs}
-            topArtists={stats.topArtists.slice(0, 5).map((a: any) => ({ name: a.artistName, artistId: a.artistId }))}
-            topSongs={stats.topSongs.slice(0, 5).map((s: any) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
-            topAlbums={stats.topAlbums.slice(0, 3).map((a: any) => ({ name: a.albumName, albumId: a.albumId }))}
-            topGenres={stats.topGenres.slice(0, 3).map((g: any) => ({ name: g.genre }))}
+            topArtists={stats.topArtists.slice(0, 5).map((a) => ({ name: a.artistName, artistId: a.artistId }))}
+            topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
+            topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, albumId: a.albumId }))}
+            topGenres={stats.topGenres.slice(0, 3).map((g) => ({ name: g.genre }))}
           />
         </div>
       </div>
@@ -1172,10 +1174,10 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { s
           uniqueArtists={stats.uniqueArtists}
           uniqueAlbums={stats.uniqueAlbums}
           uniqueSongs={stats.uniqueSongs}
-          topArtists={stats.topArtists.slice(0, 5).map((a: any) => ({ name: a.artistName, artistId: a.artistId }))}
-          topSongs={stats.topSongs.slice(0, 5).map((s: any) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
-          topAlbums={stats.topAlbums.slice(0, 3).map((a: any) => ({ name: a.albumName, albumId: a.albumId }))}
-          topGenres={stats.topGenres.slice(0, 3).map((g: any) => ({ name: g.genre }))}
+          topArtists={stats.topArtists.slice(0, 5).map((a) => ({ name: a.artistName, artistId: a.artistId }))}
+          topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
+          topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, albumId: a.albumId }))}
+          topGenres={stats.topGenres.slice(0, 3).map((g) => ({ name: g.genre }))}
         />
       </div>
     </div>

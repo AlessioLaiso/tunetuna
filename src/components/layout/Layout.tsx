@@ -10,6 +10,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { LightweightSong, BaseItemDto } from '../../api/types'
+import { logger } from '../../utils/logger'
 
 const colorMap: Record<string, string> = {
   slate: '#64748b',
@@ -95,7 +96,7 @@ export default function Layout({ children }: LayoutProps) {
     if (genres.length === 0) {
       // Preload genres in background - non-blocking
       jellyfinClient.getGenres().catch(err => {
-        console.warn('Background genre preload failed:', err)
+        logger.warn('Background genre preload failed:', err)
       })
     }
   }, [genres.length])
@@ -160,7 +161,7 @@ export default function Layout({ children }: LayoutProps) {
             })
           }
         } catch (error) {
-          console.warn('Minimal song preload failed:', error)
+          logger.warn('Minimal song preload failed:', error)
           // Shuffle will work via API fallback - no big deal
         }
       }, 300) // Quick delay, not 500ms

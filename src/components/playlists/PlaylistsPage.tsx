@@ -13,6 +13,7 @@ import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { normalizeQuotes } from '../../utils/formatting'
 import { unifiedSearch } from '../../utils/search'
+import { logger } from '../../utils/logger'
 
 interface SearchArtistItemProps {
   artist: BaseItemDto
@@ -58,7 +59,7 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
           setFallbackAlbumArtUrl(url)
         }
       } catch (error) {
-        console.error('Failed to load fallback album art for artist (playlists search):', artist.Id, error)
+        logger.error('Failed to load fallback album art for artist (playlists search):', artist.Id, error)
         playlistsSearchArtistAlbumArtCache.set(artist.Id, null)
       }
     }
@@ -363,7 +364,7 @@ export default function PlaylistsPage() {
           }
         } catch (error) {
           if (!searchAbortControllerRef.current?.signal.aborted) {
-            console.error('Search failed:', error)
+            logger.error('Search failed:', error)
             setRawSearchResults(null)
           }
         } finally {
@@ -467,7 +468,7 @@ export default function PlaylistsPage() {
       const result = await jellyfinClient.getPlaylists(options)
       setPlaylists(result.Items)
     } catch (error) {
-      console.error('Failed to load playlists:', error)
+      logger.error('Failed to load playlists:', error)
     } finally {
       setLoading(false)
       setIsLoadingSortChange(false)
