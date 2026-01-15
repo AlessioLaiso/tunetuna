@@ -46,7 +46,7 @@ export function normalizeForSearch(text: string): string {
  * iOS Safari doesn't allow programmatic volume control in web apps/PWAs
  */
 export function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window)
 }
 
 

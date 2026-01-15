@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, ReactNode } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSettingsStore } from './stores/settingsStore'
 import LoginForm from './components/auth/LoginForm'
 import Layout from './components/layout/Layout'
 import ScrollToTop from './ScrollToTop'
 import ToastContainer from './components/shared/Toast'
+import ComponentErrorBoundary from './components/shared/ComponentErrorBoundary'
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
@@ -28,6 +29,11 @@ function PageLoader() {
       <div className="w-8 h-8 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
     </div>
   )
+}
+
+// Wrapper to add error boundary to pages
+function withErrorBoundary(element: ReactNode, name: string) {
+  return <ComponentErrorBoundary componentName={name}>{element}</ComponentErrorBoundary>
 }
 
 function App() {
@@ -62,36 +68,36 @@ function App() {
         <Layout>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
+              <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
               {pageVisibility.artists && (
                 <>
-                  <Route path="/artists" element={<ArtistsPage />} />
-                  <Route path="/artist/:id" element={<ArtistDetailPage />} />
+                  <Route path="/artists" element={withErrorBoundary(<ArtistsPage />, 'Artists')} />
+                  <Route path="/artist/:id" element={withErrorBoundary(<ArtistDetailPage />, 'Artist')} />
                 </>
               )}
               {pageVisibility.albums && (
                 <>
-                  <Route path="/albums" element={<AlbumsPage />} />
-                  <Route path="/album/:id" element={<AlbumDetailPage />} />
+                  <Route path="/albums" element={withErrorBoundary(<AlbumsPage />, 'Albums')} />
+                  <Route path="/album/:id" element={withErrorBoundary(<AlbumDetailPage />, 'Album')} />
                 </>
               )}
-              {pageVisibility.songs && <Route path="/songs" element={<SongsPage />} />}
+              {pageVisibility.songs && <Route path="/songs" element={withErrorBoundary(<SongsPage />, 'Songs')} />}
               {pageVisibility.genres && (
                 <>
-                  <Route path="/genres" element={<GenresPage />} />
-                  <Route path="/genre/:id" element={<GenreSongsPage />} />
+                  <Route path="/genres" element={withErrorBoundary(<GenresPage />, 'Genres')} />
+                  <Route path="/genre/:id" element={withErrorBoundary(<GenreSongsPage />, 'Genre')} />
                 </>
               )}
               {pageVisibility.playlists && (
                 <>
-                  <Route path="/playlists" element={<PlaylistsPage />} />
-                  <Route path="/playlist/:id" element={<PlaylistDetailPage />} />
+                  <Route path="/playlists" element={withErrorBoundary(<PlaylistsPage />, 'Playlists')} />
+                  <Route path="/playlist/:id" element={withErrorBoundary(<PlaylistDetailPage />, 'Playlist')} />
                 </>
               )}
               {pageVisibility.stats && (
                 <>
-                  <Route path="/stats" element={<StatsPage />} />
+                  <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
                 </>
               )}
               <Route path="*" element={<Navigate to="/" replace />} />

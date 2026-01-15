@@ -63,7 +63,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
     let clientX: number
     let clientY: number
 
-    if (e instanceof TouchEvent || (e as any).touches) {
+    if (e instanceof TouchEvent || 'touches' in e) {
       clientX = (e as TouchEvent).touches[0].clientX
       clientY = (e as TouchEvent).touches[0].clientY
     } else {

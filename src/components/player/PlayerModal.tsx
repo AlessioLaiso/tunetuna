@@ -142,7 +142,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       return track.Name
     }
     // Try to extract filename from Path if available
-    const path = (track as any).Path
+    const path = track.Path
     if (path && typeof path === 'string') {
       const filename = path.split('/').pop() || path.split('\\').pop()
       return filename || 'Unknown'
@@ -247,7 +247,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       return displayTrack.Name
     }
     // Try to extract filename from Path if available
-    const path = (displayTrack as any).Path
+    const path = displayTrack.Path
     if (path && typeof path === 'string') {
       const filename = path.split('/').pop() || path.split('\\').pop()
       return filename || 'Unknown'
