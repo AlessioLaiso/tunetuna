@@ -13,6 +13,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { getArtistFallbackArt, getCachedArtistFallbackArt } from '../../utils/artistImageCache'
 import { logger } from '../../utils/logger'
 
 interface SearchBarProps {
@@ -27,8 +28,6 @@ interface SearchArtistItemProps {
   contextMenuItemId: string | null
 }
 
-const homeSearchArtistAlbumArtCache = new Map<string, string | null>()
-
 function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }: SearchArtistItemProps) {
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
@@ -42,7 +41,8 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
       return
     }
 
-    const cached = homeSearchArtistAlbumArtCache.get(artist.Id)
+    // Check shared cache first
+    const cached = getCachedArtistFallbackArt(artist.Id)
     if (cached !== undefined) {
       setFallbackAlbumArtUrl(cached)
       return
@@ -50,26 +50,12 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
 
     let isCancelled = false
 
-    const loadFallback = async () => {
-      try {
-        const { albums, songs } = await jellyfinClient.getArtistItems(artist.Id)
-
-        const firstAlbum = albums[0]
-        const firstSongWithAlbum = songs.find((song) => song.AlbumId) || songs[0]
-        const artItem = firstAlbum || firstSongWithAlbum
-        const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
-        const url = artId ? jellyfinClient.getAlbumArtUrl(artId, 96) : null
-        homeSearchArtistAlbumArtCache.set(artist.Id, url)
-        if (!isCancelled) {
-          setFallbackAlbumArtUrl(url)
-        }
-      } catch (error) {
-        logger.error('Failed to load fallback album art for artist (home search):', artist.Id, error)
-        homeSearchArtistAlbumArtCache.set(artist.Id, null)
+    // Use shared cache utility
+    getArtistFallbackArt(artist.Id).then((url) => {
+      if (!isCancelled) {
+        setFallbackAlbumArtUrl(url)
       }
-    }
-
-    loadFallback()
+    })
 
     return () => {
       isCancelled = true

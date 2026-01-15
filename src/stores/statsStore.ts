@@ -759,11 +759,17 @@ export const useStatsStore = create<StatsState>()(
   )
 )
 
-// Sync on page visibility change (when user leaves/returns to app)
-if (typeof document !== 'undefined') {
+// Guard against duplicate listener registration (hot reload safety)
+let listenersInitialized = false
+let authUnsubscribe: (() => void) | null = null
+
+function initStatsListeners() {
+  if (listenersInitialized || typeof document === 'undefined') return
+  listenersInitialized = true
+
+  // Sync on page visibility change (when user leaves/returns to app)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      // Sync when user leaves the page
       useStatsStore.getState().syncToServer()
     }
   })
@@ -772,7 +778,6 @@ if (typeof document !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     const { pendingEvents, cachedStatsKey, cachedStatsToken } = useStatsStore.getState()
     if (pendingEvents.length > 0 && cachedStatsKey && cachedStatsToken) {
-      // sendBeacon doesn't support headers, so include token in body
       const payload = { _token: cachedStatsToken, events: pendingEvents }
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
       navigator.sendBeacon(`${STATS_API_BASE}/${cachedStatsKey}/events`, blob)
@@ -781,8 +786,13 @@ if (typeof document !== 'undefined') {
 
   // Defer auth store subscription to avoid circular dependency
   setTimeout(() => {
-    // Update stats key when auth changes (subscribe to auth store)
-    useAuthStore.subscribe((state, prevState) => {
+    // Clean up any existing subscription first (hot reload safety)
+    if (authUnsubscribe) {
+      authUnsubscribe()
+    }
+
+    // Update stats key when auth changes
+    authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
       if (state.serverUrl !== prevState.serverUrl || state.userId !== prevState.userId) {
         useStatsStore.getState().updateStatsKey()
       }
@@ -795,3 +805,6 @@ if (typeof document !== 'undefined') {
     }
   }, 0)
 }
+
+// Initialize listeners
+initStatsListeners()

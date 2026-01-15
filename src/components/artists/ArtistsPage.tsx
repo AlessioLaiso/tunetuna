@@ -15,6 +15,7 @@ import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { normalizeQuotes } from '../../utils/formatting'
 import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { getArtistFallbackArt, getCachedArtistFallbackArt } from '../../utils/artistImageCache'
 import { logger } from '../../utils/logger'
 
 interface SearchArtistItemProps {
@@ -24,8 +25,6 @@ interface SearchArtistItemProps {
   contextMenuItemId: string | null
 }
 
-const searchArtistAlbumArtCache = new Map<string, string | null>()
-
 function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }: SearchArtistItemProps) {
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
@@ -34,13 +33,13 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
 
   useEffect(() => {
     // If the artist already has a primary image, we don't need a fallback here.
-    // This matches the behavior in the main artists list: prefer artist images when present.
     if (artist.ImageTags?.Primary) {
       setFallbackAlbumArtUrl(null)
       return
     }
 
-    const cached = searchArtistAlbumArtCache.get(artist.Id)
+    // Check shared cache first
+    const cached = getCachedArtistFallbackArt(artist.Id)
     if (cached !== undefined) {
       setFallbackAlbumArtUrl(cached)
       return
@@ -48,27 +47,12 @@ function SearchArtistItem({ artist, onClick, onContextMenu, contextMenuItemId }:
 
     let isCancelled = false
 
-    const loadFallback = async () => {
-      try {
-        const { albums, songs } = await jellyfinClient.getArtistItems(artist.Id)
-
-        // Prefer an album if available, otherwise fall back to a song's album art.
-        const firstAlbum = albums[0]
-        const firstSongWithAlbum = songs.find((song) => song.AlbumId) || songs[0]
-        const artItem = firstAlbum || firstSongWithAlbum
-        const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
-        const url = artId ? jellyfinClient.getAlbumArtUrl(artId, 96) : null
-        searchArtistAlbumArtCache.set(artist.Id, url)
-        if (!isCancelled) {
-          setFallbackAlbumArtUrl(url)
-        }
-      } catch (error) {
-        logger.error('Failed to load fallback album art for artist (search item):', artist.Id, error)
-        searchArtistAlbumArtCache.set(artist.Id, null)
+    // Use shared cache utility
+    getArtistFallbackArt(artist.Id).then((url) => {
+      if (!isCancelled) {
+        setFallbackAlbumArtUrl(url)
       }
-    }
-
-    loadFallback()
+    })
 
     return () => {
       isCancelled = true
