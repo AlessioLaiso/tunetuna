@@ -12,9 +12,12 @@ export default defineConfig({
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
   },
   server: {
-    host: '0.0.0.0', // Listen on all network interfaces
+    // Only bind to all interfaces when explicitly enabled (for mobile testing)
+    // Default to localhost for security
+    host: process.env.VITE_EXPOSE_SERVER === 'true' ? '0.0.0.0' : 'localhost',
     port: 5173,
-    allowedHosts: true, // Allow ngrok and other tunneling services
+    // Only allow tunneling when explicitly enabled
+    allowedHosts: process.env.VITE_EXPOSE_SERVER === 'true' ? true : 'auto',
     proxy: {
       // Proxy stats API to local backend during development
       '/api/stats': {

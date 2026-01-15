@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>()(
           userId: '',
           isAuthenticated: false,
         })
-        localStorage.removeItem('auth-storage')
+        sessionStorage.removeItem('auth-storage')
       },
 
       setCredentials: (serverUrl: string, accessToken: string, userId: string) => {
@@ -65,16 +65,19 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Use sessionStorage instead of localStorage for auth tokens
+      // This limits token exposure: cleared when browser closes
+      // (XSS can still steal tokens during session, but they won't persist)
       storage: {
         getItem: (name) => {
-          const str = localStorage.getItem(name)
+          const str = sessionStorage.getItem(name)
           return str ? JSON.parse(str) : null
         },
         setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value))
+          sessionStorage.setItem(name, JSON.stringify(value))
         },
         removeItem: (name) => {
-          localStorage.removeItem(name)
+          sessionStorage.removeItem(name)
         },
       },
       onRehydrateStorage: () => (state) => {
