@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { jellyfinClient } from '../api/jellyfin'
-import { storage } from '../utils/storage'
 import { clearPlaybackTrackingState } from './playerStore'
 
 interface AuthState {
@@ -50,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
           userId: '',
           isAuthenticated: false,
         })
-        sessionStorage.removeItem('auth-storage')
+        localStorage.removeItem('auth-storage')
       },
 
       setCredentials: (serverUrl: string, accessToken: string, userId: string) => {
@@ -65,21 +64,6 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      // Use sessionStorage instead of localStorage for auth tokens
-      // This limits token exposure: cleared when browser closes
-      // (XSS can still steal tokens during session, but they won't persist)
-      storage: {
-        getItem: (name) => {
-          const str = sessionStorage.getItem(name)
-          return str ? JSON.parse(str) : null
-        },
-        setItem: (name, value) => {
-          sessionStorage.setItem(name, JSON.stringify(value))
-        },
-        removeItem: (name) => {
-          sessionStorage.removeItem(name)
-        },
-      },
       onRehydrateStorage: () => (state) => {
         if (state?.isAuthenticated && state.serverUrl && state.accessToken && state.userId) {
           jellyfinClient.setCredentials(state.serverUrl, state.accessToken, state.userId)
