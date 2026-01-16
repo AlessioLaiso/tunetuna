@@ -317,15 +317,16 @@ export const useStatsStore = create<StatsState>()(
         if (!listenedEnough) return
 
         const event = createPlayEvent(track, actualDurationMs)
+        const newPendingEvents = [...pendingEvents, event]
 
         set({
-          pendingEvents: [...pendingEvents, event],
+          pendingEvents: newPendingEvents,
           currentPlay: null,
         })
 
-        // Auto-sync if we have 5+ pending events
-        if (pendingEvents.length >= 4) {
-          get().syncToServer()
+        // Auto-sync when we reach 5 pending events
+        if (newPendingEvents.length >= 5) {
+          safeSyncToServer()
         }
       },
 
@@ -823,6 +824,8 @@ export const useStatsStore = create<StatsState>()(
 // Guard against duplicate listener registration (hot reload safety)
 let listenersInitialized = false
 let authUnsubscribe: (() => void) | null = null
+// Prevent concurrent sync attempts
+let syncInProgress = false
 
 /**
  * Sends pending events using sendBeacon (works reliably when tab is hidden/closing).
@@ -839,6 +842,19 @@ function sendPendingEventsBeacon(): boolean {
   return false
 }
 
+/**
+ * Wrapper for syncToServer that prevents concurrent syncs.
+ */
+async function safeSyncToServer(): Promise<void> {
+  if (syncInProgress) return
+  syncInProgress = true
+  try {
+    await useStatsStore.getState().syncToServer()
+  } finally {
+    syncInProgress = false
+  }
+}
+
 function initStatsListeners() {
   if (listenersInitialized || typeof document === 'undefined') return
   listenersInitialized = true
@@ -847,12 +863,17 @@ function initStatsListeners() {
   // - When hidden: use sendBeacon for reliability (async fetch may be throttled/killed)
   // - When visible: use regular sync to confirm delivery and clear pending events
   document.addEventListener('visibilitychange', () => {
+    const { pendingEvents } = useStatsStore.getState()
     if (document.visibilityState === 'hidden') {
-      sendPendingEventsBeacon()
+      if (pendingEvents.length > 0) {
+        sendPendingEventsBeacon()
+      }
     } else if (document.visibilityState === 'visible') {
       // When tab becomes visible, do a regular sync to confirm/clear pending events
       // (sendBeacon can't confirm success, so pending events may still be in state)
-      useStatsStore.getState().syncToServer()
+      if (pendingEvents.length > 0) {
+        safeSyncToServer()
+      }
     }
   })
 
