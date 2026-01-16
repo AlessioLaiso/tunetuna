@@ -76,6 +76,8 @@ interface StatsState {
   cachedStatsToken: string | null
   /** Version counter that increments when event metadata changes, used to trigger UI updates */
   metadataVersion: number
+  /** Oldest event timestamp from server (persisted to know proper date range on load) */
+  oldestEventTs: number | null
 
   // Actions
   startPlay: (track: BaseItemDto) => void
@@ -95,6 +97,8 @@ interface StatsState {
   clearAllStats: () => Promise<boolean>
   /** Returns true if there are any stats (pending or synced) */
   hasStats: () => Promise<boolean>
+  /** Fetches oldest event timestamp from server (called on init to know date range) */
+  initializeOldestTs: () => Promise<void>
 }
 
 // ============================================================================
@@ -278,6 +282,7 @@ export const useStatsStore = create<StatsState>()(
       cachedStatsKey: null,
       cachedStatsToken: null,
       metadataVersion: 0,
+      oldestEventTs: null,
 
       /**
        * Marks a track as currently playing for duration calculation.
@@ -758,6 +763,49 @@ export const useStatsStore = create<StatsState>()(
 
         return false
       },
+
+      /**
+       * Fetches oldest event timestamp from server to know the proper date range.
+       * Also handles backup restoration: if server has no data but client has
+       * pending events, automatically uploads them.
+       */
+      initializeOldestTs: async () => {
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) return
+
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken, pendingEvents } = get()
+        if (!cachedStatsKey || !cachedStatsToken) return
+
+        try {
+          const response = await fetch(
+            `${STATS_API_BASE}/${cachedStatsKey}/events?from=0&to=${Date.now()}`,
+            {
+              headers: { 'X-Stats-Token': cachedStatsToken },
+            }
+          )
+          if (response.ok) {
+            const data = await response.json()
+            const serverEvents: PlayEvent[] = data.events || []
+
+            // Backup restoration: if server has no data but client has pending events,
+            // the server may have lost its data. Upload pending events to restore.
+            if (serverEvents.length === 0 && pendingEvents.length > 0) {
+              // Server has no data but we have pending events - upload them
+              await get().syncToServer()
+            }
+
+            // Combine server events with pending to find the true oldest
+            const allEvents = [...serverEvents, ...pendingEvents]
+            if (allEvents.length > 0) {
+              const oldest = Math.min(...allEvents.map(e => e.ts))
+              set({ oldestEventTs: oldest })
+            }
+          }
+        } catch {
+          // Silently fail - will retry on next page load
+        }
+      },
     }),
     {
       name: 'stats-storage',
@@ -766,6 +814,7 @@ export const useStatsStore = create<StatsState>()(
         pendingEvents: state.pendingEvents,
         lastSyncedAt: state.lastSyncedAt,
         cachedStatsToken: state.cachedStatsToken,
+        oldestEventTs: state.oldestEventTs,
       }),
     }
   )
@@ -775,25 +824,41 @@ export const useStatsStore = create<StatsState>()(
 let listenersInitialized = false
 let authUnsubscribe: (() => void) | null = null
 
+/**
+ * Sends pending events using sendBeacon (works reliably when tab is hidden/closing).
+ * Returns true if beacon was sent, false if no events to send.
+ */
+function sendPendingEventsBeacon(): boolean {
+  const { pendingEvents, cachedStatsKey, cachedStatsToken } = useStatsStore.getState()
+  if (pendingEvents.length > 0 && cachedStatsKey && cachedStatsToken) {
+    const payload = { _token: cachedStatsToken, events: pendingEvents }
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+    navigator.sendBeacon(`${STATS_API_BASE}/${cachedStatsKey}/events`, blob)
+    return true
+  }
+  return false
+}
+
 function initStatsListeners() {
   if (listenersInitialized || typeof document === 'undefined') return
   listenersInitialized = true
 
-  // Sync on page visibility change (when user leaves/returns to app)
+  // Sync on page visibility change:
+  // - When hidden: use sendBeacon for reliability (async fetch may be throttled/killed)
+  // - When visible: use regular sync to confirm delivery and clear pending events
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      sendPendingEventsBeacon()
+    } else if (document.visibilityState === 'visible') {
+      // When tab becomes visible, do a regular sync to confirm/clear pending events
+      // (sendBeacon can't confirm success, so pending events may still be in state)
       useStatsStore.getState().syncToServer()
     }
   })
 
   // Use sendBeacon before page unload for reliable delivery
   window.addEventListener('beforeunload', () => {
-    const { pendingEvents, cachedStatsKey, cachedStatsToken } = useStatsStore.getState()
-    if (pendingEvents.length > 0 && cachedStatsKey && cachedStatsToken) {
-      const payload = { _token: cachedStatsToken, events: pendingEvents }
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
-      navigator.sendBeacon(`${STATS_API_BASE}/${cachedStatsKey}/events`, blob)
-    }
+    sendPendingEventsBeacon()
   })
 
   // Defer auth store subscription to avoid circular dependency
@@ -807,13 +872,16 @@ function initStatsListeners() {
     authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
       if (state.serverUrl !== prevState.serverUrl || state.userId !== prevState.userId) {
         useStatsStore.getState().updateStatsKey()
+        // Re-initialize oldest timestamp for new user
+        useStatsStore.getState().initializeOldestTs()
       }
     })
 
-    // Initialize stats key on load if authenticated
+    // Initialize stats key and oldest timestamp on load if authenticated
     const { serverUrl, userId } = useAuthStore.getState()
     if (serverUrl && userId) {
       useStatsStore.getState().updateStatsKey()
+      useStatsStore.getState().initializeOldestTs()
     }
   }, 0)
 }

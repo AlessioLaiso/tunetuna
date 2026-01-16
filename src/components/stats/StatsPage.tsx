@@ -648,7 +648,7 @@ function TopAlbumItem({
 // Main component
 export default function StatsPage() {
   const navigate = useNavigate()
-  const { fetchEvents, cachedEvents, metadataVersion } = useStatsStore()
+  const { fetchEvents, oldestEventTs, initializeOldestTs, pendingEvents, metadataVersion } = useStatsStore()
   const { genres } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const playTrack = usePlayerStore(state => state.playTrack)
@@ -691,22 +691,30 @@ export default function StatsPage() {
   const [toMonth, setToMonth] = useState<string>('')
   const [showCannedModal, setShowCannedModal] = useState(false)
 
-  // Get oldest event timestamp for month options
-  const oldestTs = useMemo(() => {
-    if (cachedEvents.length === 0) return null
-    return Math.min(...cachedEvents.map(e => e.ts))
-  }, [cachedEvents])
+  // Initialize oldest timestamp on mount if not already set
+  useEffect(() => {
+    if (oldestEventTs === null) {
+      initializeOldestTs()
+    }
+  }, [oldestEventTs, initializeOldestTs])
 
-  const monthOptions = useMemo(() => generateMonthOptions(oldestTs), [oldestTs])
+  // Compute effective oldest timestamp (from store or pending events)
+  const effectiveOldestTs = useMemo(() => {
+    // Combine stored oldest with pending events to get true oldest
+    const timestamps = [oldestEventTs, ...pendingEvents.map(e => e.ts)].filter((t): t is number => t !== null)
+    return timestamps.length > 0 ? Math.min(...timestamps) : null
+  }, [oldestEventTs, pendingEvents])
+
+  const monthOptions = useMemo(() => generateMonthOptions(effectiveOldestTs), [effectiveOldestTs])
 
   // Set default range on mount
   useEffect(() => {
-    const { from, to } = getDefaultRange(oldestTs)
+    const { from, to } = getDefaultRange(effectiveOldestTs)
     setFromMonth(from)
     setToMonth(to)
-  }, [oldestTs])
+  }, [effectiveOldestTs])
 
-  // Fetch events when range changes or when cache is cleared
+  // Fetch events when range changes or metadata updates
   useEffect(() => {
     if (!fromMonth || !toMonth) {
       setLoading(false)
@@ -730,7 +738,7 @@ export default function StatsPage() {
     }
 
     fetchData()
-  }, [fromMonth, toMonth, fetchEvents, cachedEvents.length, metadataVersion])
+  }, [fromMonth, toMonth, fetchEvents, metadataVersion, pendingEvents.length])
 
   // Compute stats from events
   const stats = useMemo(() => {
