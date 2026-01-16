@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Eye, EyeOff, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { storage } from '../../utils/storage'
 import { isServerUrlLocked, getLockedServerUrl } from '../../utils/config'
 
 const LAST_SERVER_URL_KEY = 'last-server-url'
+
+// URLs that are safe over HTTP (local network, localhost)
+const SAFE_HTTP_PATTERN = /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?/i
 
 export default function LoginForm() {
   const [serverUrl, setServerUrl] = useState('')
@@ -14,6 +17,14 @@ export default function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const login = useAuthStore((state) => state.login)
+
+  // Check if URL is insecure (HTTP to non-local address)
+  const isInsecureUrl = useMemo(() => {
+    const url = serverUrl.trim().toLowerCase()
+    if (!url.startsWith('http://')) return false
+    // Allow HTTP for local network addresses
+    return !SAFE_HTTP_PATTERN.test(serverUrl.trim())
+  }, [serverUrl])
 
   // Check if server URL is locked by administrator
   const serverLocked = isServerUrlLocked()
@@ -77,6 +88,14 @@ export default function LoginForm() {
                 required
                 className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
               />
+              {isInsecureUrl && (
+                <div className="mt-2 flex items-start gap-2 text-amber-400 text-sm">
+                  <ShieldAlert size={16} className="mt-0.5 flex-shrink-0" />
+                  <span>
+                    Insecure connection. Your password will be sent unencrypted. Use HTTPS or a local network address.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

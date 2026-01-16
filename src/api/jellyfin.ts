@@ -33,6 +33,8 @@ class JellyfinClient {
   private userId: string = ''
   private genresCache: BaseItemDto[] | null = null
   private isPreloading: boolean = false
+  // Request deduplication: cache in-flight requests to avoid duplicate API calls
+  private pendingRequests = new Map<string, Promise<unknown>>()
 
   get serverBaseUrl(): string {
     return this.baseUrl
@@ -79,6 +81,31 @@ class JellyfinClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
+    const method = options.method || 'GET'
+
+    // Only deduplicate GET requests (mutations should always execute)
+    const shouldDedupe = method === 'GET'
+    const cacheKey = shouldDedupe ? url : ''
+
+    // Return existing in-flight request if available
+    if (shouldDedupe && this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey) as Promise<T>
+    }
+
+    const requestPromise = this.executeRequest<T>(url, options)
+
+    if (shouldDedupe) {
+      this.pendingRequests.set(cacheKey, requestPromise)
+      // Clean up after request completes (success or failure)
+      requestPromise.finally(() => {
+        this.pendingRequests.delete(cacheKey)
+      })
+    }
+
+    return requestPromise
+  }
+
+  private async executeRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
