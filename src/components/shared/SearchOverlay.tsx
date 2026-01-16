@@ -253,6 +253,30 @@ export default function SearchOverlay({
   const desktopInputRef = desktopSearchInputRef || internalDesktopRef
   const mobileInputRef = mobileSearchInputRef || internalMobileRef
 
+  // Animation state for backdrop fade
+  const [isVisible, setIsVisible] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
+
+  // Handle open/close with animation
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true)
+      // Small delay to ensure DOM is ready before starting animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsVisible(true)
+        })
+      })
+    } else {
+      setIsVisible(false)
+      // Wait for animation to complete before unmounting
+      const timer = setTimeout(() => {
+        setShouldRender(false)
+      }, 200) // Match transition duration
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
+
   // Context menu state
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
@@ -491,13 +515,13 @@ export default function SearchOverlay({
     )
   }
 
-  if (!isOpen) return null
+  if (!shouldRender) return null
 
   return createPortal(
     <>
       {/* Backdrop for desktop dropdown mode - click to close */}
       <div
-        className="hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block fixed inset-0 z-[9998] bg-black/50"
+        className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block fixed inset-0 z-[9998] bg-black/50 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
       />
 
