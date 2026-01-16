@@ -10,6 +10,7 @@ import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import { logger } from '../../utils/logger'
+import { formatDuration } from '../../utils/formatting'
 
 interface AlbumTrackItemProps {
   track: BaseItemDto
@@ -24,13 +25,6 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const contextMenuJustOpenedRef = useRef(false)
-
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -88,13 +82,6 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
       )}
     </button>
   )
-}
-
-function formatDuration(ticks: number): string {
-  const seconds = Math.floor(ticks / 10000000)
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 export default function AlbumDetailPage() {

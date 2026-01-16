@@ -217,11 +217,16 @@ const indexedDBStorage = {
 // ============================================================================
 
 /**
- * Generates a unique key for the stats API from server URL and user ID.
+ * Generates a unique key for the stats API from server URL, user ID, and token.
  * Uses SHA-256 hash to create a consistent, URL-safe identifier.
+ *
+ * SECURITY: The token is included in the hash to make the key unpredictable.
+ * Without knowing the token, an attacker cannot guess the key to race-register.
+ * This prevents the "first token wins" vulnerability where predictable keys
+ * (e.g., just serverUrl::userId) could be targeted by attackers.
  */
-async function generateStatsKey(serverUrl: string, userId: string): Promise<string> {
-  const data = `${serverUrl}::${userId}`
+async function generateStatsKey(serverUrl: string, userId: string, token: string): Promise<string> {
+  const data = `${serverUrl}::${userId}::${token}`
   const encoder = new TextEncoder()
   const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data))
   const hashArray = Array.from(new Uint8Array(hashBuffer))
@@ -368,7 +373,11 @@ export const useStatsStore = create<StatsState>()(
       /**
        * Updates the cached stats key and token when auth changes.
        * Called on auth state changes and initial load.
-       * Token is generated once per key and persisted.
+       * Token is generated once per user and persisted.
+       *
+       * SECURITY: The key is derived from serverUrl, userId, AND the token.
+       * This makes the key unpredictable without knowing the token, preventing
+       * attackers from racing to register a token for a predictable key.
        */
       updateStatsKey: async () => {
         const { serverUrl, userId } = useAuthStore.getState()
@@ -376,10 +385,13 @@ export const useStatsStore = create<StatsState>()(
           set({ cachedStatsKey: null, cachedStatsToken: null })
           return
         }
-        const key = await generateStatsKey(serverUrl, userId)
-        const { cachedStatsKey, cachedStatsToken } = get()
-        // Only generate a new token if the key changed or there's no token
-        const token = (cachedStatsKey === key && cachedStatsToken) ? cachedStatsToken : generateStatsToken()
+
+        const { cachedStatsToken } = get()
+        // Generate token first if we don't have one (token is stable per user)
+        const token = cachedStatsToken || generateStatsToken()
+        // Key is derived from serverUrl, userId, AND token for unpredictability
+        const key = await generateStatsKey(serverUrl, userId, token)
+
         set({ cachedStatsKey: key, cachedStatsToken: token })
       },
 

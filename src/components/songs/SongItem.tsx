@@ -7,6 +7,7 @@ import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import { Disc } from 'lucide-react'
+import { formatDuration } from '../../utils/formatting'
 
 interface SongItemProps {
   song: LightweightSong
@@ -32,13 +33,6 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
     jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96),
     [song.AlbumId, song.Id]
   )
-
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   const handleClick = (e: React.MouseEvent) => {
     // Don't play if context menu was just opened

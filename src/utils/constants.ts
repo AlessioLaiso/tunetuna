@@ -21,6 +21,19 @@ export const QUEUE_MAX_SIZE = 1000
 export const QUEUE_KEEP_PREVIOUS = 5
 export const SAFETY_FETCH_LIMIT = 50000
 
+// UI pagination (items per page for list views)
+export const ITEMS_PER_PAGE_ALBUMS = 84
+export const ITEMS_PER_PAGE_DEFAULT = 90
+export const INITIAL_VISIBLE_ITEMS = 45
+export const VISIBLE_ITEMS_INCREMENT = 45
+
+// Search
+export const SEARCH_RESULT_LIMIT = 450
+
+// UI timing
+export const CONTEXT_MENU_DELAY_MS = 300
+export const SCROLL_LOAD_THRESHOLD = 1.5
+
 // VPN detection pattern (Tailscale uses 100.x.x.x range)
 export const VPN_IP_REGEX = /^https?:\/\/100\.\d+\.\d+\.\d+/
 

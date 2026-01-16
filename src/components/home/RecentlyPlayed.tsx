@@ -8,6 +8,7 @@ import Image from '../shared/Image'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
+import { formatDuration } from '../../utils/formatting'
 
 interface RecentlyPlayedSongItemProps {
   song: BaseItemDto
@@ -20,12 +21,6 @@ function RecentlyPlayedSongItem({ song, onClick, onContextMenu, contextMenuItemI
   const currentTrack = useCurrentTrack()
   const [imageError, setImageError] = useState(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()

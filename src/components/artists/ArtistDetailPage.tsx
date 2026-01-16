@@ -11,6 +11,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
+import { formatDuration } from '../../utils/formatting'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -104,12 +105,6 @@ interface ArtistSongItemProps {
 function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const currentTrack = useCurrentTrack()
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       e.preventDefault()
@@ -437,13 +432,6 @@ export default function ArtistDetailPage() {
       return new Date(album.PremiereDate).getFullYear().toString()
     }
     return null
-  }
-
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const getSongAlbumAndYear = (song: BaseItemDto): { album: string | null; year: string | null } => {

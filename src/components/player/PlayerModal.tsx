@@ -311,19 +311,34 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     dragStartX.current = null
   }
 
-  // Add global mouse event listeners for dragging
+  // Add global mouse event listeners for dragging (throttled with requestAnimationFrame)
   useEffect(() => {
+    let rafId: number | null = null
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current || !progressRef.current || !duration) return
-      const rect = progressRef.current.getBoundingClientRect()
-      const percent = (e.clientX - rect.left) / rect.width
-      seek(Math.max(0, Math.min(1, percent)) * duration)
+
+      // Throttle with requestAnimationFrame to prevent excessive updates
+      if (rafId !== null) return
+
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        if (!isDragging.current || !progressRef.current) return
+        const rect = progressRef.current.getBoundingClientRect()
+        const percent = (e.clientX - rect.left) / rect.width
+        seek(Math.max(0, Math.min(1, percent)) * duration)
+      })
     }
 
     const handleMouseUp = () => {
       if (isDragging.current) {
         isDragging.current = false
         dragStartX.current = null
+      }
+      // Cancel any pending animation frame
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
       }
     }
 
@@ -333,6 +348,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
     }
   }, [duration, seek])
 

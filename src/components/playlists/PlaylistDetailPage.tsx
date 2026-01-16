@@ -9,6 +9,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 import { logger } from '../../utils/logger'
+import { formatDuration } from '../../utils/formatting'
 
 const INITIAL_VISIBLE_TRACKS = 45
 const VISIBLE_TRACKS_INCREMENT = 45
@@ -26,13 +27,6 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const contextMenuJustOpenedRef = useRef(false)
-
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
