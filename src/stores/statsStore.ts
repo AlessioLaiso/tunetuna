@@ -268,6 +268,16 @@ function createPlayEvent(track: BaseItemDto, actualDurationMs: number): PlayEven
 }
 
 // ============================================================================
+// Sync Management
+// ============================================================================
+
+/**
+ * Lock to prevent concurrent sync attempts.
+ * Must be declared before store so it can be referenced in recordPlay.
+ */
+let syncInProgress = false
+
+// ============================================================================
 // Store Definition
 // ============================================================================
 
@@ -326,7 +336,7 @@ export const useStatsStore = create<StatsState>()(
 
         // Auto-sync when we reach 5 pending events
         if (newPendingEvents.length >= 5) {
-          safeSyncToServer()
+          get().syncToServer()
         }
       },
 
@@ -334,45 +344,54 @@ export const useStatsStore = create<StatsState>()(
        * Syncs pending events to the server.
        * Uses snapshot of events to prevent race conditions.
        * Failed syncs preserve events for retry.
+       * Includes lock to prevent concurrent syncs.
        */
       syncToServer: async () => {
-        const { pendingEvents } = get()
-        if (pendingEvents.length === 0) return
-
-        const { serverUrl, userId } = useAuthStore.getState()
-        if (!serverUrl || !userId) return
-
-        // Ensure we have a key and token
-        await get().updateStatsKey()
-        const { cachedStatsKey, cachedStatsToken } = get()
-        if (!cachedStatsKey || !cachedStatsToken) return
-
-        // Capture the events we're syncing to avoid race condition
-        const eventsToSync = [...pendingEvents]
+        // Prevent concurrent syncs
+        if (syncInProgress) return
+        syncInProgress = true
 
         try {
-          const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Stats-Token': cachedStatsToken,
-            },
-            body: JSON.stringify(eventsToSync),
-          })
+          const { pendingEvents } = get()
+          if (pendingEvents.length === 0) return
 
-          if (response.ok) {
-            // Only remove the events we successfully synced
-            set((state) => ({
-              pendingEvents: state.pendingEvents.filter(
-                e => !eventsToSync.some(synced => synced.ts === e.ts && synced.songId === e.songId)
-              ),
-              lastSyncedAt: Date.now(),
-              cacheRange: null, // Invalidate cache since we have new data
-            }))
+          const { serverUrl, userId } = useAuthStore.getState()
+          if (!serverUrl || !userId) return
+
+          // Ensure we have a key and token
+          await get().updateStatsKey()
+          const { cachedStatsKey, cachedStatsToken } = get()
+          if (!cachedStatsKey || !cachedStatsToken) return
+
+          // Capture the events we're syncing to avoid race condition
+          const eventsToSync = [...pendingEvents]
+
+          try {
+            const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Stats-Token': cachedStatsToken,
+              },
+              body: JSON.stringify(eventsToSync),
+            })
+
+            if (response.ok) {
+              // Only remove the events we successfully synced
+              set((state) => ({
+                pendingEvents: state.pendingEvents.filter(
+                  e => !eventsToSync.some(synced => synced.ts === e.ts && synced.songId === e.songId)
+                ),
+                lastSyncedAt: Date.now(),
+                cacheRange: null, // Invalidate cache since we have new data
+              }))
+            }
+            // Silently fail - events will retry on next sync
+          } catch {
+            // Keep pending events for retry
           }
-          // Silently fail - events will retry on next sync
-        } catch {
-          // Keep pending events for retry
+        } finally {
+          syncInProgress = false
         }
       },
 
@@ -824,8 +843,6 @@ export const useStatsStore = create<StatsState>()(
 // Guard against duplicate listener registration (hot reload safety)
 let listenersInitialized = false
 let authUnsubscribe: (() => void) | null = null
-// Prevent concurrent sync attempts
-let syncInProgress = false
 
 /**
  * Sends pending events using sendBeacon (works reliably when tab is hidden/closing).
@@ -840,19 +857,6 @@ function sendPendingEventsBeacon(): boolean {
     return true
   }
   return false
-}
-
-/**
- * Wrapper for syncToServer that prevents concurrent syncs.
- */
-async function safeSyncToServer(): Promise<void> {
-  if (syncInProgress) return
-  syncInProgress = true
-  try {
-    await useStatsStore.getState().syncToServer()
-  } finally {
-    syncInProgress = false
-  }
 }
 
 function initStatsListeners() {
@@ -872,7 +876,7 @@ function initStatsListeners() {
       // When tab becomes visible, do a regular sync to confirm/clear pending events
       // (sendBeacon can't confirm success, so pending events may still be in state)
       if (pendingEvents.length > 0) {
-        safeSyncToServer()
+        useStatsStore.getState().syncToServer()
       }
     }
   })
