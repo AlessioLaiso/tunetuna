@@ -532,76 +532,30 @@ class JellyfinClient {
         if (startIndexSongs > 10000) break
       }
       
-      // Now get genre IDs from API for genres we found in music items
-      // This allows us to use real genre IDs when available
-      const genreNameToId = new Map<string, string>()
-      const genreIdToGenre = new Map<string, BaseItemDto>()
-      
-      try {
-        // Get all genres from API to look up IDs
-        const query = new URLSearchParams({
-          UserId: this.userId,
-          Recursive: 'true',
-        })
-        const apiGenresResult = await this.request<any>(`/Genres?${query}`)
-        
-        let allApiGenres: BaseItemDto[] = []
-        if (Array.isArray(apiGenresResult)) {
-          allApiGenres = apiGenresResult
-        } else if (apiGenresResult && typeof apiGenresResult === 'object' && 'Items' in apiGenresResult) {
-          allApiGenres = apiGenresResult.Items || []
-        }
-        
-        // Build lookup maps for genres we actually found in music
-        allApiGenres.forEach(genre => {
-          if (genre.Name) {
-            const lowerName = genre.Name.toLowerCase()
-            // Only include if this genre was found in our music items
-            if (uniqueGenreNames.has(lowerName)) {
-              genreNameToId.set(lowerName, genre.Id)
-              genreIdToGenre.set(genre.Id, genre)
-            }
-          }
-        })
-      } catch (error) {
-        logger.warn('[getGenres] Failed to get genre IDs from API, will use synthetic IDs:', error)
-      }
-      
-      // Build genre objects: use API genre objects when available, otherwise create synthetic ones
-      // CRITICAL FIX: Only include genres that actually exist in songs, not just albums
+      // Build genre objects with simple name-based IDs
+      // Only include genres that actually exist in songs, not just albums
       // This prevents showing genres like "Alternative Rock" that exist on albums but not on any songs
       const musicGenres: BaseItemDto[] = []
       const processedLowerNames = new Set<string>()
-      
+
       for (const [lowerName, canonicalName] of uniqueGenreNames) {
         // Skip if already processed (case-insensitive check)
         if (processedLowerNames.has(lowerName)) {
           continue
         }
-        
+
         // Only include genres that actually exist in songs, not just albums
         if (!songGenreNames.has(lowerName)) {
           continue // Skip genres that don't exist in songs
         }
-        
-        const genreId = genreNameToId.get(lowerName)
-        
-        if (genreId) {
-          // Found in API genres, use that object
-          const apiGenre = genreIdToGenre.get(genreId)
-          if (apiGenre) {
-            musicGenres.push(apiGenre)
-            processedLowerNames.add(lowerName)
-          }
-        } else {
-          // Not in API genres, create synthetic genre object using canonical name
-          musicGenres.push({
-            Id: `synthetic-${lowerName.replace(/\s+/g, '-')}`,
-            Name: canonicalName,
-            Type: 'Genre',
-          })
-          processedLowerNames.add(lowerName)
-        }
+
+        // Create genre object with simple name-based ID
+        musicGenres.push({
+          Id: lowerName.replace(/\s+/g, '-'),
+          Name: canonicalName,
+          Type: 'Genre',
+        })
+        processedLowerNames.add(lowerName)
       }
       
       // Update store with new genres and timestamps
@@ -711,45 +665,21 @@ class JellyfinClient {
   }
 
 
-  async getGenreSongs(genreId: string, genreName: string, forceClientSideFilter = false): Promise<LightweightSong[]> {
-
+  async getGenreSongs(_genreId: string, genreName: string): Promise<LightweightSong[]> {
+    // Fetch all songs and filter client-side by genre name
+    // This ensures we get fresh metadata from the server
     let allSongs: BaseItemDto[] = []
+    let startIndex = 0
+    let hasMore = true
 
-    // If forcing client-side filter, or if it's a synthetic genre, fetch all songs and filter client-side
-    // This ensures we get fresh metadata from the server, bypassing stale genre indexes
-    if (genreId.startsWith('synthetic-') || forceClientSideFilter) {
-      // Fetch all songs and filter client-side to get fresh metadata
-      // Use cache-busting to ensure we get the latest data from server
-      let startIndex = 0
-      let hasMore = true
-
-      while (hasMore) {
-        const result = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true) // Cache-bust for fresh data
-        const items = result.Items || []
-        allSongs.push(...items)
-        hasMore = items.length === API_PAGE_LIMIT
-        startIndex += API_PAGE_LIMIT
-        // Safety limit to avoid infinite loops
-        if (startIndex > SAFETY_FETCH_LIMIT) break
-      }
-    } else {
-      // Real genre ID - use API filtering, but paginate to get all songs
-      let startIndex = 0
-      let hasMore = true
-
-      while (hasMore) {
-        const result = await this.getSongs({
-          genreIds: [genreId],
-          limit: API_PAGE_LIMIT,
-          startIndex,
-        })
-        const items = result.Items || []
-        allSongs.push(...items)
-        hasMore = items.length === API_PAGE_LIMIT
-        startIndex += API_PAGE_LIMIT
-        // Safety limit to avoid infinite loops
-        if (startIndex > SAFETY_FETCH_LIMIT) break
-      }
+    while (hasMore) {
+      const result = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true)
+      const items = result.Items || []
+      allSongs.push(...items)
+      hasMore = items.length === API_PAGE_LIMIT
+      startIndex += API_PAGE_LIMIT
+      // Safety limit to avoid infinite loops
+      if (startIndex > SAFETY_FETCH_LIMIT) break
     }
     
     // Always filter by exact genre name match to ensure correctness
@@ -1087,18 +1017,6 @@ class JellyfinClient {
     })
 
     return { albums, songs }
-  }
-
-  async getGenreItems(genreId: string, limit: number = 50): Promise<ItemsResult> {
-    const query = this.buildQueryString({
-      genreIds: [genreId],
-      includeItemTypes: ['MusicAlbum'],
-      recursive: true,
-      limit,
-      sortBy: ['DateCreated'],
-      sortOrder: 'Descending',
-    })
-    return this.request<ItemsResult>(`/Items?${query}`)
   }
 
   async getPlaylists(options: GetItemsOptions = {}): Promise<ItemsResult> {
