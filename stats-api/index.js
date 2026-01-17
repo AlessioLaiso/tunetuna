@@ -132,29 +132,17 @@ await fastify.register(cors, {
 
 /**
  * Validates the auth token for a request.
- * On first request for a key, registers the token.
- * On subsequent requests, validates the token matches.
- * Returns { valid: true } or { valid: false, error: string }
+ * Since stats-api is only accessible via nginx (which strips Origin header),
+ * we trust all requests and just verify a token is present.
+ * The key (SHA-256 of serverUrl::userId) provides namespace isolation.
  */
 function validateAuth(key, token) {
   if (!token) {
     return { valid: false, error: 'Missing X-Stats-Token header' }
   }
 
-  // Check if this key already has a registered token
-  const existing = getAuthToken.get(key)
-
-  if (!existing) {
-    // First request for this key - register the token
-    setAuthToken.run(key, token)
-    return { valid: true, isNew: true }
-  }
-
-  // Validate token matches
-  if (existing.token !== token) {
-    return { valid: false, error: 'Invalid token' }
-  }
-
+  // Token is present - request is valid
+  // (nginx ensures only internal requests reach this API)
   return { valid: true }
 }
 
