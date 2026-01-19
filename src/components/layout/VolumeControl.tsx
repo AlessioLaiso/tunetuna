@@ -200,7 +200,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           onMouseDown={handleMouseDownSlider}
           onTouchStart={handleTouchStartSlider}
         >
-          <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-zinc-800/35 rounded-full overflow-hidden">
+          <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-white/10 rounded-full overflow-hidden">
             <div
               className="h-full bg-gray-400 rounded-full transition-all duration-100"
               style={{ width: `${volume * 100}%` }}
@@ -244,7 +244,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           />
 
           {/* Visual bar - narrow and centered */}
-          <div className="h-full w-1 bg-zinc-800/35 rounded-full relative flex flex-col justify-end mx-auto">
+          <div className="h-full w-1 bg-white/10 rounded-full relative flex flex-col justify-end mx-auto">
             <div
               className="w-full bg-gray-400 rounded-full transition-all"
               style={{ height: `${volume * 100}%` }}

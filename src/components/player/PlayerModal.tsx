@@ -648,7 +648,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <div className="w-full flex flex-col items-center landscape:flex-row landscape:items-center landscape:gap-8">
                   <div className="landscape:order-1 landscape:flex-shrink-0">
                     <div
-                      className={`rounded overflow-hidden mb-4 lg:mb-8 bg-zinc-900 ${!imageError ? 'shadow-2xl' : ''}`}
+                      className={`rounded overflow-hidden mb-4 lg:mb-8 ${!imageError ? 'bg-zinc-900 shadow-2xl' : ''}`}
                       style={{
                         width: 'clamp(224px, min(70vw, 50vh), 480px)',
                         height: 'clamp(224px, min(70vw, 50vh), 480px)',
@@ -656,7 +656,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       }}
                     >
                       {imageError ? (
-                        <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center relative">
+                        <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center relative">
                           <img
                             src="/assets/vinyl.png"
                             alt="Vinyl Record"
@@ -720,7 +720,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <div className="max-w-[768px] lg:max-w-[864px] mx-auto">
                   <div
                     ref={progressRef}
-                    className="h-2 bg-zinc-800/35 rounded-full cursor-pointer w-full select-none overflow-hidden"
+                    className="h-2 bg-white/10 rounded-full cursor-pointer w-full select-none overflow-hidden"
                     onClick={handleProgressClick}
                     onMouseDown={handleProgressMouseDown}
                     onMouseUp={handleProgressMouseUp}

@@ -753,6 +753,34 @@ export default function StatsPage() {
     return computeStats(events, fromDate, toDate)
   }, [events, fromMonth, toMonth])
 
+  // Fetch album artist names for top albums (prefer album artist over song artist)
+  const [albumArtistOverrides, setAlbumArtistOverrides] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!stats?.topAlbums.length) return
+
+    const fetchAlbumArtists = async () => {
+      const overrides: Record<string, string> = {}
+
+      await Promise.all(
+        stats.topAlbums.map(async (album) => {
+          try {
+            const albumDetails = await jellyfinClient.getAlbumById(album.albumId)
+            if (albumDetails?.AlbumArtist) {
+              overrides[album.albumId] = albumDetails.AlbumArtist
+            }
+          } catch {
+            // Silently fail, will use song artist as fallback
+          }
+        })
+      )
+
+      setAlbumArtistOverrides(overrides)
+    }
+
+    fetchAlbumArtists()
+  }, [stats?.topAlbums])
+
   if (loading) {
     return <LoadingState />
   }
@@ -950,7 +978,7 @@ export default function StatsPage() {
                   key={album.albumId}
                   rank={i + 1}
                   albumName={album.albumName}
-                  artistName={album.artistName}
+                  artistName={albumArtistOverrides[album.albumId] || album.artistName}
                   artistId={album.artistId}
                   albumId={album.albumId}
                   hours={album.hours}

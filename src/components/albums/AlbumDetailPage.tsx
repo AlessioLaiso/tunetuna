@@ -342,12 +342,28 @@ export default function AlbumDetailPage() {
   }, [currentTrack?.AlbumId, album?.Id, isPlaying])
 
   const getArtistIdFromTracks = (tracksList: BaseItemDto[], currentAlbum: BaseItemDto | null): string | null => {
-    if (tracksList.length > 0 && tracksList[0].ArtistItems && tracksList[0].ArtistItems.length > 0) {
-      return tracksList[0].ArtistItems[0].Id
+    // First priority: Album's AlbumArtists (most accurate for the album)
+    if (currentAlbum?.AlbumArtists && currentAlbum.AlbumArtists.length > 0) {
+      return currentAlbum.AlbumArtists[0].Id
     }
-    if (currentAlbum?.ArtistItems && currentAlbum.ArtistItems.length > 0) {
-      return currentAlbum.ArtistItems[0].Id
+
+    // Second priority: Check if all tracks have the same artist
+    if (tracksList.length > 0) {
+      const firstArtistId = tracksList[0].ArtistItems?.[0]?.Id
+
+      if (firstArtistId) {
+        // Check if all tracks have the same artist
+        const allSameArtist = tracksList.every(track =>
+          track.ArtistItems?.[0]?.Id === firstArtistId
+        )
+
+        if (allSameArtist) {
+          return firstArtistId
+        }
+      }
     }
+
+    // If we have multiple artists, return null to fall back to album art
     return null
   }
 

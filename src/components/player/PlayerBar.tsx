@@ -438,7 +438,7 @@ export default function PlayerBar() {
             aria-valuenow={currentTime}
           >
             {/* Visual bar - positioned at bottom of touch target to align with player bar top edge */}
-            <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
+            <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
               <div
                 className="h-full bg-[var(--accent-color)] transition-all"
                 style={{ width: `${progressPercent}%` }}
@@ -448,7 +448,7 @@ export default function PlayerBar() {
         )}
 
         {/* Desktop layout: absolute positioning for perfect centering */}
-        <div className="hidden md:block md:relative md:px-4 md:py-3">
+        <div className="hidden md:block md:relative md:px-4 md:pt-3 md:pb-1 lg:pb-3">
           {/* Left: Album art + song info with max width to prevent overlap */}
           <div className="flex items-center gap-3 min-w-0 max-w-[37%]">
             {!imageError && (
@@ -478,7 +478,7 @@ export default function PlayerBar() {
           </div>
 
           {/* Absolutely centered: Player controls on Desktop, Right aligned on Tablet */}
-          <div className="absolute top-1/2 -translate-y-1/2 md:right-16 md:left-auto md:translate-x-0 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 flex items-center gap-2">
+          <div className="absolute top-1/2 md:top-[calc(50%+4px)] lg:top-1/2 -translate-y-1/2 md:right-16 md:left-auto md:translate-x-0 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 flex items-center gap-2">
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -567,7 +567,7 @@ export default function PlayerBar() {
           </div>
 
           {/* Right: Volume control and Queue */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+          <div className="absolute right-4 top-1/2 md:top-[calc(50%+4px)] lg:top-1/2 -translate-y-1/2 flex items-center gap-4">
             {/* Queue Button for Desktop > 1280px */}
             <div className="hidden xl:block">
               {!isQueueSidebarOpen && (
@@ -602,7 +602,7 @@ export default function PlayerBar() {
         </div>
 
         {/* Mobile layout */}
-        <div className="flex items-center gap-3 py-3 pr-3 pl-4 md:hidden">
+        <div className="flex items-center gap-3 pt-3 pb-1 pr-3 pl-4 md:hidden">
           {!imageError && (
             <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
               <Image
@@ -689,7 +689,7 @@ export default function PlayerBar() {
               aria-valuenow={currentTime}
             >
               {/* Visual bar - centered within touch target */}
-              <div className="absolute left-0 right-0 h-1 bg-zinc-800 group-hover:bg-zinc-600 transition-colors duration-200">
+              <div className="absolute left-0 right-0 h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
                 <div
                   className="h-full bg-[var(--accent-color)] transition-all"
                   style={{ width: `${progressPercent}%` }}

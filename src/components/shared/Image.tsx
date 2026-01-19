@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Disc } from 'lucide-react'
 
 interface ImageProps {
   src: string
@@ -15,6 +16,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
   const [imgSrc, setImgSrc] = useState(src)
   const [error, setError] = useState(false)
   const [shouldHide, setShouldHide] = useState(false)
+  const [showIcon, setShowIcon] = useState(false)
 
 
   // Update imgSrc when src prop changes
@@ -22,6 +24,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
     setImgSrc(src)
     setError(false)
     setShouldHide(false)
+    setShowIcon(false)
   }, [src])
 
   const handleError = () => {
@@ -29,18 +32,26 @@ export default function Image({ src, alt, className = '', fallback, style, showO
       setImgSrc(fallback)
       setError(true)
     } else {
-      // Call onError callback if provided, otherwise show placeholder
+      // Call onError callback if provided, otherwise show icon placeholder
       if (onError) {
         onError()
         setShouldHide(true)
       } else {
-        setImgSrc('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="300"%3E%3Crect fill="%23333" width="300" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E')
+        setShowIcon(true)
       }
     }
   }
 
   if (shouldHide) {
     return null
+  }
+
+  if (showIcon) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center bg-zinc-900">
+        <Disc className="w-12 h-12 text-gray-500" />
+      </div>
+    )
   }
 
   return (
@@ -54,7 +65,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
         style={style}
       />
       {showOutline && (
-        <div 
+        <div
           className={`absolute inset-0 pointer-events-none border ${rounded}`}
           style={{ borderColor: 'rgba(24, 24, 27, 0.6)', borderWidth: '1px' }}
         />
