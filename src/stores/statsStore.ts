@@ -33,8 +33,6 @@ export interface PlayEvent {
   genres: string[]
   /** Production year, if available */
   year: number | null
-  /** Actual listen duration in milliseconds */
-  durationMs: number
   /** Full track duration in milliseconds */
   fullDurationMs: number
 }
@@ -251,7 +249,7 @@ function generateStatsToken(): string {
  * Creates a PlayEvent from track data and actual listen duration.
  * Extracts all relevant metadata for stats tracking.
  */
-function createPlayEvent(track: BaseItemDto, actualDurationMs: number): PlayEvent {
+function createPlayEvent(track: BaseItemDto): PlayEvent {
   return {
     ts: Date.now(),
     songId: track.Id,
@@ -262,7 +260,6 @@ function createPlayEvent(track: BaseItemDto, actualDurationMs: number): PlayEven
     albumName: track.Album || 'Unknown',
     genres: track.Genres || [],
     year: track.ProductionYear || null,
-    durationMs: actualDurationMs,
     fullDurationMs: track.RunTimeTicks ? track.RunTimeTicks / 10000 : 0,
   }
 }
@@ -326,7 +323,7 @@ export const useStatsStore = create<StatsState>()(
         const listenedEnough = actualDurationMs >= 60000 || (isShortSong && actualDurationMs >= fullDurationMs * 0.8)
         if (!listenedEnough) return
 
-        const event = createPlayEvent(track, actualDurationMs)
+        const event = createPlayEvent(track)
         const newPendingEvents = [...pendingEvents, event]
 
         set({
@@ -672,6 +669,7 @@ export const useStatsStore = create<StatsState>()(
         }
 
         // Validate events have required fields
+        // Note: durationMs is no longer required (legacy field)
         const validEvents = events.filter(e =>
           typeof e.ts === 'number' &&
           typeof e.songId === 'string' &&
@@ -681,7 +679,6 @@ export const useStatsStore = create<StatsState>()(
           typeof e.albumId === 'string' &&
           typeof e.albumName === 'string' &&
           Array.isArray(e.genres) &&
-          typeof e.durationMs === 'number' &&
           typeof e.fullDurationMs === 'number'
         )
 

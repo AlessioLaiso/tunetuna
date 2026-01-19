@@ -209,6 +209,7 @@ export const usePlayerStore = create<PlayerState>()(
         set({ currentTime: time })
 
         // Record stats when crossing 60s mark (for songs ≥1min)
+        // Pass actual listened time for threshold check (recordPlay stores full duration)
         if (time >= 60 && !hasRecordedCurrentTrackStats && currentIndex >= 0 && currentIndex < songs.length) {
           const currentTrack = songs[currentIndex]
           useStatsStore.getState().recordPlay(currentTrack, time * 1000)
@@ -527,10 +528,10 @@ export const usePlayerStore = create<PlayerState>()(
 
         // Record stats for short songs (<60s) that weren't recorded during playback
         // Songs ≥60s are recorded when crossing the 60s mark in setCurrentTime
+        // Pass actual listened time for threshold check (recordPlay stores full duration)
         if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
           const finishedTrack = state.songs[state.currentIndex]
-          const actualDurationMs = state.currentTime * 1000
-          useStatsStore.getState().recordPlay(finishedTrack, actualDurationMs)
+          useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
         }
 
         if (state.repeat === 'one' && state.currentIndex >= 0) {

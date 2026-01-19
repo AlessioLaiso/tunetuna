@@ -160,7 +160,7 @@ export function computeStats(
 
   // Total summary
   const totalSongs = filteredEvents.length
-  const totalMs = filteredEvents.reduce((sum, e) => sum + e.durationMs, 0)
+  const totalMs = filteredEvents.reduce((sum, e) => sum + e.fullDurationMs, 0)
   const totalHours = msToHours(totalMs)
 
   // Group by day for records
@@ -173,7 +173,7 @@ export function computeStats(
   const mostListeningDay = Object.entries(byDay)
     .map(([date, evts]) => ({
       date,
-      hours: msToHours(evts.reduce((sum, e) => sum + e.durationMs, 0))
+      hours: msToHours(evts.reduce((sum, e) => sum + e.fullDurationMs, 0))
     }))
     .sort((a, b) => b.hours - a.hours)[0] || null
 
@@ -185,7 +185,7 @@ export function computeStats(
     ? Object.entries(byMonth)
       .map(([month, evts]) => ({
         month,
-        hours: msToHours(evts.reduce((sum, e) => sum + e.durationMs, 0))
+        hours: msToHours(evts.reduce((sum, e) => sum + e.fullDurationMs, 0))
       }))
       .sort((a, b) => b.hours - a.hours)[0]
     : null
@@ -199,7 +199,7 @@ export function computeStats(
       const artistCount = e.artistIds.length || 1 // Avoid division by zero
       e.artistIds.forEach((id, i) => {
         const current = artistHours.get(id) || { name: e.artistNames[i] || 'Unknown', ms: 0 }
-        current.ms += e.durationMs / artistCount
+        current.ms += e.fullDurationMs / artistCount
         artistHours.set(id, current)
       })
     })
@@ -292,7 +292,7 @@ export function computeStats(
 
     const stat = songStats.get(e.songId)!
     stat.plays++
-    stat.ms += e.durationMs
+    stat.ms += e.fullDurationMs
     stat.dayPlays.set(day, (stat.dayPlays.get(day) || 0) + 1)
   })
 
@@ -365,7 +365,7 @@ export function computeStats(
       }
       const stat = artistStats.get(id)!
       stat.plays++
-      stat.ms += e.durationMs / artistCount
+      stat.ms += e.fullDurationMs / artistCount
     })
   })
 
@@ -397,7 +397,7 @@ export function computeStats(
     }
     const stat = albumStats.get(e.albumId)!
     stat.plays++
-    stat.ms += e.durationMs
+    stat.ms += e.fullDurationMs
   })
 
   const topAlbums = [...albumStats.entries()]
@@ -416,7 +416,7 @@ export function computeStats(
   const genreStats = new Map<string, number>()
   filteredEvents.forEach(e => {
     e.genres.forEach(genre => {
-      genreStats.set(genre, (genreStats.get(genre) || 0) + e.durationMs / e.genres.length)
+      genreStats.set(genre, (genreStats.get(genre) || 0) + e.fullDurationMs / e.genres.length)
     })
   })
 
@@ -430,7 +430,7 @@ export function computeStats(
   filteredEvents.forEach(e => {
     if (e.year) {
       const decade = `${Math.floor(e.year / 10) * 10}s`
-      decadeStats.set(decade, (decadeStats.get(decade) || 0) + e.durationMs)
+      decadeStats.set(decade, (decadeStats.get(decade) || 0) + e.fullDurationMs)
     }
   })
 
@@ -446,7 +446,7 @@ export function computeStats(
       e.genres.forEach(genre => {
         const key = `${genre}|${decade}`
         const current = genreDecadeStats.get(key) || { genre, decade, ms: 0 }
-        current.ms += e.durationMs / e.genres.length
+        current.ms += e.fullDurationMs / e.genres.length
         genreDecadeStats.set(key, current)
       })
     }
