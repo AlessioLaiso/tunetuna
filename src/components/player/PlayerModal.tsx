@@ -558,6 +558,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
               <button
                 onClick={handleClose}
+                aria-label="Close player"
                 className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
               >
                 <ChevronDown className="w-8 h-8" />
@@ -589,6 +590,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }
                   setShowLyricsModal(!showLyricsModal)
                 }}
+                aria-label={showLyricsModal ? 'Hide lyrics' : 'Show lyrics'}
                 className={`transition-colors p-2 rounded-full ${
                   hasLyrics || showLyricsModal
                     ? `hover:bg-white/10 ${showLyricsModal ? 'text-[var(--accent-color)]' : 'text-white'}`
@@ -606,6 +608,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }
                   setShowQueue(!showQueue)
                 }}
+                aria-label={showQueue ? 'Show player' : 'Show queue'}
                 className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
               >
                 {showQueue ? (
@@ -618,6 +621,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               {!isQueueSidebarOpen && (
                 <button
                   onClick={toggleQueueSidebar}
+                  aria-label="Open queue sidebar"
                   className="text-white hover:bg-white/10 rounded-full transition-colors p-2 hidden xl:block"
                 >
                   <ListVideo className="w-6 h-6" />
@@ -750,6 +754,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <div className="flex items-center justify-center gap-8 px-6 relative">
                 <button
                   onClick={toggleShuffle}
+                  aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
                   className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-white/70 hover:text-white'
                     }`}
                 >
@@ -759,6 +764,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <button
                   onClick={previous}
                   disabled={!hasPrevious}
+                  aria-label="Previous track"
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
                     ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
                     : 'text-white/30 cursor-not-allowed'
@@ -776,6 +782,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       playTrack(displayTrack)
                     }
                   }}
+                  aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
                   className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
                 >
                   {isPlaying && currentTrack ? (
@@ -789,6 +796,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 <button
                   onClick={next}
                   disabled={!hasNext}
+                  aria-label="Next track"
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
                     ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
                     : 'text-white/30 cursor-not-allowed'
@@ -799,6 +807,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
                 <button
                   onClick={toggleRepeat}
+                  aria-label={repeat === 'off' ? 'Enable repeat' : repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
                   className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/70 hover:text-white'
                     }`}
                 >
@@ -840,6 +849,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
               <button
                 onClick={toggleQueueSidebar}
+                aria-label="Close queue sidebar"
                 className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
               >
                 <X className="w-5 h-5" />

@@ -177,6 +177,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
             onOpenPopover()
           }
         }}
+        aria-label="Volume"
         className={className || "text-white/70 hover:text-zinc-300 transition-colors"}
       >
         <Icon className="w-6 h-6" />
@@ -189,12 +190,18 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
       <div ref={setContainerRef} className="flex items-center gap-2 px-2 select-none" style={{ width: '120px' }} onClick={handleContainerClick}>
         <button
           onClick={handleIconClick}
+          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
           className="text-white/70 hover:text-white hover:bg-zinc-800 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
         >
           <Icon className="w-5 h-5" />
         </button>
         <div
           ref={containerRef}
+          role="slider"
+          aria-label="Volume"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(volume * 100)}
           className="flex-1 relative cursor-pointer"
           style={{ height: '24px' }}
           onMouseDown={handleMouseDownSlider}
@@ -238,6 +245,11 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
         <div className="h-[200px] w-[38px] cursor-pointer group relative touch-none mx-auto">
           <div
             ref={containerRef}
+            role="slider"
+            aria-label="Volume"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(volume * 100)}
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             className="absolute inset-0"

@@ -34,6 +34,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
           <div className="flex items-center justify-center gap-8">
             <button
               onClick={toggleShuffle}
+              aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
             >
@@ -43,6 +44,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
             <button
               onClick={previous}
               disabled={!hasPrevious}
+              aria-label="Previous track"
               className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
                 ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                 : 'text-zinc-600 cursor-not-allowed'
@@ -53,6 +55,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
 
             <button
               onClick={togglePlayPause}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
               className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
             >
               {isPlaying ? (
@@ -65,6 +68,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
             <button
               onClick={next}
               disabled={!hasNext}
+              aria-label="Next track"
               className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
                 ? 'text-white hover:bg-zinc-800 active:bg-zinc-800'
                 : 'text-zinc-600 cursor-not-allowed'
@@ -75,6 +79,7 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
 
             <button
               onClick={toggleRepeat}
+              aria-label={repeat === 'off' ? 'Enable repeat' : repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                 }`}
             >

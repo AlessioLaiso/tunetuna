@@ -108,7 +108,11 @@ export default function Layout({ children }: LayoutProps) {
 
     // Create shuffle pool if songs exist but pool is empty (existing users)
     if (totalSongs > 0 && musicStore.shufflePool.length === 0) {
-      musicStore.refreshShufflePool()
+      try {
+        musicStore.refreshShufflePool()
+      } catch (error) {
+        logger.warn('Failed to refresh shuffle pool:', error)
+      }
     }
     // Preload minimal songs if nothing cached (first-time users)
     else if (totalSongs === 0) {

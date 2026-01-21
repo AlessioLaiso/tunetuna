@@ -476,12 +476,17 @@ export default function AlbumDetailPage() {
             {album && (
               <button
                 onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  setAlbumContextMenuMode('desktop')
-                  setAlbumContextMenuPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.bottom + 5
-                  })
+                  if (window.innerWidth < 768) {
+                    setAlbumContextMenuMode('mobile')
+                    setAlbumContextMenuPosition(null)
+                  } else {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setAlbumContextMenuMode('desktop')
+                    setAlbumContextMenuPosition({
+                      x: rect.left + rect.width / 2,
+                      y: rect.bottom + 5
+                    })
+                  }
                   setAlbumContextMenuOpen(true)
                 }}
                 className="text-white hover:text-zinc-300 transition-colors"
