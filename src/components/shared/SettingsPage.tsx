@@ -312,16 +312,16 @@ export default function SettingsPage() {
               <button
                 onClick={handleSyncStats}
                 disabled={isSyncing}
-                className="underline hover:text-white transition-colors disabled:opacity-50"
+                className="hover:text-white transition-colors disabled:opacity-50"
               >
                 {isSyncing
                   ? 'Syncing...'
-                  : `${pendingEvents.length} event${pendingEvents.length !== 1 ? 's' : ''} pending sync (tap to sync)`
+                  : `${pendingEvents.length} event${pendingEvents.length !== 1 ? 's' : ''} pending sync`
                 }
               </button>
             )}
             {lastSyncedAt && (
-              <p>Last synced: {new Date(lastSyncedAt).toLocaleString()}</p>
+              <p>Last synced: {new Date(lastSyncedAt).getFullYear()} {new Date(lastSyncedAt).toLocaleString('default', { month: 'short' })} {new Date(lastSyncedAt).getDate().toString().padStart(2, '0')} at {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             )}
           </div>
 
