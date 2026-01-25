@@ -668,6 +668,19 @@ class JellyfinClient {
   async getGenreSongs(_genreId: string, genreName: string): Promise<LightweightSong[]> {
     // Fetch all songs and filter client-side by genre name
     // This ensures we get fresh metadata from the server
+    const allSongs = await this.fetchAllSongsLightweight()
+
+    // Filter by exact genre name match to ensure correctness
+    return allSongs.filter(song =>
+      song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
+    )
+  }
+
+  /**
+   * Fetches all songs from the library and converts to lightweight format.
+   * Used by full sync and getGenreSongs to avoid redundant fetches.
+   */
+  private async fetchAllSongsLightweight(): Promise<LightweightSong[]> {
     let allSongs: BaseItemDto[] = []
     let startIndex = 0
     let hasMore = true
@@ -681,16 +694,9 @@ class JellyfinClient {
       // Safety limit to avoid infinite loops
       if (startIndex > SAFETY_FETCH_LIMIT) break
     }
-    
-    // Always filter by exact genre name match to ensure correctness
-    // This uses the Genres field from the song object, which should be fresh from the server
-    const filtered = allSongs.filter(song => {
-      const hasGenre = song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
-      return hasGenre
-    })
 
     // Convert to lightweight objects for efficient storage
-    const lightweightSongs: LightweightSong[] = filtered.map(song => ({
+    return allSongs.map(song => ({
       Id: song.Id,
       Name: song.Name,
       AlbumArtist: song.AlbumArtist,
@@ -703,8 +709,57 @@ class JellyfinClient {
       RunTimeTicks: song.RunTimeTicks,
       Genres: song.Genres
     }))
+  }
 
-    return lightweightSongs
+  /**
+   * Builds verified genre list from songs.
+   * Only includes genres that actually exist in song metadata.
+   */
+  private buildGenresFromSongs(songs: LightweightSong[]): BaseItemDto[] {
+    // Map: lowercase genre name -> canonical genre name (first occurrence)
+    const uniqueGenreNames = new Map<string, string>()
+
+    songs.forEach(song => {
+      if (song.Genres) {
+        song.Genres.forEach(genreName => {
+          const lowerName = genreName.toLowerCase()
+          if (!uniqueGenreNames.has(lowerName)) {
+            uniqueGenreNames.set(lowerName, genreName)
+          }
+        })
+      }
+    })
+
+    // Build genre objects with simple name-based IDs
+    const genres: BaseItemDto[] = []
+    for (const [lowerName, canonicalName] of uniqueGenreNames) {
+      genres.push({
+        Id: lowerName.replace(/\s+/g, '-'),
+        Name: canonicalName,
+        Type: 'Genre',
+      })
+    }
+
+    return genres
+  }
+
+  /**
+   * Distributes songs to genre caches based on their genre metadata.
+   */
+  private distributeSongsToGenres(
+    songs: LightweightSong[],
+    genres: BaseItemDto[],
+    store: ReturnType<typeof useMusicStore.getState>
+  ): void {
+    for (const genre of genres) {
+      if (!genre.Name || !genre.Id) continue
+
+      const genreSongs = songs.filter(song =>
+        song.Genres?.some(g => g.toLowerCase() === genre.Name!.toLowerCase())
+      )
+
+      store.setGenreSongs(genre.Id, genreSongs)
+    }
   }
 
   async syncLibrary(options: { scope: 'full' | 'incremental' } = { scope: 'incremental' }): Promise<void> {
@@ -818,22 +873,33 @@ class JellyfinClient {
     }
 
     // Full sync - clear everything and rebuild
+    // Optimized: fetch all songs ONCE and distribute to genres
     this.clearGenresCache()
     store.clearGenreSongs()
-    const genres = await this.getGenres(true)
 
-    // Preload songs for all genres
-    const genreSongsPromises = genres.map(async (genre) => {
-      if (!genre.Name || !genre.Id) return
-      try {
-        const songs = await this.getGenreSongs(genre.Id, genre.Name)
-        store.setGenreSongs(genre.Id, songs)
-      } catch (error) {
-        logger.warn(`[syncLibrary] Failed to load songs for genre ${genre.Name}:`, error)
-      }
+    logger.log('[syncLibrary] Full sync: fetching all songs...')
+    const allSongs = await this.fetchAllSongsLightweight()
+    logger.log(`[syncLibrary] Fetched ${allSongs.length} songs`)
+
+    // Build verified genre list from actual song metadata
+    const genres = this.buildGenresFromSongs(allSongs)
+    logger.log(`[syncLibrary] Found ${genres.length} genres in songs`)
+
+    // Update genre cache and timestamps
+    const now = Date.now()
+    store.setGenres(genres)
+    useMusicStore.setState({
+      genresLastUpdated: now,
+      genresLastChecked: now
     })
+    this.genresCache = genres
 
-    await Promise.all(genreSongsPromises)
+    // Update main songs cache
+    store.setSongs(allSongs)
+
+    // Distribute songs to genre caches (no additional fetches!)
+    this.distributeSongsToGenres(allSongs, genres, store)
+    logger.log('[syncLibrary] Full sync complete')
   }
 
   async search(query: string, limit: number = 20): Promise<SearchResult> {
