@@ -800,10 +800,8 @@ export const useStatsStore = create<StatsState>()(
             const data = await response.json()
             const serverEvents: PlayEvent[] = data.events || []
 
-            // Backup restoration: if server has no data but client has pending events,
-            // the server may have lost its data. Upload pending events to restore.
-            if (serverEvents.length === 0 && pendingEvents.length > 0) {
-              // Server has no data but we have pending events - upload them
+            // Sync any pending events on init
+            if (pendingEvents.length > 0) {
               await get().syncToServer()
             }
 
