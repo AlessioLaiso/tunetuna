@@ -33,6 +33,8 @@ export interface PlayEvent {
   genres: string[]
   /** Production year, if available */
   year: number | null
+  /** Actual listen duration in milliseconds */
+  durationMs: number
   /** Full track duration in milliseconds */
   fullDurationMs: number
 }
@@ -249,7 +251,7 @@ function generateStatsToken(): string {
  * Creates a PlayEvent from track data and actual listen duration.
  * Extracts all relevant metadata for stats tracking.
  */
-function createPlayEvent(track: BaseItemDto): PlayEvent {
+function createPlayEvent(track: BaseItemDto, durationMs: number): PlayEvent {
   return {
     ts: Date.now(),
     songId: track.Id,
@@ -260,6 +262,7 @@ function createPlayEvent(track: BaseItemDto): PlayEvent {
     albumName: track.Album || 'Unknown',
     genres: track.Genres || [],
     year: track.ProductionYear || null,
+    durationMs,
     fullDurationMs: track.RunTimeTicks ? track.RunTimeTicks / 10000 : 0,
   }
 }
@@ -323,7 +326,7 @@ export const useStatsStore = create<StatsState>()(
         const listenedEnough = actualDurationMs >= 60000 || (isShortSong && actualDurationMs >= fullDurationMs * 0.8)
         if (!listenedEnough) return
 
-        const event = createPlayEvent(track)
+        const event = createPlayEvent(track, actualDurationMs)
         const newPendingEvents = [...pendingEvents, event]
 
         set({
@@ -358,17 +361,21 @@ export const useStatsStore = create<StatsState>()(
           const { cachedStatsKey, cachedStatsToken } = get()
           if (!cachedStatsKey || !cachedStatsToken) return
 
-          // Capture the events we're syncing to avoid race condition
-          const eventsToSync = [...pendingEvents]
+          // Capture the events we're syncing, ensuring durationMs exists (for legacy events)
+          const eventsToSync = pendingEvents.map(e => ({
+            ...e,
+            durationMs: e.durationMs ?? e.fullDurationMs ?? 60000,
+          }))
 
           try {
+            // Include token in body (like sendBeacon) and header for compatibility
             const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'X-Stats-Token': cachedStatsToken,
               },
-              body: JSON.stringify(eventsToSync),
+              body: JSON.stringify({ _token: cachedStatsToken, events: eventsToSync }),
             })
 
             if (response.ok) {
@@ -380,10 +387,11 @@ export const useStatsStore = create<StatsState>()(
                 lastSyncedAt: Date.now(),
                 cacheRange: null, // Invalidate cache since we have new data
               }))
+            } else {
+              console.error('[Stats] Sync failed:', response.status, response.statusText)
             }
-            // Silently fail - events will retry on next sync
-          } catch {
-            // Keep pending events for retry
+          } catch (err) {
+            console.error('[Stats] Sync error:', err)
           }
         } finally {
           syncInProgress = false
