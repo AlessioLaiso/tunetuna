@@ -5,6 +5,7 @@ import {
   KeyboardMusic, Leaf, Church, CandyCane, Sparkles, Mic,
   MessageCircle, CupSoda, Disc3, Pyramid, Zap, Heart,
   BoomBox, Sun, Guitar, Drum, Popcorn, AudioWaveform, MoonStar,
+  PartyPopper,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -60,6 +61,10 @@ const genreIconMap: Record<string, LucideIcon> = {
   'bossanova': Drum,
   'samba & bossa nova': Drum,
   'soundtrack': Popcorn,
+  'forro': PartyPopper,
+  'forró': PartyPopper,
+  'brega': PartyPopper,
+  'brega & norte-nordeste': PartyPopper,
 }
 
 function getGenreIcon(genreName: string): LucideIcon {
