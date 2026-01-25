@@ -50,6 +50,7 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [statsExist, setStatsExist] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -77,6 +78,22 @@ export default function SettingsPage() {
   const handleLogout = () => {
     logout()
     navigate('/')
+  }
+
+  const handleSyncStats = async () => {
+    setIsSyncing(true)
+    const countBefore = pendingEvents.length
+    await syncToServer()
+    const countAfter = useStatsStore.getState().pendingEvents.length
+    setIsSyncing(false)
+
+    if (countAfter === 0) {
+      addToast(`Synced ${countBefore} event${countBefore !== 1 ? 's' : ''}`, 'success')
+    } else if (countAfter < countBefore) {
+      addToast(`Synced ${countBefore - countAfter} events, ${countAfter} still pending`, 'success')
+    } else {
+      addToast('Sync failed - server may be unreachable', 'error')
+    }
   }
 
   const togglePage = (page: keyof typeof pageVisibility) => {
@@ -293,10 +310,14 @@ export default function SettingsPage() {
           <div className="text-xs text-gray-400 mb-4">
             {pendingEvents.length > 0 && (
               <button
-                onClick={() => syncToServer()}
-                className="underline hover:text-white transition-colors"
+                onClick={handleSyncStats}
+                disabled={isSyncing}
+                className="underline hover:text-white transition-colors disabled:opacity-50"
               >
-                {pendingEvents.length} event{pendingEvents.length !== 1 ? 's' : ''} pending sync (tap to sync)
+                {isSyncing
+                  ? 'Syncing...'
+                  : `${pendingEvents.length} event${pendingEvents.length !== 1 ? 's' : ''} pending sync (tap to sync)`
+                }
               </button>
             )}
             {lastSyncedAt && (
