@@ -331,10 +331,8 @@ export const useStatsStore = create<StatsState>()(
           currentPlay: null,
         })
 
-        // Auto-sync when we reach 5 pending events
-        if (newPendingEvents.length >= 5) {
-          get().syncToServer()
-        }
+        // Always attempt to sync - if server is down, events stay pending for retry
+        get().syncToServer()
       },
 
       /**
