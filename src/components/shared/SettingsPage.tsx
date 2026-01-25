@@ -40,7 +40,7 @@ export default function SettingsPage() {
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
   const { addToast } = useToastStore()
-  const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt } = useStatsStore()
+  const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt, syncToServer } = useStatsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
   const [syncOptions, setSyncOptions] = useState({
@@ -292,7 +292,12 @@ export default function SettingsPage() {
           {/* Stats Info */}
           <div className="text-xs text-gray-400 mb-4">
             {pendingEvents.length > 0 && (
-              <p>{pendingEvents.length} event{pendingEvents.length !== 1 ? 's' : ''} pending sync</p>
+              <button
+                onClick={() => syncToServer()}
+                className="underline hover:text-white transition-colors"
+              >
+                {pendingEvents.length} event{pendingEvents.length !== 1 ? 's' : ''} pending sync (tap to sync)
+              </button>
             )}
             {lastSyncedAt && (
               <p>Last synced: {new Date(lastSyncedAt).toLocaleString()}</p>
