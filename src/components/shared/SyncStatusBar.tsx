@@ -2,7 +2,7 @@ import { useSyncStore } from '../../stores/syncStore'
 import { usePlayerStore } from '../../stores/playerStore'
 
 export default function SyncStatusBar() {
-  const { state, message, cancelSync } = useSyncStore()
+  const { state, message, progress, cancelSync } = useSyncStore()
   const { isQueueSidebarOpen } = usePlayerStore()
 
   if (state === 'idle') return null
@@ -28,7 +28,7 @@ export default function SyncStatusBar() {
       <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center h-full">
         <div className="w-full max-w-[768px] h-full flex items-center justify-between px-4">
         <span className="text-white text-sm font-medium truncate">
-          {message}
+          {message}{progress !== null && <span className="tabular-nums"> ({progress}%)</span>}
         </span>
         {state === 'syncing' && (
           <button

@@ -8,11 +8,13 @@ interface SyncStore {
   source: SyncSource
   message: string | null
   abortController: AbortController | null
+  progress: number | null  // null = indeterminate, 0-100 = percentage
 
   startSync: (source: SyncSource, message?: string) => void
   completeSync: (success: boolean, message?: string) => void
   cancelSync: () => void
   reset: () => void
+  setProgress: (progress: number | null) => void
 }
 
 export const useSyncStore = create<SyncStore>((set, get) => ({
@@ -20,6 +22,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   source: null,
   message: null,
   abortController: null,
+  progress: null,
 
   startSync: (source, message = 'Syncing...') => {
     const abortController = new AbortController()
@@ -38,7 +41,8 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     set({
       state: newState,
       message: message || defaultMessage,
-      abortController: null
+      abortController: null,
+      progress: null
     })
 
     // Auto-hide after 3 seconds
@@ -56,7 +60,8 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       state: 'idle',
       source: null,
       message: null,
-      abortController: null
+      abortController: null,
+      progress: null
     })
   },
 
@@ -65,8 +70,13 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       state: 'idle',
       source: null,
       message: null,
-      abortController: null
+      abortController: null,
+      progress: null
     })
+  },
+
+  setProgress: (progress) => {
+    set({ progress })
   }
 }))
 

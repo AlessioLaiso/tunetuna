@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
@@ -11,7 +11,7 @@ import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
-import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { useSearch } from '../../hooks/useSearch'
 import { logger } from '../../utils/logger'
 
 // Section configuration for ArtistsPage: Artists (all), Albums (12), Playlists, Songs
@@ -30,16 +30,7 @@ const VISIBLE_INCREMENT = 45
 export default function ArtistsPage() {
   const { artists, setArtists, sortPreferences, setSortPreference, setLoading, loading, genres } = useMusicStore()
   const { playTrack, playAlbum, addToQueue } = usePlayerStore()
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [rawSearchResults, setRawSearchResults] = useState<{
-    artists: BaseItemDto[]
-    albums: BaseItemDto[]
-    playlists: BaseItemDto[]
-    songs: BaseItemDto[]
-  } | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -49,9 +40,10 @@ export default function ArtistsPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [visibleArtistsCount, setVisibleArtistsCount] = useState(INITIAL_VISIBLE_ARTISTS)
   const navigate = useNavigate()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
-  // Filter state
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
+  // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const [activeFilterType, setActiveFilterType] = useState<'genre' | null>(null)
 
@@ -62,102 +54,33 @@ export default function ArtistsPage() {
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
-  // Check if filters are active
-  const hasActiveFilters = selectedGenres.length > 0
+  // Use centralized search hook (no year filter for artists page)
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearching,
+    searchResults,
+    selectedGenres,
+    setSelectedGenres,
+    hasActiveFilters,
+    clearSearch,
+    clearAll,
+  } = useSearch({ includeYearFilter: false })
 
+  // Focus search input when overlay opens
   useEffect(() => {
-    // Cancel any previous search
-    if (searchAbortControllerRef.current) {
-      searchAbortControllerRef.current.abort()
-    }
-
-    const hasQuery = searchQuery.trim().length > 0
-
-    if (hasQuery || hasActiveFilters) {
-      setIsSearching(true)
-      searchAbortControllerRef.current = new AbortController()
-
-      const timeoutId = window.setTimeout(async () => {
-        if (searchAbortControllerRef.current?.signal.aborted) return
-
-        try {
-          let results
-          if (hasQuery) {
-            results = await unifiedSearch(searchQuery, 450)
-          } else {
-            results = await fetchAllLibraryItems(450)
-          }
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setRawSearchResults(results)
-          }
-        } catch (error) {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            logger.error('Search failed:', error)
-            setRawSearchResults(null)
-          }
-        } finally {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setIsSearching(false)
-          }
+    if (isSearchOpen) {
+      const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)').matches
+      const inputRef = isDesktop ? desktopSearchInputRef : searchInputRef
+      setTimeout(() => {
+        inputRef.current?.focus()
+        if (inputRef.current) {
+          const length = inputRef.current.value.length
+          inputRef.current.setSelectionRange(length, length)
         }
-      }, 250)
-
-      return () => {
-        window.clearTimeout(timeoutId)
-        if (searchAbortControllerRef.current) {
-          searchAbortControllerRef.current.abort()
-        }
-      }
-    } else {
-      searchAbortControllerRef.current = null
-      setRawSearchResults(null)
-      setIsSearching(false)
+      }, 50)
     }
-  }, [searchQuery, hasActiveFilters])
-
-  // Apply filters to search results
-  const searchResults = useMemo(() => {
-    if (!rawSearchResults) return null
-
-    const filterArtist = (item: BaseItemDto): boolean => {
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-      return true
-    }
-
-    const filterAlbumOrSong = (item: BaseItemDto): boolean => {
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-
-      return true
-    }
-
-    return {
-      artists: rawSearchResults.artists.filter(filterArtist),
-      albums: rawSearchResults.albums.filter(filterAlbumOrSong),
-      playlists: rawSearchResults.playlists || [],
-      songs: rawSearchResults.songs.filter(filterAlbumOrSong),
-    }
-  }, [rawSearchResults, selectedGenres])
-
-  // Cleanup search abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (searchAbortControllerRef.current) {
-        searchAbortControllerRef.current.abort()
-      }
-    }
-  }, [])
+  }, [isSearchOpen])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -167,15 +90,12 @@ export default function ArtistsPage() {
   }
 
   const handleClearSearch = () => {
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleCancelSearch = () => {
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-    setSelectedGenres([])
+    clearAll()
   }
 
   const openFilterSheet = (type: 'genre' | 'year') => {
@@ -192,15 +112,13 @@ export default function ArtistsPage() {
   const handleArtistClick = (artistId: string) => {
     navigate(`/artist/${artistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleAlbumClick = (albumId: string) => {
     navigate(`/album/${albumId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleSongClick = (song: BaseItemDto) => {
@@ -224,8 +142,7 @@ export default function ArtistsPage() {
   const handlePlaylistClick = (playlistId: string) => {
     navigate(`/playlist/${playlistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
@@ -444,6 +361,8 @@ export default function ArtistsPage() {
         onAddSongsToQueue={handleAddSongsToQueue}
         visibleSongImageCount={visibleSearchSongImageCount}
         isQueueSidebarOpen={isQueueSidebarOpen}
+        desktopSearchInputRef={desktopSearchInputRef}
+        mobileSearchInputRef={searchInputRef}
       />
 
       {/* Filter Bottom Sheets */}

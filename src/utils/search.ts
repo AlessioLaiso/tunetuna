@@ -20,25 +20,10 @@ export async function unifiedSearch(
 ): Promise<UnifiedSearchResults> {
   const results = await jellyfinClient.search(searchQuery, limit)
 
-  // Use server results when available; otherwise fall back to a broader client-side search
-  let songsSource: BaseItemDto[] = results.Songs?.Items || []
-  let albumsSource: BaseItemDto[] = results.Albums?.Items || []
-  let artistsSource: BaseItemDto[] = results.Artists?.Items || []
-  let playlistsSource: BaseItemDto[] = results.Playlists?.Items || []
-
-  const hasAnyServerResults =
-    songsSource.length > 0 ||
-    albumsSource.length > 0 ||
-    artistsSource.length > 0 ||
-    playlistsSource.length > 0
-
-  if (!hasAnyServerResults && searchQuery.trim().length > 0) {
-    const fallbackLibrary = await fetchAllLibraryItems(limit)
-    songsSource = fallbackLibrary.songs
-    albumsSource = fallbackLibrary.albums
-    artistsSource = fallbackLibrary.artists
-    playlistsSource = fallbackLibrary.playlists
-  }
+  const songsSource: BaseItemDto[] = results.Songs?.Items || []
+  const albumsSource: BaseItemDto[] = results.Albums?.Items || []
+  const artistsSource: BaseItemDto[] = results.Artists?.Items || []
+  const playlistsSource: BaseItemDto[] = results.Playlists?.Items || []
 
   const normalizedQuery = normalizeForSearch(searchQuery)
   const queryLower = normalizedQuery.toLowerCase().trim()

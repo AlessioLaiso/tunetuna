@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
@@ -11,7 +11,7 @@ import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
-import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { useSearch } from '../../hooks/useSearch'
 import { logger } from '../../utils/logger'
 
 // Section configuration for AlbumsPage: Albums first (no limit), then Artists (5), Playlists, Songs
@@ -40,16 +40,7 @@ export default function AlbumsPage() {
   const playTrack = usePlayerStore((state) => state.playTrack)
   const playAlbum = usePlayerStore((state) => state.playAlbum)
   const addToQueue = usePlayerStore((state) => state.addToQueue)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [rawSearchResults, setRawSearchResults] = useState<{
-    artists: BaseItemDto[]
-    albums: BaseItemDto[]
-    playlists: BaseItemDto[]
-    songs: BaseItemDto[]
-  } | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -63,9 +54,7 @@ export default function AlbumsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
-  // Filter state
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
-  const [yearRange, setYearRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null })
+  // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
   const [years, setYears] = useState<number[]>([])
@@ -76,6 +65,22 @@ export default function AlbumsPage() {
   const prevSortOrderRef = useRef(sortOrder)
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+
+  // Use centralized search hook
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearching,
+    searchResults,
+    rawSearchResults,
+    selectedGenres,
+    setSelectedGenres,
+    yearRange,
+    setYearRange,
+    hasActiveFilters,
+    clearSearch,
+    clearAll,
+  } = useSearch()
 
   // Handle year filter from URL parameters
   useEffect(() => {
@@ -89,7 +94,7 @@ export default function AlbumsPage() {
         setSearchParams({}, { replace: true })
       }
     }
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, setYearRange])
 
   // Load filter values
   useEffect(() => {
@@ -108,117 +113,6 @@ export default function AlbumsPage() {
     }
     loadFilterValues()
   }, [])
-
-  // Check if filters are active
-  const hasActiveFilters = selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null
-
-  useEffect(() => {
-    // Cancel any previous search
-    if (searchAbortControllerRef.current) {
-      searchAbortControllerRef.current.abort()
-    }
-
-    const hasQuery = searchQuery.trim().length > 0
-
-    if (hasQuery || hasActiveFilters) {
-      setIsSearching(true)
-      searchAbortControllerRef.current = new AbortController()
-
-      const timeoutId = window.setTimeout(async () => {
-        if (searchAbortControllerRef.current?.signal.aborted) return
-
-        try {
-          let results
-          if (hasQuery) {
-            results = await unifiedSearch(searchQuery, 450)
-          } else {
-            results = await fetchAllLibraryItems(450)
-          }
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setRawSearchResults(results)
-          }
-        } catch (error) {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            logger.error('Search failed:', error)
-            setRawSearchResults(null)
-          }
-        } finally {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setIsSearching(false)
-          }
-        }
-      }, 250)
-
-      return () => {
-        window.clearTimeout(timeoutId)
-        if (searchAbortControllerRef.current) {
-          searchAbortControllerRef.current.abort()
-        }
-      }
-    } else {
-      searchAbortControllerRef.current = null
-      setRawSearchResults(null)
-      setIsSearching(false)
-    }
-  }, [searchQuery, hasActiveFilters])
-
-  // Apply filters to search results
-  const searchResults = useMemo(() => {
-    if (!rawSearchResults) return null
-
-    const filterArtist = (item: BaseItemDto): boolean => {
-      // Artists don't have years, so filter them out when year filter is active
-      if (yearRange.min !== null || yearRange.max !== null) {
-        return false
-      }
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-      return true
-    }
-
-    const filterAlbumOrSong = (item: BaseItemDto): boolean => {
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-
-      if (yearRange.min !== null || yearRange.max !== null) {
-        const itemYear = item.ProductionYear
-        if (!itemYear || itemYear <= 0) return false
-        if (yearRange.min !== null && itemYear < yearRange.min) return false
-        if (yearRange.max !== null && itemYear > yearRange.max) return false
-      }
-
-      return true
-    }
-
-    const filterPlaylist = (item: BaseItemDto): boolean => {
-      // Playlists don't have years, so filter them out when year filter is active
-      if (yearRange.min !== null || yearRange.max !== null) {
-        return false
-      }
-      // Playlists don't have genres in the same way, so filter them out when genre filter is active
-      if (selectedGenres.length > 0) {
-        return false
-      }
-      return true
-    }
-
-    return {
-      albums: rawSearchResults.albums.filter(filterAlbumOrSong),
-      artists: rawSearchResults.artists.filter(filterArtist),
-      playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
-      songs: rawSearchResults.songs.filter(filterAlbumOrSong),
-    }
-  }, [rawSearchResults, selectedGenres, yearRange])
 
   // Focus search input when overlay opens
   useEffect(() => {
@@ -249,15 +143,6 @@ export default function AlbumsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isSearchOpen])
 
-  // Cleanup search abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (searchAbortControllerRef.current) {
-        searchAbortControllerRef.current.abort()
-      }
-    }
-  }, [])
-
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim().length > 0 && !isSearchOpen) {
@@ -266,16 +151,12 @@ export default function AlbumsPage() {
   }
 
   const handleClearSearch = () => {
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleCancelSearch = () => {
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-    setSelectedGenres([])
-    setYearRange({ min: null, max: null })
+    clearAll()
   }
 
   const openFilterSheet = (type: 'genre' | 'year') => {
@@ -294,15 +175,13 @@ export default function AlbumsPage() {
   const handleArtistClick = (artistId: string) => {
     navigate(`/artist/${artistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleAlbumClick = (albumId: string) => {
     navigate(`/album/${albumId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleSongClick = (song: BaseItemDto) => {
@@ -326,8 +205,7 @@ export default function AlbumsPage() {
   const handlePlaylistClick = (playlistId: string) => {
     navigate(`/playlist/${playlistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Settings, Shuffle } from 'lucide-react'
 import SearchInput from '../shared/SearchInput'
@@ -8,7 +8,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import FilterBottomSheet from './FilterBottomSheet'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
-import { fetchAllLibraryItems, unifiedSearch } from '../../utils/search'
+import { useSearch } from '../../hooks/useSearch'
 import { logger } from '../../utils/logger'
 
 interface SearchBarProps {
@@ -25,29 +25,17 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 ]
 
 export default function SearchBar({ onSearchStateChange, title = 'Search' }: SearchBarProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [rawSearchResults, setRawSearchResults] = useState<{
-    artists: BaseItemDto[]
-    albums: BaseItemDto[]
-    playlists: BaseItemDto[]
-    songs: BaseItemDto[]
-  } | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const searchAbortControllerRef = useRef<AbortController | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
-  // Filter state
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
-  const [yearRange, setYearRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null })
+  // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
 
   // Filter values
   const { genres } = useMusicStore()
   const [years, setYears] = useState<number[]>([])
-  const [loadingFilterValues, setLoadingFilterValues] = useState(false)
   const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
 
   // Player functions
@@ -55,6 +43,21 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   // Loading state for shuffle button
   const [isShuffling, setIsShuffling] = useState(false)
+
+  // Use centralized search hook (no debounce - SearchInput already debounces)
+  const {
+    searchQuery,
+    setSearchQuery,
+    isSearching,
+    searchResults,
+    rawSearchResults,
+    selectedGenres,
+    setSelectedGenres,
+    yearRange,
+    setYearRange,
+    clearSearch,
+    clearAll,
+  } = useSearch({ debounceMs: 0 })
 
   // Reset loading state after a timeout to prevent permanent disabling
   useEffect(() => {
@@ -101,7 +104,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   // Load filter values on mount
   useEffect(() => {
     const loadFilterValues = async () => {
-      setLoadingFilterValues(true)
       try {
         const store = useMusicStore.getState()
 
@@ -114,70 +116,11 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         }
       } catch (error) {
         logger.error('Failed to load filter values:', error)
-      } finally {
-        setLoadingFilterValues(false)
       }
     }
 
     loadFilterValues()
   }, [])
-
-  // Check if filters are active
-  const hasActiveFilters = selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null
-
-  useEffect(() => {
-    // Cancel any previous search
-    if (searchAbortControllerRef.current) {
-      searchAbortControllerRef.current.abort()
-    }
-
-    const hasQuery = searchQuery.trim().length > 0
-
-    // Search if there's a query OR if filters are active
-    if (hasQuery || hasActiveFilters) {
-      setIsSearching(true)
-      // Capture controller in closure to avoid race conditions
-      const controller = new AbortController()
-      searchAbortControllerRef.current = controller
-
-      // Execute search immediately - SearchInput already debounces
-      const doSearch = async () => {
-        if (controller.signal.aborted) return
-
-        try {
-          let results
-          if (hasQuery) {
-            results = await unifiedSearch(searchQuery, 450)
-          } else {
-            // When no query but filters are active, fetch a large slice directly
-            results = await fetchAllLibraryItems(450)
-          }
-          if (!controller.signal.aborted) {
-            setRawSearchResults(results)
-          }
-        } catch (error) {
-          if (!controller.signal.aborted) {
-            logger.error('Search failed:', error)
-            setRawSearchResults(null)
-          }
-        } finally {
-          if (!controller.signal.aborted) {
-            setIsSearching(false)
-          }
-        }
-      }
-
-      doSearch()
-
-      return () => {
-        controller.abort()
-      }
-    } else {
-      searchAbortControllerRef.current = null
-      setRawSearchResults(null)
-      setIsSearching(false)
-    }
-  }, [searchQuery, hasActiveFilters])
 
   // Reset visible search song images when query or search state changes
   useEffect(() => {
@@ -204,70 +147,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     return () => window.removeEventListener('scroll', handleScroll)
   }, [isSearchOpen, rawSearchResults?.songs.length])
 
-  // Apply filters to search results
-  const searchResults = useMemo(() => {
-    if (!rawSearchResults) return null
-
-    // Filter function for artists - only apply genre filter (artists don't have ProductionYear)
-    const filterArtist = (item: BaseItemDto): boolean => {
-      // Artists don't have years, so filter them out when year filter is active
-      if (yearRange.min !== null || yearRange.max !== null) {
-        return false
-      }
-      // Genre filter
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-      return true
-    }
-
-    // Filter function for albums and songs - apply both genre and year filters
-    const filterAlbumOrSong = (item: BaseItemDto): boolean => {
-      // Genre filter
-      if (selectedGenres.length > 0) {
-        const itemGenres = item.Genres || []
-        const hasMatchingGenre = selectedGenres.some((selectedGenre) =>
-          itemGenres.some((itemGenre) => itemGenre.toLowerCase() === selectedGenre.toLowerCase())
-        )
-        if (!hasMatchingGenre) return false
-      }
-
-      // Year filter
-      if (yearRange.min !== null || yearRange.max !== null) {
-        const itemYear = item.ProductionYear
-        if (!itemYear || itemYear <= 0) return false
-
-        if (yearRange.min !== null && itemYear < yearRange.min) return false
-        if (yearRange.max !== null && itemYear > yearRange.max) return false
-      }
-
-      return true
-    }
-
-    const filterPlaylist = (item: BaseItemDto): boolean => {
-      // Playlists don't have years, so filter them out when year filter is active
-      if (yearRange.min !== null || yearRange.max !== null) {
-        return false
-      }
-      // Playlists don't have genres in the same way, so filter them out when genre filter is active
-      if (selectedGenres.length > 0) {
-        return false
-      }
-      return true
-    }
-
-    return {
-      artists: rawSearchResults.artists.filter(filterArtist),
-      albums: rawSearchResults.albums.filter(filterAlbumOrSong),
-      playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
-      songs: rawSearchResults.songs.filter(filterAlbumOrSong),
-    }
-  }, [rawSearchResults, selectedGenres, yearRange])
-
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     // Open search overlay when user starts typing
@@ -280,15 +159,13 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   const handleArtistClick = (artistId: string) => {
     navigate(`/artist/${artistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleAlbumClick = (albumId: string) => {
     navigate(`/album/${albumId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleSongClick = (song: BaseItemDto) => {
@@ -300,24 +177,18 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   const handlePlaylistClick = (playlistId: string) => {
     navigate(`/playlist/${playlistId}`)
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleClearSearch = () => {
     // Clear the input but keep the overlay open
-    setSearchQuery('')
-    setRawSearchResults(null)
+    clearSearch()
   }
 
   const handleCancelSearch = () => {
     // Close the overlay and clear everything
     setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-    // Clear filters
-    setSelectedGenres([])
-    setYearRange({ min: null, max: null })
+    clearAll()
   }
 
   const openFilterSheet = (type: 'genre' | 'year') => {
@@ -385,15 +256,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     window.addEventListener('keydown', handleKeyDown, true) // capture phase
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isSearchOpen])
-
-  // Cleanup search abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (searchAbortControllerRef.current) {
-        searchAbortControllerRef.current.abort()
-      }
-    }
-  }, [])
 
   return (
     <>

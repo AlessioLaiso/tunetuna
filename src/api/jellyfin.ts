@@ -680,19 +680,37 @@ class JellyfinClient {
    * Fetches all songs from the library and converts to lightweight format.
    * Used by full sync and getGenreSongs to avoid redundant fetches.
    */
-  private async fetchAllSongsLightweight(): Promise<LightweightSong[]> {
+  private async fetchAllSongsLightweight(onProgress?: (progress: number) => void): Promise<LightweightSong[]> {
     let allSongs: BaseItemDto[] = []
     let startIndex = 0
     let hasMore = true
+    let totalCount: number | null = null
 
     while (hasMore) {
       const result = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true)
       const items = result.Items || []
       allSongs.push(...items)
+
+      // Get total count from first response for progress calculation
+      if (totalCount === null && result.TotalRecordCount) {
+        totalCount = result.TotalRecordCount
+      }
+
+      // Report progress if callback provided and we know the total
+      if (onProgress && totalCount && totalCount > 0) {
+        const progress = Math.min(Math.round((allSongs.length / totalCount) * 100), 99)
+        onProgress(progress)
+      }
+
       hasMore = items.length === API_PAGE_LIMIT
       startIndex += API_PAGE_LIMIT
       // Safety limit to avoid infinite loops
       if (startIndex > SAFETY_FETCH_LIMIT) break
+    }
+
+    // Report 100% when done
+    if (onProgress) {
+      onProgress(100)
     }
 
     // Convert to lightweight objects for efficient storage
@@ -762,7 +780,7 @@ class JellyfinClient {
     }
   }
 
-  async syncLibrary(options: { scope: 'full' | 'incremental' } = { scope: 'incremental' }): Promise<void> {
+  async syncLibrary(options: { scope: 'full' | 'incremental' } = { scope: 'incremental' }, onProgress?: (progress: number) => void): Promise<void> {
     const store = useMusicStore.getState()
 
     if (options.scope === 'incremental') {
@@ -878,7 +896,7 @@ class JellyfinClient {
     store.clearGenreSongs()
 
     logger.log('[syncLibrary] Full sync: fetching all songs...')
-    const allSongs = await this.fetchAllSongsLightweight()
+    const allSongs = await this.fetchAllSongsLightweight(onProgress)
     logger.log(`[syncLibrary] Fetched ${allSongs.length} songs`)
 
     // Build verified genre list from actual song metadata

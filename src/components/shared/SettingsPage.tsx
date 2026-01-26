@@ -43,9 +43,6 @@ export default function SettingsPage() {
   const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt, syncToServer } = useStatsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
-  const [syncOptions, setSyncOptions] = useState({
-    scope: 'incremental' as 'incremental' | 'full'
-  })
   const [showClearStatsConfirm, setShowClearStatsConfirm] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -66,13 +63,8 @@ export default function SettingsPage() {
   // Check if server URL is locked by administrator
   const serverLocked = isServerUrlLocked()
 
-  // Reset sync options when modal closes
   const handleCloseSyncOptions = () => {
     setShowSyncOptions(false)
-    // Reset to defaults for next time
-    setSyncOptions({
-      scope: 'incremental'
-    })
   }
 
   const handleLogout = () => {
@@ -100,14 +92,14 @@ export default function SettingsPage() {
     setPageVisibility({ [page]: !pageVisibility[page] })
   }
 
-  const handleSyncLibrary = async () => {
-    const message = syncOptions.scope === 'full'
-      ? 'Syncing...'
-      : 'Syncing...'
+  const handleSyncLibrary = async (options: { scope: 'incremental' | 'full' }) => {
+    const { setProgress } = useSyncStore.getState()
 
-    startSync('settings', message)
+    startSync('settings', 'Syncing...')
     try {
-      await jellyfinClient.syncLibrary(syncOptions)
+      // Pass progress callback only for full sync
+      const onProgress = options.scope === 'full' ? setProgress : undefined
+      await jellyfinClient.syncLibrary(options, onProgress)
       const result = await jellyfinClient.getGenres()
       const sorted = (result || []).sort((a, b) =>
         (a.Name || '').localeCompare(b.Name || '')
@@ -462,9 +454,8 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <button
                 onClick={() => {
-                  setSyncOptions({ scope: 'incremental' })
                   setShowSyncOptions(false)
-                  handleSyncLibrary()
+                  handleSyncLibrary({ scope: 'incremental' })
                 }}
                 disabled={syncState === 'syncing'}
                 className="w-full flex items-center gap-3 py-4 pr-4 pl-4 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-white text-left rounded-lg transition-colors"
@@ -475,9 +466,8 @@ export default function SettingsPage() {
 
               <button
                 onClick={() => {
-                  setSyncOptions({ scope: 'full' })
                   setShowSyncOptions(false)
-                  handleSyncLibrary()
+                  handleSyncLibrary({ scope: 'full' })
                 }}
                 disabled={syncState === 'syncing'}
                 className="w-full flex items-center gap-3 py-4 pr-4 pl-4 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-white text-left rounded-lg transition-colors"
