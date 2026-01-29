@@ -1070,7 +1070,7 @@ class JellyfinClient {
     const query = new URLSearchParams({
       ParentId: albumId,
       IncludeItemTypes: 'Audio',
-      SortBy: 'IndexNumber',
+      SortBy: 'ParentIndexNumber,IndexNumber',
       SortOrder: 'Ascending',
       UserId: this.userId,
       Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations

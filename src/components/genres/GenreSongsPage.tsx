@@ -27,13 +27,12 @@ type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
 interface GenreAlbumItemProps {
   album: BaseItemDto
-  year: number | null
   onNavigate: (id: string) => void
   onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   showImage?: boolean
 }
 
-function GenreAlbumItem({ album, year, onNavigate, onContextMenu, showImage = true }: GenreAlbumItemProps) {
+function GenreAlbumItem({ album, onNavigate, onContextMenu, showImage = true }: GenreAlbumItemProps) {
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
 
@@ -92,9 +91,9 @@ function GenreAlbumItem({ album, year, onNavigate, onContextMenu, showImage = tr
         )}
       </div>
       <div className="text-sm font-medium text-white truncate">{album.Name}</div>
-      {year && (
-        <div className="text-xs text-gray-400 truncate">{year}</div>
-      )}
+      <div className="text-xs text-gray-400 truncate">
+        {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+      </div>
     </button>
   )
 }
@@ -596,12 +595,10 @@ export default function GenreSongsPage() {
             <h2 className="text-xl font-bold text-white mb-4">Albums ({albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {(usePaginationForAlbums ? paginatedAlbums : albums).map((album, index) => {
-                const year = album.ProductionYear || (album.PremiereDate ? new Date(album.PremiereDate).getFullYear() : null)
                 return (
                   <GenreAlbumItem
                     key={album.Id}
                     album={album}
-                    year={year}
                     onNavigate={(id) => navigate(`/album/${id}`)}
                     onContextMenu={(album, mode, position) => {
                       setContextMenuItem(album)
