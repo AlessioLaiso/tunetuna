@@ -74,11 +74,28 @@ function getGenreIcon(genreName: string): LucideIcon {
 
 interface GenreItemProps {
   genre: BaseItemDto
+  isCard?: boolean
 }
 
-export default function GenreItem({ genre }: GenreItemProps) {
+export default function GenreItem({ genre, isCard = false }: GenreItemProps) {
   const navigate = useNavigate()
   const Icon = getGenreIcon(genre.Name || '')
+
+  if (isCard) {
+    return (
+      <button
+        onClick={() => navigate(`/genre/${genre.Id}`)}
+        className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 hover:bg-zinc-800 transition-colors relative overflow-hidden group text-left"
+      >
+        <div className="flex items-start justify-between">
+          <div className="text-base font-medium text-white group-hover:text-[var(--accent-color)] transition-colors">
+            {genre.Name}
+          </div>
+          <Icon className="w-12 h-12 text-zinc-600 group-hover:text-[var(--accent-color)] transition-colors flex-shrink-0 ml-2" />
+        </div>
+      </button>
+    )
+  }
 
   return (
     <button

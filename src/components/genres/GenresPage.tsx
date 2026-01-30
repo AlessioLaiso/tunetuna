@@ -76,13 +76,25 @@ export default function GenresPage() {
           </div>
         )}
         {genres.length > 0 && (
-          <div className="space-y-2">
-            {[...genres].sort((a, b) =>
-              (a.Name || '').localeCompare(b.Name || '')
-            ).map((genre) => (
-              <GenreItem key={genre.Id} genre={genre} />
-            ))}
-          </div>
+          <>
+            {/* List view for screens < 1024px */}
+            <div className="space-y-2 lg:hidden">
+              {[...genres].sort((a, b) =>
+                (a.Name || '').localeCompare(b.Name || '')
+              ).map((genre) => (
+                <GenreItem key={genre.Id} genre={genre} />
+              ))}
+            </div>
+
+            {/* Card view for screens >= 1024px */}
+            <div className="hidden lg:grid lg:grid-cols-3 gap-4 px-4 pt-2">
+              {[...genres].sort((a, b) =>
+                (a.Name || '').localeCompare(b.Name || '')
+              ).map((genre) => (
+                <GenreItem key={genre.Id} genre={genre} isCard />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
