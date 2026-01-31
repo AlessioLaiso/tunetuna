@@ -51,7 +51,6 @@ interface SearchOverlayProps {
   onPlaylistClick: (id: string) => void
   onPlayAllSongs: () => void
   onAddSongsToQueue: () => void
-  visibleSongImageCount: number
   isQueueSidebarOpen?: boolean
   // Desktop search input ref for auto-focus
   desktopSearchInputRef?: React.RefObject<HTMLInputElement | null>
@@ -243,7 +242,6 @@ export default function SearchOverlay({
   onPlaylistClick,
   onPlayAllSongs,
   onAddSongsToQueue,
-  visibleSongImageCount,
   isQueueSidebarOpen = false,
   desktopSearchInputRef,
   mobileSearchInputRef,
@@ -252,6 +250,7 @@ export default function SearchOverlay({
   const internalMobileRef = useRef<HTMLInputElement>(null)
   const desktopInputRef = desktopSearchInputRef || internalDesktopRef
   const mobileInputRef = mobileSearchInputRef || internalMobileRef
+
 
   // Animation state for backdrop fade
   const [isVisible, setIsVisible] = useState(false)
@@ -416,7 +415,7 @@ export default function SearchOverlay({
                   onClick={onSongClick}
                   onContextMenu={openContextMenu}
                   contextMenuItemId={contextMenuItem?.Id || null}
-                  showImage={index < visibleSongImageCount}
+                  showImage
                 />
               ))}
             </div>

@@ -23,7 +23,7 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 ]
 
 const ITEMS_PER_PAGE = 90
-const INITIAL_VISIBLE_SEARCH_SONG_IMAGES = 45
+
 const INITIAL_VISIBLE_ARTISTS = 45
 const VISIBLE_INCREMENT = 45
 
@@ -51,7 +51,6 @@ export default function ArtistsPage() {
   const isInitialLoad = useRef(true)
   const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
   const prevSortOrderRef = useRef(sortOrder)
-  const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Use centralized search hook (no year filter for artists page)
@@ -359,7 +358,7 @@ export default function ArtistsPage() {
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-        visibleSongImageCount={visibleSearchSongImageCount}
+
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}

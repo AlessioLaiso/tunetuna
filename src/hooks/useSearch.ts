@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import type { BaseItemDto } from '../api/types'
-import { fetchAllLibraryItems, unifiedSearch } from '../utils/search'
+import { fetchAllLibraryItems, unifiedSearch, type SearchFilterOptions } from '../utils/search'
 import { logger } from '../utils/logger'
 
 export interface SearchResults {
@@ -61,6 +61,26 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null
     : selectedGenres.length > 0
 
+  // Build server-side filter options from current filter state
+  const buildServerFilters = useCallback((): SearchFilterOptions | undefined => {
+    const filters: SearchFilterOptions = {}
+    if (selectedGenres.length > 0) {
+      filters.genres = selectedGenres
+    }
+    if (includeYearFilter && (yearRange.min !== null || yearRange.max !== null)) {
+      // Build a list of individual years for the API
+      const currentYear = new Date().getFullYear()
+      const from = yearRange.min ?? 1900
+      const to = yearRange.max ?? currentYear
+      const years: number[] = []
+      for (let y = from; y <= to; y++) {
+        years.push(y)
+      }
+      filters.years = years
+    }
+    return filters.genres || filters.years ? filters : undefined
+  }, [selectedGenres, yearRange, includeYearFilter])
+
   // Search effect with proper abort handling
   useEffect(() => {
     // Cancel any previous search
@@ -79,11 +99,12 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         if (abortController.signal.aborted) return
 
         try {
+          const serverFilters = buildServerFilters()
           let results
           if (hasQuery) {
-            results = await unifiedSearch(searchQuery, limit)
+            results = await unifiedSearch(searchQuery, limit, serverFilters)
           } else {
-            results = await fetchAllLibraryItems(limit)
+            results = await fetchAllLibraryItems(limit, serverFilters)
           }
           if (!abortController.signal.aborted) {
             setRawSearchResults(results)
@@ -117,7 +138,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRawSearchResults(null)
       setIsSearching(false)
     }
-  }, [searchQuery, hasActiveFilters, debounceMs, limit])
+  }, [searchQuery, selectedGenres, yearRange, hasActiveFilters, debounceMs, limit, buildServerFilters])
 
   // Cleanup on unmount
   useEffect(() => {

@@ -9,6 +9,11 @@ export interface UnifiedSearchResults {
   songs: BaseItemDto[]
 }
 
+export interface SearchFilterOptions {
+  genres?: string[]
+  years?: number[]
+}
+
 /**
  * Perform a Jellyfin search and apply the common client-side matching rules
  * we currently use across pages: normalized matching on titles, artist names,
@@ -16,9 +21,10 @@ export interface UnifiedSearchResults {
  */
 export async function unifiedSearch(
   searchQuery: string,
-  limit: number
+  limit: number,
+  filters?: SearchFilterOptions
 ): Promise<UnifiedSearchResults> {
-  const results = await jellyfinClient.search(searchQuery, limit)
+  const results = await jellyfinClient.search(searchQuery, limit, filters)
 
   const songsSource: BaseItemDto[] = results.Songs?.Items || []
   const albumsSource: BaseItemDto[] = results.Albums?.Items || []
@@ -95,13 +101,18 @@ export async function unifiedSearch(
  * Used when filters are active but there is no search query.
  */
 export async function fetchAllLibraryItems(
-  limit: number
+  limit: number,
+  filters?: SearchFilterOptions
 ): Promise<UnifiedSearchResults> {
+  const serverFilters: { genres?: string[]; years?: number[] } = {}
+  if (filters?.genres?.length) serverFilters.genres = filters.genres
+  if (filters?.years?.length) serverFilters.years = filters.years
+
   const [artistsResult, albumsResult, playlistsResult, songsResult] = await Promise.all([
     jellyfinClient.getArtists({ limit }),
-    jellyfinClient.getAlbums({ limit }),
+    jellyfinClient.getAlbums({ limit, ...serverFilters }),
     jellyfinClient.getPlaylists({ limit }),
-    jellyfinClient.getSongs({ limit }),
+    jellyfinClient.getSongs({ limit, ...serverFilters }),
   ])
 
   return {

@@ -25,8 +25,6 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 const ITEMS_PER_PAGE = 84
 const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
-const INITIAL_VISIBLE_SEARCH_SONG_IMAGES = 45
-const VISIBLE_SEARCH_SONG_IMAGES_INCREMENT = 45
 
 export default function AlbumsPage() {
   // Use selectors for better performance - only re-render when specific values change
@@ -63,7 +61,6 @@ export default function AlbumsPage() {
   const isInitialLoad = useRef(true)
   const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
   const prevSortOrderRef = useRef(sortOrder)
-  const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Use centralized search hook
@@ -234,36 +231,7 @@ export default function AlbumsPage() {
     }
   }, [sortOrder, searchQuery])
 
-  // Reset visible search song images when the query or search state changes
-  useEffect(() => {
-    setVisibleSearchSongImageCount(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
-  }, [searchQuery, isSearchOpen, rawSearchResults?.songs.length])
 
-  // Incrementally reveal more search song images as the user scrolls near the bottom
-  const handleSearchScroll = useCallback(() => {
-    if (!isSearchOpen || !(rawSearchResults?.songs?.length)) return
-
-    const scrollTop = window.scrollY || document.documentElement.scrollTop
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-    const fullHeight = document.documentElement.scrollHeight
-
-    if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-      setVisibleSearchSongImageCount((prev) =>
-        Math.min(prev + VISIBLE_SEARCH_SONG_IMAGES_INCREMENT, rawSearchResults.songs.length)
-      )
-    }
-  }, [isSearchOpen, rawSearchResults?.songs.length])
-
-  useEffect(() => {
-    if (!isSearchOpen || !(rawSearchResults?.songs?.length)) return
-
-    // Single window scroll listener handles all scroll events (including touch scrolling)
-    window.addEventListener('scroll', handleSearchScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener('scroll', handleSearchScroll)
-    }
-  }, [handleSearchScroll])
 
   // Reset visible albums window when page or album list changes
   useEffect(() => {
@@ -480,7 +448,7 @@ export default function AlbumsPage() {
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-        visibleSongImageCount={visibleSearchSongImageCount}
+
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}

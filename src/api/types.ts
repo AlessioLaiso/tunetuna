@@ -83,6 +83,7 @@ export interface GetItemsOptions {
   parentId?: string
   searchTerm?: string
   genreIds?: string[]
+  genres?: string[]
   artistIds?: string[]
   albumIds?: string[]
   years?: number[]

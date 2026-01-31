@@ -74,35 +74,51 @@ export default function FilterBottomSheet({
   const maxYear = availableYears.length > 0 ? availableYears[availableYears.length - 1] : new Date().getFullYear()
   
   // Scroll to selected year when picker opens or selection changes
+  const justOpenedRef = useRef(false)
   useEffect(() => {
     if (filterType === 'year' && isOpen && availableYears.length > 0) {
-      // Scroll min picker to selected year
-      if (minYearRef.current && localYearRange.min !== null) {
-        const minIndex = availableYears.indexOf(localYearRange.min)
-        if (minIndex !== -1) {
-          setTimeout(() => {
-            const minElement = minYearRef.current?.querySelector(`[data-year-index="${minIndex}"]`)
+      const isInitial = justOpenedRef.current
+      justOpenedRef.current = false
+
+      const scrollToYears = () => {
+        // Scroll min picker to selected year, or to first year if nothing selected
+        if (minYearRef.current) {
+          const minIndex = localYearRange.min !== null
+            ? availableYears.indexOf(localYearRange.min)
+            : 0
+          if (minIndex !== -1) {
+            const minElement = minYearRef.current.querySelector(`[data-year-index="${minIndex}"]`)
             if (minElement) {
-              minElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              minElement.scrollIntoView({ behavior: isInitial ? 'instant' : 'smooth', block: 'center' })
             }
-          }, 100)
+          }
         }
-      }
-      
-      // Scroll max picker to selected year
-      if (maxYearRef.current && localYearRange.max !== null) {
-        const maxIndex = availableYears.indexOf(localYearRange.max)
-        if (maxIndex !== -1) {
-          setTimeout(() => {
-            const maxElement = maxYearRef.current?.querySelector(`[data-year-index="${maxIndex}"]`)
+
+        // Scroll max picker to selected year, or to last year if nothing selected
+        if (maxYearRef.current) {
+          const maxIndex = localYearRange.max !== null
+            ? availableYears.indexOf(localYearRange.max)
+            : availableYears.length - 1
+          if (maxIndex !== -1) {
+            const maxElement = maxYearRef.current.querySelector(`[data-year-index="${maxIndex}"]`)
             if (maxElement) {
-              maxElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              maxElement.scrollIntoView({ behavior: isInitial ? 'instant' : 'smooth', block: 'center' })
             }
-          }, 100)
+          }
         }
       }
+
+      // Wait for bottom sheet animation to complete before scrolling
+      setTimeout(scrollToYears, isInitial ? 350 : 50)
     }
   }, [filterType, isOpen, localYearRange.min, localYearRange.max, availableYears])
+
+  // Track when the sheet opens
+  useEffect(() => {
+    if (isOpen) {
+      justOpenedRef.current = true
+    }
+  }, [isOpen])
   
   const handleYearSelect = (type: 'min' | 'max', year: number) => {
     setLocalYearRange((prev) => {
@@ -161,16 +177,17 @@ export default function FilterBottomSheet({
         </div>
 
         {/* Content */}
-        <div className="px-4 max-h-[75vh] overflow-y-auto">
+        <div className="px-4 max-h-[75vh] overflow-y-auto overscroll-none touch-pan-y">
           {filterType === 'year' ? (
             <div className="space-y-6">
               {/* Two scrollable year pickers side by side */}
               <div className="flex items-center gap-4">
                 {/* Min year picker */}
                 <div className="flex-1 relative">
-                  <div 
+                  <div className="text-center text-sm text-gray-400 mb-2">From</div>
+                  <div
                     ref={minYearRef}
-                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)]"
+                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
                   >
                     {availableYears.length > 0 ? (
                       availableYears.map((year, index) => {
@@ -200,20 +217,18 @@ export default function FilterBottomSheet({
                       </div>
                     )}
                   </div>
-                  {/* Top gradient fade */}
-                  <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-zinc-900 to-transparent pointer-events-none" />
+                  {/* Top gradient fade - positioned below the label */}
+                  <div className="absolute left-0 right-0 h-12 bg-gradient-to-b from-zinc-900 to-transparent pointer-events-none" style={{ top: '1.75rem' }} />
                   {/* Bottom gradient fade */}
                   <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
                 </div>
-                
-                {/* "to" separator */}
-                <div className="text-white font-medium self-center">to</div>
-                
+
                 {/* Max year picker */}
                 <div className="flex-1 relative">
-                  <div 
+                  <div className="text-center text-sm text-gray-400 mb-2">To</div>
+                  <div
                     ref={maxYearRef}
-                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)]"
+                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
                   >
                     {availableYears.length > 0 ? (
                       availableYears.map((year, index) => {
@@ -243,8 +258,8 @@ export default function FilterBottomSheet({
                       </div>
                     )}
                   </div>
-                  {/* Top gradient fade */}
-                  <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-zinc-900 via-zinc-900/80 to-transparent pointer-events-none" />
+                  {/* Top gradient fade - positioned below the label */}
+                  <div className="absolute left-0 right-0 h-14 bg-gradient-to-b from-zinc-900 via-zinc-900/80 to-transparent pointer-events-none" style={{ top: '1.75rem' }} />
                   {/* Bottom gradient fade */}
                   <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-zinc-900 via-zinc-900/80 to-transparent pointer-events-none" />
                 </div>

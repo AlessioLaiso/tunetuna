@@ -36,7 +36,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   // Filter values
   const { genres } = useMusicStore()
   const [years, setYears] = useState<number[]>([])
-  const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
+
 
   // Player functions
   const { playAlbum, addToQueue, playTrack, shuffleAllSongs, isQueueSidebarOpen } = usePlayerStore()
@@ -122,30 +122,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     loadFilterValues()
   }, [])
 
-  // Reset visible search song images when query or search state changes
-  useEffect(() => {
-    setVisibleSearchSongImageCount(45)
-  }, [searchQuery, isSearchOpen, rawSearchResults?.songs.length])
-
-  // Incrementally reveal more search song images as the user scrolls near the bottom
-  useEffect(() => {
-    if (!isSearchOpen || !(rawSearchResults?.songs?.length)) return
-
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleSearchSongImageCount((prev) =>
-          Math.min(prev + 45, rawSearchResults.songs.length)
-        )
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [isSearchOpen, rawSearchResults?.songs.length])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -345,7 +321,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-        visibleSongImageCount={visibleSearchSongImageCount}
+
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}

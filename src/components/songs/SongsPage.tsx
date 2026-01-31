@@ -25,7 +25,6 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 const ITEMS_PER_PAGE = 90
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
-const INITIAL_VISIBLE_SEARCH_SONG_IMAGES = 45
 
 export default function SongsPage() {
   // Use selectors for better performance - only re-render when specific values change
@@ -60,7 +59,7 @@ export default function SongsPage() {
   const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
   const prevSortOrderRef = useRef(sortOrder)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
-  const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(INITIAL_VISIBLE_SEARCH_SONG_IMAGES)
+
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
@@ -379,7 +378,7 @@ export default function SongsPage() {
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-        visibleSongImageCount={visibleSearchSongImageCount}
+
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}

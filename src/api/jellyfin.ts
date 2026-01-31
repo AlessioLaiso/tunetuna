@@ -285,6 +285,9 @@ class JellyfinClient {
     if (options.genreIds) {
       options.genreIds.forEach(id => params.append('GenreIds', id))
     }
+    if (options.genres) {
+      options.genres.forEach(genre => params.append('Genres', genre))
+    }
     if (options.artistIds) {
       options.artistIds.forEach(id => params.append('ArtistIds', id))
     }
@@ -920,22 +923,32 @@ class JellyfinClient {
     logger.log('[syncLibrary] Full sync complete')
   }
 
-  async search(query: string, limit: number = 20): Promise<SearchResult> {
+  async search(query: string, limit: number = 20, filters?: { genres?: string[]; years?: number[] }): Promise<SearchResult> {
     // Normalize quotes in the query for flexible matching
     const normalizedQuery = query ? normalizeQuotes(query.trim()) : ''
     const hasQuery = normalizedQuery.length > 0
-    
+
     // Jellyfin API typically requires 3+ characters for artist search
     // For short queries, we'll fetch all artists and filter client-side
     const queryLength = normalizedQuery.length
     const shouldFetchAllArtists = hasQuery && queryLength < 3
-    
+
+    // Build server-side filter options
+    const serverFilters: GetItemsOptions = {}
+    if (filters?.genres?.length) {
+      serverFilters.genres = filters.genres
+    }
+    if (filters?.years?.length) {
+      serverFilters.years = filters.years
+    }
+
     const searchOptions: GetItemsOptions = {
       limit,
       includeItemTypes: ['MusicAlbum', 'Playlist', 'Audio'],
       recursive: true,
+      ...serverFilters,
     }
-    
+
     // Always add searchTerm if there's a query (for albums, playlists, songs)
     // For artists, we handle short queries separately by fetching all and filtering client-side
     if (hasQuery) {
@@ -946,10 +959,10 @@ class JellyfinClient {
         searchOptions.includeItemTypes = ['MusicArtist', 'MusicAlbum', 'Playlist', 'Audio']
       }
     }
-    
+
     // Use /Items? with buildQueryString to get full item data with all fields needed for filtering
     const queryString = this.buildQueryString(searchOptions)
-    
+
     const allResults = await this.request<ItemsResult>(`/Items?${queryString}`)
     
     // Separate results by type

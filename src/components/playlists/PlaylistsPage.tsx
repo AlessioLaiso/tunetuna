@@ -47,7 +47,6 @@ export default function PlaylistsPage() {
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const [visibleSearchSongImageCount, setVisibleSearchSongImageCount] = useState(45)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   useEffect(() => {
@@ -322,7 +321,7 @@ export default function PlaylistsPage() {
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-        visibleSongImageCount={visibleSearchSongImageCount}
+
         isQueueSidebarOpen={isQueueSidebarOpen}
       />
 
