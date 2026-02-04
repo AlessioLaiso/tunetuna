@@ -110,6 +110,9 @@ export default function AlbumDetailPage() {
   // Add new ref for split animation
   const shouldSplitRef = useRef<boolean>(false)
 
+  // Track if viewport is large enough for bigger album art
+  const [isLargeViewport, setIsLargeViewport] = useState(false)
+
   const [rotationAngle, setRotationAngle] = useState(0)
   const rotationRef = useRef<number>(0)
   const animationFrameRef = useRef<number | null>(null)
@@ -120,6 +123,17 @@ export default function AlbumDetailPage() {
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   const previousPlayingRef = useRef<boolean>(false)
+
+  // Check viewport size for large display
+  useEffect(() => {
+    const checkViewportSize = () => {
+      setIsLargeViewport(window.innerWidth >= 1280 && window.innerHeight >= 1080)
+    }
+
+    checkViewportSize()
+    window.addEventListener('resize', checkViewportSize)
+    return () => window.removeEventListener('resize', checkViewportSize)
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -499,10 +513,18 @@ export default function AlbumDetailPage() {
       </div>
 
       <div style={{ paddingTop: `calc(5rem + 12px - 48px)` }}>
-        <div className={`mb-6 px-4 ${!hasImage ? 'pt-4' : 'pt-4'}`} style={{ overflow: 'visible' }}>
+        <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (
             <div className="flex justify-center mb-6 relative" style={{ overflowX: 'visible', overflowY: 'visible', paddingLeft: '16px', paddingRight: '16px' }}>
-              <div ref={albumArtRef} className="w-64 h-64 relative" style={{ overflow: 'visible' }}>
+              <div
+                ref={albumArtRef}
+                className="relative"
+                style={{
+                  overflow: 'visible',
+                  width: isLargeViewport ? '360px' : '256px',
+                  height: isLargeViewport ? '360px' : '256px',
+                }}
+              >
                 {/* Vinyl Record - always present in center, hidden behind album art */}
                 <div
                   className="absolute inset-0 rounded-full overflow-hidden"

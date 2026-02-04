@@ -613,7 +613,7 @@ export default function ArtistDetailPage() {
               <img
                 src={jellyfinClient.getArtistBackdropUrl(artist.Id)}
                 alt={artist.Name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-[center_20%]"
                 onError={() => setHasImage(false)}
               />
             </div>
