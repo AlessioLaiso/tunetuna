@@ -57,9 +57,9 @@ export default function LyricsModal() {
           </div>
         ) : lyrics ? (
           <div className="max-w-[768px] lg:max-w-[864px] mx-auto pb-8 pl-8 pr-4">
-            <div className="text-white text-center whitespace-pre-line leading-relaxed text-base lg:text-xl">
+            <div className="text-white text-center whitespace-pre-line text-xl lg:text-3xl">
               {lyrics.split('\n').map((line, index) => (
-                <div key={index} className="mb-2">
+                <div key={index} className="mb-6 leading-relaxed">
                   {line}
                 </div>
               ))}
