@@ -173,7 +173,7 @@ export default function RecentlyAdded() {
                   className="snap-start flex-shrink-0 w-full"
                   style={{ width: `${100 / pages.length}%` }}
                 >
-                  <div 
+                  <div
                     className="grid grid-cols-3 gap-3"
                     style={{ gridTemplateRows: `repeat(${rowsNeeded}, minmax(0, 1fr))` }}
                   >
@@ -203,9 +203,8 @@ export default function RecentlyAdded() {
               <button
                 key={pageIndex}
                 onClick={() => scrollToPage(pageIndex)}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  pageIndex === currentPage ? 'bg-white' : 'bg-zinc-600'
-                }`}
+                className={`w-2 h-2 rounded-full transition-colors ${pageIndex === currentPage ? 'bg-white' : 'bg-zinc-600'
+                  }`}
                 aria-label={`Go to page ${pageIndex + 1}`}
               />
             ))}
@@ -213,10 +212,28 @@ export default function RecentlyAdded() {
         )}
       </div>
 
-      {/* Large screens: static 2x4 grid, 8 albums, no pagination */}
-      <div className="hidden md:block">
+      {/* Large screens: 2x4 grid (8 albums) on md to <1680px, 2x5 grid (10 albums) on >=1680px */}
+      <div className="hidden md:block min-[1680px]:hidden">
         <div className="grid grid-cols-4 gap-3">
           {recentlyAdded.slice(0, 8).map((album) => (
+            <RecentlyAddedAlbumItem
+              key={album.Id}
+              album={album}
+              onNavigate={(id) => navigate(`/album/${id}`)}
+              onContextMenu={(album, mode, position) => {
+                setContextMenuItem(album)
+                const newMode = mode || 'desktop'
+                setContextMenuMode(newMode)
+                setContextMenuPosition(position || null)
+                setContextMenuOpen(true)
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="hidden min-[1680px]:block">
+        <div className="grid grid-cols-5 gap-3">
+          {recentlyAdded.slice(0, 10).map((album) => (
             <RecentlyAddedAlbumItem
               key={album.Id}
               album={album}

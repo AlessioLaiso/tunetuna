@@ -27,9 +27,8 @@ const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
 
 export default function SongsPage() {
-  // Use selectors for better performance - only re-render when specific values change
-  const songs = useMusicStore((state) => state.songs)
-  const setSongs = useMusicStore((state) => state.setSongs)
+  // Use local state for paginated display - don't overwrite global songs cache
+  const [pageSongs, setPageSongs] = useState<BaseItemDto[]>([])
   const sortPreferences = useMusicStore((state) => state.sortPreferences)
   const setSortPreference = useMusicStore((state) => state.setSortPreference)
   const setLoading = useMusicStore((state) => state.setLoading)
@@ -193,7 +192,7 @@ export default function SongsPage() {
   // Reset visible songs window when page or songs list changes
   useEffect(() => {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
-  }, [currentPage, songs.length])
+  }, [currentPage, pageSongs.length])
 
   // Incrementally reveal more songs as the user scrolls near the bottom
   useEffect(() => {
@@ -209,14 +208,14 @@ export default function SongsPage() {
       // When the user is within ~1.5 viewports of the bottom, load more rows
       if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
         setVisibleSongsCount((prev) =>
-          Math.min(prev + VISIBLE_SONGS_INCREMENT, songs.length)
+          Math.min(prev + VISIBLE_SONGS_INCREMENT, pageSongs.length)
         )
       }
     }
 
     container.addEventListener('scroll', handleScroll, { passive: true })
     return () => container.removeEventListener('scroll', handleScroll)
-  }, [songs.length, visibleSongsCount])
+  }, [pageSongs.length, visibleSongsCount])
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -253,11 +252,11 @@ export default function SongsPage() {
       }
 
       const result = await jellyfinClient.getSongs(options)
-      setSongs(result.Items)
+      setPageSongs(result.Items)
       setTotalCount(result.TotalRecordCount || 0)
     } catch (error) {
       logger.error('Failed to load songs:', error)
-      setSongs([])
+      setPageSongs([])
       setTotalCount(0)
     } finally {
       setLoading('songs', false)
@@ -330,14 +329,14 @@ export default function SongsPage() {
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
-            {songs.length === 0 && !loading.songs ? (
+            {pageSongs.length === 0 && !loading.songs ? (
                 <div className="flex items-center justify-center py-16 text-gray-400">
                   <p>No songs found</p>
                 </div>
               ) : (
                 <>
                   <div className="space-y-0">
-                    {songs.map((song, index) => (
+                    {pageSongs.map((song, index) => (
                       <SongItem
                         key={song.Id}
                         song={song}

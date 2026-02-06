@@ -480,7 +480,7 @@ export default function AlbumDetailPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto relative">
-          <div className="flex items-center justify-between gap-4 p-4 relative z-10">
+          <div className="flex items-center justify-between gap-4 py-4 pl-3 pr-4 relative z-10">
             <button
               onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors"

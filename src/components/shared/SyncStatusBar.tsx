@@ -22,10 +22,11 @@ export default function SyncStatusBar() {
       style={{
         height: '28px',
         top: '0px',
-        paddingRight: isQueueSidebarOpen ? 'var(--sidebar-width)' : '0px'
+        paddingRight: isQueueSidebarOpen ? 'var(--sidebar-width)' : '12px',
+        scrollbarGutter: 'stable'
       }}
     >
-      <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center h-full">
+      <div className="w-full mx-auto lg:flex lg:justify-center h-full max-w-[768px]">
         <div className="w-full max-w-[768px] h-full flex items-center justify-between px-4">
         <span className="text-white text-sm font-medium truncate">
           {message}{progress !== null && <span className="tabular-nums"> ({progress}%)</span>}

@@ -99,7 +99,8 @@ function GenreAlbumItem({ album, onNavigate, onContextMenu, showImage = true }: 
 }
 
 export default function GenreSongsPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id: rawId } = useParams<{ id: string }>()
+  const id = rawId ? decodeURIComponent(rawId) : undefined
   const navigate = useNavigate()
   const { playAlbum, toggleShuffle, isPlaying, pause, shuffleGenreSongs, addToQueue } = usePlayerStore()
   const currentTrack = useCurrentTrack()
@@ -497,7 +498,7 @@ export default function GenreSongsPage() {
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
-            <div className="flex items-center gap-4 p-4">
+            <div className="flex items-center gap-4 py-4 pl-3 pr-4">
               <button
                 onClick={() => navigate(-1)}
                 className="text-white hover:text-zinc-300 transition-colors"
@@ -527,7 +528,7 @@ export default function GenreSongsPage() {
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
-            <div className="flex items-center gap-4 p-4">
+            <div className="flex items-center gap-4 py-4 pl-3 pr-4">
               <button
                 onClick={() => navigate(-1)}
                 className="text-white hover:text-zinc-300 transition-colors"
@@ -554,7 +555,7 @@ export default function GenreSongsPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center gap-4 p-4">
+          <div className="flex items-center gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors"

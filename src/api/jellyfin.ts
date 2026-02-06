@@ -302,7 +302,7 @@ class JellyfinClient {
     }
 
     params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear,DateCreated,DateModified,DateLastSaved')
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId')
     
     // Add cache-busting timestamp to force fresh data from server
     if (cacheBust) {

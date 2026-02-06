@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Settings, Shuffle } from 'lucide-react'
-import SearchInput from '../shared/SearchInput'
+import { Settings, Shuffle, Search } from 'lucide-react'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -235,70 +234,58 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   return (
     <>
-      <div className="px-4 pt-4 pb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-lg font-semibold text-white">
+      <div className="pl-2 pr-4 pt-4 pb-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">
             Tunetuna
-          </div>
-          <div className="flex items-center gap-2">
+          </h1>
+          <div className="flex items-center gap-1">
             <button
               onClick={async () => {
-
                 // Prevent concurrent shuffle operations
                 const state = usePlayerStore.getState()
-                const { isShuffleAllActive, isShuffleGenreActive, shuffle } = state
-
+                const { isShuffleAllActive, isShuffleGenreActive } = state
 
                 if (isShuffling || isShuffleAllActive || isShuffleGenreActive) {
-
-
                   return // Already shuffling, ignore click
                 }
 
                 setIsShuffling(true)
 
-
                 try {
                   await shuffleAllSongs()
-
                 } catch (error) {
                   logger.error('Home shuffle button - shuffleAllSongs failed:', error)
-
-
                   logger.error('Shuffle all failed:', error)
                 } finally {
                   setIsShuffling(false)
-
-
                 }
               }}
               disabled={isShuffling}
-              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
               aria-label="Shuffle all songs"
             >
               {isShuffling ? (
-                <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
+                <div className="w-5 h-5 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <Shuffle className="w-5 h-5" />
               )}
             </button>
             <button
+              onClick={() => setIsSearchOpen(true)}
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              aria-label="Search"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => navigate('/settings')}
-              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
               aria-label="Settings"
             >
               <Settings className="w-5 h-5" />
             </button>
           </div>
-        </div>
-        <div className="relative" onClick={() => setIsSearchOpen(true)}>
-          <SearchInput
-            value={searchQuery}
-            onChange={handleSearch}
-            placeholder="Search for artists, albums, songs..."
-            showClearButton={searchQuery.trim().length > 0}
-            onClear={handleClearSearch}
-          />
         </div>
       </div>
 
@@ -321,7 +308,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}
@@ -352,4 +338,3 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     </>
   )
 }
-

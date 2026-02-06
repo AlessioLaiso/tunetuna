@@ -125,13 +125,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         if (genreName) {
           const genreId = getGenreId(genreName)
           if (genreId) {
-            navigate(`/genre/${genreId}`)
+            navigate(`/genre/${encodeURIComponent(genreId)}`)
           } else {
             // If genre not found in cache, fetch genres and try again
             const allGenres = await jellyfinClient.getGenres()
             const genre = allGenres.find(g => g.Name?.toLowerCase() === genreName.toLowerCase())
             if (genre?.Id) {
-              navigate(`/genre/${genre.Id}`)
+              navigate(`/genre/${encodeURIComponent(genre.Id)}`)
             }
           }
         }

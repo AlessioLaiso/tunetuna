@@ -51,7 +51,6 @@ function reorderForArtistDiversity(recommendations: BaseItemDto[]): BaseItemDto[
 
 export function useRecommendations() {
   const {
-    songs,
     currentIndex,
     addToQueue,
     refreshCurrentTrack,
@@ -60,9 +59,12 @@ export function useRecommendations() {
     repeat,
   } = usePlayerStore()
 
+  // Use length for dependency to avoid re-running on every queue modification
+  const songsLength = usePlayerStore(state => state.songs.length)
+
   const { showQueueRecommendations } = useSettingsStore()
 
-  const recentQueueRef = useRef<typeof songs>([])
+  const recentQueueRef = useRef<ReturnType<typeof usePlayerStore.getState>['songs']>([])
   const isRecommendingRef = useRef(false)
   const lastFailedAttemptRef = useRef<number>(0) // Track when we last failed to get recommendations
   const lastSuccessAttemptRef = useRef<number>(0) // Track when we last succeeded to prevent rapid re-triggering
@@ -71,8 +73,9 @@ export function useRecommendations() {
 
   useEffect(() => {
     // Update recent queue (last 20 tracks)
+    const songs = usePlayerStore.getState().songs
     recentQueueRef.current = songs.slice(-20)
-  }, [songs])
+  }, [songsLength])
 
   useEffect(() => {
     // Reset timestamps when current track changes for immediate fetch
@@ -89,6 +92,9 @@ export function useRecommendations() {
   }, [showQueueRecommendations])
 
   useEffect(() => {
+    // Get fresh songs from state to avoid stale closure issues
+    const songs = usePlayerStore.getState().songs
+
     // Count upcoming recommendations (after current position)
     const upcomingRecommendations = songs
       .slice(currentIndex + 1)
@@ -290,7 +296,7 @@ export function useRecommendations() {
 
     runRecommendations()
   }, [
-    songs,
+    songsLength,
     currentIndex,
     addToQueue,
     refreshCurrentTrack,
@@ -306,6 +312,8 @@ export function useRecommendations() {
       if (showQueueRecommendations) {
         useSettingsStore.getState().setShowQueueRecommendations(false)
       }
+
+      const songs = usePlayerStore.getState().songs
 
       // Check if there are any FUTURE recommendations to clear
       // We keep current and previous tracks to avoid disrupting playback history
@@ -329,6 +337,6 @@ export function useRecommendations() {
         })
       }
     }
-  }, [repeat, currentIndex, songs, showQueueRecommendations])
+  }, [repeat, currentIndex, songsLength, showQueueRecommendations])
 }
 

@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
@@ -42,6 +43,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const location = useLocation()
   useRecommendations()
   const { accentColor } = useSettingsStore()
   const { genres, songs, genreSongs } = useMusicStore()
@@ -117,6 +119,13 @@ export default function Layout({ children }: LayoutProps) {
     // Preload minimal songs if nothing cached (first-time users)
     else if (totalSongs === 0) {
       setTimeout(async () => {
+        // Re-check after timeout - hydration may have completed
+        const currentState = useMusicStore.getState()
+        const currentTotal = currentState.songs.length + Object.values(currentState.genreSongs).flat().length
+        if (currentTotal > 0) {
+          return // Songs hydrated, no need to preload
+        }
+
         try {
           // Get total song count first
           const countResult = await jellyfinClient.getSongs({ limit: 1 })
@@ -207,8 +216,8 @@ export default function Layout({ children }: LayoutProps) {
           scrollbarGutter: 'stable'
         }}
       >
-        <div className="max-w-[768px] w-full mx-auto lg:flex lg:justify-center">
-          <div className="w-full max-w-[768px]">
+        <div className={`w-full mx-auto lg:flex lg:justify-center ${location.pathname === '/' ? 'max-w-[768px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
+          <div className={`w-full ${location.pathname === '/' ? 'max-w-[768px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
             {children}
           </div>
         </div>

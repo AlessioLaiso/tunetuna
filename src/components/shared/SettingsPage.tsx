@@ -35,7 +35,8 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl } = useSettingsStore()
+  const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
@@ -49,6 +50,8 @@ export default function SettingsPage() {
   const [isClearing, setIsClearing] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [statsExist, setStatsExist] = useState(false)
+  const [isTop10Spinning, setIsTop10Spinning] = useState(false)
+  const [isNewReleasesSpinning, setIsNewReleasesSpinning] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Check if stats exist on mount and when pendingEvents changes
@@ -203,7 +206,7 @@ export default function SettingsPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center gap-4 p-4">
+          <div className="flex items-center gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate('/')}
               className="text-white hover:text-zinc-300 transition-colors"
@@ -221,7 +224,7 @@ export default function SettingsPage() {
         style={{
           top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5.5rem - 28px)`,
           height: '24px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
         }}
       />
 
@@ -251,6 +254,148 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Home Section */}
+        <section>
+          <h2 className="text-lg font-semibold text-white mb-4">Home</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg">
+              <label className="text-white font-medium">Recently Played</label>
+              <button
+                onClick={() => setShowRecentlyPlayed(!showRecentlyPlayed)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${showRecentlyPlayed ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showRecentlyPlayed ? 'translate-x-6' : 'translate-x-0'}`}
+                />
+              </button>
+            </div>
+
+            <div className="p-3 bg-zinc-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-white font-medium">Top 10</label>
+                  {showTop10 && (
+                    <button
+                      onClick={() => {
+                        setFeedTopSongs([])
+                        setFeedLastUpdated(0)
+                        setIsTop10Spinning(true)
+                        setTimeout(() => setIsTop10Spinning(false), 500)
+                      }}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isTop10Spinning ? 'spin-once' : ''}`} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowTop10(!showTop10)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showTop10 ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showTop10 ? 'translate-x-6' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+              {showTop10 && (
+                <div className="mt-3">
+                  <select
+                    value={feedCountry}
+                    onChange={(e) => {
+                      setFeedCountry(e.target.value)
+                      setFeedTopSongs([])
+                      setFeedLastUpdated(0)
+                    }}
+                    className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 pr-8 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                  >
+                    <option value="au">Australia</option>
+                    <option value="br">Brazil</option>
+                    <option value="ca">Canada</option>
+                    <option value="dk">Denmark</option>
+                    <option value="fi">Finland</option>
+                    <option value="fr">France</option>
+                    <option value="de">Germany</option>
+                    <option value="in">India</option>
+                    <option value="ie">Ireland</option>
+                    <option value="it">Italy</option>
+                    <option value="jp">Japan</option>
+                    <option value="mx">Mexico</option>
+                    <option value="nl">Netherlands</option>
+                    <option value="nz">New Zealand</option>
+                    <option value="no">Norway</option>
+                    <option value="kr">South Korea</option>
+                    <option value="es">Spain</option>
+                    <option value="se">Sweden</option>
+                    <option value="gb">United Kingdom</option>
+                    <option value="us">United States</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Country for Apple Music Top 10 chart
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-zinc-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-white font-medium">New Releases</label>
+                  {showNewReleases && (
+                    <button
+                      onClick={() => {
+                        setFeedNewReleases([])
+                        setFeedLastUpdated(0)
+                        setIsNewReleasesSpinning(true)
+                        setTimeout(() => setIsNewReleasesSpinning(false), 500)
+                      }}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isNewReleasesSpinning ? 'spin-once' : ''}`} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowNewReleases(!showNewReleases)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showNewReleases ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showNewReleases ? 'translate-x-6' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+              {showNewReleases && (
+                <div className="mt-3">
+                  <input
+                    type="url"
+                    value={muspyRssUrl}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === '' || value.startsWith('https://muspy.com/feed')) {
+                        setMuspyRssUrl(value)
+                      }
+                    }}
+                    placeholder="https://muspy.com/feed?id=..."
+                    className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Get your RSS feed URL from{' '}
+                    <a
+                      href="https://muspy.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[var(--accent-color)] hover:underline"
+                    >
+                      muspy.com
+                    </a>
+                    {' '}and paste it here
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Accent Color Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Accent Color</h2>
@@ -260,8 +405,8 @@ export default function SettingsPage() {
                 key={color.name}
                 onClick={() => setAccentColor(color.name)}
                 className={`aspect-square rounded-lg transition-all ${accentColor === color.name
-                    ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
-                    : 'hover:scale-105'
+                  ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
+                  : 'hover:scale-105'
                   }`}
                 style={{ backgroundColor: color.hex }}
                 aria-label={`Select ${color.name} color`}
@@ -397,8 +542,8 @@ export default function SettingsPage() {
               onClick={handleCopyServerUrl}
               disabled={!serverUrl}
               className={`text-left text-xs break-all transition-colors flex items-center gap-1 ${serverUrl
-                  ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
-                  : 'text-gray-600 cursor-not-allowed'
+                ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
+                : 'text-gray-600 cursor-not-allowed'
                 }`}
             >
               {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}

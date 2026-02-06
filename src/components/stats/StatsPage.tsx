@@ -319,7 +319,7 @@ function TopSongItem({
           )}
         </div>
         <div className="text-zinc-400 text-sm whitespace-nowrap">
-          {plays} plays
+          {plays} streams
         </div>
       </button>
       <ContextMenu
@@ -1003,7 +1003,7 @@ export default function StatsPage() {
                     label={genre.genre}
                     value={genre.hours}
                     maxValue={maxGenreHours}
-                    onClick={genreItem ? () => navigate(`/genre/${genreItem.Id}`) : undefined}
+                    onClick={genreItem ? () => navigate(`/genre/${encodeURIComponent(genreItem.Id)}`) : undefined}
                   />
                 )
               })}

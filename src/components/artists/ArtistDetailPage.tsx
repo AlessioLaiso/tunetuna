@@ -557,7 +557,7 @@ export default function ArtistDetailPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
-          <div className="relative flex items-center justify-between gap-4 p-4">
+          <div className="relative flex items-center justify-between gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors z-10"

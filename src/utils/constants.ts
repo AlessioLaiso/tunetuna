@@ -10,6 +10,7 @@ export const SCROLL_THROTTLE_MS = 100
 
 // Cache and cooldown durations
 export const CACHE_COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
+export const FEED_COOLDOWN_MS = 6 * 60 * 60 * 1000 // 6 hours
 
 // UI durations
 export const TOAST_DURATION_MS = 2000

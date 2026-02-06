@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, type StorageValue } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder } from '../api/types'
+import type { AppleMusicSong, NewRelease } from '../api/feed'
 
 // ============================================================================
 // IndexedDB Storage Adapter
@@ -179,7 +180,14 @@ interface MusicState {
     genres: boolean
     recentlyAdded: boolean
     recentlyPlayed: boolean
+    feed: boolean
   }
+  /** Top songs from Apple Music RSS */
+  feedTopSongs: AppleMusicSong[]
+  /** New releases from Muspy RSS */
+  feedNewReleases: NewRelease[]
+  /** Timestamp when feed was last updated */
+  feedLastUpdated: number | null
   /** User's sort preferences per content type */
   sortPreferences: {
     artists: SortOrder
@@ -204,6 +212,9 @@ interface MusicState {
   setSongs: (songs: LightweightSong[]) => void
   setLastSyncCompleted: (timestamp: number) => void
   refreshShufflePool: () => void
+  setFeedTopSongs: (songs: AppleMusicSong[]) => void
+  setFeedNewReleases: (releases: NewRelease[]) => void
+  setFeedLastUpdated: (timestamp: number) => void
 }
 
 // ============================================================================
@@ -236,7 +247,11 @@ export const useMusicStore = create<MusicState>()(
         genres: false,
         recentlyAdded: false,
         recentlyPlayed: false,
+        feed: false,
       },
+      feedTopSongs: [],
+      feedNewReleases: [],
+      feedLastUpdated: null,
       sortPreferences: {
         artists: 'RecentlyAdded',
         albums: 'RecentlyAdded',
@@ -342,6 +357,10 @@ export const useMusicStore = create<MusicState>()(
           lastPoolUpdate: Date.now()
         }
       }),
+
+      setFeedTopSongs: (songs) => set({ feedTopSongs: songs }),
+      setFeedNewReleases: (releases) => set({ feedNewReleases: releases }),
+      setFeedLastUpdated: (timestamp) => set({ feedLastUpdated: timestamp }),
     }),
     {
       name: 'music-storage',
@@ -364,6 +383,9 @@ export const useMusicStore = create<MusicState>()(
         yearsLastChecked: state.yearsLastChecked,
         lastSyncCompleted: state.lastSyncCompleted,
         recentlyPlayed: state.recentlyPlayed,
+        feedTopSongs: state.feedTopSongs,
+        feedNewReleases: state.feedNewReleases,
+        feedLastUpdated: state.feedLastUpdated,
       }),
     }
   )

@@ -84,7 +84,7 @@ export default function GenreItem({ genre, isCard = false }: GenreItemProps) {
   if (isCard) {
     return (
       <button
-        onClick={() => navigate(`/genre/${genre.Id}`)}
+        onClick={() => navigate(`/genre/${encodeURIComponent(genre.Id)}`)}
         className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50 hover:bg-zinc-800 transition-colors relative overflow-hidden group text-left"
       >
         <div className="flex items-start justify-between">
@@ -99,7 +99,7 @@ export default function GenreItem({ genre, isCard = false }: GenreItemProps) {
 
   return (
     <button
-      onClick={() => navigate(`/genre/${genre.Id}`)}
+      onClick={() => navigate(`/genre/${encodeURIComponent(genre.Id)}`)}
       className="w-full flex items-center gap-3 h-12 pl-4 pr-4 hover:bg-zinc-900 transition-colors group"
     >
       <Icon className="w-5 h-5 text-gray-400 group-hover:text-[var(--accent-color)] transition-colors" />

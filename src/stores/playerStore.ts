@@ -9,10 +9,21 @@ import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 
 // Track which items have been reported to prevent duplicate API calls
+// Limit size to prevent unbounded memory growth during long sessions
+const MAX_REPORTED_ITEMS = 100
 const reportedItems = new Set<string>()
 const reportingTimeouts = new Map<string, NodeJS.Timeout>()
 const refreshTimeouts = new Set<NodeJS.Timeout>() // Track nested refresh timeouts
 let shuffleExpansionTimeout: NodeJS.Timeout | null = null // Track shuffle expansion timeout
+
+// Trim reportedItems if it grows too large
+function trimReportedItems() {
+  if (reportedItems.size > MAX_REPORTED_ITEMS) {
+    const items = Array.from(reportedItems)
+    const toRemove = items.slice(0, items.length - MAX_REPORTED_ITEMS)
+    toRemove.forEach(id => reportedItems.delete(id))
+  }
+}
 
 // Clear playback tracking state (call on logout to prevent memory leaks)
 export function clearPlaybackTrackingState() {
@@ -41,6 +52,7 @@ function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseIte
       try {
         await jellyfinClient.markItemAsPlayed(trackId)
         reportedItems.add(trackId)
+        trimReportedItems()
         // Trigger event to refresh RecentlyPlayed after server updates
         const refreshTimeout = setTimeout(() => {
           window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
@@ -60,6 +72,7 @@ function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseIte
 // Helper function to mark item as reported and clear any pending timeout
 export function markItemAsReported(trackId: string) {
   reportedItems.add(trackId)
+  trimReportedItems()
   const timeout = reportingTimeouts.get(trackId)
   if (timeout) {
     clearTimeout(timeout)

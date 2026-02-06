@@ -141,6 +141,10 @@ button {
   animation: rotate 10s linear infinite;
 }
 
+.spin-once {
+  animation: rotate 0.5s ease-in-out;
+}
+
 .album-art-slide-out {
   animation: slideOutLeft 0.5s ease-in-out forwards;
 }

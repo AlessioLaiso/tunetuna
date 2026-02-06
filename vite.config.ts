@@ -24,6 +24,45 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // Proxy Apple Music RSS to avoid CORS issues
+      '/api/apple-music': {
+        target: 'https://rss.marketingtools.apple.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/apple-music/, ''),
+      },
+      // Proxy MusicBrainz API to avoid CORS issues
+      '/api/musicbrainz': {
+        target: 'https://musicbrainz.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/musicbrainz/, ''),
+      },
+      // Proxy Cover Art Archive
+      '/api/coverart': {
+        target: 'https://coverartarchive.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/coverart/, ''),
+      },
+      // Proxy Odesli API
+      '/api/odesli': {
+        target: 'https://api.song.link',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/odesli/, ''),
+      },
+      // Proxy Muspy RSS feed
+      '/api/muspy-rss': {
+        target: 'https://muspy.com',
+        changeOrigin: true,
+        rewrite: (path) => {
+          // Extract the actual Muspy URL from the query parameter
+          const url = new URL(path, 'http://localhost')
+          const muspyUrl = url.searchParams.get('url')
+          if (muspyUrl) {
+            const parsed = new URL(muspyUrl)
+            return parsed.pathname + parsed.search
+          }
+          return '/feed'
+        },
+      },
     },
   },
   plugins: [

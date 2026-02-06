@@ -209,7 +209,7 @@ export default function PlaylistDetailPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center justify-between gap-4 px-4" style={{ paddingTop: 'calc(1rem + 8px)', paddingBottom: '1rem' }}>
+          <div className="flex items-center justify-between gap-4 pl-3 pr-4" style={{ paddingTop: 'calc(1rem + 8px)', paddingBottom: '1rem' }}>
             <button
               onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors"
