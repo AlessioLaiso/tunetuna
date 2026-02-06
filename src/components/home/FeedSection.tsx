@@ -304,7 +304,7 @@ export function Top10Section() {
           })}
         </div>
       ) : (
-        <div className="px-4 py-8 text-center text-gray-500 text-sm">
+        <div className="px-4 py-8 text-left text-gray-500 text-sm">
           Could not load charts
         </div>
       )}
