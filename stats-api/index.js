@@ -367,6 +367,24 @@ fastify.get('/api/stats/health', async () => {
   return { status: 'ok' }
 })
 
+// Proxy for Apple Music RSS (no auth required, public data)
+fastify.get('/api/proxy/apple-music/:country/:limit', async (request, reply) => {
+  const { country, limit } = request.params
+  const url = `https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return reply.status(response.status).send({ error: 'Apple Music RSS failed' })
+    }
+    const data = await response.json()
+    return data
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to fetch Apple Music RSS' })
+  }
+})
+
 // Start server
 try {
   await fastify.listen({ port: PORT, host: '0.0.0.0' })

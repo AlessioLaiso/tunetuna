@@ -126,12 +126,10 @@ export async function fetchAppleMusicTopSongs(
   country: string = 'gb',
   limit: number = 10
 ): Promise<AppleMusicSong[]> {
-  const directUrl = `${APPLE_MUSIC_BASE_URL}/api/v2/${country}/music/most-played/${limit}/songs.json`
-
-  // In production, use CORS proxy since Apple Music RSS doesn't support CORS
+  // In dev, use Vite proxy; in production, use stats-api proxy
   const url = isDev
-    ? directUrl
-    : `https://corsproxy.io/?url=${encodeURIComponent(`https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`)}`
+    ? `${APPLE_MUSIC_BASE_URL}/api/v2/${country}/music/most-played/${limit}/songs.json`
+    : `/api/proxy/apple-music/${country}/${limit}`
 
   const response = await fetch(url)
   if (!response.ok) {
