@@ -131,7 +131,7 @@ export async function fetchAppleMusicTopSongs(
   // In production, use CORS proxy since Apple Music RSS doesn't support CORS
   const url = isDev
     ? directUrl
-    : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`)}`
+    : `https://corsproxy.io/?url=${encodeURIComponent(`https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`)}`
 
   const response = await fetch(url)
   if (!response.ok) {
