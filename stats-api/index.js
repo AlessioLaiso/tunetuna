@@ -368,7 +368,7 @@ fastify.get('/api/stats/health', async () => {
 })
 
 // Proxy for Apple Music RSS (no auth required, public data)
-fastify.get('/api/proxy/apple-music/:country/:limit', async (request, reply) => {
+fastify.get('/api/stats/proxy/apple-music/:country/:limit', async (request, reply) => {
   const { country, limit } = request.params
   const url = `https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`
 

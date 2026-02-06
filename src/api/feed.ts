@@ -129,7 +129,7 @@ export async function fetchAppleMusicTopSongs(
   // In dev, use Vite proxy; in production, use stats-api proxy
   const url = isDev
     ? `${APPLE_MUSIC_BASE_URL}/api/v2/${country}/music/most-played/${limit}/songs.json`
-    : `/api/proxy/apple-music/${country}/${limit}`
+    : `/api/stats/proxy/apple-music/${country}/${limit}`
 
   const response = await fetch(url)
   if (!response.ok) {
