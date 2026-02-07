@@ -101,7 +101,7 @@ export function HomeListItem({
       onClick={(e) => onClick(e)}
       onContextMenu={onContextMenu}
       {...longPressHandlers}
-      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''}`}
+      className={`w-full flex items-center gap-2 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''}`}
     >
 
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
@@ -119,7 +119,7 @@ export function HomeListItem({
         )}
       </div>
       <div className="flex-1 min-w-0 text-left flex gap-3 items-baseline">
-        {rank !== undefined && <span className="text-zinc-500 text-sm flex-shrink-0">{rank}</span>}
+        {rank !== undefined && <span className="text-zinc-500 text-sm flex-shrink-0 w-5 text-right">{rank}</span>}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate text-white group-hover:text-[var(--accent-color)] transition-colors">
             {title}
