@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Disc, Ellipsis } from 'lucide-react'
+import { Disc, Ellipsis, Music } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -36,6 +36,7 @@ interface HomeListItemProps {
   isCurrentTrack?: boolean
   isInLibrary?: boolean
   isMenuOpen?: boolean
+  subtitleIcon?: React.ReactNode
   onClick: (e: React.MouseEvent) => void
   onContextMenu?: (e: React.MouseEvent) => void
   onLongPress?: (e: React.TouchEvent | React.MouseEvent) => void
@@ -52,6 +53,7 @@ export function HomeListItem({
   isCurrentTrack,
   isInLibrary,
   isMenuOpen,
+  subtitleIcon,
   onClick,
   onContextMenu,
   onLongPress,
@@ -122,8 +124,9 @@ export function HomeListItem({
           <div className="text-sm font-medium truncate text-white group-hover:text-[var(--accent-color)] transition-colors">
             {title}
           </div>
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-gray-400 truncate flex items-center gap-1.5">
             {subtitle}
+            {subtitleIcon && <span className="flex-shrink-0">{subtitleIcon}</span>}
           </div>
         </div>
       </div>
@@ -281,23 +284,29 @@ export function Top10Section() {
                 isInLibrary={isInLibrary}
                 isMenuOpen={contextMenuItemId === song.id || (selectedSongId === song.id && platformPickerOpen)}
                 onClick={(e) => handleTopSongClick(song, matchedSong, e)}
-                onContextMenu={(e) => {
+                onContextMenu={async (e) => {
                   e.preventDefault()
                   if (matchedSong) {
-                    setContextMenuItem({ Id: matchedSong.Id, Name: song.name, Type: 'Audio' } as BaseItemDto)
-                    setContextMenuItemId(song.id)
-                    setContextMenuMode('desktop')
-                    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-                    setContextMenuOpen(true)
+                    const fullSong = await jellyfinClient.getSongById(matchedSong.Id)
+                    if (fullSong) {
+                      setContextMenuItem(fullSong)
+                      setContextMenuItemId(song.id)
+                      setContextMenuMode('desktop')
+                      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                      setContextMenuOpen(true)
+                    }
                   }
                 }}
-                onLongPress={() => {
+                onLongPress={async () => {
                   if (matchedSong) {
-                    setContextMenuItem({ Id: matchedSong.Id, Name: song.name, Type: 'Audio' } as BaseItemDto)
-                    setContextMenuItemId(song.id)
-                    setContextMenuMode('mobile')
-                    setContextMenuPosition(null)
-                    setContextMenuOpen(true)
+                    const fullSong = await jellyfinClient.getSongById(matchedSong.Id)
+                    if (fullSong) {
+                      setContextMenuItem(fullSong)
+                      setContextMenuItemId(song.id)
+                      setContextMenuMode('mobile')
+                      setContextMenuPosition(null)
+                      setContextMenuOpen(true)
+                    }
                   }
                 }}
                 onExternalClick={(e) => handleExternalClick(song, e)}
@@ -538,49 +547,66 @@ export function NewReleasesSection() {
               : ''
 
             const subtitle = formattedDate
-              ? `${formattedDate} • ${release.artistName}`
+              ? `${release.artistName} • ${formattedDate}`
               : release.artistName
+
+            const subtitleIcon = isSingle
+              ? <Music className="w-3 h-3" />
+              : <Disc className="w-3 h-3" />
 
             return (
               <HomeListItem
                 key={release.id}
                 title={release.title}
                 subtitle={subtitle}
+                subtitleIcon={subtitleIcon}
                 artworkUrl={primaryUrl}
                 fallbackArtworkUrl={firstFallback}
                 secondFallbackUrl={secondFallback}
                 isInLibrary={isInLibrary}
                 isMenuOpen={contextMenuItemId === release.id || (selectedReleaseId === release.id && platformPickerOpen)}
                 onClick={(e) => handleReleaseClick(release, match, e)}
-                onContextMenu={(e) => {
+                onContextMenu={async (e) => {
                   e.preventDefault()
                   if (match?.type === 'song' && matchedSong) {
-                    setContextMenuItem({ Id: matchedSong.Id, Name: release.title, Type: 'Audio' } as BaseItemDto)
-                    setContextMenuItemId(release.id)
-                    setContextMenuMode('desktop')
-                    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-                    setContextMenuOpen(true)
+                    const fullSong = await jellyfinClient.getSongById(matchedSong.Id)
+                    if (fullSong) {
+                      setContextMenuItem(fullSong)
+                      setContextMenuItemId(release.id)
+                      setContextMenuMode('desktop')
+                      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                      setContextMenuOpen(true)
+                    }
                   } else if (match?.type === 'album' && matchedAlbum) {
-                    setContextMenuItem({ Id: matchedAlbum.albumId, Name: release.title, Type: 'MusicAlbum' } as BaseItemDto)
-                    setContextMenuItemId(release.id)
-                    setContextMenuMode('desktop')
-                    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-                    setContextMenuOpen(true)
+                    const fullAlbum = await jellyfinClient.getAlbumById(matchedAlbum.albumId)
+                    if (fullAlbum) {
+                      setContextMenuItem(fullAlbum)
+                      setContextMenuItemId(release.id)
+                      setContextMenuMode('desktop')
+                      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                      setContextMenuOpen(true)
+                    }
                   }
                 }}
-                onLongPress={() => {
+                onLongPress={async () => {
                   if (match?.type === 'song' && matchedSong) {
-                    setContextMenuItem({ Id: matchedSong.Id, Name: release.title, Type: 'Audio' } as BaseItemDto)
-                    setContextMenuItemId(release.id)
-                    setContextMenuMode('mobile')
-                    setContextMenuPosition(null)
-                    setContextMenuOpen(true)
+                    const fullSong = await jellyfinClient.getSongById(matchedSong.Id)
+                    if (fullSong) {
+                      setContextMenuItem(fullSong)
+                      setContextMenuItemId(release.id)
+                      setContextMenuMode('mobile')
+                      setContextMenuPosition(null)
+                      setContextMenuOpen(true)
+                    }
                   } else if (match?.type === 'album' && matchedAlbum) {
-                    setContextMenuItem({ Id: matchedAlbum.albumId, Name: release.title, Type: 'MusicAlbum' } as BaseItemDto)
-                    setContextMenuItemId(release.id)
-                    setContextMenuMode('mobile')
-                    setContextMenuPosition(null)
-                    setContextMenuOpen(true)
+                    const fullAlbum = await jellyfinClient.getAlbumById(matchedAlbum.albumId)
+                    if (fullAlbum) {
+                      setContextMenuItem(fullAlbum)
+                      setContextMenuItemId(release.id)
+                      setContextMenuMode('mobile')
+                      setContextMenuPosition(null)
+                      setContextMenuOpen(true)
+                    }
                   }
                 }}
                 onExternalClick={(e) => handleExternalClick(release, e)}
