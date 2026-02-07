@@ -236,15 +236,17 @@ export function Top10Section() {
 
     try {
       const odesliData = await fetchOdesliLinks(song.url)
-      if (odesliData) {
+      if (odesliData && Object.keys(odesliData.linksByPlatform).length > 0) {
         setSelectedOdesliData(odesliData)
       } else {
-        setPlatformPickerOpen(false)
-        window.open(song.url, '_blank', 'noopener,noreferrer')
+        // Fallback to search links if Odesli returns no results
+        const searchLinks = createSearchLinksResponse(song.artistName, song.name)
+        setSelectedOdesliData(searchLinks)
       }
     } catch {
-      setPlatformPickerOpen(false)
-      window.open(song.url, '_blank', 'noopener,noreferrer')
+      // Fallback to search links on error
+      const searchLinks = createSearchLinksResponse(song.artistName, song.name)
+      setSelectedOdesliData(searchLinks)
     } finally {
       setLoadingOdesli(false)
     }
