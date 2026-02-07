@@ -69,8 +69,8 @@ export default function HomePage() {
           */}
           {activeFeedSections > 0 && (
             <div className={`
-              mt-4
-              ${activeFeedSections >= 2 ? 'md:grid md:gap-4' : ''}
+              mt-4 px-4
+              ${activeFeedSections >= 2 ? 'md:grid md:gap-3' : ''}
               ${activeFeedSections === 2 ? 'md:grid-cols-2' : ''}
               ${activeFeedSections >= 3 ? 'md:grid-cols-2 min-[1680px]:grid-cols-3' : ''}
             `}>

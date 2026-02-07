@@ -99,7 +99,7 @@ export function HomeListItem({
       onClick={(e) => onClick(e)}
       onContextMenu={onContextMenu}
       {...longPressHandlers}
-      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-2.5 ${isMenuOpen ? 'bg-white/10' : ''}`}
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''}`}
     >
 
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
@@ -146,7 +146,7 @@ function FeedSkeleton() {
   return (
     <div className="animate-pulse">
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+        <div key={i} className="flex items-center gap-3 py-2.5">
           <div className="w-12 h-12 rounded-sm bg-zinc-800" />
           <div className="flex-1">
             <div className="h-4 bg-zinc-800 rounded w-3/4 mb-1.5" />
@@ -260,7 +260,7 @@ export function Top10Section() {
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-bold mb-2 px-4">Top 10</h2>
+      <h2 className="text-xl font-bold mb-2">Top 10</h2>
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasTopSongs ? (
@@ -306,7 +306,7 @@ export function Top10Section() {
           })}
         </div>
       ) : (
-        <div className="px-4 py-8 text-left text-gray-500 text-sm">
+        <div className="py-8 text-left text-gray-500 text-sm">
           Could not load charts
         </div>
       )}
@@ -491,7 +491,7 @@ export function NewReleasesSection() {
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-bold mb-2 px-4">New Releases</h2>
+      <h2 className="text-xl font-bold mb-2">New Releases</h2>
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasNewReleases ? (
@@ -589,11 +589,11 @@ export function NewReleasesSection() {
           })}
         </div>
       ) : !hasMuspyConfigured ? (
-        <div className="px-4 py-8 text-center text-gray-500 text-sm">
+        <div className="py-8 text-center text-gray-500 text-sm">
           Configure Muspy RSS in settings
         </div>
       ) : (
-        <div className="px-4 py-8 text-left text-gray-500 text-sm">
+        <div className="py-8 text-left text-gray-500 text-sm">
           {newReleasesError ? 'Failed to load releases' : 'No new releases found'}
         </div>
       )}
@@ -659,8 +659,8 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-bold mb-2 px-4">Recently Played</h2>
-      <div className={twoColumns ? 'md:grid md:grid-cols-2 min-[1680px]:block' : ''}>
+      <h2 className="text-xl font-bold mb-2">Recently Played</h2>
+      <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1680px]:block' : ''}>
         {recentlyPlayed.map((song) => (
           <HomeListItem
             key={song.Id}
