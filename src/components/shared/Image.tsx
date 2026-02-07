@@ -49,7 +49,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
   if (showIcon) {
     return (
       <div className="relative w-full h-full flex items-center justify-center bg-zinc-900">
-        <Disc className="w-12 h-12 text-gray-500" />
+        <Disc className="w-6 h-6 text-gray-500" />
       </div>
     )
   }

@@ -234,7 +234,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   return (
     <>
-      <div className="pl-2 pr-4 pt-4 pb-4">
+      <div className="px-4 md:pl-2 md:pr-4 pt-4 pb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">
             Tunetuna

@@ -102,7 +102,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
       >
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
           {imageError ? (
-            <Disc className="w-7 h-7 text-gray-500" />
+            <Disc className="w-6 h-6 text-gray-500" />
           ) : showImage ? (
             <Image
               src={imageUrl}
