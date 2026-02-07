@@ -43,20 +43,19 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
   // Loading state for shuffle button
   const [isShuffling, setIsShuffling] = useState(false)
 
-  // Use centralized search hook (no debounce - SearchInput already debounces)
+  // Use centralized search hook with debounce to prevent race conditions
   const {
     searchQuery,
     setSearchQuery,
     isSearching,
     searchResults,
-    rawSearchResults,
     selectedGenres,
     setSelectedGenres,
     yearRange,
     setYearRange,
     clearSearch,
     clearAll,
-  } = useSearch({ debounceMs: 0 })
+  } = useSearch({ debounceMs: 300 })
 
   // Reset loading state after a timeout to prevent permanent disabling
   useEffect(() => {

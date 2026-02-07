@@ -647,7 +647,7 @@ export function NewReleasesSection() {
 
 // Recently Played Section Component
 export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boolean }) {
-  const { recentlyPlayed, setRecentlyPlayed, setLoading } = useMusicStore()
+  const { recentlyPlayed, loading, setRecentlyPlayed, setLoading } = useMusicStore()
   const { showRecentlyPlayed } = useSettingsStore()
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
@@ -679,40 +679,48 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
     playTrack(song, recentlyPlayed)
   }
 
-  if (!showRecentlyPlayed || !recentlyPlayed || recentlyPlayed.length === 0) {
+  if (!showRecentlyPlayed) {
     return null
   }
+
+  const hasRecentlyPlayed = recentlyPlayed && recentlyPlayed.length > 0
+  const isLoading = loading.recentlyPlayed
+  const showSkeleton = isLoading && !hasRecentlyPlayed
 
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold mb-2">Recently Played</h2>
-      <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1680px]:block' : ''}>
-        {recentlyPlayed.map((song) => (
-          <HomeListItem
-            key={song.Id}
-            title={song.Name || 'Unknown'}
-            subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
-            artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
-            isCurrentTrack={currentTrack?.Id === song.Id}
-            isInLibrary={true}
-            isMenuOpen={contextMenuItem?.Id === song.Id}
-            onClick={() => handleSongClick(song)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              setContextMenuItem(song)
-              setContextMenuMode('desktop')
-              setContextMenuPosition({ x: e.clientX, y: e.clientY })
-              setContextMenuOpen(true)
-            }}
-            onLongPress={() => {
-              setContextMenuItem(song)
-              setContextMenuMode('mobile')
-              setContextMenuPosition(null)
-              setContextMenuOpen(true)
-            }}
-          />
-        ))}
-      </div>
+      {showSkeleton ? (
+        <FeedSkeleton />
+      ) : hasRecentlyPlayed ? (
+        <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1680px]:block' : ''}>
+          {recentlyPlayed.map((song) => (
+            <HomeListItem
+              key={song.Id}
+              title={song.Name || 'Unknown'}
+              subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+              artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+              isCurrentTrack={currentTrack?.Id === song.Id}
+              isInLibrary={true}
+              isMenuOpen={contextMenuItem?.Id === song.Id}
+              onClick={() => handleSongClick(song)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setContextMenuItem(song)
+                setContextMenuMode('desktop')
+                setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                setContextMenuOpen(true)
+              }}
+              onLongPress={() => {
+                setContextMenuItem(song)
+                setContextMenuMode('mobile')
+                setContextMenuPosition(null)
+                setContextMenuOpen(true)
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
       <ContextMenu
         item={contextMenuItem}
         itemType="song"
