@@ -30,6 +30,8 @@ export interface BaseItemDto {
   IndexNumber?: number
   ParentIndexNumber?: number
   Genres?: string[]
+  Tags?: string[]
+  Grouping?: string[]
   MediaType?: string
   Type?: string
   Path?: string
@@ -69,6 +71,15 @@ export interface LightweightSong {
   PremiereDate?: string
   RunTimeTicks?: number
   Genres?: string[]
+  Grouping?: string[]
+}
+
+// Grouping category for filter UI (derived from song grouping tags)
+export interface GroupingCategory {
+  name: string           // Display name: "Language", "Mood", "Instrumental"
+  key: string            // Lowercase key: "language", "mood", "instrumental"
+  values: string[]       // Available values: ["Eng", "Ita"] or [] for single-value tags
+  isSingleValue: boolean // true for tags like "instrumental" with no prefix_value format
 }
 
 export type SortOrder = 'RecentlyAdded' | 'Alphabetical' | 'Newest'

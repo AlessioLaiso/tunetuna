@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import BottomSheet from '../shared/BottomSheet'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, GroupingCategory } from '../../api/types'
 
 interface FilterBottomSheetProps {
   isOpen: boolean
   onClose: () => void
-  filterType: 'genre' | 'year'
+  filterType: 'genre' | 'year' | 'grouping'
   // For year
   availableYears?: number[]
   yearRange?: { min: number | null; max: number | null }
@@ -15,6 +15,10 @@ interface FilterBottomSheetProps {
   genres?: BaseItemDto[]
   selectedValues?: string[]
   onApply?: (selected: string[]) => void
+  // For grouping
+  groupingCategory?: GroupingCategory
+  selectedGroupingValues?: string[]
+  onApplyGrouping?: (categoryKey: string, selected: string[]) => void
 }
 
 export default function FilterBottomSheet({
@@ -27,19 +31,27 @@ export default function FilterBottomSheet({
   genres = [],
   selectedValues = [],
   onApply,
+  groupingCategory,
+  selectedGroupingValues = [],
+  onApplyGrouping,
 }: FilterBottomSheetProps) {
   const [localYearRange, setLocalYearRange] = useState<{ min: number | null; max: number | null }>(yearRange)
   const [localSelectedGenres, setLocalSelectedGenres] = useState<string[]>(selectedValues)
+  const [localSelectedGroupings, setLocalSelectedGroupings] = useState<string[]>(selectedGroupingValues)
   const minYearRef = useRef<HTMLDivElement>(null)
   const maxYearRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLocalYearRange(yearRange)
-  }, [yearRange])
+  }, [yearRange.min, yearRange.max])
 
   useEffect(() => {
     setLocalSelectedGenres(selectedValues)
-  }, [selectedValues])
+  }, [selectedValues.join(',')])
+
+  useEffect(() => {
+    setLocalSelectedGroupings(selectedGroupingValues)
+  }, [selectedGroupingValues.join(',')])
 
   const handleToggle = (genreName: string) => {
     setLocalSelectedGenres(prev =>
@@ -49,11 +61,21 @@ export default function FilterBottomSheet({
     )
   }
 
+  const handleGroupingToggle = (value: string) => {
+    setLocalSelectedGroupings(prev =>
+      prev.includes(value)
+        ? prev.filter(v => v !== value)
+        : [...prev, value]
+    )
+  }
+
   const handleApply = () => {
     if (filterType === 'year' && onApplyYear) {
       onApplyYear(localYearRange)
     } else if (filterType === 'genre' && onApply) {
       onApply(localSelectedGenres)
+    } else if (filterType === 'grouping' && onApplyGrouping && groupingCategory) {
+      onApplyGrouping(groupingCategory.key, localSelectedGroupings)
     }
     onClose()
   }
@@ -66,6 +88,11 @@ export default function FilterBottomSheet({
       }
     } else if (filterType === 'genre') {
       setLocalSelectedGenres([])
+    } else if (filterType === 'grouping') {
+      setLocalSelectedGroupings([])
+      if (onApplyGrouping && groupingCategory) {
+        onApplyGrouping(groupingCategory.key, [])
+      }
     }
     onClose()
   }
@@ -165,7 +192,7 @@ export default function FilterBottomSheet({
         {/* Header */}
         <div className="flex items-center justify-between mb-4 px-4">
           <div className="text-lg font-semibold text-white">
-            Filter by {filterType === 'genre' ? 'Genre' : 'Year'}
+            Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : groupingCategory?.name || 'Tag'}
           </div>
           <button
             onClick={onClose}
@@ -265,53 +292,142 @@ export default function FilterBottomSheet({
                 </div>
               </div>
             </div>
-          ) : (
+          ) : filterType === 'genre' ? (
             <div className="space-y-2">
-              {filterType === 'genre' ? (
-                genres.length > 0 ? (
-                  // For genres, use genre objects - sort alphabetically
-                  [...genres]
-                    .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
-                    .map((genre) => {
-                      const genreName = genre.Name || ''
-                      const isSelected = localSelectedGenres.includes(genreName)
-                      return (
-                        <button
-                          key={genre.Id}
-                          onClick={() => handleToggle(genreName)}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+              {genres.length > 0 ? (
+                // For genres, use genre objects - sort alphabetically
+                [...genres]
+                  .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+                  .map((genre) => {
+                    const genreName = genre.Name || ''
+                    const isSelected = localSelectedGenres.includes(genreName)
+                    return (
+                      <button
+                        key={genre.Id}
+                        onClick={() => handleToggle(genreName)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? 'bg-white border-white'
+                              : 'border-white/40 bg-transparent'
+                          }`}
                         >
-                          <div
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'bg-white border-white'
-                                : 'border-white/40 bg-transparent'
-                            }`}
-                          >
-                            {isSelected && (
-                              <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-white font-medium">{genreName}</span>
-                        </button>
-                      )
-                    })
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-sm">No genres available</div>
-                  </div>
-                )
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-white font-medium">{genreName}</span>
+                      </button>
+                    )
+                  })
               ) : (
                 <div className="text-center py-8 text-gray-400">
                   <div className="text-sm">No genres available</div>
                 </div>
               )}
+            </div>
+          ) : filterType === 'grouping' && groupingCategory ? (
+            <div className="space-y-2">
+              {groupingCategory.isSingleValue ? (
+                // Single-value category (like "instrumental") - show toggle options
+                <>
+                  <button
+                    onClick={() => handleGroupingToggle('yes')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        localSelectedGroupings.includes('yes')
+                          ? 'bg-white border-white'
+                          : 'border-white/40 bg-transparent'
+                      }`}
+                    >
+                      {localSelectedGroupings.includes('yes') && (
+                        <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-white font-medium">{groupingCategory.name}</span>
+                  </button>
+                  <button
+                    onClick={() => handleGroupingToggle('no')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        localSelectedGroupings.includes('no')
+                          ? 'bg-white border-white'
+                          : 'border-white/40 bg-transparent'
+                      }`}
+                    >
+                      {localSelectedGroupings.includes('no') && (
+                        <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-white font-medium">Not {groupingCategory.name}</span>
+                  </button>
+                </>
+              ) : (
+                // Multi-value category (like "language", "mood") - show checkbox list
+                groupingCategory.values.length > 0 ? (
+                  groupingCategory.values.map((value) => {
+                    const isSelected = localSelectedGroupings.includes(value.toLowerCase())
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => handleGroupingToggle(value.toLowerCase())}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? 'bg-white border-white'
+                              : 'border-white/40 bg-transparent'
+                          }`}
+                        >
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-white font-medium">{value}</span>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-sm">No options available</div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-sm">No options available</div>
             </div>
           )}
         </div>

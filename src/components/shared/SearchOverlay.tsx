@@ -1,11 +1,12 @@
 import { useRef, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Guitar, Calendar, Play, ListEnd } from 'lucide-react'
+import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Filter } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import ContextMenu from './ContextMenu'
 import { jellyfinClient } from '../../api/jellyfin'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, GroupingCategory } from '../../api/types'
+import type { LucideIcon } from 'lucide-react'
 
 // Section configuration for customizing which sections appear and in what order
 export type SearchSectionType = 'artists' | 'albums' | 'songs' | 'playlists'
@@ -25,11 +26,13 @@ export interface SearchResults {
 export interface FilterConfig {
   showGenreFilter: boolean
   showYearFilter: boolean
+  showGroupingFilters: boolean
 }
 
 export interface FilterState {
   selectedGenres: string[]
   yearRange: { min: number | null; max: number | null }
+  selectedGroupings: Record<string, string[]>
 }
 
 interface SearchOverlayProps {
@@ -45,6 +48,9 @@ interface SearchOverlayProps {
   filterConfig: FilterConfig
   filterState: FilterState
   onOpenFilterSheet: (type: 'genre' | 'year') => void
+  // Grouping filter props
+  groupingCategories?: GroupingCategory[]
+  onOpenGroupingFilterSheet?: (category: GroupingCategory) => void
   onArtistClick: (id: string) => void
   onAlbumClick: (id: string) => void
   onSongClick: (song: BaseItemDto) => void
@@ -223,6 +229,16 @@ function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemPr
   )
 }
 
+// Icon mapping for grouping categories
+const getGroupingIcon = (categoryKey: string): LucideIcon => {
+  switch (categoryKey.toLowerCase()) {
+    case 'language': return Globe
+    case 'mood': return Smile
+    case 'instrumental': return Piano
+    default: return Filter
+  }
+}
+
 export default function SearchOverlay({
   isOpen,
   onClose,
@@ -236,6 +252,8 @@ export default function SearchOverlay({
   filterConfig,
   filterState,
   onOpenFilterSheet,
+  groupingCategories = [],
+  onOpenGroupingFilterSheet,
   onArtistClick,
   onAlbumClick,
   onSongClick,
@@ -323,7 +341,7 @@ export default function SearchOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isOpen, onClose])
 
-  const hasFilters = filterConfig.showGenreFilter || filterConfig.showYearFilter
+  const hasFilters = filterConfig.showGenreFilter || filterConfig.showYearFilter || (filterConfig.showGroupingFilters && groupingCategories.length > 0)
   const hasResults = results && (
     results.artists.length > 0 ||
     results.albums.length > 0 ||
@@ -482,6 +500,25 @@ export default function SearchOverlay({
             <span className="text-sm font-medium">Year</span>
           </button>
         )}
+        {filterConfig.showGroupingFilters && groupingCategories.map(category => {
+          const Icon = getGroupingIcon(category.key)
+          const hasSelection = (filterState.selectedGroupings[category.key]?.length || 0) > 0
+          return (
+            <button
+              key={category.key}
+              onClick={() => onOpenGroupingFilterSheet?.(category)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                hasSelection
+                  ? 'bg-[var(--accent-color)] text-white'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+              aria-label={`Filter by ${category.name}`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="text-sm font-medium">{category.name}</span>
+            </button>
+          )
+        })}
       </>
     )
   }
@@ -529,9 +566,9 @@ export default function SearchOverlay({
         className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? '' : 'right-0'}`}
         style={isQueueSidebarOpen ? { right: 'var(--sidebar-width)' } : undefined}
       >
-        <div className="w-[768px] max-h-[80vh] overflow-y-auto bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800">
-          {/* Desktop header */}
-          <div className="px-4 pt-4 pb-4">
+        <div className="w-[768px] max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800 flex flex-col overflow-hidden">
+          {/* Desktop header - sticky */}
+          <div className="sticky top-0 bg-zinc-900 z-10 px-4 pt-4 pb-4 border-b border-zinc-800 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="text-lg font-semibold text-white">{title}</div>
               <button
@@ -551,32 +588,33 @@ export default function SearchOverlay({
             />
           </div>
 
-          {/* Desktop filters */}
-          {hasFilters && (
-            <div className="flex items-center gap-3 px-4 pt-3 pb-4">
-              {renderFilters()}
-            </div>
-          )}
+          {/* Desktop filters and results - scrollable */}
+          <div className="overflow-y-auto flex-1 px-4 pb-8">
+            {/* Filters */}
+            {hasFilters && (
+              <div className="flex flex-wrap items-center gap-3 pt-3 pb-4 border-b border-zinc-800 mb-4">
+                {renderFilters()}
+              </div>
+            )}
 
-          {/* Desktop search results */}
-          <div className="px-4 pb-8">
+            {/* Desktop search results */}
             {renderContent(false)}
           </div>
         </div>
       </div>
 
       {/* Mobile: fullscreen */}
-      <div className="fixed inset-0 bg-black z-[9999] overflow-y-scroll p-0 m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden">
+      <div className="fixed inset-0 bg-black z-[9999] flex flex-col p-0 m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden">
         {/* Fixed overlay to hide content behind status bar */}
         <div
           className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
           style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
         />
 
-        {/* Fixed search header with Cancel button */}
-        <div className="fixed top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))`, height: '76px' }}>
+        {/* Sticky search header with Cancel button */}
+        <div className="sticky top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
           <div className="max-w-[768px] mx-auto w-full">
-            <div className="flex items-center gap-3 pl-2 pr-4 pt-4">
+            <div className="flex items-center gap-3 pl-2 pr-4 pt-4 pb-4">
               <div className="flex-1">
                 <SearchInput
                   ref={mobileInputRef}
@@ -596,31 +634,22 @@ export default function SearchOverlay({
           </div>
         </div>
 
-        <div className="max-w-[768px] mx-auto w-full" style={{ paddingTop: `calc(76px + env(safe-area-inset-top))` }}>
-          {/* Sticky filter icons */}
-          {hasFilters && (
-            <div className="sticky bg-black z-10 pt-3 pb-4" style={{ top: `calc(76px + env(safe-area-inset-top))` }}>
-              <div className="flex items-center gap-3 pl-2 pr-4">
-                {renderFilters()}
+        {/* Scrollable content area */}
+        <div className="overflow-y-auto flex-1">
+          <div className="max-w-[768px] mx-auto w-full">
+            {/* Filter icons - scrolls below header */}
+            {hasFilters && (
+              <div className="bg-black pt-3 pb-4">
+                <div className="flex flex-wrap items-center gap-3 pl-2 pr-4">
+                  {renderFilters()}
+                </div>
               </div>
+            )}
+
+            {/* Search results */}
+            <div className="pb-32" style={{ paddingTop: hasFilters ? '16px' : '16px' }}>
+              {renderContent(true)}
             </div>
-          )}
-
-          {/* Gradient overlay below filter section */}
-          {hasFilters && (
-            <div
-              className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-              style={{
-                top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 76px + 4rem)`,
-                height: '24px',
-                background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-              }}
-            />
-          )}
-
-          {/* Search results */}
-          <div className="pb-32" style={{ paddingTop: hasFilters ? '40px' : '16px' }}>
-            {renderContent(true)}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
-import { useMusicStore } from '../../stores/musicStore'
+import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import SongItem from './SongItem'
@@ -10,7 +10,7 @@ import FilterBottomSheet from '../home/FilterBottomSheet'
 import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
 import { logger } from '../../utils/logger'
 
@@ -50,8 +50,15 @@ export default function SongsPage() {
 
   // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
-  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
+  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | 'grouping' | null>(null)
+  const [activeGroupingCategory, setActiveGroupingCategory] = useState<GroupingCategory | null>(null)
   const [years, setYears] = useState<number[]>([])
+
+  // Get songs from store for grouping categories
+  const songs = useMusicStore((state) => state.songs)
+
+  // Compute grouping categories from songs
+  const groupingCategories = useMemo(() => getGroupingCategories(songs), [songs])
 
   const sortOrder = sortPreferences.songs
   const isInitialLoad = useRef(true)
@@ -72,6 +79,8 @@ export default function SongsPage() {
     setSelectedGenres,
     yearRange,
     setYearRange,
+    selectedGroupings,
+    setSelectedGroupings,
     hasActiveFilters,
     clearSearch,
     clearAll,
@@ -137,6 +146,19 @@ export default function SongsPage() {
 
   const handleYearApply = (range: { min: number | null; max: number | null }) => {
     setYearRange(range)
+  }
+
+  const openGroupingFilterSheet = (category: GroupingCategory) => {
+    setActiveGroupingCategory(category)
+    setActiveFilterType('grouping')
+    setIsFilterSheetOpen(true)
+  }
+
+  const handleGroupingApply = (categoryKey: string, selected: string[]) => {
+    setSelectedGroupings(prev => ({
+      ...prev,
+      [categoryKey]: selected
+    }))
   }
 
   const handleArtistClick = (artistId: string) => {
@@ -368,16 +390,17 @@ export default function SongsPage() {
         isLoading={isSearching}
         results={searchResults}
         sections={SEARCH_SECTIONS}
-        filterConfig={{ showGenreFilter: true, showYearFilter: true }}
-        filterState={{ selectedGenres, yearRange }}
+        filterConfig={{ showGenreFilter: true, showYearFilter: true, showGroupingFilters: true }}
+        filterState={{ selectedGenres, yearRange, selectedGroupings }}
         onOpenFilterSheet={openFilterSheet}
+        groupingCategories={groupingCategories}
+        onOpenGroupingFilterSheet={openGroupingFilterSheet}
         onArtistClick={handleArtistClick}
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
         onPlaylistClick={handlePlaylistClick}
         onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
-
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}
         mobileSearchInputRef={searchInputRef}
@@ -403,6 +426,17 @@ export default function SongsPage() {
           availableYears={years}
           yearRange={yearRange}
           onApplyYear={handleYearApply}
+        />
+      )}
+
+      {activeFilterType === 'grouping' && activeGroupingCategory && (
+        <FilterBottomSheet
+          isOpen={isFilterSheetOpen}
+          onClose={() => setIsFilterSheetOpen(false)}
+          filterType="grouping"
+          groupingCategory={activeGroupingCategory}
+          selectedGroupingValues={selectedGroupings[activeGroupingCategory.key] || []}
+          onApplyGrouping={handleGroupingApply}
         />
       )}
 

@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Settings, Shuffle, Search } from 'lucide-react'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
-import type { BaseItemDto } from '../../api/types'
+import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import { jellyfinClient } from '../../api/jellyfin'
 import FilterBottomSheet from './FilterBottomSheet'
-import { useMusicStore } from '../../stores/musicStore'
+import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSearch } from '../../hooks/useSearch'
 import { logger } from '../../utils/logger'
@@ -30,11 +30,15 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
-  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
+  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | 'grouping' | null>(null)
+  const [activeGroupingCategory, setActiveGroupingCategory] = useState<GroupingCategory | null>(null)
 
   // Filter values
-  const { genres } = useMusicStore()
+  const { genres, songs } = useMusicStore()
   const [years, setYears] = useState<number[]>([])
+
+  // Compute grouping categories from songs
+  const groupingCategories = useMemo(() => getGroupingCategories(songs), [songs])
 
 
   // Player functions
@@ -53,6 +57,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setSelectedGenres,
     yearRange,
     setYearRange,
+    selectedGroupings,
+    setSelectedGroupings,
     clearSearch,
     clearAll,
   } = useSearch({ debounceMs: 300 })
@@ -178,6 +184,19 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setYearRange(range)
   }
 
+  const openGroupingFilterSheet = (category: GroupingCategory) => {
+    setActiveGroupingCategory(category)
+    setActiveFilterType('grouping')
+    setIsFilterSheetOpen(true)
+  }
+
+  const handleGroupingApply = (categoryKey: string, selected: string[]) => {
+    setSelectedGroupings(prev => ({
+      ...prev,
+      [categoryKey]: selected
+    }))
+  }
+
   const handlePlayAllSongs = () => {
     if (searchResults?.songs && searchResults.songs.length > 0) {
       playAlbum(searchResults.songs)
@@ -298,9 +317,11 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         isLoading={isSearching}
         results={searchResults}
         sections={SEARCH_SECTIONS}
-        filterConfig={{ showGenreFilter: true, showYearFilter: true }}
-        filterState={{ selectedGenres, yearRange }}
+        filterConfig={{ showGenreFilter: true, showYearFilter: true, showGroupingFilters: true }}
+        filterState={{ selectedGenres, yearRange, selectedGroupings }}
         onOpenFilterSheet={openFilterSheet}
+        groupingCategories={groupingCategories}
+        onOpenGroupingFilterSheet={openGroupingFilterSheet}
         onArtistClick={handleArtistClick}
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
@@ -332,6 +353,17 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
           availableYears={years}
           yearRange={yearRange}
           onApplyYear={handleYearApply}
+        />
+      )}
+
+      {activeFilterType === 'grouping' && activeGroupingCategory && (
+        <FilterBottomSheet
+          isOpen={isFilterSheetOpen}
+          onClose={() => setIsFilterSheetOpen(false)}
+          filterType="grouping"
+          groupingCategory={activeGroupingCategory}
+          selectedGroupingValues={selectedGroupings[activeGroupingCategory.key] || []}
+          onApplyGrouping={handleGroupingApply}
         />
       )}
     </>

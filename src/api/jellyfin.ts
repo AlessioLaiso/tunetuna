@@ -302,7 +302,7 @@ class JellyfinClient {
     }
 
     params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId')
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Tags,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId')
     
     // Add cache-busting timestamp to force fresh data from server
     if (cacheBust) {
@@ -375,7 +375,7 @@ class JellyfinClient {
     }
     const query = new URLSearchParams({
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres',
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Grouping',
     })
     try {
       const result = await this.request<BaseItemDto>(`/Items/${songId}?${query}`)
@@ -716,6 +716,15 @@ class JellyfinClient {
       onProgress(100)
     }
 
+    // Helper function to extract grouping tags from Jellyfin Tags field
+    // MusicTags plugin stores grouping data as "grouping:mood_party", "grouping:language_eng" etc.
+    const extractGroupingFromTags = (tags: string[] | undefined): string[] => {
+      if (!tags || !Array.isArray(tags)) return []
+      return tags
+        .filter(tag => tag.startsWith('grouping:'))
+        .map(tag => tag.replace('grouping:', ''))
+    }
+
     // Convert to lightweight objects for efficient storage
     return allSongs.map(song => ({
       Id: song.Id,
@@ -728,7 +737,8 @@ class JellyfinClient {
       ProductionYear: song.ProductionYear,
       PremiereDate: song.PremiereDate,
       RunTimeTicks: song.RunTimeTicks,
-      Genres: song.Genres
+      Genres: song.Genres,
+      Grouping: extractGroupingFromTags(song.Tags)
     }))
   }
 
@@ -827,6 +837,14 @@ class JellyfinClient {
         changedSongs = result.Items || []
       }
 
+      // Helper function to extract grouping tags from Jellyfin Tags field
+      const extractGroupingFromTags = (tags: string[] | undefined): string[] => {
+        if (!tags || !Array.isArray(tags)) return []
+        return tags
+          .filter(tag => tag.startsWith('grouping:'))
+          .map(tag => tag.replace('grouping:', ''))
+      }
+
       // Convert to lightweight format
       const lightweightChangedSongs: LightweightSong[] = changedSongs.map(song => ({
         Id: song.Id,
@@ -839,7 +857,8 @@ class JellyfinClient {
         ProductionYear: song.ProductionYear,
         PremiereDate: song.PremiereDate,
         RunTimeTicks: song.RunTimeTicks,
-        Genres: song.Genres
+        Genres: song.Genres,
+        Grouping: extractGroupingFromTags(song.Tags)
       }))
 
       // Merge with existing cache (avoid duplicates)
@@ -1036,11 +1055,19 @@ class JellyfinClient {
       }
     }
 
+    // Parse Tags to Grouping for songs (so client-side grouping filters work)
+    const songsWithGrouping = songs.map(song => ({
+      ...song,
+      Grouping: (song.Tags || [])
+        .filter(tag => tag.startsWith('grouping:'))
+        .map(tag => tag.replace('grouping:', ''))
+    }))
+
     return {
       Artists: { Items: artists, TotalRecordCount: artists.length, StartIndex: 0 },
       Albums: { Items: albums, TotalRecordCount: albums.length, StartIndex: 0 },
       Playlists: { Items: playlists, TotalRecordCount: playlists.length, StartIndex: 0 },
-      Songs: { Items: songs, TotalRecordCount: songs.length, StartIndex: 0 },
+      Songs: { Items: songsWithGrouping, TotalRecordCount: songsWithGrouping.length, StartIndex: 0 },
     }
   }
 
@@ -1072,21 +1099,21 @@ class JellyfinClient {
       SortOrder: 'Descending',
       Filters: 'IsPlayed',
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+      Fields: 'PrimaryImageAspectRatio,Genres,Grouping', // Include Genres and Grouping for recommendations/filtering
     })
     const result = await this.request<ItemsResult>(`/Items?${query}`)
     return result
   }
 
   async getAlbumTracks(albumId: string): Promise<BaseItemDto[]> {
-    // Ensure we request Genres field so recommendations can work
+    // Ensure we request Genres and Grouping fields so recommendations/filtering can work
     const query = new URLSearchParams({
       ParentId: albumId,
       IncludeItemTypes: 'Audio',
       SortBy: 'ParentIndexNumber,IndexNumber',
       SortOrder: 'Ascending',
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+      Fields: 'PrimaryImageAspectRatio,Genres,Grouping',
     })
     const result = await this.request<ItemsResult>(`/Items?${query}`)
     return result.Items
@@ -1098,7 +1125,7 @@ class JellyfinClient {
       IncludeItemTypes: 'MusicAlbum,Audio',
       Recursive: 'true',
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,Genres', // Include Genres for recommendations
+      Fields: 'PrimaryImageAspectRatio,Genres,Grouping', // Include Genres and Grouping for recommendations/filtering
     })
     const result = await this.request<ItemsResult>(`/Items?${query}`)
     

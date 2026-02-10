@@ -115,11 +115,19 @@ export async function fetchAllLibraryItems(
     jellyfinClient.getSongs({ limit, ...serverFilters }),
   ])
 
+  // Parse Tags to Grouping for songs (so client-side grouping filters work)
+  const songsWithGrouping = (songsResult.Items || []).map(song => ({
+    ...song,
+    Grouping: (song.Tags || [])
+      .filter(tag => tag.startsWith('grouping:'))
+      .map(tag => tag.replace('grouping:', ''))
+  }))
+
   return {
     artists: artistsResult.Items || [],
     albums: albumsResult.Items || [],
     playlists: playlistsResult.Items || [],
-    songs: songsResult.Items || [],
+    songs: songsWithGrouping,
   }
 }
 

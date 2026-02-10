@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, type StorageValue } from 'zustand/middleware'
-import type { LightweightSong, BaseItemDto, SortOrder } from '../api/types'
+import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
 
 // ============================================================================
@@ -215,6 +215,80 @@ interface MusicState {
   setFeedTopSongs: (songs: AppleMusicSong[]) => void
   setFeedNewReleases: (releases: NewRelease[]) => void
   setFeedLastUpdated: (timestamp: number) => void
+}
+
+// ============================================================================
+// Store Definition
+// ============================================================================
+
+// ============================================================================
+// Grouping Categories Helper
+// ============================================================================
+
+/**
+ * Parses a grouping tag string into category and value.
+ * Tags can be either:
+ * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
+ * - single word format: "instrumental" -> { category: "instrumental", value: null }
+ */
+function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
+  if (!tag || tag.trim() === '') return null
+  const trimmed = tag.trim().toLowerCase()
+  const underscoreIndex = trimmed.indexOf('_')
+  if (underscoreIndex === -1) {
+    return { category: trimmed, value: null }
+  }
+  return {
+    category: trimmed.substring(0, underscoreIndex),
+    value: trimmed.substring(underscoreIndex + 1)
+  }
+}
+
+/**
+ * Capitalizes the first letter of a string.
+ */
+function capitalizeFirst(str: string): string {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+/**
+ * Derives grouping categories from songs.
+ * This is a computed value - call it with the current songs array.
+ * Categories are extracted from the Grouping field on each song.
+ */
+export function getGroupingCategories(songs: LightweightSong[]): GroupingCategory[] {
+  // Map: category key -> Set of values
+  const categoryMap = new Map<string, Set<string>>()
+
+  songs.forEach(song => {
+    if (!song.Grouping) return
+    song.Grouping.forEach(tag => {
+      const parsed = parseGroupingTag(tag)
+      if (!parsed) return
+
+      if (!categoryMap.has(parsed.category)) {
+        categoryMap.set(parsed.category, new Set())
+      }
+      if (parsed.value) {
+        categoryMap.get(parsed.category)!.add(parsed.value)
+      }
+    })
+  })
+
+  // Build categories array
+  const categories: GroupingCategory[] = []
+  for (const [key, values] of categoryMap) {
+    categories.push({
+      name: capitalizeFirst(key),
+      key,
+      values: Array.from(values).map(v => capitalizeFirst(v)).sort(),
+      isSingleValue: values.size === 0
+    })
+  }
+
+  // Sort categories alphabetically by name
+  return categories.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 // ============================================================================

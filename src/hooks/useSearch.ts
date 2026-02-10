@@ -3,6 +3,25 @@ import type { BaseItemDto } from '../api/types'
 import { fetchAllLibraryItems, unifiedSearch, type SearchFilterOptions } from '../utils/search'
 import { logger } from '../utils/logger'
 
+/**
+ * Parses a grouping tag string into category and value.
+ * Tags can be either:
+ * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
+ * - single word format: "instrumental" -> { category: "instrumental", value: null }
+ */
+function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
+  if (!tag || tag.trim() === '') return null
+  const trimmed = tag.trim().toLowerCase()
+  const underscoreIndex = trimmed.indexOf('_')
+  if (underscoreIndex === -1) {
+    return { category: trimmed, value: null }
+  }
+  return {
+    category: trimmed.substring(0, underscoreIndex),
+    value: trimmed.substring(underscoreIndex + 1)
+  }
+}
+
 export interface SearchResults {
   artists: BaseItemDto[]
   albums: BaseItemDto[]
@@ -13,6 +32,7 @@ export interface SearchResults {
 export interface FilterState {
   selectedGenres: string[]
   yearRange: { min: number | null; max: number | null }
+  selectedGroupings: Record<string, string[]> // category key -> selected values
 }
 
 export interface UseSearchOptions {
@@ -34,6 +54,8 @@ export interface UseSearchReturn {
   setSelectedGenres: (genres: string[]) => void
   yearRange: { min: number | null; max: number | null }
   setYearRange: (range: { min: number | null; max: number | null }) => void
+  selectedGroupings: Record<string, string[]>
+  setSelectedGroupings: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
   hasActiveFilters: boolean
   clearSearch: () => void
   clearAll: () => void
@@ -56,10 +78,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     min: null,
     max: null,
   })
+  const [selectedGroupings, setSelectedGroupings] = useState<Record<string, string[]>>({})
+
+  // Check if any groupings are selected
+  const hasGroupingFilters = Object.values(selectedGroupings).some(values => values.length > 0)
 
   const hasActiveFilters = includeYearFilter
-    ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null
-    : selectedGenres.length > 0
+    ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null || hasGroupingFilters
+    : selectedGenres.length > 0 || hasGroupingFilters
 
   // Build server-side filter options from current filter state
   const buildServerFilters = useCallback((): SearchFilterOptions | undefined => {
@@ -138,7 +164,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRawSearchResults(null)
       setIsSearching(false)
     }
-  }, [searchQuery, selectedGenres, yearRange, hasActiveFilters, debounceMs, limit, buildServerFilters])
+  }, [searchQuery, selectedGenres, yearRange, selectedGroupings, hasActiveFilters, debounceMs, limit, buildServerFilters])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -156,6 +182,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     const filterArtist = (item: BaseItemDto): boolean => {
       // Artists don't have years, so filter them out when year filter is active
       if (includeYearFilter && (yearRange.min !== null || yearRange.max !== null)) {
+        return false
+      }
+      // Artists don't have grouping tags, so filter them out when grouping filter is active
+      if (hasGroupingFilters) {
         return false
       }
       if (selectedGenres.length > 0) {
@@ -184,6 +214,64 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         if (yearRange.max !== null && itemYear > yearRange.max) return false
       }
 
+      // Apply grouping filters (songs only effectively, since albums don't have Grouping)
+      if (hasGroupingFilters) {
+        const itemGroupings = item.Grouping || []
+
+        // Parse all of this item's grouping tags into a map: category -> values
+        const itemCategoryValues = new Map<string, Set<string>>()
+        const itemCategories = new Set<string>()
+
+        itemGroupings.forEach(tag => {
+          const parsed = parseGroupingTag(tag)
+          if (!parsed) return
+          itemCategories.add(parsed.category)
+          if (!itemCategoryValues.has(parsed.category)) {
+            itemCategoryValues.set(parsed.category, new Set())
+          }
+          if (parsed.value) {
+            itemCategoryValues.get(parsed.category)!.add(parsed.value)
+          }
+        })
+
+        // Check each selected category filter
+        for (const [categoryKey, selectedValues] of Object.entries(selectedGroupings)) {
+          if (selectedValues.length === 0) continue
+
+          // Check if any selected value includes "no" (for single-value categories like "instrumental")
+          const hasNo = selectedValues.includes('no')
+          const hasYes = selectedValues.includes('yes')
+
+          if (hasNo || hasYes) {
+            // Single-value category (like "instrumental")
+            const itemHasCategory = itemCategories.has(categoryKey)
+
+            if (hasNo && !hasYes && itemHasCategory) {
+              // User selected "Not [category]" only, but item HAS this category tag
+              return false
+            }
+            if (hasYes && !hasNo && !itemHasCategory) {
+              // User selected "[category]" only, but item does NOT have this category tag
+              return false
+            }
+            // If both are selected, item passes this category filter
+          } else {
+            // Multi-value category (like "language", "mood")
+            // OR logic: item must have at least one of the selected values
+            const itemValues = itemCategoryValues.get(categoryKey)
+            if (!itemValues || itemValues.size === 0) {
+              // Item doesn't have any values for this category but filter requires some
+              return false
+            }
+
+            const hasMatchingValue = selectedValues.some(selectedValue =>
+              itemValues.has(selectedValue.toLowerCase())
+            )
+            if (!hasMatchingValue) return false
+          }
+        }
+      }
+
       return true
     }
 
@@ -196,6 +284,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       if (selectedGenres.length > 0) {
         return false
       }
+      // Playlists don't have grouping tags, so filter them out when grouping filter is active
+      if (hasGroupingFilters) {
+        return false
+      }
       return true
     }
 
@@ -205,7 +297,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
       songs: rawSearchResults.songs.filter(filterAlbumOrSong),
     }
-  }, [rawSearchResults, selectedGenres, yearRange, includeYearFilter])
+  }, [rawSearchResults, selectedGenres, yearRange, includeYearFilter, selectedGroupings, hasGroupingFilters])
 
   const clearSearch = useCallback(() => {
     setSearchQuery('')
@@ -217,6 +309,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setRawSearchResults(null)
     setSelectedGenres([])
     setYearRange({ min: null, max: null })
+    setSelectedGroupings({})
   }, [])
 
   return {
@@ -229,6 +322,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setSelectedGenres,
     yearRange,
     setYearRange,
+    selectedGroupings,
+    setSelectedGroupings,
     hasActiveFilters,
     clearSearch,
     clearAll,

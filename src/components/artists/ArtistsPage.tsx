@@ -349,8 +349,8 @@ export default function ArtistsPage() {
         isLoading={isSearching}
         results={searchResults}
         sections={SEARCH_SECTIONS}
-        filterConfig={{ showGenreFilter: true, showYearFilter: false }}
-        filterState={{ selectedGenres, yearRange: { min: null, max: null } }}
+        filterConfig={{ showGenreFilter: true, showYearFilter: false, showGroupingFilters: false }}
+        filterState={{ selectedGenres, yearRange: { min: null, max: null }, selectedGroupings: {} }}
         onOpenFilterSheet={openFilterSheet}
         onArtistClick={handleArtistClick}
         onAlbumClick={handleAlbumClick}
