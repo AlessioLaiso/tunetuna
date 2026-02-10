@@ -647,7 +647,7 @@ export default function SearchOverlay({
             )}
 
             {/* Search results */}
-            <div className="pb-32" style={{ paddingTop: hasFilters ? '16px' : '16px' }}>
+            <div className="pb-32 pt-4">
               {renderContent(true)}
             </div>
           </div>

@@ -37,6 +37,7 @@ interface HomeListItemProps {
   isInLibrary?: boolean
   isMenuOpen?: boolean
   subtitleIcon?: React.ReactNode
+  paddingRight?: boolean
   onClick: (e: React.MouseEvent) => void
   onContextMenu?: (e: React.MouseEvent) => void
   onLongPress?: (e: React.TouchEvent | React.MouseEvent) => void
@@ -54,6 +55,7 @@ export function HomeListItem({
   isInLibrary,
   isMenuOpen,
   subtitleIcon,
+  paddingRight = false,
   onClick,
   onContextMenu,
   onLongPress,
@@ -101,7 +103,7 @@ export function HomeListItem({
       onClick={(e) => onClick(e)}
       onContextMenu={onContextMenu}
       {...longPressHandlers}
-      className={`w-full flex items-center gap-2 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''}`}
+      className={`w-full flex items-center gap-2 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''} ${paddingRight ? 'pr-4' : ''}`}
     >
 
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
@@ -124,8 +126,8 @@ export function HomeListItem({
           <div className="text-sm font-medium truncate text-white group-hover:text-[var(--accent-color)] transition-colors">
             {title}
           </div>
-          <div className="text-xs text-gray-400 truncate flex items-center gap-1.5">
-            {subtitle}
+          <div className="text-xs text-gray-400 flex items-center gap-1.5 min-w-0">
+            <span className="truncate">{subtitle}</span>
             {subtitleIcon && <span className="flex-shrink-0">{subtitleIcon}</span>}
           </div>
         </div>
@@ -694,31 +696,93 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
         <FeedSkeleton />
       ) : hasRecentlyPlayed ? (
         <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1680px]:block' : ''}>
-          {recentlyPlayed.map((song) => (
-            <HomeListItem
-              key={song.Id}
-              title={song.Name || 'Unknown'}
-              subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
-              artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
-              isCurrentTrack={currentTrack?.Id === song.Id}
-              isInLibrary={true}
-              isMenuOpen={contextMenuItem?.Id === song.Id}
-              onClick={() => handleSongClick(song)}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                setContextMenuItem(song)
-                setContextMenuMode('desktop')
-                setContextMenuPosition({ x: e.clientX, y: e.clientY })
-                setContextMenuOpen(true)
-              }}
-              onLongPress={() => {
-                setContextMenuItem(song)
-                setContextMenuMode('mobile')
-                setContextMenuPosition(null)
-                setContextMenuOpen(true)
-              }}
-            />
-          ))}
+          {twoColumns ? (
+            <>
+              <div>
+                {recentlyPlayed.slice(0, 5).map((song) => (
+                  <HomeListItem
+                    key={song.Id}
+                    title={song.Name || 'Unknown'}
+                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+                    isCurrentTrack={currentTrack?.Id === song.Id}
+                    isInLibrary={true}
+                    isMenuOpen={contextMenuItem?.Id === song.Id}
+                    paddingRight={true}
+                    onClick={() => handleSongClick(song)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenuItem(song)
+                      setContextMenuMode('desktop')
+                      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                      setContextMenuOpen(true)
+                    }}
+                    onLongPress={() => {
+                      setContextMenuItem(song)
+                      setContextMenuMode('mobile')
+                      setContextMenuPosition(null)
+                      setContextMenuOpen(true)
+                    }}
+                  />
+                ))}
+              </div>
+              <div>
+                {recentlyPlayed.slice(5, 10).map((song) => (
+                  <HomeListItem
+                    key={song.Id}
+                    title={song.Name || 'Unknown'}
+                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+                    isCurrentTrack={currentTrack?.Id === song.Id}
+                    isInLibrary={true}
+                    isMenuOpen={contextMenuItem?.Id === song.Id}
+                    paddingRight={true}
+                    onClick={() => handleSongClick(song)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenuItem(song)
+                      setContextMenuMode('desktop')
+                      setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                      setContextMenuOpen(true)
+                    }}
+                    onLongPress={() => {
+                      setContextMenuItem(song)
+                      setContextMenuMode('mobile')
+                      setContextMenuPosition(null)
+                      setContextMenuOpen(true)
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            recentlyPlayed.map((song) => (
+              <HomeListItem
+                key={song.Id}
+                title={song.Name || 'Unknown'}
+                subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
+                isCurrentTrack={currentTrack?.Id === song.Id}
+                isInLibrary={true}
+                isMenuOpen={contextMenuItem?.Id === song.Id}
+                paddingRight={true}
+                onClick={() => handleSongClick(song)}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setContextMenuItem(song)
+                  setContextMenuMode('desktop')
+                  setContextMenuPosition({ x: e.clientX, y: e.clientY })
+                  setContextMenuOpen(true)
+                }}
+                onLongPress={() => {
+                  setContextMenuItem(song)
+                  setContextMenuMode('mobile')
+                  setContextMenuPosition(null)
+                  setContextMenuOpen(true)
+                }}
+              />
+            ))
+          )}
         </div>
       ) : null}
       <ContextMenu
