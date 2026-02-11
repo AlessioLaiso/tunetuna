@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { ArrowLeft, Play, Pause, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
@@ -95,10 +96,20 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
   )
 }
 
+/**
+ * Capitalize the first letter of a string.
+ */
+function capitalizeFirst(str: string): string {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 export default function PlaylistDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
+  const location = useLocation()
   const navigate = useNavigate()
   const { playAlbum, playTrack, isPlaying } = usePlayerStore()
+  const { songs, recordMoodAccess } = useMusicStore()
   const currentTrack = useCurrentTrack()
   const [playlist, setPlaylist] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
@@ -113,7 +124,65 @@ export default function PlaylistDetailPage() {
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
+  // Detect if this is a mood route
+  const isMoodRoute = location.pathname.startsWith('/mood/')
+
   useEffect(() => {
+    // Handle mood route - filter from cached songs (same as search does)
+    if (isMoodRoute && moodValue) {
+      const decodedMood = decodeURIComponent(moodValue).toLowerCase()
+      recordMoodAccess(decodedMood)
+
+      // Parse grouping tags the same way search does
+      const parseGroupingTag = (tag: string): { category: string; value: string | null } | null => {
+        if (!tag || tag.trim() === '') return null
+        const trimmed = tag.trim().toLowerCase()
+        const underscoreIndex = trimmed.indexOf('_')
+        if (underscoreIndex === -1) {
+          return { category: trimmed, value: null }
+        }
+        return {
+          category: trimmed.substring(0, underscoreIndex),
+          value: trimmed.substring(underscoreIndex + 1)
+        }
+      }
+
+      // Filter songs by mood category and value (same logic as search)
+      const moodSongs = songs.filter(song => {
+        if (!song.Grouping || song.Grouping.length === 0) return false
+
+        return song.Grouping.some(tag => {
+          const parsed = parseGroupingTag(tag)
+          return parsed && parsed.category === 'mood' && parsed.value === decodedMood
+        })
+      })
+
+      setPlaylist({
+        Id: `mood-${decodedMood}`,
+        Name: capitalizeFirst(decodedMood),
+        Type: 'Mood',
+      } as BaseItemDto)
+
+      // Convert to BaseItemDto format, sorted by name
+      const sortedTracks = [...moodSongs]
+        .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+        .map(song => ({
+          Id: song.Id,
+          Name: song.Name,
+          AlbumArtist: song.AlbumArtist,
+          ArtistItems: song.ArtistItems,
+          Album: song.Album,
+          AlbumId: song.AlbumId,
+          RunTimeTicks: song.RunTimeTicks,
+          Type: 'Audio',
+        } as BaseItemDto))
+
+      setTracks(sortedTracks)
+      setLoading(false)
+      return
+    }
+
+    // Handle regular playlist route
     if (!id) return
 
     const loadPlaylistData = async () => {
@@ -144,7 +213,7 @@ export default function PlaylistDetailPage() {
     }
 
     loadPlaylistData()
-  }, [id])
+  }, [id, isMoodRoute, moodValue, recordMoodAccess, songs])
 
   // Reset visible tracks window when tracks change
   useEffect(() => {
@@ -166,9 +235,27 @@ export default function PlaylistDetailPage() {
       }
     }
 
+    // Initial check: if content doesn't fill viewport, load more
+    const checkInitialHeight = () => {
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      if (fullHeight <= viewportHeight && visibleTracksCount < tracks.length) {
+        setVisibleTracksCount((prev) =>
+          Math.min(prev + VISIBLE_TRACKS_INCREMENT, tracks.length)
+        )
+      }
+    }
+
+    // Check after a short delay to let the DOM update
+    const timeoutId = setTimeout(checkInitialHeight, 100)
+
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [tracks.length])
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      clearTimeout(timeoutId)
+    }
+  }, [tracks.length, visibleTracksCount])
 
   const handlePlayAll = () => {
     if (tracks.length > 0) {
@@ -196,7 +283,7 @@ export default function PlaylistDetailPage() {
     return (
       <div className="pb-20">
         <div className="flex items-center justify-center h-screen text-gray-400">
-          <p>Playlist not found</p>
+          <p>{isMoodRoute ? 'No songs found for this mood' : 'Playlist not found'}</p>
         </div>
       </div>
     )
@@ -216,7 +303,7 @@ export default function PlaylistDetailPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            {playlist && (
+            {playlist && !isMoodRoute && (
               <button
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()

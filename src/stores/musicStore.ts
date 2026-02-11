@@ -195,6 +195,8 @@ interface MusicState {
     songs: SortOrder
     playlists: SortOrder
   }
+  /** Recently accessed moods with timestamps for ordering (synced across devices) */
+  recentlyAccessedMoods: Record<string, number>
 
   // Actions
   setArtists: (artists: BaseItemDto[]) => void
@@ -215,6 +217,7 @@ interface MusicState {
   setFeedTopSongs: (songs: AppleMusicSong[]) => void
   setFeedNewReleases: (releases: NewRelease[]) => void
   setFeedLastUpdated: (timestamp: number) => void
+  recordMoodAccess: (moodValue: string) => void
 }
 
 // ============================================================================
@@ -332,6 +335,7 @@ export const useMusicStore = create<MusicState>()(
         songs: 'RecentlyAdded',
         playlists: 'RecentlyAdded',
       },
+      recentlyAccessedMoods: {},
 
       // Simple setters
       setArtists: (artists) => set({ artists }),
@@ -435,6 +439,14 @@ export const useMusicStore = create<MusicState>()(
       setFeedTopSongs: (songs) => set({ feedTopSongs: songs }),
       setFeedNewReleases: (releases) => set({ feedNewReleases: releases }),
       setFeedLastUpdated: (timestamp) => set({ feedLastUpdated: timestamp }),
+
+      /** Records when a mood was accessed for ordering (most recent first) */
+      recordMoodAccess: (moodValue) => set((state) => ({
+        recentlyAccessedMoods: {
+          ...state.recentlyAccessedMoods,
+          [moodValue.toLowerCase()]: Date.now(),
+        },
+      })),
     }),
     {
       name: 'music-storage',
@@ -457,6 +469,7 @@ export const useMusicStore = create<MusicState>()(
         yearsLastChecked: state.yearsLastChecked,
         lastSyncCompleted: state.lastSyncCompleted,
         recentlyPlayed: state.recentlyPlayed,
+        recentlyAccessedMoods: state.recentlyAccessedMoods,
         feedTopSongs: state.feedTopSongs,
         feedNewReleases: state.feedNewReleases,
         feedLastUpdated: state.feedLastUpdated,

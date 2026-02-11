@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Disc } from 'lucide-react'
 
 interface ImageProps {
   src: string
@@ -48,9 +47,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
 
   if (showIcon) {
     return (
-      <div className="relative w-full h-full flex items-center justify-center bg-zinc-900">
-        <Disc className="w-6 h-6 text-gray-500" />
-      </div>
+      <div className="relative w-full h-full bg-zinc-900" />
     )
   }
 

@@ -99,6 +99,7 @@ export interface GetItemsOptions {
   albumIds?: string[]
   years?: number[]
   minDateLastSaved?: Date
+  tags?: string[]
 }
 
 

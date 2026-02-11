@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Disc } from 'lucide-react'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto } from '../../api/types'
@@ -19,7 +18,6 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
@@ -101,17 +99,14 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
         {...longPressHandlers}
         className={`text-left group ${isThisItemMenuOpen ? 'ring-2 ring-blue-500' : ''}`}
       >
-        <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 relative flex items-center justify-center">
-          {imageError ? (
-            <Disc className="w-12 h-12 text-gray-500" />
-          ) : showImage ? (
+        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center">
+          {showImage ? (
             <Image
               src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
               alt={album.Name}
               className="w-full h-full object-cover"
               showOutline={true}
               rounded="rounded"
-              onError={() => setImageError(true)}
             />
           ) : (
             <div className="w-full h-full bg-zinc-900" />

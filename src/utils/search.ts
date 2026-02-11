@@ -12,6 +12,7 @@ export interface UnifiedSearchResults {
 export interface SearchFilterOptions {
   genres?: string[]
   years?: number[]
+  tags?: string[]
 }
 
 /**
@@ -104,15 +105,21 @@ export async function fetchAllLibraryItems(
   limit: number,
   filters?: SearchFilterOptions
 ): Promise<UnifiedSearchResults> {
-  const serverFilters: { genres?: string[]; years?: number[] } = {}
+  const serverFilters: { genres?: string[]; years?: number[]; tags?: string[] } = {}
   if (filters?.genres?.length) serverFilters.genres = filters.genres
   if (filters?.years?.length) serverFilters.years = filters.years
+  if (filters?.tags?.length) serverFilters.tags = filters.tags
+
+  // When tag filters are active, we need to fetch more songs since
+  // other entity types won't match tag filters anyway
+  const hasTagFilters = filters?.tags?.length
 
   const [artistsResult, albumsResult, playlistsResult, songsResult] = await Promise.all([
-    jellyfinClient.getArtists({ limit }),
-    jellyfinClient.getAlbums({ limit, ...serverFilters }),
-    jellyfinClient.getPlaylists({ limit }),
-    jellyfinClient.getSongs({ limit, ...serverFilters }),
+    // Skip artists/albums/playlists when tag filters are active (they don't have grouping tags)
+    hasTagFilters ? Promise.resolve({ Items: [] }) : jellyfinClient.getArtists({ limit }),
+    hasTagFilters ? Promise.resolve({ Items: [] }) : jellyfinClient.getAlbums({ limit, ...serverFilters }),
+    hasTagFilters ? Promise.resolve({ Items: [] }) : jellyfinClient.getPlaylists({ limit }),
+    jellyfinClient.getSongs({ limit: hasTagFilters ? 5000 : limit, ...serverFilters }),
   ])
 
   // Parse Tags to Grouping for songs (so client-side grouping filters work)

@@ -104,8 +104,22 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
       filters.years = years
     }
-    return filters.genres || filters.years ? filters : undefined
-  }, [selectedGenres, yearRange, includeYearFilter])
+    // Build tags for grouping filters (convert to Jellyfin tag format)
+    // For single-value selections, use server-side filtering
+    if (Object.keys(selectedGroupings).length > 0) {
+      const tags: string[] = []
+      for (const [categoryKey, selectedValues] of Object.entries(selectedGroupings)) {
+        if (selectedValues.length === 1 && !['yes', 'no'].includes(selectedValues[0])) {
+          // Single value selected (not yes/no), can use server-side filtering
+          tags.push(`grouping:${categoryKey}_${selectedValues[0]}`)
+        }
+      }
+      if (tags.length > 0) {
+        filters.tags = tags
+      }
+    }
+    return filters.genres || filters.years || filters.tags ? filters : undefined
+  }, [selectedGenres, yearRange, includeYearFilter, selectedGroupings])
 
   // Search effect with proper abort handling
   useEffect(() => {

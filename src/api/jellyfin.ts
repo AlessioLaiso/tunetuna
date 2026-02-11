@@ -297,6 +297,9 @@ class JellyfinClient {
     if (options.years) {
       options.years.forEach(year => params.append('Years', year.toString()))
     }
+    if (options.tags) {
+      options.tags.forEach(tag => params.append('Tags', tag))
+    }
     if (options.minDateLastSaved) {
       params.append('MinDateLastSaved', options.minDateLastSaved.toISOString())
     }
@@ -676,6 +679,22 @@ class JellyfinClient {
     // Filter by exact genre name match to ensure correctness
     return allSongs.filter(song =>
       song.Genres?.some(g => g.toLowerCase() === genreName.toLowerCase())
+    )
+  }
+
+  /**
+   * Fetches songs by grouping tag.
+   * Fetches all songs and filters client-side since Jellyfin doesn't support Tags as a filter parameter.
+   * @param groupingTag The grouping tag value (e.g., "mood_energetic", "language_por")
+   */
+  async getSongsByGroupingTag(groupingTag: string): Promise<LightweightSong[]> {
+    // Fetch all songs and filter client-side (same approach as getGenreSongs)
+    const allSongs = await this.fetchAllSongsLightweight()
+
+    // Filter by exact grouping tag match
+    const normalizedTag = groupingTag.toLowerCase()
+    return allSongs.filter(song =>
+      song.Grouping?.some(g => g.toLowerCase() === normalizedTag)
     )
   }
 

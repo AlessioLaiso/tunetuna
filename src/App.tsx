@@ -69,6 +69,7 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
+              <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
               <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
               {pageVisibility.artists && (
                 <>

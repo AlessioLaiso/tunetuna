@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import SearchBar from './SearchBar'
+import MoodCards from './MoodCards'
 import RecentlyAdded from './RecentlyAdded'
 import { Top10Section, NewReleasesSection, RecentlyPlayedSection } from './FeedSection'
 import { useMusicStore } from '../../stores/musicStore'
@@ -57,8 +58,11 @@ export default function HomePage() {
 
       <div className={isSearchActive ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 4.5rem + 24px)` }}>
         <div className="w-full">
+          {/* Mood cards section - no title, just cards */}
+          <MoodCards />
+
           {/* Always render components so they can load data via useEffect */}
-          <div className="pb-4">
+          <div className="pb-4" style={{ marginTop: '48px' }}>
             <RecentlyAdded />
           </div>
 
