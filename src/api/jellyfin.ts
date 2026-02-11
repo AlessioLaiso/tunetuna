@@ -378,7 +378,7 @@ class JellyfinClient {
     }
     const query = new URLSearchParams({
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Grouping',
+      Fields: 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Grouping,MediaSources',
     })
     try {
       const result = await this.request<BaseItemDto>(`/Items/${songId}?${query}`)
@@ -484,86 +484,10 @@ class JellyfinClient {
     // Extract genres ONLY from actual music items (songs) - this ensures we only get
     // genres that actually exist in the music library, not movie/TV genres
     try {
-      // Map: lowercase genre name -> canonical genre name (first occurrence)
-      // This ensures case-insensitive deduplication
-      const uniqueGenreNames = new Map<string, string>()
-      
-      // Get all albums in batches to extract all unique genres (much faster than songs)
-      let startIndex = 0
-      let hasMore = true
+      // Extract genres directly from songs (albums inherit genres from songs anyway)
+      const allSongs = await this.fetchAllSongsLightweight()
+      const musicGenres = this.buildGenresFromSongs(allSongs)
 
-      while (hasMore) {
-        const musicItems = await this.getAlbums({ limit: API_PAGE_LIMIT, startIndex })
-        const items = musicItems.Items || []
-        
-        items.forEach(item => {
-          if (item.Genres) {
-            item.Genres.forEach(genreName => {
-              const lowerName = genreName.toLowerCase()
-              // Only add if we haven't seen this genre before (case-insensitive)
-              // Use first occurrence as canonical name
-              if (!uniqueGenreNames.has(lowerName)) {
-                uniqueGenreNames.set(lowerName, genreName)
-              }
-            })
-          }
-        })
-        
-        hasMore = items.length === API_PAGE_LIMIT
-        startIndex += API_PAGE_LIMIT
-
-        // Safety limit to avoid infinite loops
-        if (startIndex > 10000) break
-      }
-
-      // Now extract genres from songs to compare - only include genres that exist in songs
-      const songGenreNames = new Set<string>()
-      let startIndexSongs = 0
-      let hasMoreSongs = true
-
-      while (hasMoreSongs) {
-        const songItems = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex: startIndexSongs })
-        const songs = songItems.Items || []
-
-        songs.forEach(song => {
-          if (song.Genres) {
-            song.Genres.forEach(genreName => {
-              songGenreNames.add(genreName.toLowerCase())
-            })
-          }
-        })
-
-        hasMoreSongs = songs.length === API_PAGE_LIMIT
-        startIndexSongs += API_PAGE_LIMIT
-        if (startIndexSongs > 10000) break
-      }
-      
-      // Build genre objects with simple name-based IDs
-      // Only include genres that actually exist in songs, not just albums
-      // This prevents showing genres like "Alternative Rock" that exist on albums but not on any songs
-      const musicGenres: BaseItemDto[] = []
-      const processedLowerNames = new Set<string>()
-
-      for (const [lowerName, canonicalName] of uniqueGenreNames) {
-        // Skip if already processed (case-insensitive check)
-        if (processedLowerNames.has(lowerName)) {
-          continue
-        }
-
-        // Only include genres that actually exist in songs, not just albums
-        if (!songGenreNames.has(lowerName)) {
-          continue // Skip genres that don't exist in songs
-        }
-
-        // Create genre object with simple name-based ID
-        musicGenres.push({
-          Id: lowerName.replace(/\s+/g, '-'),
-          Name: canonicalName,
-          Type: 'Genre',
-        })
-        processedLowerNames.add(lowerName)
-      }
-      
       // Update store with new genres and timestamps
       const now = Date.now()
       useMusicStore.getState().setGenres(musicGenres)
@@ -880,11 +804,13 @@ class JellyfinClient {
         Grouping: extractGroupingFromTags(song.Tags)
       }))
 
-      // Merge with existing cache (avoid duplicates)
+      // Merge with existing cache: update modified songs in place, append new ones
       const existingSongs = store.songs
+      const changedSongsMap = new Map(lightweightChangedSongs.map(s => [s.Id, s]))
+      const mergedSongs = existingSongs.map(s => changedSongsMap.get(s.Id) ?? s)
       const existingIds = new Set(existingSongs.map(s => s.Id))
-      const newSongs = lightweightChangedSongs.filter(song => !existingIds.has(song.Id))
-      const mergedSongs = [...existingSongs, ...newSongs]
+      const newSongs = lightweightChangedSongs.filter(s => !existingIds.has(s.Id))
+      mergedSongs.push(...newSongs)
 
       // Update the cache with error handling
       try {
@@ -896,9 +822,9 @@ class JellyfinClient {
         throw error
       }
 
-      // Optimize: only update genres that contain new songs
+      // Optimize: only update genres that contain changed songs (new or modified)
       const affectedGenres = new Set<string>()
-      newSongs.forEach(song => {
+      lightweightChangedSongs.forEach(song => {
         song.Genres?.forEach(genreName => {
           genres.forEach(genre => {
             if (genre.Name?.toLowerCase() === genreName.toLowerCase()) {
@@ -908,22 +834,25 @@ class JellyfinClient {
         })
       })
 
-      // Update only affected genres by merging existing + new songs
+      // Update only affected genres: update modified songs in place, append new ones
+      const changedSongsByGenre = new Map(lightweightChangedSongs.map(s => [s.Id, s]))
       const genreUpdatePromises = Array.from(affectedGenres).map(async (genreId) => {
         const genre = genres.find(g => g.Id === genreId)
         if (!genre?.Name) return
 
-        // Get existing genre songs and add new ones
         const existingGenreSongs = store.genreSongs[genreId] || []
-        const existingIds = new Set(existingGenreSongs.map(s => s.Id))
 
-        // Add new songs that belong to this genre
+        // Update existing songs in place
+        const updatedGenreSongs = existingGenreSongs.map(s => changedSongsByGenre.get(s.Id) ?? s)
+
+        // Append truly new songs that belong to this genre
+        const existingGenreIds = new Set(existingGenreSongs.map(s => s.Id))
         const additionalSongs = newSongs.filter(song =>
+          !existingGenreIds.has(song.Id) &&
           song.Genres?.some(g => g.toLowerCase() === genre.Name!.toLowerCase())
         )
+        updatedGenreSongs.push(...additionalSongs)
 
-        // Merge without duplicates
-        const updatedGenreSongs = [...existingGenreSongs, ...additionalSongs]
         store.setGenreSongs(genreId, updatedGenreSongs)
       })
 

@@ -90,7 +90,7 @@ const SearchArtistItem = memo(function SearchArtistItem({
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       {...longPressHandlers}
-      className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+      className={`group w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       aria-label={`Go to artist ${artist.Name}`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">

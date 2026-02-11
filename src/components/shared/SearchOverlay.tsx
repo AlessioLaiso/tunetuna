@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Filter } from 'lucide-react'
+import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import ContextMenu from './ContextMenu'
@@ -110,7 +110,7 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
         />
         <div className="absolute inset-0 pointer-events-none border border-white rounded" style={{ borderColor: 'rgba(255, 255, 255, 0.03)', borderWidth: '1px' }} />
       </div>
-      <div className="text-sm font-semibold text-white truncate mb-1">{album.Name}</div>
+      <div className="text-sm font-semibold text-white truncate mb-1 group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
       <div className="text-xs text-gray-400 truncate">
         {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
       </div>
@@ -235,7 +235,7 @@ const getGroupingIcon = (categoryKey: string): LucideIcon => {
     case 'language': return Globe
     case 'mood': return Smile
     case 'instrumental': return Piano
-    default: return Filter
+    default: return Tag
   }
 }
 
@@ -592,7 +592,7 @@ export default function SearchOverlay({
           <div className="overflow-y-auto flex-1 px-4 pb-8">
             {/* Filters */}
             {hasFilters && (
-              <div className="flex flex-wrap items-center gap-3 pt-3 pb-4 border-b border-zinc-800 mb-4">
+              <div className="flex flex-wrap items-center gap-3 pt-3 pb-4 mb-4">
                 {renderFilters()}
               </div>
             )}

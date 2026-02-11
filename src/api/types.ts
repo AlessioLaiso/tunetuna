@@ -7,6 +7,24 @@ export interface JellyfinAuthResponse {
   ServerId: string
 }
 
+export interface MediaStream {
+  Codec?: string
+  BitRate?: number
+  BitDepth?: number
+  SampleRate?: number
+  Channels?: number
+  ChannelLayout?: string
+  Type?: string
+  DisplayTitle?: string
+}
+
+export interface MediaSource {
+  Container?: string
+  Size?: number
+  Bitrate?: number
+  MediaStreams?: MediaStream[]
+}
+
 export interface BaseItemDto {
   Id: string
   Name: string
@@ -37,6 +55,7 @@ export interface BaseItemDto {
   Path?: string
   DateCreated?: string
   DateLastSaved?: string
+  MediaSources?: MediaSource[]
   UserData?: {
     Played?: boolean
     PlaybackPositionTicks?: number

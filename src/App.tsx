@@ -21,6 +21,7 @@ const ArtistDetailPage = lazy(() => import('./components/artists/ArtistDetailPag
 const AlbumDetailPage = lazy(() => import('./components/albums/AlbumDetailPage'))
 const GenreSongsPage = lazy(() => import('./components/genres/GenreSongsPage'))
 const StatsPage = lazy(() => import('./components/stats/StatsPage'))
+const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
 
 // Loading fallback component
 function PageLoader() {
@@ -69,6 +70,7 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
+              <Route path="/song/:id" element={withErrorBoundary(<SongDetailPage />, 'Song')} />
               <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
               <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
               {pageVisibility.artists && (

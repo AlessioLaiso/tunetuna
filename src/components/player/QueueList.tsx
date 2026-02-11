@@ -100,7 +100,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDrop={handleDrop}
-            className={`queue-row flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
+            className={`group queue-row flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
                 } ${isCurrent ? 'bg-zinc-900' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
             onClick={isCurrent ? undefined : handleRowClick}
             onContextMenu={handleContextMenuClick}
@@ -123,7 +123,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             </div>
             <div className="flex-1 min-w-0">
                 <div
-                    className={`text-sm font-medium truncate ${isCurrent ? 'text-[var(--accent-color)]' : 'text-white'
+                    className={`text-sm font-medium truncate transition-colors ${isCurrent ? 'text-[var(--accent-color)]' : 'text-white group-hover:text-[var(--accent-color)]'
                         }`}
                 >
                     {track.Name}

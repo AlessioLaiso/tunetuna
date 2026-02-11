@@ -59,6 +59,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setYearRange,
     selectedGroupings,
     setSelectedGroupings,
+    groupingMatchModes,
+    setGroupingMatchModes,
     clearSearch,
     clearAll,
   } = useSearch({ debounceMs: 300 })
@@ -194,6 +196,13 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setSelectedGroupings(prev => ({
       ...prev,
       [categoryKey]: selected
+    }))
+  }
+
+  const handleGroupingMatchModeChange = (categoryKey: string, mode: 'or' | 'and') => {
+    setGroupingMatchModes(prev => ({
+      ...prev,
+      [categoryKey]: mode
     }))
   }
 
@@ -364,6 +373,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
           groupingCategory={activeGroupingCategory}
           selectedGroupingValues={selectedGroupings[activeGroupingCategory.key] || []}
           onApplyGrouping={handleGroupingApply}
+          groupingMatchMode={groupingMatchModes[activeGroupingCategory.key] || 'or'}
+          onGroupingMatchModeChange={handleGroupingMatchModeChange}
         />
       )}
     </>

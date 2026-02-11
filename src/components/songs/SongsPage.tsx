@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -81,10 +81,47 @@ export default function SongsPage() {
     setYearRange,
     selectedGroupings,
     setSelectedGroupings,
+    groupingMatchModes,
+    setGroupingMatchModes,
     hasActiveFilters,
     clearSearch,
     clearAll,
   } = useSearch()
+
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Handle year and grouping filters from URL parameters
+  useEffect(() => {
+    const yearParam = searchParams.get('year')
+    const groupingParam = searchParams.get('grouping')
+    let applied = false
+
+    if (yearParam) {
+      const year = parseInt(yearParam, 10)
+      if (!isNaN(year) && year > 0) {
+        setYearRange({ min: year, max: year })
+        applied = true
+      }
+    }
+
+    if (groupingParam) {
+      const underscoreIndex = groupingParam.indexOf('_')
+      if (underscoreIndex === -1) {
+        // Single-value tag like "instrumental"
+        setSelectedGroupings(prev => ({ ...prev, [groupingParam]: ['yes'] }))
+      } else {
+        const categoryKey = groupingParam.substring(0, underscoreIndex)
+        const value = groupingParam.substring(underscoreIndex + 1)
+        setSelectedGroupings(prev => ({ ...prev, [categoryKey]: [value] }))
+      }
+      applied = true
+    }
+
+    if (applied) {
+      setIsSearchOpen(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams, setYearRange, setSelectedGroupings])
 
   // Load filter values
   useEffect(() => {
@@ -158,6 +195,13 @@ export default function SongsPage() {
     setSelectedGroupings(prev => ({
       ...prev,
       [categoryKey]: selected
+    }))
+  }
+
+  const handleGroupingMatchModeChange = (categoryKey: string, mode: 'or' | 'and') => {
+    setGroupingMatchModes(prev => ({
+      ...prev,
+      [categoryKey]: mode
     }))
   }
 
@@ -437,6 +481,8 @@ export default function SongsPage() {
           groupingCategory={activeGroupingCategory}
           selectedGroupingValues={selectedGroupings[activeGroupingCategory.key] || []}
           onApplyGrouping={handleGroupingApply}
+          groupingMatchMode={groupingMatchModes[activeGroupingCategory.key] || 'or'}
+          onGroupingMatchModeChange={handleGroupingMatchModeChange}
         />
       )}
 

@@ -1,129 +1,12 @@
 import { create } from 'zustand'
-import { persist, type StorageValue } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
+import { createIndexedDBStorage } from '../utils/storage'
+import { parseGroupingTag } from '../utils/formatting'
+import { shuffleArray } from '../utils/array'
 
-// ============================================================================
-// IndexedDB Storage Adapter
-// ============================================================================
-
-/**
- * Singleton IndexedDB connection to prevent race conditions.
- * Ensures only one database connection exists at a time.
- */
-let dbInstance: IDBDatabase | null = null
-let dbPromise: Promise<IDBDatabase> | null = null
-
-/**
- * Gets or creates the IndexedDB connection.
- * Uses singleton pattern to ensure only one connection exists.
- * Handles connection lifecycle including auto-reconnect on close.
- */
-function getDB(): Promise<IDBDatabase> {
-  // Return existing connection if available
-  if (dbInstance) {
-    return Promise.resolve(dbInstance)
-  }
-
-  // Return pending connection if one is being established
-  if (dbPromise) {
-    return dbPromise
-  }
-
-  // Create new connection
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open('tunetuna-storage', 1)
-
-    request.onupgradeneeded = () => {
-      const db = request.result
-      if (!db.objectStoreNames.contains('zustand')) {
-        db.createObjectStore('zustand')
-      }
-    }
-
-    request.onsuccess = () => {
-      dbInstance = request.result
-
-      // Handle connection close (e.g., browser closing DB)
-      dbInstance.onclose = () => {
-        dbInstance = null
-        dbPromise = null
-      }
-
-      resolve(dbInstance)
-    }
-
-    request.onerror = () => {
-      dbPromise = null
-      reject(request.error)
-    }
-  })
-
-  return dbPromise
-}
-
-/**
- * Custom IndexedDB storage adapter for Zustand persist middleware.
- * Provides larger storage capacity (~50MB+) compared to localStorage (~5-10MB).
- * Used for caching large datasets like song metadata and genre mappings.
- */
-const indexedDBStorage = {
-  getItem: async (name: string): Promise<StorageValue<MusicState> | null> => {
-    try {
-      const db = await getDB()
-      return new Promise((resolve) => {
-        const transaction = db.transaction(['zustand'], 'readonly')
-        const store = transaction.objectStore('zustand')
-        const getRequest = store.get(name)
-        getRequest.onsuccess = () => {
-          const result = getRequest.result
-          if (result) {
-            resolve(JSON.parse(result))
-          } else {
-            resolve(null)
-          }
-        }
-        getRequest.onerror = () => {
-          resolve(null)
-        }
-      })
-    } catch {
-      return null
-    }
-  },
-  setItem: async (name: string, value: StorageValue<MusicState>): Promise<void> => {
-    const db = await getDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['zustand'], 'readwrite')
-      const store = transaction.objectStore('zustand')
-      const setRequest = store.put(JSON.stringify(value), name)
-      setRequest.onsuccess = () => {
-        resolve()
-      }
-      setRequest.onerror = () => {
-        reject(setRequest.error)
-      }
-    })
-  },
-  removeItem: async (name: string): Promise<void> => {
-    try {
-      const db = await getDB()
-      return new Promise((resolve) => {
-        const transaction = db.transaction(['zustand'], 'readwrite')
-        const store = transaction.objectStore('zustand')
-        const deleteRequest = store.delete(name)
-        deleteRequest.onsuccess = () => {
-          resolve()
-        }
-        deleteRequest.onerror = () => {
-          resolve() // Don't throw on remove errors
-        }
-      })
-    } catch {
-      // Silently fail on remove errors
-    }
-  },
-}
+const indexedDBStorage = createIndexedDBStorage<MusicState>('tunetuna-storage')
 
 // ============================================================================
 // Store Types
@@ -227,25 +110,6 @@ interface MusicState {
 // ============================================================================
 // Grouping Categories Helper
 // ============================================================================
-
-/**
- * Parses a grouping tag string into category and value.
- * Tags can be either:
- * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
- * - single word format: "instrumental" -> { category: "instrumental", value: null }
- */
-function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
-  if (!tag || tag.trim() === '') return null
-  const trimmed = tag.trim().toLowerCase()
-  const underscoreIndex = trimmed.indexOf('_')
-  if (underscoreIndex === -1) {
-    return { category: trimmed, value: null }
-  }
-  return {
-    category: trimmed.substring(0, underscoreIndex),
-    value: trimmed.substring(underscoreIndex + 1)
-  }
-}
 
 /**
  * Capitalizes the first letter of a string.
@@ -421,14 +285,7 @@ export const useMusicStore = create<MusicState>()(
           ).filter(Boolean)]
         }
 
-        // Fisher-Yates shuffle for uniform randomness
-        const shuffled = [...poolSongs]
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1))
-          ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-        }
-
-        const newPool = shuffled.slice(0, poolSize)
+        const newPool = shuffleArray(poolSongs).slice(0, poolSize)
 
         return {
           shufflePool: newPool,

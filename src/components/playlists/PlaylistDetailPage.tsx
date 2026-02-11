@@ -4,13 +4,13 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import { ArrowLeft, Play, Pause, MoreHorizontal } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 import { logger } from '../../utils/logger'
-import { formatDuration } from '../../utils/formatting'
+import { formatDuration, parseGroupingTag } from '../../utils/formatting'
 
 const INITIAL_VISIBLE_TRACKS = 45
 const VISIBLE_TRACKS_INCREMENT = 45
@@ -108,7 +108,7 @@ export default function PlaylistDetailPage() {
   const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, isPlaying } = usePlayerStore()
+  const { playAlbum, playTrack, isPlaying, shuffleArtist } = usePlayerStore()
   const { songs, recordMoodAccess } = useMusicStore()
   const currentTrack = useCurrentTrack()
   const [playlist, setPlaylist] = useState<BaseItemDto | null>(null)
@@ -132,20 +132,6 @@ export default function PlaylistDetailPage() {
     if (isMoodRoute && moodValue) {
       const decodedMood = decodeURIComponent(moodValue).toLowerCase()
       recordMoodAccess(decodedMood)
-
-      // Parse grouping tags the same way search does
-      const parseGroupingTag = (tag: string): { category: string; value: string | null } | null => {
-        if (!tag || tag.trim() === '') return null
-        const trimmed = tag.trim().toLowerCase()
-        const underscoreIndex = trimmed.indexOf('_')
-        if (underscoreIndex === -1) {
-          return { category: trimmed, value: null }
-        }
-        return {
-          category: trimmed.substring(0, underscoreIndex),
-          value: trimmed.substring(underscoreIndex + 1)
-        }
-      }
 
       // Filter songs by mood category and value (same logic as search)
       const moodSongs = songs.filter(song => {
@@ -263,6 +249,12 @@ export default function PlaylistDetailPage() {
     }
   }
 
+  const handleShuffleAll = () => {
+    if (tracks.length > 0) {
+      shuffleArtist(tracks)
+    }
+  }
+
   const isPlaylistPlaying = () => {
     if (!tracks.length || !currentTrack) return false
     // Check if current track is in this playlist
@@ -332,13 +324,18 @@ export default function PlaylistDetailPage() {
                 {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
               </div>
               <button
-                onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : handlePlayAll}
+                onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
               >
                 {isPlaylistPlaying() && isPlaying ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
                     Pause
+                  </>
+                ) : isMoodRoute ? (
+                  <>
+                    <Shuffle className="w-3.5 h-3.5" />
+                    Shuffle
                   </>
                 ) : (
                   <>

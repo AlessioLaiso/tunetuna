@@ -3,16 +3,8 @@ import { usePlayerStore } from '../stores/playerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getRecommendedSongs } from '../utils/recommendations'
 import { logger } from '../utils/logger'
+import { shuffleArray } from '../utils/array'
 import type { BaseItemDto } from '../api/types'
-
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
-}
 
 /**
  * Reorders recommendations to avoid consecutive songs by the same artist.

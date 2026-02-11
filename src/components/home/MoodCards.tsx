@@ -78,6 +78,24 @@ function orderMoodsByRecency(
   })
 }
 
+/**
+ * Reorder items so that a column-flow grid displays them in row-first order.
+ * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
+ */
+function reorderForRowFlow<T>(items: T[], rows: number): T[] {
+  const cols = Math.ceil(items.length / rows)
+  const result: T[] = []
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
+      const srcIndex = row * cols + col
+      if (srcIndex < items.length) {
+        result.push(items[srcIndex])
+      }
+    }
+  }
+  return result
+}
+
 interface MoodWithAlbum {
   value: string
   name: string
@@ -210,7 +228,7 @@ export default function MoodCards() {
       <div className="hidden md:block min-[1680px]:hidden">
         <HorizontalScrollContainer gap={8}>
           <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 24px) / 4)' }}>
-            {moods.map((mood) => (
+            {reorderForRowFlow(moods, 2).map((mood) => (
               <MoodCardItem
                 key={mood.value}
                 moodValue={mood.value}
@@ -226,7 +244,7 @@ export default function MoodCards() {
       <div className="hidden min-[1680px]:block">
         <HorizontalScrollContainer gap={8}>
           <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 32px) / 5)' }}>
-            {moods.map((mood) => (
+            {reorderForRowFlow(moods, 2).map((mood) => (
               <MoodCardItem
                 key={mood.value}
                 moodValue={mood.value}

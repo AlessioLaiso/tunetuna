@@ -1,17 +1,18 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
 import { useRecommendations } from '../../hooks/useRecommendations'
+import { useLibraryChanged } from '../../hooks/useLibraryChanged'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
-import type { LightweightSong, BaseItemDto } from '../../api/types'
 import { logger } from '../../utils/logger'
+import { shuffleArray } from '../../utils/array'
 
 const colorMap: Record<string, string> = {
   slate: '#64748b',
@@ -45,42 +46,13 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   useRecommendations()
+  useLibraryChanged()
   const { accentColor } = useSettingsStore()
   const { genres, songs, genreSongs } = useMusicStore()
-  const { state: syncState } = useSyncStore()
+  const { state: syncState, startSync, completeSync } = useSyncStore()
 
   const { isQueueSidebarOpen } = usePlayerStore()
-
-  // Fisher-Yates shuffle algorithm
-  const shuffleArray = <T,>(array: T[]): T[] => {
-    const shuffled = [...array]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    return shuffled
-  }
-
-  // Utility function to generate fresh shuffle pool
-  const generateShufflePool = (allSongs: LightweightSong[], recentlyPlayed: BaseItemDto[], poolSize = 30) => {
-    if (allSongs.length === 0) return []
-
-    // Exclude recently played songs (last 10) to avoid repetition
-    const recentlyPlayedIds = new Set(recentlyPlayed.slice(0, 10).map(song => song.Id))
-    const availableSongs = allSongs.filter(song => !recentlyPlayedIds.has(song.Id))
-
-    // If we don't have enough songs after exclusion, include some recent ones
-    let poolSongs = availableSongs
-    if (poolSongs.length < poolSize) {
-      const recentToInclude = recentlyPlayed.slice(0, poolSize - poolSongs.length)
-      poolSongs = [...poolSongs, ...recentToInclude.map(rp =>
-        allSongs.find(s => s.Id === rp.Id)
-      ).filter(Boolean)]
-    }
-
-    // Shuffle and return pool
-    return shuffleArray(poolSongs).slice(0, poolSize)
-  }
+  const autoSyncTriggered = useRef(false)
 
   useEffect(() => {
     const colorHex = colorMap[accentColor] || colorMap.blue
@@ -102,6 +74,46 @@ export default function Layout({ children }: LayoutProps) {
       })
     }
   }, [genres.length])
+
+  // Auto-trigger full library sync after first login
+  useEffect(() => {
+    if (autoSyncTriggered.current) return
+
+    // Wait briefly for store hydration before checking
+    const timeout = setTimeout(async () => {
+      const { lastSyncCompleted } = useMusicStore.getState()
+      const { state } = useSyncStore.getState()
+
+      // Only auto-sync if never synced before and not already syncing
+      if (lastSyncCompleted !== null || state !== 'idle') return
+
+      autoSyncTriggered.current = true
+      const { setProgress } = useSyncStore.getState()
+
+      startSync('auto', 'Syncing library...')
+      try {
+        await jellyfinClient.syncLibrary({ scope: 'full' }, setProgress)
+
+        // Check if user cancelled during sync
+        if (useSyncStore.getState().state !== 'syncing') return
+
+        const result = await jellyfinClient.getGenres()
+        const sorted = (result || []).sort((a, b) =>
+          (a.Name || '').localeCompare(b.Name || '')
+        )
+        useMusicStore.getState().setGenres(sorted)
+        useMusicStore.getState().setLastSyncCompleted(Date.now())
+        completeSync(true, 'Library synced successfully')
+      } catch (error) {
+        // Don't show error if user cancelled
+        if (useSyncStore.getState().state === 'syncing') {
+          completeSync(false, error instanceof Error ? error.message : 'Failed to sync library')
+        }
+      }
+    }, 500)
+
+    return () => clearTimeout(timeout)
+  }, [startSync, completeSync])
 
   // Minimal preload for instant shuffle start
   useEffect(() => {

@@ -25,13 +25,10 @@ export default function MoodCardItem({ moodValue, moodName, albumId }: MoodCardI
   return (
     <button
       onClick={handleClick}
-      className="bg-zinc-800/50 rounded pl-3 border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center justify-between w-full h-11 overflow-hidden"
+      className="bg-zinc-800/50 rounded border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
-      <div className="text-sm font-medium text-white group-hover:text-[var(--accent-color)] transition-colors truncate py-2">
-        {moodName}
-      </div>
       {albumId && (
-        <div className="h-full flex-shrink-0">
+        <div className="h-full flex-shrink-0 hidden md:block">
           <Image
             src={jellyfinClient.getAlbumArtUrl(albumId, 56)}
             alt=""
@@ -41,6 +38,9 @@ export default function MoodCardItem({ moodValue, moodName, albumId }: MoodCardI
           />
         </div>
       )}
+      <div className="text-sm font-medium text-white group-hover:text-[var(--accent-color)] transition-colors truncate py-2 pl-3">
+        {moodName}
+      </div>
     </button>
   )
 }

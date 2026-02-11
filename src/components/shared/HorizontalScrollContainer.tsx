@@ -46,8 +46,8 @@ export default function HorizontalScrollContainer({
   const scroll = (direction: 'left' | 'right') => {
     if (!containerRef.current) return
     const container = containerRef.current
-    // Scroll by the full container width
-    const scrollAmount = container.clientWidth
+    // Scroll by container width + gap so pages align cleanly to column boundaries
+    const scrollAmount = container.clientWidth + gap
     container.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth',

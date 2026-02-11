@@ -84,7 +84,7 @@ function ArtistAlbumItem({ album, year, onNavigate, onContextMenu, showImage = t
           <div className="w-full h-full bg-zinc-900" />
         )}
       </div>
-      <div className="text-sm font-medium text-white truncate">{album.Name}</div>
+      <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
       {year && (
         <div className="text-xs text-gray-400 truncate">{year}</div>
       )}
@@ -168,7 +168,7 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenu
 export default function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, isPlaying, pause, addToQueue } = usePlayerStore()
+  const { playAlbum, playTrack, isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
   const [albums, setAlbums] = useState<BaseItemDto[]>([])
@@ -419,8 +419,7 @@ export default function ArtistDetailPage() {
 
   const handleShuffleAll = () => {
     if (sortedSongs.length > 0) {
-      const shuffled = [...sortedSongs].sort(() => Math.random() - 0.5)
-      playAlbum(shuffled)
+      shuffleArtist(sortedSongs)
     }
   }
 

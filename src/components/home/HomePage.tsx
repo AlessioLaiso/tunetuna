@@ -10,7 +10,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 export default function HomePage() {
   const [isSearchActive, setIsSearchActive] = useState(false)
   const { recentlyAdded, recentlyPlayed, loading } = useMusicStore()
-  const { showTop10, showNewReleases, showRecentlyPlayed, muspyRssUrl } = useSettingsStore()
+  const { showMoodCards, showTop10, showNewReleases, showRecentlyPlayed, muspyRssUrl } = useSettingsStore()
   const hasAttemptedLoad = useRef(false)
 
   const { isQueueSidebarOpen } = usePlayerStore()
@@ -59,10 +59,10 @@ export default function HomePage() {
       <div className={isSearchActive ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 4.5rem + 24px)` }}>
         <div className="w-full">
           {/* Mood cards section - no title, just cards */}
-          <MoodCards />
+          {showMoodCards && <MoodCards />}
 
           {/* Always render components so they can load data via useEffect */}
-          <div className="pb-4" style={{ marginTop: '48px' }}>
+          <div className="mt-12 pb-4">
             <RecentlyAdded />
           </div>
 

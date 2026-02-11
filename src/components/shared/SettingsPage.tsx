@@ -35,7 +35,7 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
@@ -258,6 +258,23 @@ export default function SettingsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Home</h2>
           <div className="space-y-3">
+            <div className="p-3 bg-zinc-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <label className="text-white font-medium">Mood Cards</label>
+                <button
+                  onClick={() => setShowMoodCards(!showMoodCards)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showMoodCards ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showMoodCards ? 'translate-x-6' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Requires the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>. Use the grouping tag of your music files with the format 'mood_value1; mood_value2'.
+              </p>
+            </div>
+
             <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg">
               <label className="text-white font-medium">Recently Played</label>
               <button

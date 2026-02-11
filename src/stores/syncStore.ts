@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error'
-type SyncSource = 'settings' | 'context-menu' | null
+type SyncSource = 'settings' | 'context-menu' | 'auto' | null
 
 interface SyncStore {
   state: SyncState

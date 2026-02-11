@@ -33,6 +33,9 @@ interface SettingsState {
   /** Whether to show the New Releases section on home page */
   showNewReleases: boolean
   setShowNewReleases: (show: boolean) => void
+  /** Whether to show the Mood Cards section on home page */
+  showMoodCards: boolean
+  setShowMoodCards: (show: boolean) => void
   /** Whether to show the Recently Played section on home page */
   showRecentlyPlayed: boolean
   setShowRecentlyPlayed: (show: boolean) => void
@@ -68,6 +71,8 @@ export const useSettingsStore = create<SettingsState>()(
       setStatsTrackingEnabled: (enabled) => set({ statsTrackingEnabled: enabled }),
       feedCountry: 'gb',
       setFeedCountry: (country) => set({ feedCountry: country }),
+      showMoodCards: true,
+      setShowMoodCards: (show) => set({ showMoodCards: show }),
       showTop10: true,
       setShowTop10: (show) => set({ showTop10: show }),
       showNewReleases: false,

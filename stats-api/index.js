@@ -38,18 +38,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_events_user_ts ON events(user_key, ts);
-
-  -- Auth tokens table: stores the token for each user key
-  CREATE TABLE IF NOT EXISTS auth_tokens (
-    user_key TEXT PRIMARY KEY,
-    token TEXT NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-  );
 `)
-
-// Prepared statements for auth
-const getAuthToken = db.prepare('SELECT token FROM auth_tokens WHERE user_key = ?')
-const setAuthToken = db.prepare('INSERT OR REPLACE INTO auth_tokens (user_key, token) VALUES (?, ?)')
 
 // Prepared statements
 const insertEvent = db.prepare(`
@@ -132,17 +121,13 @@ await fastify.register(cors, {
 
 /**
  * Validates the auth token for a request.
- * Since stats-api is only accessible via nginx (which strips Origin header),
- * we trust all requests and just verify a token is present.
+ * Verifies a token is present (nginx ensures only internal requests reach this API).
  * The key (SHA-256 of serverUrl::userId) provides namespace isolation.
  */
 function validateAuth(key, token) {
   if (!token) {
     return { valid: false, error: 'Missing X-Stats-Token header' }
   }
-
-  // Token is present - request is valid
-  // (nginx ensures only internal requests reach this API)
   return { valid: true }
 }
 

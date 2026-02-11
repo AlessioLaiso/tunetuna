@@ -7,6 +7,7 @@ import { useSettingsStore } from './settingsStore'
 import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
+import { shuffleArray } from '../utils/array'
 
 // Track which items have been reported to prevent duplicate API calls
 // Limit size to prevent unbounded memory growth during long sessions
@@ -78,16 +79,6 @@ export function markItemAsReported(trackId: string) {
     clearTimeout(timeout)
     reportingTimeouts.delete(trackId)
   }
-}
-
-// Fisher-Yates shuffle algorithm
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
 }
 
 export interface QueueSong extends BaseItemDto {
@@ -764,21 +755,20 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       shuffleArtist: (songs) => {
-        const shuffled = shuffleArray(songs)
-        const queueSongs = shuffled.map(t => ({ ...t, source: 'user' as const }))
+        const standardSongs = songs.map(t => ({ ...t, source: 'user' as const }))
+        const shuffled = shuffleArray(standardSongs)
 
         set({
-          songs: queueSongs,
-          standardOrder: queueSongs.map(s => s.Id),
-          shuffleOrder: queueSongs.map(s => s.Id),
+          songs: shuffled,
+          standardOrder: standardSongs.map(s => s.Id),
+          shuffleOrder: shuffled.map(s => s.Id),
           currentIndex: 0,
           previousIndex: -1,
-          shuffle: false, // Already shuffled, so disable shuffle mode
+          shuffle: true,
           isPlaying: false,
           currentTime: 0,
           duration: 0,
           manuallyCleared: false,
-
         })
 
         // Start playback

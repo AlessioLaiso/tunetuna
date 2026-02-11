@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { persist, type StorageValue } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
 import type { BaseItemDto } from '../api/types'
 import { useAuthStore } from './authStore'
 import { useSettingsStore } from './settingsStore'
+import { createIndexedDBStorage } from '../utils/storage'
 
 /**
  * Stats API endpoint - bundled with the app, served from same origin.
@@ -101,120 +102,7 @@ interface StatsState {
   initializeOldestTs: () => Promise<void>
 }
 
-// ============================================================================
-// IndexedDB Storage Adapter
-// ============================================================================
-
-/**
- * Singleton IndexedDB connection to prevent race conditions.
- * Shared pattern with musicStore for consistency.
- */
-let dbInstance: IDBDatabase | null = null
-let dbPromise: Promise<IDBDatabase> | null = null
-
-/**
- * Gets or creates the IndexedDB connection.
- * Uses singleton pattern to ensure only one connection exists.
- */
-function getDB(): Promise<IDBDatabase> {
-  if (dbInstance) {
-    return Promise.resolve(dbInstance)
-  }
-
-  if (dbPromise) {
-    return dbPromise
-  }
-
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open('tunetuna-stats-storage', 1)
-
-    request.onupgradeneeded = () => {
-      const db = request.result
-      if (!db.objectStoreNames.contains('zustand')) {
-        db.createObjectStore('zustand')
-      }
-    }
-
-    request.onsuccess = () => {
-      dbInstance = request.result
-      dbInstance.onclose = () => {
-        dbInstance = null
-        dbPromise = null
-      }
-      resolve(dbInstance)
-    }
-
-    request.onerror = () => {
-      dbPromise = null
-      reject(request.error)
-    }
-  })
-
-  return dbPromise
-}
-
-/**
- * Custom IndexedDB storage adapter for Zustand persist middleware.
- * Provides better reliability than localStorage for critical data like pending events.
- */
-const indexedDBStorage = {
-  getItem: async (name: string): Promise<StorageValue<StatsState> | null> => {
-    try {
-      const db = await getDB()
-      return new Promise((resolve) => {
-        const transaction = db.transaction(['zustand'], 'readonly')
-        const store = transaction.objectStore('zustand')
-        const getRequest = store.get(name)
-        getRequest.onsuccess = () => {
-          const result = getRequest.result
-          if (result) {
-            resolve(JSON.parse(result))
-          } else {
-            resolve(null)
-          }
-        }
-        getRequest.onerror = () => {
-          resolve(null)
-        }
-      })
-    } catch {
-      return null
-    }
-  },
-  setItem: async (name: string, value: StorageValue<StatsState>): Promise<void> => {
-    const db = await getDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['zustand'], 'readwrite')
-      const store = transaction.objectStore('zustand')
-      const setRequest = store.put(JSON.stringify(value), name)
-      setRequest.onsuccess = () => {
-        resolve()
-      }
-      setRequest.onerror = () => {
-        reject(setRequest.error)
-      }
-    })
-  },
-  removeItem: async (name: string): Promise<void> => {
-    try {
-      const db = await getDB()
-      return new Promise((resolve) => {
-        const transaction = db.transaction(['zustand'], 'readwrite')
-        const store = transaction.objectStore('zustand')
-        const deleteRequest = store.delete(name)
-        deleteRequest.onsuccess = () => {
-          resolve()
-        }
-        deleteRequest.onerror = () => {
-          resolve()
-        }
-      })
-    } catch {
-      // Silently fail on remove errors
-    }
-  },
-}
-
+const indexedDBStorage = createIndexedDBStorage<StatsState>('tunetuna-stats-storage')
 
 // ============================================================================
 // Helper Functions (internal to store module)

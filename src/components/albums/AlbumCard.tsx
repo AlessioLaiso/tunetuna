@@ -112,7 +112,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
             <div className="w-full h-full bg-zinc-900" />
           )}
         </div>
-        <div className="text-sm font-medium text-white truncate">{album.Name}</div>
+        <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
         <div className="text-xs text-gray-400 truncate">
           {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
         </div>

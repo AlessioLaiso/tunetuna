@@ -49,8 +49,23 @@ export function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window)
 }
 
-
-
-
+/**
+ * Parses a grouping tag string into category and value.
+ * Tags can be either:
+ * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
+ * - single word format: "instrumental" -> { category: "instrumental", value: null }
+ */
+export function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
+  if (!tag || tag.trim() === '') return null
+  const trimmed = tag.trim().toLowerCase()
+  const underscoreIndex = trimmed.indexOf('_')
+  if (underscoreIndex === -1) {
+    return { category: trimmed, value: null }
+  }
+  return {
+    category: trimmed.substring(0, underscoreIndex),
+    value: trimmed.substring(underscoreIndex + 1)
+  }
+}
 
 

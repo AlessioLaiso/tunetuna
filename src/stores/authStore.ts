@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { jellyfinClient } from '../api/jellyfin'
 import { clearPlaybackTrackingState } from './playerStore'
+import { clearArtistImageCache } from '../utils/artistImageCache'
 
 interface AuthState {
   serverUrl: string
@@ -42,6 +43,20 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         // Clear playback tracking state to prevent memory leaks
         clearPlaybackTrackingState()
+
+        // Clear in-memory caches
+        clearArtistImageCache()
+
+        // Clear all persisted stores to prevent data leaking between users
+        // localStorage stores: player-storage, settings-storage
+        localStorage.removeItem('player-storage')
+        localStorage.removeItem('settings-storage')
+
+        // IndexedDB stores: tunetuna-storage (music), tunetuna-stats-storage (stats)
+        indexedDB.deleteDatabase('tunetuna-storage')
+        indexedDB.deleteDatabase('tunetuna-stats-storage')
+
+        // Reset auth state and remove auth storage last
         set({
           serverUrl: '',
           username: '',

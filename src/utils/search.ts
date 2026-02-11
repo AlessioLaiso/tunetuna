@@ -13,6 +13,7 @@ export interface SearchFilterOptions {
   genres?: string[]
   years?: number[]
   tags?: string[]
+  hasGroupingFilters?: boolean
 }
 
 /**
@@ -110,9 +111,9 @@ export async function fetchAllLibraryItems(
   if (filters?.years?.length) serverFilters.years = filters.years
   if (filters?.tags?.length) serverFilters.tags = filters.tags
 
-  // When tag filters are active, we need to fetch more songs since
+  // When grouping filters are active, we need to fetch more songs since
   // other entity types won't match tag filters anyway
-  const hasTagFilters = filters?.tags?.length
+  const hasTagFilters = filters?.tags?.length || filters?.hasGroupingFilters
 
   const [artistsResult, albumsResult, playlistsResult, songsResult] = await Promise.all([
     // Skip artists/albums/playlists when tag filters are active (they don't have grouping tags)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc } from 'lucide-react'
+import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -100,6 +100,14 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     if (!currentItem) return
 
     // Handle navigation actions (don't need loading state)
+    if (action === 'viewDetails') {
+      onClose()
+      if (onNavigate) {
+        onNavigate()
+      }
+      navigate(`/song/${currentItem.Id}`)
+      return
+    }
     if (action.startsWith('goTo')) {
       onClose()
       // Allow parent to react to navigation (e.g. close modals in queue view)
@@ -346,8 +354,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'play', label: 'Play', icon: Play },
           { id: 'playNext', label: 'Play Next', icon: ListStart },
           { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
-          { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
+          { id: 'viewDetails', label: 'Go to Song Details', icon: Music },
           { id: 'goToAlbum', label: `Go to ${albumName}`, icon: Disc },
+          { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
         ]

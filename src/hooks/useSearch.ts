@@ -1,26 +1,9 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import type { BaseItemDto } from '../api/types'
 import { fetchAllLibraryItems, unifiedSearch, type SearchFilterOptions } from '../utils/search'
+import { useMusicStore } from '../stores/musicStore'
 import { logger } from '../utils/logger'
-
-/**
- * Parses a grouping tag string into category and value.
- * Tags can be either:
- * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
- * - single word format: "instrumental" -> { category: "instrumental", value: null }
- */
-function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
-  if (!tag || tag.trim() === '') return null
-  const trimmed = tag.trim().toLowerCase()
-  const underscoreIndex = trimmed.indexOf('_')
-  if (underscoreIndex === -1) {
-    return { category: trimmed, value: null }
-  }
-  return {
-    category: trimmed.substring(0, underscoreIndex),
-    value: trimmed.substring(underscoreIndex + 1)
-  }
-}
+import { parseGroupingTag } from '../utils/formatting'
 
 export interface SearchResults {
   artists: BaseItemDto[]
@@ -33,6 +16,7 @@ export interface FilterState {
   selectedGenres: string[]
   yearRange: { min: number | null; max: number | null }
   selectedGroupings: Record<string, string[]> // category key -> selected values
+  groupingMatchModes: Record<string, 'or' | 'and'> // category key -> match mode
 }
 
 export interface UseSearchOptions {
@@ -56,6 +40,8 @@ export interface UseSearchReturn {
   setYearRange: (range: { min: number | null; max: number | null }) => void
   selectedGroupings: Record<string, string[]>
   setSelectedGroupings: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
+  groupingMatchModes: Record<string, 'or' | 'and'>
+  setGroupingMatchModes: React.Dispatch<React.SetStateAction<Record<string, 'or' | 'and'>>>
   hasActiveFilters: boolean
   clearSearch: () => void
   clearAll: () => void
@@ -72,6 +58,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [rawSearchResults, setRawSearchResults] = useState<SearchResults | null>(null)
   const searchAbortControllerRef = useRef<AbortController | null>(null)
 
+  // Cached songs from the music store — used for instant grouping filtering
+  // instead of making a network request (same approach as the mood page)
+  const cachedSongs = useMusicStore(state => state.songs)
+
   // Filter state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [yearRange, setYearRange] = useState<{ min: number | null; max: number | null }>({
@@ -79,6 +69,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     max: null,
   })
   const [selectedGroupings, setSelectedGroupings] = useState<Record<string, string[]>>({})
+  const [groupingMatchModes, setGroupingMatchModes] = useState<Record<string, 'or' | 'and'>>({})
 
   // Check if any groupings are selected
   const hasGroupingFilters = Object.values(selectedGroupings).some(values => values.length > 0)
@@ -105,21 +96,35 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       filters.years = years
     }
     // Build tags for grouping filters (convert to Jellyfin tag format)
-    // For single-value selections, use server-side filtering
+    // Jellyfin's Tags parameter uses AND logic (item must match all tags),
+    // so we can push AND-mode filters entirely server-side.
+    // For OR-mode with multiple values, send one tag to narrow the result set.
     if (Object.keys(selectedGroupings).length > 0) {
       const tags: string[] = []
       for (const [categoryKey, selectedValues] of Object.entries(selectedGroupings)) {
-        if (selectedValues.length === 1 && !['yes', 'no'].includes(selectedValues[0])) {
-          // Single value selected (not yes/no), can use server-side filtering
+        if (selectedValues.length === 0) continue
+        // Skip yes/no (boolean-type categories) — handled client-side only
+        if (selectedValues.some(v => ['yes', 'no'].includes(v))) continue
+
+        const matchMode = groupingMatchModes[categoryKey] || 'or'
+        if (matchMode === 'and') {
+          // AND mode: send ALL selected tags — Jellyfin filters with AND natively
+          selectedValues.forEach(v => tags.push(`grouping:${categoryKey}_${v}`))
+        } else {
+          // OR mode: send first tag to narrow the server result set,
+          // remaining OR filtering happens client-side
           tags.push(`grouping:${categoryKey}_${selectedValues[0]}`)
         }
       }
       if (tags.length > 0) {
         filters.tags = tags
       }
+      if (hasGroupingFilters) {
+        filters.hasGroupingFilters = true
+      }
     }
-    return filters.genres || filters.years || filters.tags ? filters : undefined
-  }, [selectedGenres, yearRange, includeYearFilter, selectedGroupings])
+    return filters.genres || filters.years || filters.tags || filters.hasGroupingFilters ? filters : undefined
+  }, [selectedGenres, yearRange, includeYearFilter, selectedGroupings, groupingMatchModes])
 
   // Search effect with proper abort handling
   useEffect(() => {
@@ -131,6 +136,40 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     const hasQuery = searchQuery.trim().length > 0
 
     if (hasQuery || hasActiveFilters) {
+      // When only grouping filters are active (no search query, no genre/year),
+      // filter from the in-memory song cache instead of making a network request.
+      // This is the same approach the mood page uses and is instant.
+      const onlyGroupingFilters = !hasQuery && hasGroupingFilters
+        && selectedGenres.length === 0
+        && !(includeYearFilter && (yearRange.min !== null || yearRange.max !== null))
+
+      if (onlyGroupingFilters && cachedSongs.length > 0) {
+        // Convert LightweightSong[] to BaseItemDto[] for consistency with search results
+        const songsAsItems: BaseItemDto[] = cachedSongs.map(song => ({
+          Id: song.Id,
+          Name: song.Name,
+          AlbumArtist: song.AlbumArtist,
+          ArtistItems: song.ArtistItems,
+          Album: song.Album,
+          AlbumId: song.AlbumId,
+          IndexNumber: song.IndexNumber,
+          ProductionYear: song.ProductionYear,
+          RunTimeTicks: song.RunTimeTicks,
+          Genres: song.Genres,
+          Grouping: song.Grouping,
+          Type: 'Audio',
+        } as BaseItemDto))
+
+        setRawSearchResults({
+          artists: [],
+          albums: [],
+          playlists: [],
+          songs: songsAsItems,
+        })
+        setIsSearching(false)
+        return
+      }
+
       setIsSearching(true)
       const abortController = new AbortController()
       searchAbortControllerRef.current = abortController
@@ -178,7 +217,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRawSearchResults(null)
       setIsSearching(false)
     }
-  }, [searchQuery, selectedGenres, yearRange, selectedGroupings, hasActiveFilters, debounceMs, limit, buildServerFilters])
+  }, [searchQuery, selectedGenres, yearRange, selectedGroupings, hasActiveFilters, hasGroupingFilters, includeYearFilter, debounceMs, limit, buildServerFilters, cachedSongs])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -271,17 +310,26 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             // If both are selected, item passes this category filter
           } else {
             // Multi-value category (like "language", "mood")
-            // OR logic: item must have at least one of the selected values
             const itemValues = itemCategoryValues.get(categoryKey)
             if (!itemValues || itemValues.size === 0) {
               // Item doesn't have any values for this category but filter requires some
               return false
             }
 
-            const hasMatchingValue = selectedValues.some(selectedValue =>
-              itemValues.has(selectedValue.toLowerCase())
-            )
-            if (!hasMatchingValue) return false
+            const matchMode = groupingMatchModes[categoryKey] || 'or'
+            if (matchMode === 'and') {
+              // AND logic: item must have ALL selected values
+              const hasAllValues = selectedValues.every(selectedValue =>
+                itemValues.has(selectedValue.toLowerCase())
+              )
+              if (!hasAllValues) return false
+            } else {
+              // OR logic: item must have at least one of the selected values
+              const hasMatchingValue = selectedValues.some(selectedValue =>
+                itemValues.has(selectedValue.toLowerCase())
+              )
+              if (!hasMatchingValue) return false
+            }
           }
         }
       }
@@ -311,7 +359,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
       songs: rawSearchResults.songs.filter(filterAlbumOrSong),
     }
-  }, [rawSearchResults, selectedGenres, yearRange, includeYearFilter, selectedGroupings, hasGroupingFilters])
+  }, [rawSearchResults, selectedGenres, yearRange, includeYearFilter, selectedGroupings, groupingMatchModes, hasGroupingFilters])
 
   const clearSearch = useCallback(() => {
     setSearchQuery('')
@@ -324,6 +372,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setSelectedGenres([])
     setYearRange({ min: null, max: null })
     setSelectedGroupings({})
+    setGroupingMatchModes({})
   }, [])
 
   return {
@@ -338,6 +387,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setYearRange,
     selectedGroupings,
     setSelectedGroupings,
+    groupingMatchModes,
+    setGroupingMatchModes,
     hasActiveFilters,
     clearSearch,
     clearAll,

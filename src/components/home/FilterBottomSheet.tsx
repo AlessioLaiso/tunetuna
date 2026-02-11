@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { X, SquaresUnite, SquaresIntersect } from 'lucide-react'
 import BottomSheet from '../shared/BottomSheet'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 
@@ -19,6 +19,8 @@ interface FilterBottomSheetProps {
   groupingCategory?: GroupingCategory
   selectedGroupingValues?: string[]
   onApplyGrouping?: (categoryKey: string, selected: string[]) => void
+  groupingMatchMode?: 'or' | 'and'
+  onGroupingMatchModeChange?: (categoryKey: string, mode: 'or' | 'and') => void
 }
 
 export default function FilterBottomSheet({
@@ -34,6 +36,8 @@ export default function FilterBottomSheet({
   groupingCategory,
   selectedGroupingValues = [],
   onApplyGrouping,
+  groupingMatchMode = 'or',
+  onGroupingMatchModeChange,
 }: FilterBottomSheetProps) {
   const [localYearRange, setLocalYearRange] = useState<{ min: number | null; max: number | null }>(yearRange)
   const [localSelectedGenres, setLocalSelectedGenres] = useState<string[]>(selectedValues)
@@ -194,13 +198,43 @@ export default function FilterBottomSheet({
           <div className="text-lg font-semibold text-white">
             Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : groupingCategory?.name || 'Tag'}
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {filterType === 'grouping' && groupingCategory && !groupingCategory.isSingleValue && (
+              <div className="flex bg-white/10 rounded-lg p-0.5">
+                <button
+                  onClick={() => onGroupingMatchModeChange?.(groupingCategory.key, 'or')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    groupingMatchMode === 'or'
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/50 hover:text-white/80'
+                  }`}
+                  aria-label="Match any (OR)"
+                  title="Match any"
+                >
+                  <SquaresUnite className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onGroupingMatchModeChange?.(groupingCategory.key, 'and')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    groupingMatchMode === 'and'
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/50 hover:text-white/80'
+                  }`}
+                  aria-label="Match all (AND)"
+                  title="Match all"
+                >
+                  <SquaresIntersect className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
