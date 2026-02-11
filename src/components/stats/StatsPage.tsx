@@ -1179,8 +1179,8 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { s
             uniqueAlbums={stats.uniqueAlbums}
             uniqueSongs={stats.uniqueSongs}
             topArtists={stats.topArtists.slice(0, 5).map((a) => ({ name: a.artistName, artistId: a.artistId }))}
-            topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
-            topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, albumId: a.albumId }))}
+            topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, artistName: s.artistName, songId: s.songId, albumId: s.albumId }))}
+            topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, artistName: a.artistName, albumId: a.albumId }))}
             topGenres={stats.topGenres.slice(0, 3).map((g) => ({ name: g.genre }))}
           />
         </div>
@@ -1211,8 +1211,8 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { s
           uniqueAlbums={stats.uniqueAlbums}
           uniqueSongs={stats.uniqueSongs}
           topArtists={stats.topArtists.slice(0, 5).map((a) => ({ name: a.artistName, artistId: a.artistId }))}
-          topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, songId: s.songId, albumId: s.albumId }))}
-          topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, albumId: a.albumId }))}
+          topSongs={stats.topSongs.slice(0, 5).map((s) => ({ name: s.songName, artistName: s.artistName, songId: s.songId, albumId: s.albumId }))}
+          topAlbums={stats.topAlbums.slice(0, 3).map((a) => ({ name: a.albumName, artistName: a.artistName, albumId: a.albumId }))}
           topGenres={stats.topGenres.slice(0, 3).map((g) => ({ name: g.genre }))}
         />
       </div>

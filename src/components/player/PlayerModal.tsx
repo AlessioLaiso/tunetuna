@@ -839,30 +839,35 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           )}
         </div>
 
-        {/* XL Queue Sidebar - full height */}
-        {isQueueSidebarOpen && (
+        {/* XL Queue Sidebar - full height, always rendered on xl for smooth animation */}
+        <div
+          className="hidden xl:flex flex-col flex-shrink-0 relative z-10 transition-[width] duration-300 ease-out overflow-hidden"
+          style={{ width: isQueueSidebarOpen ? 'var(--sidebar-width)' : '0px' }}
+        >
           <div
-            className="hidden xl:flex flex-col flex-shrink-0 border-l border-white/20 relative z-10"
+            className="flex flex-col h-full flex-shrink-0"
             style={{ width: 'var(--sidebar-width)' }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 flex-shrink-0">
-              <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
-              <button
-                onClick={toggleQueueSidebar}
-                aria-label="Close queue sidebar"
-                className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <div className={`border-l border-white/20 flex-shrink-0 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 flex-shrink-0">
+                <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
+                <button
+                  onClick={toggleQueueSidebar}
+                  aria-label="Close queue sidebar"
+                  className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0 queue-xl-container [&_.text-gray-400]:text-white/60 [&_.text-gray-500]:text-white/50 [&_.text-gray-300]:text-white/70 [&_.border-zinc-800]:border-white/20 [&_.bg-zinc-600]:bg-white/30">
+            <div className={`flex-1 overflow-y-auto min-h-0 border-l border-white/20 queue-xl-container [&_.text-gray-400]:text-white/60 [&_.text-gray-500]:text-white/50 [&_.text-gray-300]:text-white/70 [&_.border-zinc-800]:border-white/20 [&_.bg-zinc-600]:bg-white/30 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
               <QueueList
                 onNavigateFromContextMenu={handleClose}
                 contentPaddingBottom="2rem"
               />
             </div>
           </div>
-        )}
+        </div>
       </div>
     </>
   )

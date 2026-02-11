@@ -11,8 +11,8 @@ interface StatsCannedImageProps {
   uniqueAlbums: number
   uniqueSongs: number
   topArtists: Array<{ name: string; artistId: string }>
-  topSongs: Array<{ name: string; songId: string; albumId: string }>
-  topAlbums: Array<{ name: string; albumId: string }>
+  topSongs: Array<{ name: string; artistName: string; songId: string; albumId: string }>
+  topAlbums: Array<{ name: string; artistName: string; albumId: string }>
   topGenres: Array<{ name: string }>
   id?: string
 }
@@ -35,10 +35,10 @@ function formatDateRange(fromMonth: string, toMonth: string): string {
   }
 
   if (fromYear === toYear) {
-    return `${shortMonths[fromM - 1]} - ${shortMonths[toM - 1]} ${fromYear}`
+    return `${shortMonths[fromM - 1]}\u2013${shortMonths[toM - 1]} ${fromYear}`
   }
 
-  return `${shortMonths[fromM - 1]} ${fromYear} - ${shortMonths[toM - 1]} ${toYear}`
+  return `${shortMonths[fromM - 1]} ${fromYear}\u2013${shortMonths[toM - 1]} ${toYear}`
 }
 
 function formatHoursAndMinutesParts(hours: number): { value: number; unit: string; value2?: number; unit2?: string } {
@@ -274,7 +274,11 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Songs</p>
               <div className="flex flex-col gap-3">
                 {topSongs.slice(0, 5).map((song, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">{song.name}</p>
+                  <p key={i} className="text-white text-2xl truncate leading-tight">
+                    {song.name}
+                    <span className="text-white/65"> · </span>
+                    <span className="text-white/65">{song.artistName}</span>
+                  </p>
                 ))}
               </div>
             </div>
@@ -284,7 +288,11 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Albums</p>
               <div className="flex flex-col gap-3">
                 {topAlbums.slice(0, 3).map((album, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">{album.name}</p>
+                  <p key={i} className="text-white text-2xl truncate leading-tight">
+                    {album.name}
+                    <span className="text-white/65"> · </span>
+                    <span className="text-white/65">{album.artistName}</span>
+                  </p>
                 ))}
               </div>
             </div>

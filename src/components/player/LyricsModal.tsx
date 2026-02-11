@@ -44,7 +44,7 @@ export default function LyricsModal() {
 
   return (
     <div
-      className={`fixed left-0 right-0 z-[55] flex flex-col ${isQueueSidebarOpen ? 'lyrics-with-sidebar' : ''}`}
+      className={`fixed left-0 right-0 z-[55] flex flex-col transition-[right] duration-300 ease-out ${isQueueSidebarOpen ? 'lyrics-with-sidebar' : ''}`}
       style={{
         top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)`,
         bottom: `calc(11rem + env(safe-area-inset-bottom))`
