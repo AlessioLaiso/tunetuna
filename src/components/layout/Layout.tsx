@@ -91,9 +91,9 @@ export default function Layout({ children }: LayoutProps) {
       autoSyncTriggered.current = true
       const { setProgress } = useSyncStore.getState()
 
-      startSync('auto', 'Syncing library...')
       try {
         await probeAndUpdateServerUrl()
+        startSync('auto', 'Syncing library...')
         await jellyfinClient.syncLibrary({ scope: 'full' }, setProgress)
 
         // Check if user cancelled during sync

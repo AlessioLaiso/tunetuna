@@ -101,9 +101,9 @@ export default function SettingsPage() {
   const handleSyncLibrary = async (options: { scope: 'incremental' | 'full' }) => {
     const { setProgress } = useSyncStore.getState()
 
-    startSync('settings', 'Syncing...')
     try {
       await probeAndUpdateServerUrl()
+      startSync('settings', 'Syncing...')
       // Pass progress callback only for full sync
       const onProgress = options.scope === 'full' ? setProgress : undefined
       await jellyfinClient.syncLibrary(options, onProgress)

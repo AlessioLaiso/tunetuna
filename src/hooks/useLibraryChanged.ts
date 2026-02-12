@@ -112,9 +112,9 @@ async function triggerIncrementalSync() {
 
   const { startSync, completeSync } = useSyncStore.getState()
 
-  startSync('auto', 'New content detected, syncing...')
   try {
     await probeAndUpdateServerUrl()
+    startSync('auto', 'New content detected, syncing...')
     await jellyfinClient.syncLibrary({ scope: 'incremental' })
     const genres = await jellyfinClient.getGenres()
     const sorted = (genres || []).sort((a, b) =>
