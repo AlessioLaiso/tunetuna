@@ -5,18 +5,22 @@ const PROBE_TIMEOUT_MS = 2000
 
 /**
  * Probe whether a Jellyfin server is reachable at the given URL.
- * Uses the unauthenticated /System/Info/Public endpoint with a short timeout.
+ * Uses mode: 'no-cors' to avoid being blocked by Chrome's Private Network
+ * Access policy, which sends a CORS preflight when fetching local IPs from
+ * a public origin. With no-cors we get an opaque response (can't read status),
+ * but the fetch succeeding means the server is reachable.
  */
 async function probeServer(url: string): Promise<boolean> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
 
   try {
-    const response = await fetch(`${url.replace(/\/$/, '')}/System/Info/Public`, {
+    await fetch(`${url.replace(/\/$/, '')}/System/Info/Public`, {
       signal: controller.signal,
+      mode: 'no-cors',
     })
     clearTimeout(timeoutId)
-    return response.ok
+    return true
   } catch {
     clearTimeout(timeoutId)
     return false
