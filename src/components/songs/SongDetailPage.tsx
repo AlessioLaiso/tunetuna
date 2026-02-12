@@ -330,7 +330,7 @@ export default function SongDetailPage() {
             {/* Desktop: artist backdrop image */}
             <div className="hidden md:block w-full h-80">
               <img
-                src={jellyfinClient.getArtistBackdropUrl(artistId)}
+                src={jellyfinClient.getArtistBackdropUrl(artistId, 1920)}
                 alt=""
                 className="w-full h-full object-cover object-[center_20%]"
                 onError={() => setHasBackdrop(false)}

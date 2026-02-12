@@ -12,22 +12,26 @@ import { logger } from '../utils/logger'
  * genres, recommendations, mood filters, and the song cache stay fresh.
  */
 export function useLibraryChanged() {
-  const { serverUrl, accessToken, isAuthenticated } = useAuthStore()
+  const { accessToken, isAuthenticated } = useAuthStore()
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectDelayRef = useRef(5_000) // Start at 5s, back off on failure
 
   useEffect(() => {
-    if (!isAuthenticated || !serverUrl || !accessToken) return
+    if (!isAuthenticated || !accessToken) return
+
+    // Use the resolved URL from jellyfinClient (which may be local or remote)
+    const effectiveUrl = jellyfinClient.serverBaseUrl
+    if (!effectiveUrl) return
 
     const connect = () => {
       // Don't open a second connection
       if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return
 
       const deviceId = storage.get<string>('deviceId') || 'unknown'
-      const wsProtocol = serverUrl.startsWith('https') ? 'wss' : 'ws'
-      const host = serverUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      const wsProtocol = effectiveUrl.startsWith('https') ? 'wss' : 'ws'
+      const host = effectiveUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
       const url = `${wsProtocol}://${host}/socket?api_key=${accessToken}&deviceId=${deviceId}`
 
       const ws = new WebSocket(url)
@@ -95,7 +99,7 @@ export function useLibraryChanged() {
         wsRef.current = null
       }
     }
-  }, [isAuthenticated, serverUrl, accessToken])
+  }, [isAuthenticated, accessToken])
 }
 
 async function triggerIncrementalSync() {

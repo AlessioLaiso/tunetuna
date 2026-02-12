@@ -1,9 +1,15 @@
 import { useSyncStore } from '../../stores/syncStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useAuthStore } from '../../stores/authStore'
+import { useSettingsStore } from '../../stores/settingsStore'
+import { jellyfinClient } from '../../api/jellyfin'
+import { getLockedLocalServerUrl } from '../../utils/config'
 
 export default function SyncStatusBar() {
   const { state, message, progress, cancelSync } = useSyncStore()
   const { isQueueSidebarOpen } = usePlayerStore()
+  const serverUrl = useAuthStore((s) => s.serverUrl)
+  const localServerUrl = useSettingsStore((s) => s.localServerUrl)
 
   if (state === 'idle') return null
 
@@ -15,6 +21,12 @@ export default function SyncStatusBar() {
       default: return 'bg-zinc-800'
     }
   }
+
+  // When a local URL is configured, show which server is being used during sync
+  const localUrl = getLockedLocalServerUrl() || localServerUrl
+  const displayMessage = state === 'syncing' && localUrl
+    ? (jellyfinClient.serverBaseUrl !== serverUrl ? 'Syncing via LAN server...' : 'Syncing via remote server...')
+    : message
 
   return (
     <div
@@ -29,7 +41,7 @@ export default function SyncStatusBar() {
       <div className="w-full mx-auto lg:flex lg:justify-center h-full max-w-[768px]">
         <div className="w-full max-w-[768px] h-full flex items-center justify-between px-4">
         <span className="text-white text-sm font-medium truncate">
-          {message}{progress !== null && <span className="tabular-nums"> ({progress}%)</span>}
+          {displayMessage}{progress !== null && <span className="tabular-nums"> ({progress}%)</span>}
         </span>
         {state === 'syncing' && (
           <button

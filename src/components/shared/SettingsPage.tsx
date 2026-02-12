@@ -10,7 +10,7 @@ import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useStatsStore } from '../../stores/statsStore'
 import BottomSheet from '../shared/BottomSheet'
-import { isServerUrlLocked } from '../../utils/config'
+import { isServerUrlLocked, isLocalServerUrlLocked, getLockedLocalServerUrl } from '../../utils/config'
 
 const tailwindColors = [
   { name: 'zinc', hex: '#71717a' },
@@ -35,7 +35,7 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
@@ -65,6 +65,8 @@ export default function SettingsPage() {
 
   // Check if server URL is locked by administrator
   const serverLocked = isServerUrlLocked()
+  const localUrlLocked = isLocalServerUrlLocked()
+  const lockedLocalUrl = getLockedLocalServerUrl()
 
   const handleCloseSyncOptions = () => {
     setShowSyncOptions(false)
@@ -271,7 +273,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Requires the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>. Use the grouping tag of your music files with the format 'mood_value1; mood_value2'.
+                Requires the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>. Set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'.
               </p>
             </div>
 
@@ -316,6 +318,9 @@ export default function SettingsPage() {
               </div>
               {showTop10 && (
                 <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">
+                    Country for Apple Music Top 10 chart
+                  </p>
                   <select
                     value={feedCountry}
                     onChange={(e) => {
@@ -347,9 +352,6 @@ export default function SettingsPage() {
                     <option value="gb">United Kingdom</option>
                     <option value="us">United States</option>
                   </select>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Country for Apple Music Top 10 chart
-                  </p>
                 </div>
               )}
             </div>
@@ -383,6 +385,18 @@ export default function SettingsPage() {
               </div>
               {showNewReleases && (
                 <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">
+                    Get your RSS feed URL from{' '}
+                    <a
+                      href="https://muspy.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[var(--accent-color)] hover:underline"
+                    >
+                      muspy.com
+                    </a>
+                    {' '}and paste it here
+                  </p>
                   <input
                     type="url"
                     value={muspyRssUrl}
@@ -395,18 +409,6 @@ export default function SettingsPage() {
                     placeholder="https://muspy.com/feed?id=..."
                     className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
                   />
-                  <p className="text-xs text-gray-400 mt-2">
-                    Get your RSS feed URL from{' '}
-                    <a
-                      href="https://muspy.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[var(--accent-color)] hover:underline"
-                    >
-                      muspy.com
-                    </a>
-                    {' '}and paste it here
-                  </p>
                 </div>
               )}
             </div>
@@ -570,6 +572,29 @@ export default function SettingsPage() {
           {syncState === 'idle' && lastSyncCompleted && (
             <div className="text-xs text-gray-400 mb-4">
               Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+          {/* Local URL field — hidden when locked via Docker */}
+          {!localUrlLocked && (
+            <div className="mb-3">
+              <p className="text-xs text-gray-400 mb-1">
+                LAN address for faster access at home (e.g. http://192.168.1.10:8096)
+              </p>
+              <input
+                type="url"
+                value={localServerUrl}
+                onChange={(e) => setLocalServerUrl(e.target.value)}
+                placeholder="Local URL (optional)"
+                className="w-full bg-zinc-900 text-white text-sm rounded-lg px-3 py-2 border border-zinc-800 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+              />
+            </div>
+          )}
+          {localUrlLocked && lockedLocalUrl && (
+            <div className="mb-2">
+              <span className="text-left text-xs break-all text-gray-400 flex items-center gap-1">
+                <Lock className="w-3 h-3 flex-shrink-0" />
+                Local: {lockedLocalUrl}
+              </span>
             </div>
           )}
           <div className="flex gap-3">

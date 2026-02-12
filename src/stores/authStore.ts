@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware'
 import { jellyfinClient } from '../api/jellyfin'
 import { clearPlaybackTrackingState } from './playerStore'
 import { clearArtistImageCache } from '../utils/artistImageCache'
+import { resolveServerUrl } from '../utils/serverUrl'
+import { useSettingsStore } from './settingsStore'
+import { getLockedLocalServerUrl } from '../utils/config'
 
 interface AuthState {
   serverUrl: string
@@ -81,7 +84,18 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       onRehydrateStorage: () => (state) => {
         if (state?.isAuthenticated && state.serverUrl && state.accessToken && state.userId) {
+          // Set credentials immediately with the remote URL so the app is usable right away
           jellyfinClient.setCredentials(state.serverUrl, state.accessToken, state.userId)
+
+          // Then probe local URL in the background and switch if reachable
+          const localUrl = getLockedLocalServerUrl() || useSettingsStore.getState().localServerUrl
+          if (localUrl) {
+            resolveServerUrl(state.serverUrl, localUrl).then((resolved) => {
+              if (resolved !== state.serverUrl) {
+                jellyfinClient.setCredentials(resolved, state.accessToken, state.userId)
+              }
+            })
+          }
         }
       },
     }

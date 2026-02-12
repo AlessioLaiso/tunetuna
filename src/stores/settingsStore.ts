@@ -42,6 +42,9 @@ interface SettingsState {
   /** Muspy RSS feed URL for new releases */
   muspyRssUrl: string
   setMuspyRssUrl: (url: string) => void
+  /** Optional local/LAN server URL for auto-switching */
+  localServerUrl: string
+  setLocalServerUrl: (url: string) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -81,6 +84,8 @@ export const useSettingsStore = create<SettingsState>()(
       setShowRecentlyPlayed: (show) => set({ showRecentlyPlayed: show }),
       muspyRssUrl: '',
       setMuspyRssUrl: (url) => set({ muspyRssUrl: url }),
+      localServerUrl: '',
+      setLocalServerUrl: (url) => set({ localServerUrl: url }),
     }),
     {
       name: 'settings-storage',

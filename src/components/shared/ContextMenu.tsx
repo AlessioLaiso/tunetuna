@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music } from 'lucide-react'
+import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink } from 'lucide-react'
 import BottomSheet from './BottomSheet'
+import PlatformPicker from './PlatformPicker'
 import { jellyfinClient } from '../../api/jellyfin'
+import { createSearchLinksResponse, type OdesliResponse } from '../../api/feed'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
@@ -42,6 +44,10 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [loading, setLoading] = useState(false)
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [fetchedGenreName, setFetchedGenreName] = useState<string | null>(null)
+  const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
+  const [odesliData, setOdesliData] = useState<OdesliResponse | null>(null)
+  const [odesliLoading, setOdesliLoading] = useState(false)
+  const [odesliTitle, setOdesliTitle] = useState('')
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
   const { startSync, completeSync } = useSyncStore()
   const { genres } = useMusicStore()
@@ -106,6 +112,26 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         onNavigate()
       }
       navigate(`/song/${currentItem.Id}`)
+      return
+    }
+    if (action === 'openIn') {
+      const artistName = currentItem.ArtistItems?.[0]?.Name || currentItem.AlbumArtist || currentItem.Name || ''
+      let title = ''
+      if (currentItemType === 'song') {
+        title = currentItem.Name || ''
+      } else if (currentItemType === 'album') {
+        title = currentItem.Name || ''
+      } else if (currentItemType === 'artist') {
+        title = ''
+      }
+      setOdesliTitle(currentItemType === 'artist' ? artistName : `${artistName} - ${title}`)
+      setOdesliLoading(true)
+      setOdesliData(null)
+      onClose()
+      setPlatformPickerOpen(true)
+      const searchLinks = createSearchLinksResponse(artistName, title)
+      setOdesliData(searchLinks)
+      setOdesliLoading(false)
       return
     }
     if (action.startsWith('goTo')) {
@@ -326,7 +352,17 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync])
 
   if (!item || !itemType) {
-    return null
+    return (
+      <PlatformPicker
+        isOpen={platformPickerOpen}
+        onClose={() => { setPlatformPickerOpen(false); setOdesliData(null) }}
+        odesliData={odesliData}
+        loading={odesliLoading}
+        title={odesliTitle}
+        mode={mode}
+        position={position}
+      />
+    )
   }
 
   // Always call getActions after the early return to ensure consistent hook calls
@@ -344,6 +380,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
+          { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
       }
       case 'song': {
@@ -359,6 +396,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
+          { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
       }
       case 'artist': {
@@ -369,6 +407,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
+          { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
       }
       case 'playlist':
@@ -385,6 +424,18 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
 
   const actions = getActions()
   const itemName = item.Name || 'Unknown'
+
+  const platformPicker = (
+    <PlatformPicker
+      isOpen={platformPickerOpen}
+      onClose={() => { setPlatformPickerOpen(false); setOdesliData(null) }}
+      odesliData={odesliData}
+      loading={odesliLoading}
+      title={odesliTitle}
+      mode={mode}
+      position={position}
+    />
+  )
 
   // Floating menu for desktop right-clicks
   if (mode === 'desktop' && isOpen) {
@@ -449,44 +500,46 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             })}
           </div>
         </div>
+        {platformPicker}
       </>
     )
   }
 
   // Mobile mode - use existing BottomSheet
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
-      <div className="pb-6">
-        <div className="mb-4 ml-4">
-          <div className="text-lg font-semibold text-white break-words">{itemName}</div>
-        </div>
+    <>
+      <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
+        <div className="pb-6">
+          <div className="mb-4 ml-4">
+            <div className="text-lg font-semibold text-white break-words">{itemName}</div>
+          </div>
 
-        <div className="space-y-1">
-          {actions.map((action) => {
-            const Icon = action.icon
-            const isActionLoading = loading && loadingAction === action.id
+          <div className="space-y-1">
+            {actions.map((action) => {
+              const Icon = action.icon
+              const isActionLoading = loading && loadingAction === action.id
 
-            return (
-              <button
-                key={action.id}
-                onClick={() => handleAction(action.id)}
-                disabled={loading}
-                className="w-full flex items-center gap-4 pl-4 pr-4 py-3 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Icon className="w-5 h-5 text-white" />
-                <span className="flex-1 text-left text-white font-medium">
-                  {action.label}
-                </span>
-                {isActionLoading && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                )}
-              </button>
-            )
-          })}
+              return (
+                <button
+                  key={action.id}
+                  onClick={() => handleAction(action.id)}
+                  disabled={loading}
+                  className="w-full flex items-center gap-4 pl-4 pr-4 py-3 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                  <span className="flex-1 text-left text-white font-medium">
+                    {action.label}
+                  </span>
+                  {isActionLoading && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
-    </BottomSheet>
+      </BottomSheet>
+      {platformPicker}
+    </>
   )
 }
-
-

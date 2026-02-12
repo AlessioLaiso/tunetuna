@@ -1,6 +1,7 @@
 // Runtime configuration interface
 interface TunetunaConfig {
   lockedServerUrl: string
+  lockedLocalServerUrl: string
 }
 
 // Extend Window interface for TypeScript
@@ -15,7 +16,7 @@ declare global {
  * Returns the config object from window.__TUNETUNA_CONFIG__ if available
  */
 function getConfig(): TunetunaConfig {
-  return window.__TUNETUNA_CONFIG__ || { lockedServerUrl: '' }
+  return window.__TUNETUNA_CONFIG__ || { lockedServerUrl: '', lockedLocalServerUrl: '' }
 }
 
 /**
@@ -40,6 +41,28 @@ export function isServerUrlLocked(): boolean {
 export function getLockedServerUrl(): string | null {
   if (isServerUrlLocked()) {
     return getConfig().lockedServerUrl
+  }
+  return null
+}
+
+/**
+ * Check if local server URL is locked by administrator
+ */
+export function isLocalServerUrlLocked(): boolean {
+  const config = getConfig()
+  return Boolean(
+    config.lockedLocalServerUrl &&
+    config.lockedLocalServerUrl !== '__JELLYFIN_LOCAL_SERVER_URL__' &&
+    config.lockedLocalServerUrl.trim() !== ''
+  )
+}
+
+/**
+ * Get the locked local server URL if configured
+ */
+export function getLockedLocalServerUrl(): string | null {
+  if (isLocalServerUrlLocked()) {
+    return getConfig().lockedLocalServerUrl
   }
   return null
 }

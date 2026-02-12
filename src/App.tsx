@@ -7,6 +7,7 @@ import Layout from './components/layout/Layout'
 import ScrollToTop from './ScrollToTop'
 import ToastContainer from './components/shared/Toast'
 import ComponentErrorBoundary from './components/shared/ComponentErrorBoundary'
+import { useServerUrlResolver } from './hooks/useServerUrlResolver'
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
@@ -40,6 +41,9 @@ function withErrorBoundary(element: ReactNode, name: string) {
 function App() {
   const { isAuthenticated, logout } = useAuthStore()
   const { pageVisibility } = useSettingsStore()
+
+  // Re-probe local/remote server URL on foreground
+  useServerUrlResolver()
 
   // Debug: Add logout button if authenticated (temporary) - moved to useEffect to avoid hook order issues
   // CRITICAL: useEffect must be called BEFORE any conditional returns to ensure consistent hook order
