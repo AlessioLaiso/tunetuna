@@ -461,13 +461,13 @@ export default function SongDetailPage() {
             {groupingCategories.map(({ key, category, values }) => {
               const GroupingIcon = getGroupingIcon(key)
               if (values.length === 0) {
-                // Single-value tag like "instrumental"
+                // Single-value boolean tag like "instrumental"
                 return (
                   <MetadataRow
                     key={key}
                     icon={GroupingIcon}
-                    label={category}
-                    value="Yes"
+                    label="Tag"
+                    value={category}
                     onClick={() => navigate(`/songs?grouping=${key}`)}
                   />
                 )
@@ -480,7 +480,7 @@ export default function SongDetailPage() {
                     {values.map((v, i) => (
                       <span key={v.raw}>
                         <button
-                          onClick={() => navigate(`/songs?grouping=${key}_${v.raw}`)}
+                          onClick={() => navigate(key === 'mood' ? `/mood/${v.raw}` : `/songs?grouping=${key}_${v.raw}`)}
                           className="text-base text-white hover:text-gray-300 transition-colors"
                         >
                           {v.display}
