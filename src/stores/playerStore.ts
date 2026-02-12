@@ -109,6 +109,8 @@ interface PlayerState {
 
   // Audio
   audioElement: HTMLAudioElement | null
+  nextAudioElement: HTMLAudioElement | null  // Pre-buffered element for gapless playback
+  nextTrackId: string | null  // ID of track loaded into nextAudioElement
 
   // UI state
   isFetchingRecommendations: boolean
@@ -122,6 +124,10 @@ interface PlayerState {
 
   // Actions
   setAudioElement: (element: HTMLAudioElement | null) => void
+  setNextAudioElement: (element: HTMLAudioElement | null) => void
+  preBufferNextTrack: () => void
+  swapToPreBuffered: () => void
+  cancelPreBuffer: () => void
   setIsFetchingRecommendations: (isFetching: boolean) => void
   setIsLoadingMoreSongs: (isLoading: boolean) => void
   setCurrentTime: (time: number) => void
@@ -182,6 +188,8 @@ export const usePlayerStore = create<PlayerState>()(
       shuffle: false,
       repeat: 'off',
       audioElement: null,
+      nextAudioElement: null,
+      nextTrackId: null,
       isFetchingRecommendations: false,
       isLoadingMoreSongs: false,
       shuffleHasMoreSongs: false,
@@ -198,6 +206,122 @@ export const usePlayerStore = create<PlayerState>()(
         if (element) {
           element.volume = get().volume
         }
+      },
+
+      setNextAudioElement: (element) => {
+        set({ nextAudioElement: element })
+        if (element) {
+          element.volume = get().volume
+        }
+      },
+
+      preBufferNextTrack: () => {
+        const { nextAudioElement, currentIndex, songs, repeat, nextTrackId } = get()
+        if (!nextAudioElement) return
+        if (repeat === 'one') return
+
+        let nextIndex = currentIndex + 1
+        if (nextIndex >= songs.length) {
+          if (repeat === 'all') {
+            nextIndex = 0
+          } else {
+            // End of queue, nothing to pre-buffer
+            if (nextTrackId) {
+              set({ nextTrackId: null })
+              nextAudioElement.removeAttribute('src')
+              nextAudioElement.load()
+            }
+            return
+          }
+        }
+
+        const nextTrack = songs[nextIndex]
+        if (!nextTrack) return
+        if (nextTrackId === nextTrack.Id) return // Already pre-buffered
+
+        const baseUrl = jellyfinClient.serverBaseUrl
+        if (!baseUrl) return
+
+        const audioUrl = `${baseUrl}/Audio/${nextTrack.Id}/stream?static=true`
+        nextAudioElement.src = audioUrl
+        nextAudioElement.load()
+        set({ nextTrackId: nextTrack.Id })
+      },
+
+      swapToPreBuffered: () => {
+        const { audioElement, nextAudioElement, nextTrackId, currentIndex, songs, repeat } = get()
+        if (!nextAudioElement || !nextTrackId) return
+
+        let nextIndex = currentIndex + 1
+        if (nextIndex >= songs.length) {
+          if (repeat === 'all') {
+            nextIndex = 0
+          } else {
+            return
+          }
+        }
+
+        const nextTrack = songs[nextIndex]
+        if (!nextTrack || nextTrack.Id !== nextTrackId) {
+          // Pre-buffer is stale
+          get().cancelPreBuffer()
+          return
+        }
+
+        // Record stats for the finishing track
+        const state = get()
+        if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+          const finishedTrack = state.songs[state.currentIndex]
+          useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
+        }
+
+        // Stop the old active element
+        if (audioElement) {
+          audioElement.pause()
+          audioElement.removeAttribute('src')
+          audioElement.load()
+        }
+
+        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
+
+        // Swap: nextAudioElement becomes active, old audioElement becomes next
+        // Set duration/currentTime from the pre-buffered element since loadedmetadata
+        // won't fire again (it already fired during pre-buffering)
+        const nextDuration = nextAudioElement.duration && !isNaN(nextAudioElement.duration)
+          ? nextAudioElement.duration : 0
+        // Set isPlaying atomically with the swap to prevent source-setting
+        // effects in PlayerBar from seeing !isPlaying and calling load() on the
+        // already-playing element
+        set({
+          audioElement: nextAudioElement,
+          nextAudioElement: audioElement,
+          nextTrackId: null,
+          previousIndex: currentIndex,
+          currentIndex: nextIndex,
+          lastPlayedTrack: currentTrack,
+          hasRecordedCurrentTrackStats: false,
+          currentTime: 0,
+          duration: nextDuration,
+          isPlaying: true,
+        })
+
+        nextAudioElement.play().then(() => {
+          reportPlaybackWithDelay(nextTrack.Id, () => get().songs[get().currentIndex] || null)
+          useMusicStore.getState().addToRecentlyPlayed(nextTrack)
+          useStatsStore.getState().startPlay(nextTrack)
+        }).catch((error) => {
+          logger.error('[Gapless] Playback error on swapped element:', error)
+          set({ isPlaying: false })
+        })
+      },
+
+      cancelPreBuffer: () => {
+        const { nextAudioElement } = get()
+        if (nextAudioElement) {
+          nextAudioElement.removeAttribute('src')
+          nextAudioElement.load()
+        }
+        set({ nextTrackId: null })
       },
 
       setIsFetchingRecommendations: (isFetching) => {
@@ -231,9 +355,14 @@ export const usePlayerStore = create<PlayerState>()(
         if (audio) {
           audio.volume = volume
         }
+        const nextAudio = get().nextAudioElement
+        if (nextAudio) {
+          nextAudio.volume = volume
+        }
       },
 
       clearQueue: () => {
+        get().cancelPreBuffer()
         // Cancel any pending shuffle expansion
         if (shuffleExpansionTimeout) {
           clearTimeout(shuffleExpansionTimeout)
@@ -256,6 +385,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addToQueue: (tracks, playNext = false, source = 'user') => {
+        get().cancelPreBuffer()
         set((state) => {
           const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
 
@@ -366,6 +496,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       removeFromQueue: (index) => {
+        get().cancelPreBuffer()
         set((state) => {
           if (index < 0 || index >= state.songs.length) return state
 
@@ -405,6 +536,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       reorderQueue: (fromIndex, toIndex) => {
+        get().cancelPreBuffer()
         set((state) => {
           if (fromIndex < 0 || toIndex < 0 ||
             fromIndex >= state.songs.length || toIndex >= state.songs.length ||
@@ -524,20 +656,11 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       next: () => {
-        // Use functional form of set() to ensure we always work with latest state
-        // This prevents race conditions with addToQueue() modifying the array
         const state = get()
 
         if (state.songs.length === 0) return
 
-        // Record stats for short songs (<60s) that weren't recorded during playback
-        // Songs ≥60s are recorded when crossing the 60s mark in setCurrentTime
-        // Pass actual listened time for threshold check (recordPlay stores full duration)
-        if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
-          const finishedTrack = state.songs[state.currentIndex]
-          useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
-        }
-
+        // Handle repeat-one mode
         if (state.repeat === 'one' && state.currentIndex >= 0) {
           get().seek(0)
           get().play()
@@ -551,17 +674,33 @@ export const usePlayerStore = create<PlayerState>()(
           if (state.repeat === 'all') {
             nextIndex = 0
           } else {
-            // At end of queue with repeat off - pause playback, don't restart the track
+            // Record stats for finishing track
+            if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+              const finishedTrack = state.songs[state.currentIndex]
+              useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
+            }
             get().pause()
             return
           }
         }
 
-        // Update previous index and move current
+        // Try gapless swap if pre-buffer matches the expected next track
+        const expectedNextTrack = state.songs[nextIndex]
+        if (state.nextTrackId && expectedNextTrack && state.nextTrackId === expectedNextTrack.Id) {
+          get().swapToPreBuffered()
+          return
+        }
+
+        // Fallback: no valid pre-buffer, do standard next
+        if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+          const finishedTrack = state.songs[state.currentIndex]
+          useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
+        }
+
         const currentTrack = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
 
         set({
-          previousIndex: state.currentIndex, // Remember where we came from for back navigation
+          previousIndex: state.currentIndex,
           currentIndex: nextIndex,
           lastPlayedTrack: currentTrack,
         })
@@ -571,8 +710,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       previous: () => {
-        // Use functional form of set() to ensure we always work with latest state
-        // This prevents race conditions with addToQueue() modifying the array
+        get().cancelPreBuffer()
         set((state) => {
           if (state.songs.length === 0) return state
 
@@ -607,9 +745,12 @@ export const usePlayerStore = create<PlayerState>()(
           audio.currentTime = time
           set({ currentTime: time })
         }
+        // Dispatch event so PlayerBar can reset preemptive advance flag
+        window.dispatchEvent(new CustomEvent('playerSeek'))
       },
 
       toggleShuffle: () => {
+        get().cancelPreBuffer()
         set((state) => {
           const newShuffle = !state.shuffle
 
@@ -677,6 +818,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       toggleRepeat: () => {
+        get().cancelPreBuffer()
         set((state) => {
           const nextRepeat: 'off' | 'all' | 'one' =
             state.repeat === 'off' ? 'all' : state.repeat === 'all' ? 'one' : 'off'
@@ -685,6 +827,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playTrack: (track, queue) => {
+        get().cancelPreBuffer()
         // If queue is provided, maintain the original order and set currentIndex to the selected track
         let tracks: (BaseItemDto | LightweightSong)[]
         let currentIndex: number
@@ -724,6 +867,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playAlbum: (tracks, startIndex = 0) => {
+        get().cancelPreBuffer()
         const songs = tracks.map(t => ({ ...t, source: 'user' as const }))
 
         set({
@@ -755,6 +899,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       shuffleArtist: (songs) => {
+        get().cancelPreBuffer()
         const standardSongs = songs.map(t => ({ ...t, source: 'user' as const }))
         const shuffled = shuffleArray(standardSongs)
 
@@ -1078,6 +1223,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       skipToTrack: (trackIndex) => {
+        get().cancelPreBuffer()
         const { songs, currentIndex } = get()
 
         if (trackIndex < 0 || trackIndex >= songs.length) return
@@ -1150,6 +1296,8 @@ export const usePlayerStore = create<PlayerState>()(
           state.currentTime = 0
           state.duration = 0
           state.audioElement = null
+          state.nextAudioElement = null
+          state.nextTrackId = null
           state.isFetchingRecommendations = false
           // Keep lastPlayedTrack as persisted
           state.isShuffleAllActive = false

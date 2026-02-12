@@ -35,6 +35,8 @@ export default function PlayerBar() {
     skipToTrack,
     isQueueSidebarOpen,
     toggleQueueSidebar,
+    setNextAudioElement,
+    preBufferNextTrack,
   } = usePlayerStore()
 
   const currentTrack = useCurrentTrack()
@@ -49,6 +51,7 @@ export default function PlayerBar() {
   const [mobileVolumeButtonElement, setMobileVolumeButtonElement] = useState<HTMLElement | null>(null)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const nextAudioRef = useRef<HTMLAudioElement | null>(null)
   const closeModalRef = useRef<(() => void) | null>(null)
   const trackPlayedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const preemptiveAdvanceRef = useRef<boolean>(false) // Track if we already advanced preemptively (iOS background fix)
@@ -97,50 +100,85 @@ export default function PlayerBar() {
     }, 300) // Match animation duration
   }
 
+  // Create both audio elements once on mount
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio()
-      // Enable background playback for iOS
       audioRef.current.setAttribute('playsinline', 'true')
       audioRef.current.setAttribute('preload', 'auto')
       setAudioElement(audioRef.current)
     }
+    if (!nextAudioRef.current) {
+      nextAudioRef.current = new Audio()
+      nextAudioRef.current.setAttribute('playsinline', 'true')
+      nextAudioRef.current.setAttribute('preload', 'auto')
+      setNextAudioElement(nextAudioRef.current)
+    }
+    const vol = usePlayerStore.getState().volume
+    if (audioRef.current) audioRef.current.volume = vol
+    if (nextAudioRef.current) nextAudioRef.current.volume = vol
+  }, [setAudioElement, setNextAudioElement])
 
-    const audio = audioRef.current
-    if (!audio) return
+  // Reset preemptive advance flag on seek to prevent auto-advance when user
+  // seeks near end of track
+  useEffect(() => {
+    const handleSeek = () => {
+      preemptiveAdvanceRef.current = false
+    }
+    window.addEventListener('playerSeek', handleSeek)
+    return () => window.removeEventListener('playerSeek', handleSeek)
+  }, [])
+
+  // Attach event listeners to the ACTIVE audio element from the store.
+  // This re-runs when audioElement changes (e.g. after a gapless swap).
+  useEffect(() => {
+    if (!audioElement) return
+
+    // Track whether this element is still the active one. When swapToPreBuffered()
+    // pauses the old element, stray pause/ended events should be ignored.
+    let isActive = true
+
+    // Reset preemptive advance flag for the new active element (e.g. after gapless swap).
+    // Without this, the flag stays true from the previous track's preemptive advance
+    // and the new track's preemptive advance would never trigger.
+    preemptiveAdvanceRef.current = false
 
     const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime)
+      if (!isActive) return
+      setCurrentTime(audioElement.currentTime)
+
+      const remaining = audioElement.duration - audioElement.currentTime
+
+      // Trigger pre-buffering of next track when ~15 seconds remain
+      if (audioElement.duration > 0 && remaining <= 15 && remaining > 0) {
+        preBufferNextTrack()
+      }
 
       // iOS PWA background playback fix: preemptively advance to next track
       // when ~1 second remains. iOS suspends JS when app is backgrounded,
-      // so the 'ended' event handler may not fire. By advancing early while
-      // audio is still playing, we keep JS alive through the transition.
-      const remaining = audio.duration - audio.currentTime
+      // so the 'ended' event handler may not fire.
       if (
         !preemptiveAdvanceRef.current &&
-        audio.duration > 0 &&
+        audioElement.duration > 0 &&
         remaining <= 1 &&
         remaining > 0
       ) {
         preemptiveAdvanceRef.current = true
 
-        // Get fresh track from store to avoid stale closure
         const state = usePlayerStore.getState()
         const track = state.currentIndex >= 0 && state.currentIndex < state.songs.length
           ? state.songs[state.currentIndex]
           : null
 
-        // Handle repeat 'one' mode - seek to beginning and reset flag
+        // Handle repeat 'one' mode
         if (state.repeat === 'one') {
-          // Record stats for short songs that weren't recorded during playback
           if (track && !state.hasRecordedCurrentTrackStats) {
-            const actualDurationMs = audio.currentTime * 1000
+            const actualDurationMs = audioElement.currentTime * 1000
             useStatsStore.getState().recordPlay(track, actualDurationMs)
           }
           usePlayerStore.setState({ hasRecordedCurrentTrackStats: false })
-          audio.currentTime = 0
-          preemptiveAdvanceRef.current = false // Reset for next loop
+          audioElement.currentTime = 0
+          preemptiveAdvanceRef.current = false
           return
         }
 
@@ -162,28 +200,31 @@ export default function PlayerBar() {
     }
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration)
-      // Reset preemptive advance flag for new track
+      if (!isActive) return
+      setDuration(audioElement.duration)
       preemptiveAdvanceRef.current = false
     }
 
     const handleEnded = async () => {
-      // Skip if we already advanced preemptively (iOS background playback fix)
+      if (!isActive) return
       if (preemptiveAdvanceRef.current) {
         preemptiveAdvanceRef.current = false
         return
       }
 
       // Report playback when track ends
-      if (currentTrack) {
+      const state = usePlayerStore.getState()
+      const track = state.currentIndex >= 0 && state.currentIndex < state.songs.length
+        ? state.songs[state.currentIndex]
+        : null
+
+      if (track) {
         try {
-          await jellyfinClient.markItemAsPlayed(currentTrack.Id)
-          // Trigger a custom event to notify RecentlyPlayed to refresh after a short delay
-          // Clear any existing timeout before setting a new one
+          await jellyfinClient.markItemAsPlayed(track.Id)
           if (trackPlayedTimeoutRef.current) {
             clearTimeout(trackPlayedTimeoutRef.current)
           }
-          const trackId = currentTrack.Id
+          const trackId = track.Id
           trackPlayedTimeoutRef.current = setTimeout(() => {
             window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
             trackPlayedTimeoutRef.current = null
@@ -193,19 +234,17 @@ export default function PlayerBar() {
         }
       }
 
-      // Handle repeat mode 'one' - replay the current track
-      const currentRepeat = usePlayerStore.getState().repeat
-      if (currentRepeat === 'one' && audio) {
-        // Record stats for short songs that weren't recorded during playback
-        const hasRecorded = usePlayerStore.getState().hasRecordedCurrentTrackStats
-        if (currentTrack && !hasRecorded) {
-          const actualDurationMs = audio.currentTime * 1000
-          useStatsStore.getState().recordPlay(currentTrack, actualDurationMs)
+      // Handle repeat mode 'one'
+      const currentRepeat = state.repeat
+      if (currentRepeat === 'one') {
+        const hasRecorded = state.hasRecordedCurrentTrackStats
+        if (track && !hasRecorded) {
+          const actualDurationMs = audioElement.currentTime * 1000
+          useStatsStore.getState().recordPlay(track, actualDurationMs)
         }
-        // Reset flag for next loop iteration
         usePlayerStore.setState({ hasRecordedCurrentTrackStats: false })
-        audio.currentTime = 0
-        audio.play()
+        audioElement.currentTime = 0
+        audioElement.play()
         return
       }
 
@@ -213,38 +252,39 @@ export default function PlayerBar() {
     }
 
     const handlePlay = () => {
+      if (!isActive) return
+      // Ignore events from a stale element (e.g. old element during gapless swap).
+      // The isActive flag only resets on effect cleanup (next render), but pause/play
+      // events fire synchronously before that.
+      if (usePlayerStore.getState().audioElement !== audioElement) return
       usePlayerStore.setState({ isPlaying: true })
     }
 
     const handlePause = () => {
+      if (!isActive) return
+      if (usePlayerStore.getState().audioElement !== audioElement) return
       usePlayerStore.setState({ isPlaying: false })
     }
 
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('play', handlePlay)
-    audio.addEventListener('pause', handlePause)
+    audioElement.addEventListener('timeupdate', handleTimeUpdate)
+    audioElement.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audioElement.addEventListener('ended', handleEnded)
+    audioElement.addEventListener('play', handlePlay)
+    audioElement.addEventListener('pause', handlePause)
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      audio.removeEventListener('ended', handleEnded)
-      audio.removeEventListener('play', handlePlay)
-      audio.removeEventListener('pause', handlePause)
-      // Clear any pending trackPlayed timeout
+      isActive = false
+      audioElement.removeEventListener('timeupdate', handleTimeUpdate)
+      audioElement.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audioElement.removeEventListener('ended', handleEnded)
+      audioElement.removeEventListener('play', handlePlay)
+      audioElement.removeEventListener('pause', handlePause)
       if (trackPlayedTimeoutRef.current) {
         clearTimeout(trackPlayedTimeoutRef.current)
         trackPlayedTimeoutRef.current = null
       }
     }
-  }, [setAudioElement, setCurrentTime, setDuration, next])
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = usePlayerStore.getState().volume
-    }
-  }, [])
+  }, [audioElement, setCurrentTime, setDuration, next, preBufferNextTrack])
 
   // Set up Media Session metadata and action handlers (iOS PWA fix)
   // This runs in PlayerBar which is always mounted, ensuring Media Session works
@@ -301,21 +341,6 @@ export default function PlayerBar() {
       }
     }
   }, [currentTrack, isPlaying, audioElement])
-
-  // Ensure audio source is set when audio element becomes available and we have a currentTrack
-  useEffect(() => {
-    if (audioElement && currentTrack && !isPlaying) {
-      // Check if audio source needs to be set
-      const baseUrl = jellyfinClient.serverBaseUrl
-      const audioUrl = baseUrl
-        ? `${baseUrl}/Audio/${currentTrack.Id}/stream?static=true`
-        : ''
-      if (audioElement.src !== audioUrl) {
-        audioElement.src = audioUrl
-        audioElement.load()
-      }
-    }
-  }, [audioElement, currentTrack, isPlaying])
 
   // Show player bar if there's a current track, last played track, or songs in queue
   const firstQueueTrack = songs.length > 0 ? songs[0] : null
