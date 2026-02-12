@@ -13,6 +13,7 @@ import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
 import { shuffleArray } from '../../utils/array'
+import { probeAndUpdateServerUrl } from '../../utils/serverUrl'
 
 const colorMap: Record<string, string> = {
   slate: '#64748b',
@@ -92,6 +93,7 @@ export default function Layout({ children }: LayoutProps) {
 
       startSync('auto', 'Syncing library...')
       try {
+        await probeAndUpdateServerUrl()
         await jellyfinClient.syncLibrary({ scope: 'full' }, setProgress)
 
         // Check if user cancelled during sync

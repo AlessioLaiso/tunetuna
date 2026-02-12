@@ -23,7 +23,7 @@ export default function SyncStatusBar() {
   // When a local URL is configured, show which server is being used during sync
   const localUrl = getLockedLocalServerUrl() || localServerUrl
   const displayMessage = state === 'syncing' && localUrl
-    ? (jellyfinClient.serverBaseUrl === localUrl ? 'Syncing via LAN server...' : 'Syncing via remote server...')
+    ? (jellyfinClient.serverBaseUrl === localUrl.replace(/\/$/, '') ? 'Syncing via LAN server...' : 'Syncing via remote server...')
     : message
 
   return (

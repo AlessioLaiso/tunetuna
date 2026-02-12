@@ -1,4 +1,5 @@
 import { logger } from './logger'
+import { getLockedLocalServerUrl } from './config'
 
 const PROBE_TIMEOUT_MS = 2000
 
@@ -38,4 +39,27 @@ export async function resolveServerUrl(remoteUrl: string, localUrl?: string): Pr
 
   logger.log(`[serverUrl] Local URL unreachable, falling back to: ${remoteUrl}`)
   return remoteUrl
+}
+
+/**
+ * Re-probe the LAN URL and update jellyfinClient credentials if the resolved
+ * server changed. Call this before operations (like sync) that should use
+ * the best available server.
+ */
+export async function probeAndUpdateServerUrl(): Promise<void> {
+  // Lazy imports to avoid circular dependencies
+  const { useAuthStore } = await import('../stores/authStore')
+  const { useSettingsStore } = await import('../stores/settingsStore')
+  const { jellyfinClient } = await import('../api/jellyfin')
+
+  const { serverUrl, accessToken, userId } = useAuthStore.getState()
+  if (!serverUrl || !accessToken || !userId) return
+
+  const localUrl = getLockedLocalServerUrl() || useSettingsStore.getState().localServerUrl
+  if (!localUrl) return
+
+  const resolved = await resolveServerUrl(serverUrl, localUrl)
+  if (resolved.replace(/\/$/, '') !== jellyfinClient.serverBaseUrl) {
+    jellyfinClient.setCredentials(resolved, accessToken, userId)
+  }
 }

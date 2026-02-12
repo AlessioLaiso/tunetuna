@@ -5,6 +5,7 @@ import { useMusicStore } from '../stores/musicStore'
 import { jellyfinClient } from '../api/jellyfin'
 import { storage } from '../utils/storage'
 import { logger } from '../utils/logger'
+import { probeAndUpdateServerUrl } from '../utils/serverUrl'
 
 /**
  * Connects to Jellyfin's WebSocket and listens for LibraryChanged events.
@@ -113,6 +114,7 @@ async function triggerIncrementalSync() {
 
   startSync('auto', 'New content detected, syncing...')
   try {
+    await probeAndUpdateServerUrl()
     await jellyfinClient.syncLibrary({ scope: 'incremental' })
     const genres = await jellyfinClient.getGenres()
     const sorted = (genres || []).sort((a, b) =>

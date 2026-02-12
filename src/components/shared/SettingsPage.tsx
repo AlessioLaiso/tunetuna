@@ -11,6 +11,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useStatsStore } from '../../stores/statsStore'
 import BottomSheet from '../shared/BottomSheet'
 import { isServerUrlLocked, isLocalServerUrlLocked, getLockedLocalServerUrl } from '../../utils/config'
+import { probeAndUpdateServerUrl } from '../../utils/serverUrl'
 
 const tailwindColors = [
   { name: 'zinc', hex: '#71717a' },
@@ -102,6 +103,7 @@ export default function SettingsPage() {
 
     startSync('settings', 'Syncing...')
     try {
+      await probeAndUpdateServerUrl()
       // Pass progress callback only for full sync
       const onProgress = options.scope === 'full' ? setProgress : undefined
       await jellyfinClient.syncLibrary(options, onProgress)
