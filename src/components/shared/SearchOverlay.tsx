@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
+import { useLongPress } from '../../hooks/useLongPress'
 import { createPortal } from 'react-dom'
 import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucide-react'
 import SearchInput from './SearchInput'
@@ -96,11 +97,20 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
     }, 300)
   }
 
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      onContextMenu(album, 'album', 'mobile')
+    },
+  })
+
   return (
     <button
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       className="text-left group"
+      {...longPressHandlers}
     >
       <div className="aspect-square rounded overflow-hidden mb-3 bg-zinc-900 shadow-lg relative flex items-center justify-center">
         <img
@@ -158,11 +168,20 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
     }, 300)
   }
 
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      onContextMenu(song, 'song', 'mobile')
+    },
+  })
+
   return (
     <button
       onClick={handleClick}
       onContextMenu={handleContextMenuClick}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+      {...longPressHandlers}
     >
       {showImage && (
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
@@ -199,15 +218,34 @@ interface PlaylistItemProps {
 }
 
 function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemProps) {
+  const contextMenuJustOpenedRef = useRef(false)
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      contextMenuJustOpenedRef.current = true
+      onContextMenu(playlist, 'playlist', 'mobile')
+    },
+  })
   return (
     <button
-      onClick={() => onClick(playlist.Id)}
+      onClick={() => {
+        if (contextMenuJustOpenedRef.current) {
+          contextMenuJustOpenedRef.current = false
+          return
+        }
+        onClick(playlist.Id)
+      }}
       onContextMenu={(e) => {
         e.preventDefault()
         e.stopPropagation()
+        contextMenuJustOpenedRef.current = true
         onContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
+        setTimeout(() => {
+          contextMenuJustOpenedRef.current = false
+        }, 300)
       }}
       className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+      {...longPressHandlers}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
         <img
