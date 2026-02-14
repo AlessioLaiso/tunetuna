@@ -744,7 +744,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-white/70 mt-2">
+                  <div className="flex justify-between text-xs text-white/70 mt-2 tabular-nums">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>

@@ -352,6 +352,11 @@ export default function PlayerBar() {
   }, [displayTrack?.Id])
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
 
   // Check if there's a next song available
   const hasNext = songs.length > 0 && (
@@ -496,8 +501,10 @@ export default function PlayerBar() {
               <div className="text-sm font-medium text-white truncate">
                 {(currentTrack || displayTrack).Name}
               </div>
-              <div className="text-xs text-gray-400 truncate">
-                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+              <div className="text-xs text-gray-400 truncate flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}</span>
+                <span className="flex-shrink-0">•</span>
+                <span className="tabular-nums flex-shrink-0">{formatTime(currentTime)}/{formatTime(duration)}</span>
               </div>
             </div>
           </div>
