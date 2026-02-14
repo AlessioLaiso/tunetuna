@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import MoodCardItem from './MoodCardItem'
 import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
@@ -105,13 +105,12 @@ interface MoodWithAlbum {
 /**
  * Mood cards section for the home page.
  * Displays mood tags as cards in a responsive grid/carousel.
- * - Mobile: paginated carousel with dots (like RecentlyAdded)
+ * - Mobile: paginated carousel (snap scroll, no dots)
  * - Desktop: horizontal scroll with chevrons
  */
 export default function MoodCards() {
   const { songs, recentlyAccessedMoods } = useMusicStore()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [currentPage, setCurrentPage] = useState(0)
 
   // Get mood category from grouping categories
   const moodCategory = useMemo(() => {
@@ -140,27 +139,6 @@ export default function MoodCards() {
   // Don't render if no moods
   if (moods.length === 0) return null
 
-  // Handle scroll to update current page (mobile)
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return
-    const container = scrollContainerRef.current
-    const scrollLeft = container.scrollLeft
-    const pageWidth = container.clientWidth
-    const page = Math.round(scrollLeft / pageWidth)
-    setCurrentPage(page)
-  }
-
-  // Scroll to specific page (mobile)
-  const scrollToPage = (page: number) => {
-    if (!scrollContainerRef.current) return
-    const container = scrollContainerRef.current
-    const pageWidth = container.clientWidth
-    container.scrollTo({
-      left: page * pageWidth,
-      behavior: 'smooth',
-    })
-  }
-
   // Group moods into pages of 6 (2 rows × 3 columns) for mobile
   const moodsPerPage = 6
   const pages: MoodWithAlbum[][] = []
@@ -174,7 +152,6 @@ export default function MoodCards() {
       <div className="md:hidden">
         <div
           ref={scrollContainerRef}
-          onScroll={handleScroll}
           className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
           style={{
             scrollbarWidth: 'none',
@@ -208,20 +185,6 @@ export default function MoodCards() {
             })}
           </div>
         </div>
-        {pages.length > 1 && (
-          <div className="flex justify-center gap-2 mt-3">
-            {pages.map((_, pageIndex) => (
-              <button
-                key={pageIndex}
-                onClick={() => scrollToPage(pageIndex)}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  pageIndex === currentPage ? 'bg-white' : 'bg-zinc-600'
-                }`}
-                aria-label={`Go to page ${pageIndex + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Medium screens (768-1680px): 4 columns, 2 rows, horizontal scroll */}

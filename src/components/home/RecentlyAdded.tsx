@@ -93,7 +93,6 @@ export default function RecentlyAdded() {
   const { recentlyAdded, setRecentlyAdded, setLoading } = useMusicStore()
   const navigate = useNavigate()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [currentPage, setCurrentPage] = useState(0)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -115,27 +114,6 @@ export default function RecentlyAdded() {
     loadRecentlyAdded()
   }, [setRecentlyAdded, setLoading])
 
-  // Handle scroll to update current page
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return
-    const container = scrollContainerRef.current
-    const scrollLeft = container.scrollLeft
-    const pageWidth = container.clientWidth
-    const page = Math.round(scrollLeft / pageWidth)
-    setCurrentPage(page)
-  }
-
-  // Scroll to specific page
-  const scrollToPage = (page: number) => {
-    if (!scrollContainerRef.current) return
-    const container = scrollContainerRef.current
-    const pageWidth = container.clientWidth
-    container.scrollTo({
-      left: page * pageWidth,
-      behavior: 'smooth',
-    })
-  }
-
   // Always render hooks before any conditional returns
   // Only return null if we have no data, but after all hooks are called
   if (!recentlyAdded || recentlyAdded.length === 0) {
@@ -156,7 +134,6 @@ export default function RecentlyAdded() {
       <div className="md:hidden">
         <div
           ref={scrollContainerRef}
-          onScroll={handleScroll}
           className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
           style={{
             scrollbarWidth: 'none',
@@ -197,19 +174,6 @@ export default function RecentlyAdded() {
             })}
           </div>
         </div>
-        {pages.length > 1 && (
-          <div className="flex justify-center gap-2 mt-4">
-            {pages.map((_, pageIndex) => (
-              <button
-                key={pageIndex}
-                onClick={() => scrollToPage(pageIndex)}
-                className={`w-2 h-2 rounded-full transition-colors ${pageIndex === currentPage ? 'bg-white' : 'bg-zinc-600'
-                  }`}
-                aria-label={`Go to page ${pageIndex + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Large screens: 2x4 grid (8 albums) on md to <1680px, 2x5 grid (10 albums) on >=1680px */}
