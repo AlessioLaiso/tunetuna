@@ -8,6 +8,7 @@ import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 import { shuffleArray } from '../utils/array'
+import { isIOS } from '../utils/formatting'
 
 // Track which items have been reported to prevent duplicate API calls
 // Limit size to prevent unbounded memory growth during long sessions
@@ -275,14 +276,52 @@ export const usePlayerStore = create<PlayerState>()(
           useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
         }
 
+        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
+
+        // iOS PWA: swapping Audio elements kills the audio session when backgrounded.
+        // Instead, reuse the SAME active audio element by changing its src.
+        // This keeps the iOS audio session alive so background auto-advance works.
+        if (isIOS()) {
+          // Cancel the pre-buffer (we won't use the nextAudioElement)
+          nextAudioElement.removeAttribute('src')
+          nextAudioElement.load()
+
+          const baseUrl = jellyfinClient.serverBaseUrl
+          if (!baseUrl || !audioElement) return
+
+          const audioUrl = `${baseUrl}/Audio/${nextTrack.Id}/stream?static=true`
+
+          set({
+            nextTrackId: null,
+            previousIndex: currentIndex,
+            currentIndex: nextIndex,
+            lastPlayedTrack: currentTrack,
+            hasRecordedCurrentTrackStats: false,
+            currentTime: 0,
+            duration: 0,
+            isPlaying: true,
+          })
+
+          audioElement.src = audioUrl
+          audioElement.load()
+          audioElement.play().then(() => {
+            reportPlaybackWithDelay(nextTrack.Id, () => get().songs[get().currentIndex] || null)
+            useMusicStore.getState().addToRecentlyPlayed(nextTrack)
+            useStatsStore.getState().startPlay(nextTrack)
+          }).catch((error) => {
+            logger.error('[iOS Gapless] Playback error:', error)
+            set({ isPlaying: false })
+          })
+          return
+        }
+
+        // Desktop/Android: swap audio elements for true gapless playback
         // Stop the old active element
         if (audioElement) {
           audioElement.pause()
           audioElement.removeAttribute('src')
           audioElement.load()
         }
-
-        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
 
         // Swap: nextAudioElement becomes active, old audioElement becomes next
         // Set duration/currentTime from the pre-buffered element since loadedmetadata

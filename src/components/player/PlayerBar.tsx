@@ -129,6 +129,36 @@ export default function PlayerBar() {
     return () => window.removeEventListener('playerSeek', handleSeek)
   }, [])
 
+  // iOS PWA background recovery: detect when the app returns from background
+  // and the state thinks it's playing but audio is actually paused (common when
+  // iOS suspends JS and .play() silently fails). Retry playback to recover.
+  useEffect(() => {
+    if (!isIOS()) return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+
+      // Small delay to let iOS settle after waking
+      setTimeout(() => {
+        const state = usePlayerStore.getState()
+        const audio = state.audioElement
+
+        if (!audio || !state.isPlaying) return
+
+        // State says playing but audio is actually paused — desync detected
+        if (audio.paused) {
+          audio.play().catch(() => {
+            // If retry also fails, sync the state to match reality
+            usePlayerStore.setState({ isPlaying: false })
+          })
+        }
+      }, 300)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   // Attach event listeners to the ACTIVE audio element from the store.
   // This re-runs when audioElement changes (e.g. after a gapless swap).
   useEffect(() => {
@@ -184,7 +214,7 @@ export default function PlayerBar() {
 
         // Report playback before advancing
         if (track) {
-          jellyfinClient.markItemAsPlayed(track.Id).catch(() => {})
+          jellyfinClient.markItemAsPlayed(track.Id).catch(() => { })
           if (trackPlayedTimeoutRef.current) {
             clearTimeout(trackPlayedTimeoutRef.current)
           }
