@@ -38,6 +38,7 @@ interface HomeListItemProps {
   isMenuOpen?: boolean
   subtitleIcon?: React.ReactNode
   paddingRight?: boolean
+  imageLoading?: 'lazy' | 'eager'
   onClick: (e: React.MouseEvent) => void
   onContextMenu?: (e: React.MouseEvent) => void
   onLongPress?: (e: React.TouchEvent | React.MouseEvent) => void
@@ -56,6 +57,7 @@ export function HomeListItem({
   isMenuOpen,
   subtitleIcon,
   paddingRight = false,
+  imageLoading = 'lazy',
   onClick,
   onContextMenu,
   onLongPress,
@@ -116,6 +118,7 @@ export function HomeListItem({
             className="w-full h-full object-cover"
             showOutline={true}
             rounded="rounded-sm"
+            loading={imageLoading}
             onError={handleImageError}
           />
         )}
@@ -399,6 +402,16 @@ export function NewReleasesSection() {
     }
   }, [showNewReleases, muspyRssUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Preload cover art when we have releases (e.g. from persistence on refresh) so they cache
+  useEffect(() => {
+    feedNewReleases.forEach((r) => {
+      if (!r.id.startsWith('muspy-')) {
+        const img = new window.Image()
+        img.src = getCoverArtUrl(r.id, 250)
+      }
+    })
+  }, [feedNewReleases])
+
   // Background process to resolve missing MBIDs for new releases
   const attemptedSearchesRef = useRef<Set<string>>(new Set())
 
@@ -523,20 +536,22 @@ export function NewReleasesSection() {
             const artistId = findArtistImageUrl(release.artistName)
             const artistFallbackUrl = artistId ? jellyfinClient.getArtistImageUrl(artistId, 96) : null
 
+            // Prefer remote art (single/album art from feed) for all items when available
+            const jellyfinAlbumUrl =
+              (match?.type === 'song' && matchedSong?.AlbumId)
+                ? jellyfinClient.getAlbumArtUrl(matchedSong.AlbumId, 96)
+                : (match?.type === 'album' && matchedAlbum?.albumId)
+                  ? jellyfinClient.getAlbumArtUrl(matchedAlbum.albumId, 96)
+                  : null
             let primaryUrl: string
             let firstFallback: string | undefined
             let secondFallback: string | undefined
-
-            if (match?.type === 'song' && matchedSong?.AlbumId) {
-              primaryUrl = jellyfinClient.getAlbumArtUrl(matchedSong.AlbumId, 96)
-              firstFallback = coverArtUrl || undefined
-              secondFallback = artistFallbackUrl || undefined
-            } else if (match?.type === 'album' && matchedAlbum?.albumId) {
-              primaryUrl = jellyfinClient.getAlbumArtUrl(matchedAlbum.albumId, 96)
-              firstFallback = coverArtUrl || undefined
-              secondFallback = artistFallbackUrl || undefined
-            } else if (coverArtUrl) {
+            if (coverArtUrl) {
               primaryUrl = coverArtUrl
+              firstFallback = jellyfinAlbumUrl || undefined
+              secondFallback = artistFallbackUrl || undefined
+            } else if (jellyfinAlbumUrl) {
+              primaryUrl = jellyfinAlbumUrl
               firstFallback = artistFallbackUrl || undefined
             } else {
               primaryUrl = artistFallbackUrl || ''
@@ -566,6 +581,7 @@ export function NewReleasesSection() {
                 fallbackArtworkUrl={firstFallback}
                 secondFallbackUrl={secondFallback}
                 isInLibrary={isInLibrary}
+                imageLoading="eager"
                 isMenuOpen={contextMenuItemId === release.id || (selectedReleaseId === release.id && platformPickerOpen)}
                 onClick={(e) => handleReleaseClick(release, match, e)}
                 onContextMenu={async (e) => {

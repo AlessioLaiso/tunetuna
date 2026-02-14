@@ -8,10 +8,11 @@ interface ImageProps {
   style?: React.CSSProperties
   showOutline?: boolean
   rounded?: string
+  loading?: 'lazy' | 'eager'
   onError?: () => void
 }
 
-export default function Image({ src, alt, className = '', fallback, style, showOutline, rounded = 'rounded', onError }: ImageProps) {
+export default function Image({ src, alt, className = '', fallback, style, showOutline, rounded = 'rounded', loading = 'lazy', onError }: ImageProps) {
   const [imgSrc, setImgSrc] = useState(src)
   const [error, setError] = useState(false)
   const [shouldHide, setShouldHide] = useState(false)
@@ -58,7 +59,7 @@ export default function Image({ src, alt, className = '', fallback, style, showO
         alt={alt}
         className={`block ${className}`}
         onError={handleError}
-        loading="lazy"
+        loading={loading}
         style={style}
       />
       {showOutline && (
