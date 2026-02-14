@@ -9,6 +9,7 @@ import { getLockedLocalServerUrl } from '../utils/config'
 
 interface AuthState {
   serverUrl: string
+  serverId: string
   username: string
   accessToken: string
   userId: string
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       serverUrl: '',
+      serverId: '',
       username: '',
       accessToken: '',
       userId: '',
@@ -32,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
           const response = await jellyfinClient.authenticate(serverUrl, username, password)
           set({
             serverUrl,
+            serverId: response.ServerId ?? '',
             username,
             accessToken: response.AccessToken,
             userId: response.User.Id,
@@ -62,6 +65,7 @@ export const useAuthStore = create<AuthState>()(
         // Reset auth state and remove auth storage last
         set({
           serverUrl: '',
+          serverId: '',
           username: '',
           accessToken: '',
           userId: '',

@@ -45,6 +45,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [fetchedGenreName, setFetchedGenreName] = useState<string | null>(null)
   const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
+  const [platformPickerJellyfinId, setPlatformPickerJellyfinId] = useState<string | null>(null)
   const [odesliData, setOdesliData] = useState<OdesliResponse | null>(null)
   const [odesliLoading, setOdesliLoading] = useState(false)
   const [odesliTitle, setOdesliTitle] = useState('')
@@ -127,6 +128,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setOdesliTitle(currentItemType === 'artist' ? artistName : `${artistName} - ${title}`)
       setOdesliLoading(true)
       setOdesliData(null)
+      setPlatformPickerJellyfinId(currentItem.Id ?? null)
       onClose()
       setPlatformPickerOpen(true)
       const searchLinks = createSearchLinksResponse(artistName, title)
@@ -355,12 +357,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     return (
       <PlatformPicker
         isOpen={platformPickerOpen}
-        onClose={() => { setPlatformPickerOpen(false); setOdesliData(null) }}
+        onClose={() => { setPlatformPickerOpen(false); setOdesliData(null); setPlatformPickerJellyfinId(null) }}
         odesliData={odesliData}
         loading={odesliLoading}
         title={odesliTitle}
         mode={mode}
         position={position}
+        jellyfinItemId={platformPickerJellyfinId}
       />
     )
   }
@@ -428,12 +431,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const platformPicker = (
     <PlatformPicker
       isOpen={platformPickerOpen}
-      onClose={() => { setPlatformPickerOpen(false); setOdesliData(null) }}
+      onClose={() => { setPlatformPickerOpen(false); setOdesliData(null); setPlatformPickerJellyfinId(null) }}
       odesliData={odesliData}
       loading={odesliLoading}
       title={odesliTitle}
       mode={mode}
       position={position}
+      jellyfinItemId={platformPickerJellyfinId}
     />
   )
 

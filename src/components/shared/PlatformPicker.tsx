@@ -1,5 +1,6 @@
 import BottomSheet from './BottomSheet'
 import { STREAMING_PLATFORMS, type OdesliResponse } from '../../api/feed'
+import { useAuthStore } from '../../stores/authStore'
 
 interface PlatformPickerProps {
   isOpen: boolean
@@ -10,6 +11,8 @@ interface PlatformPickerProps {
   mode?: 'mobile' | 'desktop'
   position?: { x: number; y: number }
   zIndex?: number
+  /** When set, show "Jellyfin" as first option to open this item in Jellyfin web. Omit for feed (Top 10 / New Releases). */
+  jellyfinItemId?: string | null
 }
 
 // Platform icons as simple components (using text/emoji as fallback since we don't have brand icons)
@@ -54,6 +57,11 @@ const platformIcons: Record<string, React.ReactNode> = {
       <path d="M1.175 12.225c-.051 0-.094.046-.101.1l-.233 2.154.233 2.105c.007.058.05.098.101.098.05 0 .09-.04.099-.098l.255-2.105-.27-2.154c-.009-.06-.048-.1-.098-.1m-.899.828c-.06 0-.091.037-.104.094L0 14.479l.165 1.308c.014.057.045.094.09.094s.089-.037.099-.094l.19-1.308-.19-1.334c-.01-.057-.045-.09-.09-.09m1.83-1.229c-.061 0-.12.045-.12.104l-.21 2.563.225 2.458c0 .06.045.104.106.104.061 0 .12-.044.12-.104l.24-2.458-.24-2.563c0-.06-.045-.104-.12-.104m.945-.089c-.075 0-.135.06-.15.135l-.193 2.64.21 2.544c.016.077.075.138.149.138.075 0 .135-.061.15-.138l.225-2.545-.225-2.64c-.015-.074-.06-.135-.135-.135m1.065.42c-.09 0-.149.075-.164.164l-.158 2.255.18 2.46c.015.09.074.165.164.165.089 0 .149-.075.164-.165l.209-2.46-.209-2.255c-.015-.09-.075-.164-.164-.164m.944-.54c-.104 0-.194.09-.209.195l-.149 2.81.164 2.445c.015.105.09.195.194.195.104 0 .195-.09.21-.195l.18-2.445-.18-2.81c-.015-.105-.09-.195-.194-.195m1.076-.505c-.119 0-.21.09-.225.21l-.135 3.3.149 2.4c.015.12.105.21.225.21.12 0 .21-.09.225-.21l.165-2.4-.165-3.3c-.015-.12-.105-.21-.225-.21m1.064-.54c-.135 0-.239.105-.254.24l-.12 3.825.135 2.354c.015.135.12.24.255.24.12 0 .24-.105.255-.24l.149-2.354-.149-3.825c-.015-.135-.12-.24-.255-.24m1.109-.27c-.015-.15-.135-.255-.27-.255-.15 0-.255.105-.27.255l-.12 4.08.12 2.31c.015.15.12.255.27.255.149 0 .255-.105.27-.255l.134-2.31-.134-4.08m.494 6.645c.015.165.135.284.285.284.149 0 .27-.12.284-.284l.121-2.325-.12-5.175c-.015-.165-.135-.285-.285-.285-.149 0-.27.12-.284.285l-.107 5.175.106 2.325m1.184-6.18c-.165 0-.3.135-.314.3l-.091 3.855.105 2.31c.015.165.135.3.3.3.164 0 .284-.135.299-.3l.12-2.31-.12-3.855c-.015-.165-.135-.3-.3-.3m1.199-.075c-.18 0-.314.135-.329.315l-.09 3.915.104 2.295c.015.18.135.315.315.315s.314-.135.314-.315l.12-2.295-.12-3.915c-.015-.18-.149-.315-.314-.315m1.139-.195c-.195 0-.345.149-.359.345l-.075 4.11.09 2.265c.014.195.149.345.344.345.195 0 .345-.15.359-.345l.105-2.265-.105-4.095c-.014-.195-.164-.36-.359-.36m1.305 0c-.209 0-.359.164-.374.359l-.074 4.095.089 2.25c.015.21.165.375.375.375.194 0 .359-.165.374-.375l.09-2.25-.09-4.095c-.015-.209-.165-.359-.375-.359m1.289.015c-.225 0-.39.18-.39.405l-.06 4.065.075 2.235c.016.225.166.39.391.39.225 0 .391-.165.406-.39l.09-2.235-.091-4.065c-.014-.24-.18-.405-.405-.405m1.35.09c-.24 0-.42.18-.42.42l-.045 3.975.06 2.205c.015.24.18.42.42.42.24 0 .404-.18.42-.42l.075-2.205-.075-3.975c-.015-.24-.18-.42-.42-.42m1.33.135c-.256 0-.435.194-.45.435l-.046 3.825.061 2.175c.015.255.195.45.435.45.256 0 .436-.195.45-.45l.076-2.175-.076-3.825c-.014-.255-.194-.435-.45-.435m1.453-.09c-.27 0-.48.21-.48.465l-.03 3.915.03 2.145c.015.27.21.465.48.465.27 0 .48-.195.48-.465l.045-2.145-.045-3.915c0-.255-.21-.465-.48-.465m1.444.285c-.285 0-.495.225-.51.495l-.015 3.645.03 2.13c.015.285.225.51.51.51.27 0 .494-.225.51-.51l.03-2.13-.03-3.645c-.016-.285-.225-.495-.51-.495m3.39.465c-.165-.045-.345-.075-.51-.075-.18 0-.345.015-.51.045-.044-.9-.39-1.695-.945-2.34-.556-.645-1.35-1.08-2.31-1.215-.27-.045-.405-.165-.405-.405V6.54c0-1.305-.465-2.415-1.395-3.345C19.2 2.265 18.09 1.8 16.77 1.8c-1.155 0-2.16.375-3.045 1.095-.885.72-1.44 1.635-1.68 2.745-.165-.03-.315-.045-.45-.045-1.35 0-2.355.93-2.355 2.115 0 .24.03.465.075.69-.645.12-1.17.435-1.59.945-.42.51-.63 1.095-.63 1.755 0 .75.255 1.38.765 1.89s1.14.765 1.89.765h10.53c.93 0 1.695-.285 2.31-.855.615-.57.93-1.29.93-2.145 0-.855-.3-1.575-.9-2.16-.6-.585-1.335-.885-2.205-.9"/>
     </svg>
   ),
+  jellyfin: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" role="img" aria-label="Jellyfin">
+      <path d="M12.0001 2C9.35508 2 0.835078 17.448 2.13408 20.055C3.43308 22.662 20.5841 22.633 21.8691 20.055C23.1541 17.477 14.6481 2 12.0001 2ZM18.4691 17.793C17.6291 19.483 6.39208 19.501 5.54108 17.793C4.69008 16.085 10.2671 5.963 12.0001 5.963C13.7331 5.963 19.3111 16.1 18.4691 17.793ZM12.0001 9.664C11.1221 9.664 8.30008 14.789 8.72508 15.655C9.15008 16.521 14.8491 16.511 15.2751 15.655C15.7011 14.799 12.8801 9.664 12.0001 9.664Z"/>
+    </svg>
+  ),
 }
 
 function PlatformSkeleton() {
@@ -77,18 +85,47 @@ export default function PlatformPicker({
   title: propTitle,
   mode = 'mobile',
   position,
-  zIndex = 99999
+  zIndex = 99999,
+  jellyfinItemId = null
 }: PlatformPickerProps) {
+  const serverUrl = useAuthStore((s) => s.serverUrl)
+  const serverId = useAuthStore((s) => s.serverId)
+
   if (!isOpen) {
     return null
   }
 
-  // Get available platforms from Odesli data
+  const base = serverUrl?.replace(/\/$/, '') ?? ''
+  const hasJellyfinLink = !!(jellyfinItemId && base)
+  const jellyfinUrl =
+    hasJellyfinLink && serverId
+      ? `${base}/web/#/details?id=${jellyfinItemId}&serverId=${serverId}`
+      : null
+
   const availablePlatforms = odesliData
     ? STREAMING_PLATFORMS.filter(platform => odesliData.linksByPlatform[platform.id])
     : []
 
-  const handlePlatformClick = (platformId: string) => {
+  const handlePlatformClick = async (platformId: string) => {
+    if (platformId === 'jellyfin' && jellyfinItemId && base) {
+      let sid = serverId
+      if (!sid) {
+        try {
+          const r = await fetch(`${base}/System/Info/Public`)
+          if (r.ok) {
+            const info = await r.json()
+            sid = info.Id ?? ''
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (sid) {
+        window.open(`${base}/web/#/details?id=${jellyfinItemId}&serverId=${sid}`, '_blank', 'noopener,noreferrer')
+      }
+      onClose()
+      return
+    }
     if (!odesliData) return
     const platformData = odesliData.linksByPlatform[platformId]
     if (platformData?.url) {
@@ -111,12 +148,13 @@ export default function PlatformPicker({
   }
 
   const title = getTitle()
-  const showSkeleton = loading || !odesliData || availablePlatforms.length === 0
+  const showJellyfinFirst = hasJellyfinLink
+  const showSkeleton = loading || (!showJellyfinFirst && (!odesliData || availablePlatforms.length === 0))
 
   // Desktop mode - floating menu
   if (mode === 'desktop') {
     const menuWidth = 220
-    const itemCount = showSkeleton ? 4 : availablePlatforms.length
+    const itemCount = showSkeleton ? 4 : (showJellyfinFirst ? 1 : 0) + availablePlatforms.length
     const menuHeight = Math.min(400, itemCount * 44 + 48)
 
     let menuX = position?.x || 100
@@ -152,6 +190,15 @@ export default function PlatformPicker({
             <PlatformSkeleton />
           ) : (
             <div className="space-y-0">
+              {showJellyfinFirst && (
+                <button
+                  onClick={() => handlePlatformClick('jellyfin')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800 transition-colors text-left"
+                >
+                  <span className="text-white flex-shrink-0">{platformIcons.jellyfin}</span>
+                  <span className="flex-1 text-sm text-white">Jellyfin</span>
+                </button>
+              )}
               {availablePlatforms.map((platform) => (
                 <button
                   key={platform.id}
@@ -190,6 +237,15 @@ export default function PlatformPicker({
           </div>
         ) : (
           <div className="space-y-1">
+            {showJellyfinFirst && (
+              <button
+                onClick={() => handlePlatformClick('jellyfin')}
+                className="w-full flex items-center gap-4 pl-4 pr-4 py-3 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <span className="text-white">{platformIcons.jellyfin}</span>
+                <span className="flex-1 text-left text-white font-medium">Jellyfin</span>
+              </button>
+            )}
             {availablePlatforms.map((platform) => (
               <button
                 key={platform.id}
