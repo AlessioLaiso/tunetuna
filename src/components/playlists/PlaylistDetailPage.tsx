@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
-import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown, ListMinus } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown, ListMinus, GripHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useToastStore } from '../../stores/toastStore'
@@ -26,9 +26,15 @@ interface PlaylistTrackItemProps {
   onClick: (track: BaseItemDto, tracks: BaseItemDto[]) => void
   onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
+  reorderable?: boolean
+  onReorderDragStart?: (e: React.DragEvent, index: number) => void
+  onReorderDragEnd?: () => void
+  onReorderDrop?: (e: React.DragEvent, index: number) => void
+  onDragEnterRow?: (index: number) => void
+  isDragOver?: boolean
 }
 
-function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, contextMenuItemId }: PlaylistTrackItemProps) {
+function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, contextMenuItemId, reorderable, onReorderDragStart, onReorderDragEnd, onReorderDrop, onDragEnterRow, isDragOver }: PlaylistTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const contextMenuJustOpenedRef = useRef(false)
@@ -57,8 +63,24 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
       onClick(track, tracks)
     },
   })
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    onDragEnterRow?.(index)
+  }, [onDragEnterRow, index])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    onReorderDrop?.(e, index)
+  }, [onReorderDrop, index])
+
   return (
-    <button
+    <div
+      className={`relative w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 cursor-pointer ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       onClick={() => {
         if (contextMenuJustOpenedRef.current) {
           contextMenuJustOpenedRef.current = false
@@ -68,9 +90,16 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
       }}
       onContextMenu={handleContextMenu}
       {...longPressHandlers}
-      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+      {...(reorderable ? {
+        onDragOver: handleDragOver,
+        onDragEnter: handleDragEnter,
+        onDrop: handleDrop,
+      } : {})}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+      {isDragOver && (
+        <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-color)] rounded-full pointer-events-none" />
+      )}
+      <div className="playlist-drag-art w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
         <Image
           src={jellyfinClient.getAlbumArtUrl(track.AlbumId || track.Id, 96)}
           alt={track.Name}
@@ -96,7 +125,26 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
           {formatDuration(track.RunTimeTicks)}
         </div>
       )}
-    </button>
+      {reorderable && (
+        <button
+          draggable
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onDragStart={(e) => {
+            e.stopPropagation()
+            onReorderDragStart?.(e, index)
+          }}
+          onDragEnd={(e) => {
+            e.stopPropagation()
+            onReorderDragEnd?.()
+          }}
+          className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+          aria-label="Drag to reorder"
+        >
+          <GripHorizontal className="w-4 h-4" />
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -130,6 +178,75 @@ export default function PlaylistDetailPage() {
   const [hasImage, setHasImage] = useState(false)
   const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+
+  // Drag-to-reorder state (only active when PlaylistOrder)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const draggingIndexRef = useRef<number | null>(null)
+
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', index.toString())
+    setDraggingIndex(index)
+    draggingIndexRef.current = index
+
+    const gripEl = e.currentTarget as HTMLElement | null
+    const rowEl = gripEl?.closest('.playlist-track-row') as HTMLElement | null
+    if (rowEl && e.dataTransfer.setDragImage) {
+      const artEl = rowEl.querySelector<HTMLElement>('.playlist-drag-art')
+      const dragEl = artEl ?? rowEl
+      const rect = dragEl.getBoundingClientRect()
+      e.dataTransfer.setDragImage(dragEl, rect.width / 2, rect.height / 2)
+    }
+  }, [])
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingIndex(null)
+    setDragOverIndex(null)
+    draggingIndexRef.current = null
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    const data = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/html')
+    const dragIndex = parseInt(data, 10)
+    setDragOverIndex(null)
+    setDraggingIndex(null)
+    draggingIndexRef.current = null
+
+    if (Number.isNaN(dragIndex) || dragIndex === dropIndex) return
+
+    // Optimistically update local state
+    setTracks(prev => {
+      const newTracks = [...prev]
+      const [removed] = newTracks.splice(dragIndex, 1)
+      newTracks.splice(dropIndex, 0, removed)
+      return newTracks
+    })
+
+    // Call Jellyfin API to persist the move
+    const track = tracks[dragIndex]
+    if (id && track?.PlaylistItemId) {
+      try {
+        await jellyfinClient.movePlaylistItem(id, track.PlaylistItemId, dropIndex)
+      } catch (error) {
+        logger.error('Failed to reorder playlist item:', error)
+        useToastStore.getState().addToast('Failed to reorder track', 'error', 3000)
+        // Revert on failure
+        setTracks(prev => {
+          const newTracks = [...prev]
+          const [removed] = newTracks.splice(dropIndex, 1)
+          newTracks.splice(dragIndex, 0, removed)
+          return newTracks
+        })
+      }
+    }
+  }, [tracks, id])
+
+  const handleDragEnterRow = useCallback((index: number) => {
+    if (draggingIndexRef.current == null) return
+    setDragOverIndex(index)
+  }, [])
 
   // Detect if this is a mood route
   const isMoodRoute = location.pathname.startsWith('/mood/')
@@ -412,20 +529,27 @@ export default function PlaylistDetailPage() {
             <div>
               <div className="space-y-0">
                 {sortedTracks.slice(0, visibleTracksCount).map((track, index) => (
-                  <PlaylistTrackItem
-                    key={track.Id}
-                    track={track}
-                    index={index}
-                    tracks={sortedTracks}
-                    onClick={(track) => playTrack(track, sortedTracks)}
-                    onContextMenu={(track, mode, position) => {
-                      setContextMenuItem(track)
-                      setContextMenuMode(mode || 'mobile')
-                      setContextMenuPosition(position || null)
-                      setContextMenuOpen(true)
-                    }}
-                    contextMenuItemId={contextMenuItem?.Id || null}
-                  />
+                  <div key={track.Id} className="playlist-track-row">
+                    <PlaylistTrackItem
+                      track={track}
+                      index={index}
+                      tracks={sortedTracks}
+                      onClick={(track) => playTrack(track, sortedTracks)}
+                      onContextMenu={(track, mode, position) => {
+                        setContextMenuItem(track)
+                        setContextMenuMode(mode || 'mobile')
+                        setContextMenuPosition(position || null)
+                        setContextMenuOpen(true)
+                      }}
+                      contextMenuItemId={contextMenuItem?.Id || null}
+                      reorderable={playlistSortOrder === 'PlaylistOrder' && !isMoodRoute}
+                      onReorderDragStart={handleDragStart}
+                      onReorderDragEnd={handleDragEnd}
+                      onReorderDrop={handleDrop}
+                      onDragEnterRow={handleDragEnterRow}
+                      isDragOver={dragOverIndex === index}
+                    />
+                  </div>
                 ))}
               </div>
             </div>

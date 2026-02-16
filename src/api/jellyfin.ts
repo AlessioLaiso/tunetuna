@@ -1231,6 +1231,15 @@ class JellyfinClient {
     })
   }
 
+  async movePlaylistItem(playlistId: string, itemId: string, newIndex: number): Promise<void> {
+    if (!this.userId || !this.baseUrl || !playlistId || !itemId) {
+      throw new Error('Not authenticated or invalid parameters')
+    }
+    await this.requestVoid(`/Playlists/${playlistId}/Items/${itemId}/Move/${newIndex}`, {
+      method: 'POST',
+    })
+  }
+
   async removeItemsFromPlaylist(playlistId: string, entryIds: string[]): Promise<void> {
     if (!this.userId || !this.baseUrl || !playlistId || entryIds.length === 0) {
       throw new Error('Not authenticated or invalid parameters')
