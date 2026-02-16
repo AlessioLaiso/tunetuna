@@ -62,6 +62,7 @@ export interface BaseItemDto {
     PlayCount?: number
     LastPlayedDate?: string
   }
+  PlaylistItemId?: string
 }
 
 export interface ItemsResult {

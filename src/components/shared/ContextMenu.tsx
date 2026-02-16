@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink } from 'lucide-react'
+import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import BottomSheet from './BottomSheet'
+import ResponsiveModal from './ResponsiveModal'
 import PlatformPicker from './PlatformPicker'
+import PlaylistPicker from '../playlists/PlaylistPicker'
+import UploadDropZone from './UploadDropZone'
 import { jellyfinClient } from '../../api/jellyfin'
 import { createSearchLinksResponse, type OdesliResponse } from '../../api/feed'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore } from '../../stores/statsStore'
+import { useToastStore } from '../../stores/toastStore'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 import { logger } from '../../utils/logger'
 
@@ -35,10 +40,18 @@ interface ContextMenuProps {
    * Position for desktop mode (coordinates relative to viewport)
    */
   position?: { x: number, y: number }
+  /**
+   * Additional actions appended to the action list (e.g. "Remove from Playlist")
+   */
+  extraActions?: Array<{ id: string; label: string; icon: LucideIcon }>
+  /**
+   * Handler for extra actions
+   */
+  onExtraAction?: (actionId: string, item: BaseItemDto | LightweightSong) => void
 }
 
 
-export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position }: ContextMenuProps) {
+export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position, extraActions, onExtraAction }: ContextMenuProps) {
 
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -49,6 +62,18 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [odesliData, setOdesliData] = useState<OdesliResponse | null>(null)
   const [odesliLoading, setOdesliLoading] = useState(false)
   const [odesliTitle, setOdesliTitle] = useState('')
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
+  const [playlistPickerItemIds, setPlaylistPickerItemIds] = useState<string[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteTargetName, setDeleteTargetName] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [showRenameInput, setShowRenameInput] = useState(false)
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameLoading, setRenameLoading] = useState(false)
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
+  const [editHasExistingImage, setEditHasExistingImage] = useState(false)
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
   const { startSync, completeSync } = useSyncStore()
   const { genres } = useMusicStore()
@@ -105,6 +130,55 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     const currentItemType = itemTypeRef.current
 
     if (!currentItem) return
+
+    // Handle extra actions from parent
+    if (extraActions?.some(a => a.id === action)) {
+      onClose()
+      onExtraAction?.(action, currentItem)
+      return
+    }
+
+    // Handle "Add to Playlist" (no loading state, opens picker)
+    if (action === 'addToPlaylist') {
+      if (currentItemType === 'song') {
+        setPlaylistPickerItemIds([currentItem.Id])
+        onClose()
+        setPlaylistPickerOpen(true)
+      } else if (currentItemType === 'album') {
+        setLoading(true)
+        setLoadingAction(action)
+        try {
+          const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+          setPlaylistPickerItemIds(tracks.map(t => t.Id))
+          onClose()
+          setPlaylistPickerOpen(true)
+        } catch (error) {
+          logger.error('Failed to fetch album tracks:', error)
+        } finally {
+          setLoading(false)
+          setLoadingAction(null)
+        }
+      }
+      return
+    }
+
+    // Handle playlist management actions
+    if (action === 'deletePlaylist') {
+      setDeleteTargetId(currentItem.Id)
+      setDeleteTargetName(currentItem.Name || 'this playlist')
+      onClose()
+      setShowDeleteConfirm(true)
+      return
+    }
+    if (action === 'renamePlaylist') {
+      setRenameTargetId(currentItem.Id)
+      setRenameValue(currentItem.Name || '')
+      setEditImageFile(null)
+      setEditHasExistingImage(!!('ImageTags' in currentItem && currentItem.ImageTags?.Primary))
+      onClose()
+      setShowRenameInput(true)
+      return
+    }
 
     // Handle navigation actions (don't need loading state)
     if (action === 'viewDetails') {
@@ -312,6 +386,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         case 'playlist': {
           if (action === 'play') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            if (tracks.length === 0) break
             // Disable shuffle if it's currently enabled
             const { shuffle } = usePlayerStore.getState()
             if (shuffle) {
@@ -320,6 +395,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             playAlbum(tracks)
           } else if (action === 'shuffle') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            if (tracks.length === 0) break
             // Disable shuffle first if it's enabled, then play album, then enable shuffle
             const { shuffle } = usePlayerStore.getState()
             if (shuffle) {
@@ -336,9 +412,11 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             })
           } else if (action === 'playNext') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            if (tracks.length === 0) break
             playNext(tracks)
           } else if (action === 'addToQueue') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            if (tracks.length === 0) break
             addToQueueWithToast(tracks)
           }
           break
@@ -353,18 +431,153 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     }
   }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync])
 
+  const handleDeletePlaylist = async () => {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
+    try {
+      await jellyfinClient.deleteItem(deleteTargetId)
+      useToastStore.getState().addToast('Playlist deleted', 'success', 2000)
+      setShowDeleteConfirm(false)
+      window.dispatchEvent(new CustomEvent('playlistUpdated'))
+      navigate('/playlists')
+    } catch {
+      useToastStore.getState().addToast('Failed to delete playlist', 'error', 3000)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const handleEditPlaylist = async () => {
+    if (!renameTargetId || !renameValue.trim()) return
+    setRenameLoading(true)
+    try {
+      await jellyfinClient.updatePlaylist(renameTargetId, renameValue.trim())
+      if (editImageFile) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string
+            // Strip the data URL prefix to get raw base64
+            resolve(result.split(',')[1])
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(editImageFile)
+        })
+        await jellyfinClient.uploadItemImage(renameTargetId, base64, editImageFile.type)
+      }
+      useToastStore.getState().addToast('Playlist updated', 'success', 2000)
+      setShowRenameInput(false)
+      setEditImageFile(null)
+      window.dispatchEvent(new CustomEvent('playlistUpdated'))
+    } catch {
+      useToastStore.getState().addToast('Failed to update playlist', 'error', 3000)
+    } finally {
+      setRenameLoading(false)
+    }
+  }
+
+  const playlistModals = (
+    <>
+      <PlaylistPicker
+        isOpen={playlistPickerOpen}
+        onClose={() => setPlaylistPickerOpen(false)}
+        itemIds={playlistPickerItemIds}
+      />
+      <ResponsiveModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
+        <div className="pb-6">
+          <div className="mb-6 px-4 flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-lg font-semibold text-white">Delete Playlist?</div>
+              <div className="text-sm text-gray-400 mt-1">
+                &ldquo;{deleteTargetName}&rdquo; will be permanently deleted. This cannot be undone.
+              </div>
+            </div>
+          </div>
+          <div className="px-4 space-y-2">
+            <button
+              onClick={handleDeletePlaylist}
+              disabled={deleteLoading}
+              className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-colors disabled:opacity-50"
+            >
+              {deleteLoading ? 'Deleting...' : 'Delete'}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="w-full py-3 text-white font-medium rounded-full transition-colors hover:bg-white/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </ResponsiveModal>
+      <ResponsiveModal isOpen={showRenameInput} onClose={() => { setShowRenameInput(false); setEditImageFile(null) }}>
+        <div className="pb-6">
+          <div className="mb-4 px-4">
+            <div className="text-lg font-semibold text-white">Edit Playlist</div>
+          </div>
+          <div className="px-4 space-y-6">
+            <div>
+              <div className="text-base font-medium text-white mb-2">Playlist Name</div>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleEditPlaylist() }}
+                className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                placeholder="Playlist name"
+                autoFocus
+                disabled={renameLoading}
+              />
+            </div>
+            <div>
+              <div className="text-base font-medium text-white mb-2">Image (Optional)</div>
+              <div className="w-32">
+                <UploadDropZone
+                  label="Drop or click"
+                  accept="image/*"
+                  value={editImageFile}
+                  onChange={setEditImageFile}
+                  previewUrl={editHasExistingImage && renameTargetId ? jellyfinClient.getImageUrl(renameTargetId, 'Primary', 256) : null}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowRenameInput(false); setEditImageFile(null) }}
+                className="flex-1 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditPlaylist}
+                disabled={renameLoading || !renameValue.trim()}
+                className="flex-1 py-3 bg-[var(--accent-color)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
+              >
+                {renameLoading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ResponsiveModal>
+    </>
+  )
+
   if (!item || !itemType) {
     return (
-      <PlatformPicker
-        isOpen={platformPickerOpen}
-        onClose={() => { setPlatformPickerOpen(false); setOdesliData(null); setPlatformPickerJellyfinId(null) }}
-        odesliData={odesliData}
-        loading={odesliLoading}
-        title={odesliTitle}
-        mode={mode}
-        position={position}
-        jellyfinItemId={platformPickerJellyfinId}
-      />
+      <>
+        <PlatformPicker
+          isOpen={platformPickerOpen}
+          onClose={() => { setPlatformPickerOpen(false); setOdesliData(null); setPlatformPickerJellyfinId(null) }}
+          odesliData={odesliData}
+          loading={odesliLoading}
+          title={odesliTitle}
+          mode={mode}
+          position={position}
+          jellyfinItemId={platformPickerJellyfinId}
+        />
+        {playlistModals}
+      </>
     )
   }
 
@@ -382,6 +595,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
+          { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
@@ -390,7 +604,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         const artistName = item.ArtistItems?.[0]?.Name || item.AlbumArtist || 'Artist'
         const albumName = item.Album || 'Album'
         const genreName = item.Genres?.[0] || 'Genre'
-        return [
+        const baseActions = [
           { id: 'play', label: 'Play', icon: Play },
           { id: 'playNext', label: 'Play Next', icon: ListStart },
           { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
@@ -398,9 +612,12 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'goToAlbum', label: `Go to ${albumName}`, icon: Disc },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
+          { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
+          ...(extraActions || []),
           { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
+        return baseActions
       }
       case 'artist': {
         const genreName = fetchedGenreName || 'Genre'
@@ -413,13 +630,19 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
         ]
       }
-      case 'playlist':
+      case 'playlist': {
+        const hasItems = item.ChildCount !== undefined ? item.ChildCount > 0 : true
         return [
-          { id: 'play', label: 'Play', icon: Play },
-          { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-          { id: 'playNext', label: 'Play Next', icon: ListStart },
-          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+          ...(hasItems ? [
+            { id: 'play', label: 'Play', icon: Play },
+            { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
+            { id: 'playNext', label: 'Play Next', icon: ListStart },
+            { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+          ] : []),
+          { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
+          { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
         ]
+      }
       default:
         return []
     }
@@ -505,6 +728,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           </div>
         </div>
         {platformPicker}
+        {playlistModals}
       </>
     )
   }
@@ -544,6 +768,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         </div>
       </BottomSheet>
       {platformPicker}
+      {playlistModals}
     </>
   )
 }

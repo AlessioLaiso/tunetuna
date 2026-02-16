@@ -1335,6 +1335,23 @@ export const usePlayerStore = create<PlayerState>()(
 
       onRehydrateStorage: (state) => {
         if (state) {
+          // Validate state consistency and fix corrupted states
+          if (state.songs.length === 0) {
+            // Empty queue - reset indices
+            state.currentIndex = -1
+            state.previousIndex = -1
+            state.standardOrder = []
+            state.shuffleOrder = []
+          } else if (state.currentIndex >= state.songs.length) {
+            // currentIndex out of bounds - reset to first track
+            state.currentIndex = 0
+            state.previousIndex = -1
+          } else if (state.currentIndex < -1) {
+            // Invalid negative index - reset
+            state.currentIndex = -1
+            state.previousIndex = -1
+          }
+
           // Reset runtime state
           state.isPlaying = false
           state.currentTime = 0

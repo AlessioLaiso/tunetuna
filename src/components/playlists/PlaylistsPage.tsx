@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, Plus } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useToastStore } from '../../stores/toastStore'
 import PlaylistItem from './PlaylistItem'
 import ContextMenu from '../shared/ContextMenu'
+import ResponsiveModal from '../shared/ResponsiveModal'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
@@ -48,6 +50,16 @@ export default function PlaylistsPage() {
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
+  const [newPlaylistName, setNewPlaylistName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+
+  // Refresh playlist list when playlists are created/deleted/renamed elsewhere
+  useEffect(() => {
+    const handler = () => loadPlaylists()
+    window.addEventListener('playlistUpdated', handler)
+    return () => window.removeEventListener('playlistUpdated', handler)
+  }, [])
 
   useEffect(() => {
     if (!isSearchOpen) {
@@ -144,6 +156,24 @@ export default function PlaylistsPage() {
     }
   }
 
+  const handleCreatePlaylist = async () => {
+    const name = newPlaylistName.trim()
+    if (!name) return
+    setIsCreating(true)
+    try {
+      const result = await jellyfinClient.createPlaylist(name)
+      useToastStore.getState().addToast('Playlist created', 'success', 2000)
+      setShowCreatePlaylist(false)
+      setNewPlaylistName('')
+      window.dispatchEvent(new CustomEvent('playlistUpdated'))
+      navigate(`/playlist/${result.Id}`)
+    } catch {
+      useToastStore.getState().addToast('Failed to create playlist', 'error', 3000)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim().length > 0 && !isSearchOpen) {
@@ -235,25 +265,34 @@ export default function PlaylistsPage() {
               {/* Header with title and search icon */}
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-2xl font-bold text-white">Playlists</h1>
-                <button
-                  onClick={() => setIsSearchOpen(true)}
-                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-                  aria-label="Search"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setShowCreatePlaylist(true)}
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    aria-label="Create playlist"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </button>
+                    <Plus className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => setIsSearchOpen(true)}
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    aria-label="Search"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
               {/* Sorting control */}
               {!isSearchOpen && (
@@ -338,6 +377,33 @@ export default function PlaylistsPage() {
         mode={contextMenuMode}
         position={contextMenuPosition || undefined}
       />
+
+      <ResponsiveModal isOpen={showCreatePlaylist} onClose={() => { setShowCreatePlaylist(false); setNewPlaylistName('') }}>
+        <div className="pb-6">
+          <div className="mb-4 px-4">
+            <div className="text-lg font-semibold text-white">Create Playlist</div>
+          </div>
+          <div className="px-4 space-y-4">
+            <input
+              type="text"
+              value={newPlaylistName}
+              onChange={(e) => setNewPlaylistName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreatePlaylist() }}
+              className="w-full bg-zinc-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
+              placeholder="Playlist name"
+              autoFocus
+              disabled={isCreating}
+            />
+            <button
+              onClick={handleCreatePlaylist}
+              disabled={isCreating || !newPlaylistName.trim()}
+              className="w-full py-3 bg-[var(--accent-color)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
+            >
+              {isCreating ? 'Creating...' : 'Create'}
+            </button>
+          </div>
+        </div>
+      </ResponsiveModal>
     </>
   )
 }

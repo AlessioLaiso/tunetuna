@@ -152,6 +152,51 @@ class JellyfinClient {
     throw lastError || new Error('Request failed')
   }
 
+  private async requestVoid(endpoint: string, options: RequestInit = {}): Promise<void> {
+    const url = `${this.baseUrl}${endpoint}`
+    let lastError: Error | null = null
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            ...this.getHeaders(),
+            ...options.headers,
+          },
+        })
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            clearPlaybackTrackingState()
+            throw new Error('Unauthorized - please login again')
+          }
+          throw new Error(`API request failed: ${response.statusText}`)
+        }
+
+        return
+      } catch (error) {
+        clearTimeout(timeoutId)
+        lastError = error instanceof Error ? error : new Error(String(error))
+
+        if (lastError.message.includes('Unauthorized') || lastError.name === 'AbortError') {
+          break
+        }
+
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
+        }
+      }
+    }
+
+    throw lastError || new Error('Request failed')
+  }
+
   async authenticate(serverUrl: string, username: string, password: string): Promise<JellyfinAuthResponse> {
     const url = serverUrl.replace(/\/$/, '') + '/Users/authenticatebyname'
 
@@ -305,7 +350,7 @@ class JellyfinClient {
     }
 
     params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Tags,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId')
+    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Tags,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId,ChildCount')
     
     // Add cache-busting timestamp to force fresh data from server
     if (cacheBust) {
@@ -1112,6 +1157,95 @@ class JellyfinClient {
       // Log error but don't throw - playback should continue even if reporting fails
       logger.warn('Failed to mark item as played:', error)
     }
+  }
+
+  async createPlaylist(name: string, songIds: string[] = []): Promise<{ Id: string }> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    return this.request<{ Id: string }>('/Playlists', {
+      method: 'POST',
+      body: JSON.stringify({
+        Name: name,
+        Ids: songIds,
+        UserId: this.userId,
+        MediaType: 'Audio',
+      }),
+    })
+  }
+
+  async deleteItem(itemId: string): Promise<void> {
+    if (!this.userId || !this.baseUrl || !itemId) {
+      throw new Error('Not authenticated or invalid item ID')
+    }
+    await this.requestVoid(`/Items/${itemId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async updatePlaylist(playlistId: string, name: string): Promise<void> {
+    if (!this.userId || !this.baseUrl || !playlistId) {
+      throw new Error('Not authenticated or invalid playlist ID')
+    }
+    await this.requestVoid(`/Playlists/${playlistId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        Name: name,
+        UserId: this.userId,
+      }),
+    })
+  }
+
+  async uploadItemImage(itemId: string, imageData: string, contentType: string): Promise<void> {
+    if (!this.baseUrl || !itemId) {
+      throw new Error('Not authenticated or invalid item ID')
+    }
+    await this.requestVoid(`/Items/${itemId}/Images/Primary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': contentType,
+      },
+      body: imageData,
+    })
+  }
+
+  async addItemsToPlaylist(playlistId: string, itemIds: string[]): Promise<void> {
+    if (!this.userId || !this.baseUrl || !playlistId || itemIds.length === 0) {
+      throw new Error('Not authenticated or invalid parameters')
+    }
+    const query = new URLSearchParams({
+      ids: itemIds.join(','),
+      userId: this.userId,
+    })
+    await this.requestVoid(`/Playlists/${playlistId}/Items?${query}`, {
+      method: 'POST',
+    })
+  }
+
+  async removeItemsFromPlaylist(playlistId: string, entryIds: string[]): Promise<void> {
+    if (!this.userId || !this.baseUrl || !playlistId || entryIds.length === 0) {
+      throw new Error('Not authenticated or invalid parameters')
+    }
+    const query = new URLSearchParams({
+      entryIds: entryIds.join(','),
+    })
+    await this.requestVoid(`/Playlists/${playlistId}/Items?${query}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getPlaylistItems(playlistId: string): Promise<BaseItemDto[]> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const query = new URLSearchParams({
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio,Genres,Grouping',
+    })
+    const result = await this.request<ItemsResult>(
+      `/Playlists/${playlistId}/Items?${query}`
+    )
+    return result.Items
   }
 
   async getLyrics(itemId: string): Promise<string | null> {

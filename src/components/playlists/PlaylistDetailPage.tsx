@@ -5,9 +5,10 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
-import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown, ListMinus } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
+import { useToastStore } from '../../stores/toastStore'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 import { logger } from '../../utils/logger'
@@ -126,10 +127,46 @@ export default function PlaylistDetailPage() {
   const [playlistContextMenuPosition, setPlaylistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
   const [playlistSortOrder, setPlaylistSortOrder] = useState<PlaylistSortOrder>('PlaylistOrder')
+  const [hasImage, setHasImage] = useState(false)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Detect if this is a mood route
   const isMoodRoute = location.pathname.startsWith('/mood/')
+
+  // Refresh playlist data when playlists are updated elsewhere (rename, etc.)
+  useEffect(() => {
+    if (isMoodRoute || !id) return
+    const handler = () => {
+      const loadPlaylistData = async () => {
+        try {
+          const tracksList = await jellyfinClient.getPlaylistItems(id)
+          setTracks(tracksList)
+          const playlistsResult = await jellyfinClient.getPlaylists({ limit: 1000 })
+          const foundPlaylist = playlistsResult.Items.find(p => p.Id === id)
+          if (foundPlaylist) {
+            setPlaylist(foundPlaylist)
+            setHasImage(!!foundPlaylist.ImageTags?.Primary)
+          }
+        } catch (error) {
+          logger.error('Failed to refresh playlist data:', error)
+        }
+      }
+      loadPlaylistData()
+    }
+    window.addEventListener('playlistUpdated', handler)
+    return () => window.removeEventListener('playlistUpdated', handler)
+  }, [id, isMoodRoute])
+
+  const handleRemoveFromPlaylist = async (_actionId: string, item: BaseItemDto | import('../../api/types').LightweightSong) => {
+    if (!id || !('PlaylistItemId' in item) || !item.PlaylistItemId) return
+    try {
+      await jellyfinClient.removeItemsFromPlaylist(id, [item.PlaylistItemId])
+      useToastStore.getState().addToast('Removed from playlist', 'success', 2000)
+      setTracks(prev => prev.filter(t => t.PlaylistItemId !== item.PlaylistItemId))
+    } catch {
+      useToastStore.getState().addToast('Failed to remove track', 'error', 3000)
+    }
+  }
 
   useEffect(() => {
     // Handle mood route - filter from cached songs (same as search does)
@@ -178,7 +215,7 @@ export default function PlaylistDetailPage() {
     const loadPlaylistData = async () => {
       setLoading(true)
       try {
-        const tracksList = await jellyfinClient.getAlbumTracks(id)
+        const tracksList = await jellyfinClient.getPlaylistItems(id)
         setTracks(tracksList)
 
         // Get playlist info
@@ -187,6 +224,7 @@ export default function PlaylistDetailPage() {
 
         if (foundPlaylist) {
           setPlaylist(foundPlaylist)
+          setHasImage(!!foundPlaylist.ImageTags?.Primary)
         } else if (tracksList.length > 0) {
           // Fallback: create playlist object from first track
           setPlaylist({
@@ -255,7 +293,7 @@ export default function PlaylistDetailPage() {
     )
   }
 
-  if (!playlist || tracks.length === 0) {
+  if (!playlist) {
     return (
       <div className="pb-20">
         <div className="flex items-center justify-center h-screen text-gray-400">
@@ -279,7 +317,7 @@ export default function PlaylistDetailPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            {playlist && !isMoodRoute && (
+            {!isMoodRoute && (
               <button
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()
@@ -300,71 +338,97 @@ export default function PlaylistDetailPage() {
       </div>
 
       <div className="pt-20">
-        <div className="mb-6 px-4 pt-4">
-          <div className="w-full">
-            <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
-            <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400">
-                {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
+        <div className="px-4 pt-4 mb-6">
+          <div className="flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
+            {hasImage && (
+              <div className="w-28 flex-shrink-0 md:w-auto md:col-span-1">
+                <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
+                  <Image
+                    src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474)}
+                    alt={playlist.Name}
+                    className="w-full h-full object-cover"
+                    showOutline={true}
+                    rounded="rounded"
+                    onError={() => setHasImage(false)}
+                  />
+                </div>
               </div>
-              <button
-                onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
-              >
-                {isPlaylistPlaying() && isPlaying ? (
-                  <>
-                    <Pause className="w-3.5 h-3.5" />
-                    Pause
-                  </>
-                ) : isMoodRoute ? (
-                  <>
-                    <Shuffle className="w-3.5 h-3.5" />
-                    Shuffle
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5" />
-                    Play
-                  </>
-                )}
-              </button>
+            )}
+            <div className={`flex-1 min-w-0 pb-2 ${hasImage ? 'md:col-span-2' : 'md:col-span-3'}`}>
+              <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
+              {sortedTracks.length > 0 && (
+                <div className="flex items-center justify-between gap-4 mt-2">
+                  <div className="text-gray-400">
+                    {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
+                  </div>
+                  <button
+                    onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
+                    className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
+                  >
+                    {isPlaylistPlaying() && isPlaying ? (
+                      <>
+                        <Pause className="w-3.5 h-3.5" />
+                        Pause
+                      </>
+                    ) : isMoodRoute ? (
+                      <>
+                        <Shuffle className="w-3.5 h-3.5" />
+                        Shuffle
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5" />
+                        Play
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {!isMoodRoute && (
-          <div className="px-4 mb-1">
-            <button
-              type="button"
-              onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
-              className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-            >
-              {playlistSortOrder === 'PlaylistOrder' ? 'Playlist Order' : 'Alphabetically'}
-              <ArrowUpDown className="w-4 h-4" />
-            </button>
+        {sortedTracks.length === 0 ? (
+          <div className="flex items-center justify-center px-8 pt-24">
+            <p className="text-gray-400 text-center">Long press or right click on songs and albums to add them to playlists</p>
           </div>
-        )}
+        ) : (
+          <>
+            {!isMoodRoute && (
+              <div className="px-4 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
+                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                >
+                  {playlistSortOrder === 'PlaylistOrder' ? 'Playlist Order' : 'Alphabetically'}
+                  <ArrowUpDown className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
-        <div>
-          <div className="space-y-0">
-            {sortedTracks.slice(0, visibleTracksCount).map((track, index) => (
-              <PlaylistTrackItem
-                key={track.Id}
-                track={track}
-                index={index}
-                tracks={sortedTracks}
-                onClick={(track) => playTrack(track, sortedTracks)}
-                onContextMenu={(track, mode, position) => {
-                  setContextMenuItem(track)
-                  setContextMenuMode(mode || 'mobile')
-                  setContextMenuPosition(position || null)
-                  setContextMenuOpen(true)
-                }}
-                contextMenuItemId={contextMenuItem?.Id || null}
-              />
-            ))}
-          </div>
-        </div>
+            <div>
+              <div className="space-y-0">
+                {sortedTracks.slice(0, visibleTracksCount).map((track, index) => (
+                  <PlaylistTrackItem
+                    key={track.Id}
+                    track={track}
+                    index={index}
+                    tracks={sortedTracks}
+                    onClick={(track) => playTrack(track, sortedTracks)}
+                    onContextMenu={(track, mode, position) => {
+                      setContextMenuItem(track)
+                      setContextMenuMode(mode || 'mobile')
+                      setContextMenuPosition(position || null)
+                      setContextMenuOpen(true)
+                    }}
+                    contextMenuItemId={contextMenuItem?.Id || null}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
       <ContextMenu
         item={contextMenuItem}
@@ -376,6 +440,8 @@ export default function PlaylistDetailPage() {
         }}
         mode={contextMenuMode}
         position={contextMenuPosition || undefined}
+        extraActions={!isMoodRoute ? [{ id: 'removeFromPlaylist', label: 'Remove from Playlist', icon: ListMinus }] : undefined}
+        onExtraAction={!isMoodRoute ? handleRemoveFromPlaylist : undefined}
       />
       <ContextMenu
         item={playlist}
