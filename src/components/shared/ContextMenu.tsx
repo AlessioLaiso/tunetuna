@@ -14,8 +14,15 @@ import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore } from '../../stores/statsStore'
 import { useToastStore } from '../../stores/toastStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 import { logger } from '../../utils/logger'
+
+const JellyfinIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" role="img" aria-label="Jellyfin">
+    <path d="M12.0001 2C9.35508 2 0.835078 17.448 2.13408 20.055C3.43308 22.662 20.5841 22.633 21.8691 20.055C23.1541 17.477 14.6481 2 12.0001 2ZM18.4691 17.793C17.6291 19.483 6.39208 19.501 5.54108 17.793C4.69008 16.085 10.2671 5.963 12.0001 5.963C13.7331 5.963 19.3111 16.1 18.4691 17.793ZM12.0001 9.664C11.1221 9.664 8.30008 14.789 8.72508 15.655C9.15008 16.521 14.8491 16.511 15.2751 15.655C15.7011 14.799 12.8801 9.664 12.0001 9.664Z"/>
+  </svg>
+)
 
 interface ContextMenuProps {
   item: BaseItemDto | LightweightSong | null
@@ -74,6 +81,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [renameLoading, setRenameLoading] = useState(false)
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [editHasExistingImage, setEditHasExistingImage] = useState(false)
+  const [editRemoveExistingImage, setEditRemoveExistingImage] = useState(false)
+  const [editImageCacheBust, setEditImageCacheBust] = useState(0)
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
   const { startSync, completeSync } = useSyncStore()
   const { genres } = useMusicStore()
@@ -175,6 +184,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setRenameValue(currentItem.Name || '')
       setEditImageFile(null)
       setEditHasExistingImage(!!('ImageTags' in currentItem && currentItem.ImageTags?.Primary))
+      setEditRemoveExistingImage(false)
       onClose()
       setShowRenameInput(true)
       return
@@ -187,6 +197,28 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         onNavigate()
       }
       navigate(`/song/${currentItem.Id}`)
+      return
+    }
+    if (action === 'openInJellyfin') {
+      const serverUrl = useAuthStore.getState().serverUrl
+      const serverId = useAuthStore.getState().serverId
+      const base = serverUrl?.replace(/\/$/, '') ?? ''
+      if (base && currentItem.Id) {
+        let sid = serverId
+        if (!sid) {
+          try {
+            const r = await fetch(`${base}/System/Info/Public`)
+            if (r.ok) {
+              const info = await r.json()
+              sid = info.Id ?? ''
+            }
+          } catch { /* ignore */ }
+        }
+        if (sid) {
+          window.open(`${base}/web/#/details?id=${currentItem.Id}&serverId=${sid}`, '_blank', 'noopener,noreferrer')
+        }
+      }
+      onClose()
       return
     }
     if (action === 'openIn') {
@@ -418,6 +450,23 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             if (tracks.length === 0) break
             addToQueueWithToast(tracks)
+          } else if (action === 'sync') {
+            startSync('context-menu', `Syncing ${currentItem.Name}...`)
+            try {
+              const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+              tracks.forEach(track => {
+                updateEventMetadata('song', track.Id, {
+                  songName: track.Name || 'Unknown',
+                  artistNames: track.ArtistItems?.length ? track.ArtistItems.map(a => a.Name || 'Unknown') : [track.AlbumArtist || 'Unknown'],
+                  albumName: track.Album || 'Unknown',
+                  genres: track.Genres || [],
+                  year: track.ProductionYear || null,
+                })
+              })
+              completeSync(true, `${currentItem.Name} synced`)
+            } catch (error) {
+              completeSync(false, `Failed to sync ${currentItem.Name}`)
+            }
           }
           break
         }
@@ -464,10 +513,14 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           reader.readAsDataURL(editImageFile)
         })
         await jellyfinClient.uploadItemImage(renameTargetId, base64, editImageFile.type)
+      } else if (editRemoveExistingImage) {
+        await jellyfinClient.deleteItemImage(renameTargetId)
       }
       useToastStore.getState().addToast('Playlist updated', 'success', 2000)
       setShowRenameInput(false)
       setEditImageFile(null)
+      setEditRemoveExistingImage(false)
+      setEditImageCacheBust(Date.now())
       window.dispatchEvent(new CustomEvent('playlistUpdated'))
     } catch {
       useToastStore.getState().addToast('Failed to update playlist', 'error', 3000)
@@ -511,7 +564,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           </div>
         </div>
       </ResponsiveModal>
-      <ResponsiveModal isOpen={showRenameInput} onClose={() => { setShowRenameInput(false); setEditImageFile(null) }}>
+      <ResponsiveModal isOpen={showRenameInput} onClose={() => { setShowRenameInput(false); setEditImageFile(null); setEditRemoveExistingImage(false) }}>
         <div className="pb-6">
           <div className="mb-4 px-4">
             <div className="text-lg font-semibold text-white">Edit Playlist</div>
@@ -537,14 +590,21 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
                   label="Drop or click"
                   accept="image/*"
                   value={editImageFile}
-                  onChange={setEditImageFile}
-                  previewUrl={editHasExistingImage && renameTargetId ? jellyfinClient.getImageUrl(renameTargetId, 'Primary', 256) : null}
+                  onChange={(file) => {
+                    setEditImageFile(file)
+                    if (file) {
+                      setEditRemoveExistingImage(false)
+                    } else if (editHasExistingImage) {
+                      setEditRemoveExistingImage(true)
+                    }
+                  }}
+                  previewUrl={editHasExistingImage && !editRemoveExistingImage && renameTargetId ? jellyfinClient.getImageUrl(renameTargetId, 'Primary', 256) + (editImageCacheBust ? `&cb=${editImageCacheBust}` : '') : null}
                 />
               </div>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowRenameInput(false); setEditImageFile(null) }}
+                onClick={() => { setShowRenameInput(false); setEditImageFile(null); setEditRemoveExistingImage(false) }}
                 className="flex-1 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors"
               >
                 Cancel
@@ -641,6 +701,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           ] : []),
           { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
           { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
+          { id: 'sync', label: 'Sync', icon: RefreshCw },
+          { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
         ]
       }
       default:

@@ -128,6 +128,7 @@ export default function PlaylistDetailPage() {
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
   const [playlistSortOrder, setPlaylistSortOrder] = useState<PlaylistSortOrder>('PlaylistOrder')
   const [hasImage, setHasImage] = useState(false)
+  const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Detect if this is a mood route
@@ -146,6 +147,7 @@ export default function PlaylistDetailPage() {
           if (foundPlaylist) {
             setPlaylist(foundPlaylist)
             setHasImage(!!foundPlaylist.ImageTags?.Primary)
+            setImageCacheBust(Date.now())
           }
         } catch (error) {
           logger.error('Failed to refresh playlist data:', error)
@@ -344,7 +346,7 @@ export default function PlaylistDetailPage() {
               <div className="w-28 flex-shrink-0 md:w-auto md:col-span-1">
                 <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
                   <Image
-                    src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474)}
+                    src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')}
                     alt={playlist.Name}
                     className="w-full h-full object-cover"
                     showOutline={true}

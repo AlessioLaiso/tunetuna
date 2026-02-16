@@ -1209,6 +1209,15 @@ class JellyfinClient {
     })
   }
 
+  async deleteItemImage(itemId: string): Promise<void> {
+    if (!this.baseUrl || !itemId) {
+      throw new Error('Not authenticated or invalid item ID')
+    }
+    await this.requestVoid(`/Items/${itemId}/Images/Primary`, {
+      method: 'DELETE',
+    })
+  }
+
   async addItemsToPlaylist(playlistId: string, itemIds: string[]): Promise<void> {
     if (!this.userId || !this.baseUrl || !playlistId || itemIds.length === 0) {
       throw new Error('Not authenticated or invalid parameters')
