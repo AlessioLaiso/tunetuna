@@ -18,7 +18,7 @@ export function formatTime(seconds: number): string {
  */
 export function normalizeQuotes(text: string): string {
   if (!text) return text
-  
+
   return text
     // Smart single quotes (left U+2018 and right U+2019) → straight apostrophe
     .replace(/[\u2018\u2019]/g, "'")
@@ -46,7 +46,10 @@ export function normalizeForSearch(text: string): string {
  * iOS Safari doesn't allow programmatic volume control in web apps/PWAs
  */
 export function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window)
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  ) && !('MSStream' in window)
 }
 
 /**

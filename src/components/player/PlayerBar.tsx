@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { logger } from '../../utils/logger'
 import { useStatsStore } from '../../stores/statsStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
@@ -181,6 +182,8 @@ export default function PlayerBar() {
 
       // Trigger pre-buffering of next track when ~15 seconds remain
       if (audioElement.duration > 0 && remaining <= 15 && remaining > 0) {
+        // Log once when entering the window
+        if (remaining > 14.5) logger.debug('[PlayerBar] Pre-buffer window reached', { remaining })
         preBufferNextTrack()
       }
 
@@ -193,6 +196,7 @@ export default function PlayerBar() {
         remaining <= 1 &&
         remaining > 0
       ) {
+        logger.debug('[PlayerBar] iOS Preemptive Advance Triggered', { remaining, isIOS: isIOS() })
         preemptiveAdvanceRef.current = true
 
         const state = usePlayerStore.getState()
@@ -233,11 +237,14 @@ export default function PlayerBar() {
       if (!isActive) return
       setDuration(audioElement.duration)
       preemptiveAdvanceRef.current = false
+      logger.debug('[PlayerBar] Metadata loaded', { duration: audioElement.duration })
     }
 
     const handleEnded = async () => {
+      logger.debug('[PlayerBar] handleEnded fired', { preemptive: preemptiveAdvanceRef.current })
       if (!isActive) return
       if (preemptiveAdvanceRef.current) {
+        logger.debug('[PlayerBar] Skipping handleEnded due to preemptive advance')
         preemptiveAdvanceRef.current = false
         return
       }
@@ -278,6 +285,7 @@ export default function PlayerBar() {
         return
       }
 
+      logger.debug('[PlayerBar] Calling next() from handleEnded')
       next()
     }
 
@@ -288,12 +296,14 @@ export default function PlayerBar() {
       // events fire synchronously before that.
       if (usePlayerStore.getState().audioElement !== audioElement) return
       usePlayerStore.setState({ isPlaying: true })
+      logger.debug('[PlayerBar] handlePlay', { src: audioElement.src })
     }
 
     const handlePause = () => {
       if (!isActive) return
       if (usePlayerStore.getState().audioElement !== audioElement) return
       usePlayerStore.setState({ isPlaying: false })
+      logger.debug('[PlayerBar] handlePause', { paused: audioElement.paused })
     }
 
     audioElement.addEventListener('timeupdate', handleTimeUpdate)

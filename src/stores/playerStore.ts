@@ -251,6 +251,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       swapToPreBuffered: () => {
         const { audioElement, nextAudioElement, nextTrackId, currentIndex, songs, repeat } = get()
+        logger.debug('[PlayerStore] swapToPreBuffered called', { nextTrackId, currentIndex })
         if (!nextAudioElement || !nextTrackId) return
 
         let nextIndex = currentIndex + 1
@@ -642,6 +643,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       play: () => {
         const { audioElement, currentIndex, songs, currentTime } = get()
+        logger.debug('[PlayerStore] play() called', { currentIndex, hasAudio: !!audioElement })
         if (audioElement && currentIndex >= 0 && currentIndex < songs.length) {
           const track = songs[currentIndex]
 
@@ -682,11 +684,13 @@ export const usePlayerStore = create<PlayerState>()(
         if (audio) {
           audio.pause()
           set({ isPlaying: false })
+          logger.debug('[PlayerStore] pause() called')
         }
       },
 
       togglePlayPause: () => {
         const { isPlaying, play, pause } = get()
+        logger.debug('[PlayerStore] togglePlayPause() called', { isPlaying })
         if (isPlaying) {
           pause()
         } else {
@@ -696,6 +700,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       next: () => {
         const state = get()
+        logger.debug('[PlayerStore] next() called', { currentIndex: state.currentIndex, queueLength: state.songs.length })
 
         if (state.songs.length === 0) return
 

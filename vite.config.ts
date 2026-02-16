@@ -14,10 +14,11 @@ export default defineConfig({
   server: {
     // Only bind to all interfaces when explicitly enabled (for mobile testing)
     // Default to localhost for security
-    host: process.env.VITE_EXPOSE_SERVER === 'true' ? '0.0.0.0' : 'localhost',
+    // Bind to all interfaces to allow LAN access for debugging
+    host: '0.0.0.0',
     port: 5173,
     // Only allow tunneling when explicitly enabled
-    allowedHosts: process.env.VITE_EXPOSE_SERVER === 'true' ? true : 'auto',
+    allowedHosts: true,
     proxy: {
       // Proxy stats API to local backend during development
       '/api/stats': {
@@ -66,6 +67,31 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: 'remote-console-logger',
+      configureServer(server) {
+        server.middlewares.use('/__debug', (req, res, next) => {
+          if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk.toString() });
+            req.on('end', () => {
+              try {
+                const { type, args } = JSON.parse(body);
+                const timestamp = new Date().toLocaleTimeString();
+                // Colorize output if possible, or just print
+                console.log(`[📱Client ${timestamp}] [${type.toUpperCase()}]`, ...args);
+              } catch (e) {
+                console.error('Failed to parse client log', e);
+              }
+              res.statusCode = 200;
+              res.end();
+            });
+          } else {
+            next();
+          }
+        });
+      }
+    },
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -103,6 +129,18 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
+          {
+            // Audio streams should strictly be NetworkOnly to avoid Service Worker buffering/Range header issues on iOS
+            urlPattern: /\/Audio\/.*\/stream/,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'audio-streams',
+              expiration: {
+                maxEntries: 1,
+                maxAgeSeconds: 1
+              }
+            }
+          },
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp)/,
             handler: 'CacheFirst',
