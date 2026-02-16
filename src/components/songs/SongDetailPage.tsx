@@ -458,40 +458,63 @@ export default function SongDetailPage() {
                 </div>
               </>
             )}
-            {groupingCategories.map(({ key, category, values }) => {
-              const GroupingIcon = getGroupingIcon(key)
-              if (values.length === 0) {
-                // Single-value boolean tag like "instrumental"
+            {/* Complex tags (Moods, Languages, etc) */}
+            {groupingCategories
+              .filter(({ values }) => values.length > 0)
+              .map(({ key, category, values }) => {
+                const GroupingIcon = getGroupingIcon(key)
                 return (
-                  <MetadataRow
-                    key={key}
-                    icon={GroupingIcon}
-                    label="Tag"
-                    value={category}
-                    onClick={() => navigate(`/songs?grouping=${key}`)}
-                  />
+                  <React.Fragment key={key}>
+                    <GroupingIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
+                    <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{category}</span>
+                    <div className="flex flex-wrap gap-x-1">
+                      {values.map((v, i) => (
+                        <span key={v.raw}>
+                          <button
+                            onClick={() => navigate(key === 'mood' ? `/mood/${v.raw}` : `/songs?grouping=${key}_${v.raw}`)}
+                            className="text-base text-white hover:text-gray-300 transition-colors"
+                          >
+                            {v.display}
+                          </button>
+                          {i < values.length - 1 && <span className="text-white">, </span>}
+                        </span>
+                      ))}
+                    </div>
+                  </React.Fragment>
                 )
+              })}
+
+            {/* Boolean tags (Instrumental, etc) combined */}
+            {(() => {
+              const booleanTags = groupingCategories.filter(({ values }) => values.length === 0)
+              if (booleanTags.length === 0) return null
+
+              // Determine icon
+              let TagIcon = Tag // Default generic tag icon
+              if (booleanTags.length === 1 && booleanTags[0].key.toLowerCase() === 'instrumental') {
+                TagIcon = Piano
               }
+
               return (
-                <React.Fragment key={key}>
-                  <GroupingIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                  <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{category}</span>
+                <React.Fragment>
+                  <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
+                  <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>Tag</span>
                   <div className="flex flex-wrap gap-x-1">
-                    {values.map((v, i) => (
-                      <span key={v.raw}>
+                    {booleanTags.map((tag, i) => (
+                      <span key={tag.key}>
                         <button
-                          onClick={() => navigate(key === 'mood' ? `/mood/${v.raw}` : `/songs?grouping=${key}_${v.raw}`)}
+                          onClick={() => navigate(`/songs?grouping=${tag.key}`)}
                           className="text-base text-white hover:text-gray-300 transition-colors"
                         >
-                          {v.display}
+                          {tag.category}
                         </button>
-                        {i < values.length - 1 && <span className="text-white">, </span>}
+                        {i < booleanTags.length - 1 && <span className="text-white">, </span>}
                       </span>
                     ))}
                   </div>
                 </React.Fragment>
               )
-            })}
+            })()}
             {/* Stream count */}
             {pageVisibility.stats && (
               <>
