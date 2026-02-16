@@ -174,7 +174,7 @@ function TimelineCard({
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    setImageUrl(jellyfinClient.getArtistImageUrl(artistId, 120))
+    setImageUrl(jellyfinClient.getArtistImageUrl(artistId, 240))
   }, [artistId])
 
   const handleImageError = async () => {
@@ -186,7 +186,7 @@ function TimelineCard({
       const artId = artItem ? (artItem.AlbumId || artItem.Id) : null
 
       if (artId) {
-        setImageUrl(jellyfinClient.getAlbumArtUrl(artId, 120))
+        setImageUrl(jellyfinClient.getAlbumArtUrl(artId, 240))
       } else {
         setImageUrl(null)
       }
@@ -242,10 +242,10 @@ function TopSongItem({
   showYear: boolean
   onPlay: (songId: string) => void
 }) {
-  const imageSize = rank === 1 ? 120 : rank === 2 ? 80 : 48
-  const sizeClass = rank === 1 ? 'w-[120px] h-[120px]' : rank === 2 ? 'w-[80px] h-[80px]' : 'w-12 h-12'
-  const iconSize = rank === 1 ? 'w-10 h-10' : rank === 2 ? 'w-8 h-8' : 'w-5 h-5'
-  const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
+  const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
+  const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
+  const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
+  const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -310,7 +310,7 @@ function TopSongItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{songName}
           </div>
           <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
@@ -348,10 +348,10 @@ function TopArtistItem({
   hours: number
   onClick: () => void
 }) {
-  const imageSize = rank === 1 ? 120 : rank === 2 ? 80 : 48
-  const sizeClass = rank === 1 ? 'w-[120px] h-[120px]' : rank === 2 ? 'w-[80px] h-[80px]' : 'w-12 h-12'
-  const iconSize = rank === 1 ? 'w-10 h-10' : rank === 2 ? 'w-8 h-8' : 'w-5 h-5'
-  const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
+  const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
+  const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
+  const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
+  const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getArtistImageUrl(artistId, imageSize)
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
 
@@ -435,7 +435,7 @@ function TopArtistItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{artistName}
           </div>
         </div>
@@ -559,10 +559,10 @@ function TopAlbumItem({
   hours: number
   onClick: () => void
 }) {
-  const imageSize = rank === 1 ? 120 : rank === 2 ? 80 : 48
-  const sizeClass = rank === 1 ? 'w-[120px] h-[120px]' : rank === 2 ? 'w-[80px] h-[80px]' : 'w-12 h-12'
-  const iconSize = rank === 1 ? 'w-10 h-10' : rank === 2 ? 'w-8 h-8' : 'w-5 h-5'
-  const leftPadding = rank === 1 ? '' : rank === 2 ? 'pl-10' : 'pl-[72px]'
+  const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
+  const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
+  const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
+  const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -624,7 +624,7 @@ function TopAlbumItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
           </div>
           <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
