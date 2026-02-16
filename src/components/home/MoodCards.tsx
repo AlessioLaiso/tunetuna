@@ -147,7 +147,7 @@ export default function MoodCards() {
   }
 
   return (
-    <div className="px-4 mb-4">
+    <div className="px-4 mb-12">
       {/* Mobile / small screens: horizontal paged carousel */}
       <div className="md:hidden">
         <div

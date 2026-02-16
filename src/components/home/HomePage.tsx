@@ -62,7 +62,7 @@ export default function HomePage() {
           {showMoodCards && <MoodCards />}
 
           {/* Always render components so they can load data via useEffect */}
-          <div className="mt-12 pb-4">
+          <div className="mt-4 pb-4">
             <RecentlyAdded />
           </div>
 
