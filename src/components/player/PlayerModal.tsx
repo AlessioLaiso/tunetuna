@@ -565,13 +565,13 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </button>
             </div>
             {showLyricsModal && displayTrack && (
-              <h2 className="absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
+              <h2 className="hidden min-[480px]:block absolute left-0 right-0 text-center text-white text-sm sm:text-base font-medium px-20 truncate">
                 {getDisplayName()}
               </h2>
             )}
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
               {/* Volume button - shown below 768 normally, below 1280 when in queue */}
-              <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'} ${showLyricsModal ? 'hidden' : ''}`}>
+              <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'}`}>
                 {!isIOS() && (
                   <VolumeControl
                     variant="compact"
@@ -581,7 +581,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   />
                 )}
               </div>
-              {/* Lyrics button - always rendered to prevent layout shift, invisible when no lyrics */}
+              {/* Lyrics button - hidden when no lyrics to prevent gap */}
               <button
                 onClick={() => {
                   if (!hasLyrics && !showLyricsModal) return
@@ -591,11 +591,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   setShowLyricsModal(!showLyricsModal)
                 }}
                 aria-label={showLyricsModal ? 'Hide lyrics' : 'Show lyrics'}
-                className={`transition-colors p-2 rounded-full ${
-                  hasLyrics || showLyricsModal
-                    ? `hover:bg-white/10 ${showLyricsModal ? 'text-[var(--accent-color)]' : 'text-white'}`
-                    : 'invisible pointer-events-none'
-                }`}
+                className={`transition-colors p-2 rounded-full ${hasLyrics || showLyricsModal
+                  ? `hover:bg-white/10 ${showLyricsModal ? 'text-[var(--accent-color)]' : 'text-white'}`
+                  : 'hidden'
+                  }`}
               >
                 <MicVocal className="w-6 h-6" />
               </button>
