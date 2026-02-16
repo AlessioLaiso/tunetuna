@@ -249,7 +249,7 @@ export default function ArtistsPage() {
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
-            <div className="p-4">
+            <div className="p-4 min-[780px]:px-[0.66rem]">
               {/* Header with title and search icon */}
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-2xl font-bold text-white">Artists</h1>
@@ -307,35 +307,35 @@ export default function ArtistsPage() {
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
             {artists.length === 0 && !loading.artists && (
-                <div className="flex items-center justify-center py-8 text-gray-400">
-                  <p>No artists found</p>
+              <div className="flex items-center justify-center py-8 text-gray-400">
+                <p>No artists found</p>
+              </div>
+            )}
+            {artists.length > 0 && (
+              <>
+                <div className="space-y-0">
+                  {artists
+                    .slice(0, visibleArtistsCount)
+                    .map((artist) => {
+                      return (
+                        <ArtistCard
+                          key={artist.Id}
+                          artist={artist}
+                          onContextMenu={openContextMenu}
+                          contextMenuItemId={contextMenuItem?.Id || null}
+                        />
+                      )
+                    })}
                 </div>
-              )}
-              {artists.length > 0 && (
-                <>
-                  <div className="space-y-0">
-                    {artists
-                      .slice(0, visibleArtistsCount)
-                      .map((artist) => {
-                        return (
-                          <ArtistCard
-                            key={artist.Id}
-                            artist={artist}
-                            onContextMenu={openContextMenu}
-                            contextMenuItemId={contextMenuItem?.Id || null}
-                          />
-                        )
-                      })}
-                  </div>
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                    onPageChange={setCurrentPage}
-                    itemsPerPage={ITEMS_PER_PAGE}
-                    totalItems={totalCount}
-                  />
-                </>
-              )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  totalItems={totalCount}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

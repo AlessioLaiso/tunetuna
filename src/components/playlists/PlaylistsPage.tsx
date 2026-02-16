@@ -202,7 +202,7 @@ export default function PlaylistsPage() {
   }
 
   // No-op since PlaylistsPage doesn't have filters, but needed for SearchOverlay interface
-  const openFilterSheet = (_type: 'genre' | 'year') => {}
+  const openFilterSheet = (_type: 'genre' | 'year') => { }
 
   const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
     setContextMenuItem(item)
@@ -231,7 +231,7 @@ export default function PlaylistsPage() {
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
           <div className="max-w-[768px] mx-auto">
-            <div className="p-4">
+            <div className="p-4 min-[780px]:px-[0.66rem]">
               {/* Header with title and search icon */}
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-2xl font-bold text-white">Playlists</h1>
@@ -289,16 +289,16 @@ export default function PlaylistsPage() {
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
             {playlists.length === 0 && !loading ? (
-                <div className="flex items-center justify-center py-16 text-gray-400">
-                  <p>No playlists found</p>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {playlists.map((playlist) => (
-                    <PlaylistItem key={playlist.Id} playlist={playlist} />
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center justify-center py-16 text-gray-400">
+                <p>No playlists found</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {playlists.map((playlist) => (
+                  <PlaylistItem key={playlist.Id} playlist={playlist} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
