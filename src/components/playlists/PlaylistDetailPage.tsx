@@ -1,16 +1,19 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal } from 'lucide-react'
+import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
+import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 import { logger } from '../../utils/logger'
 import { formatDuration, parseGroupingTag } from '../../utils/formatting'
+
+type PlaylistSortOrder = 'PlaylistOrder' | 'Alphabetical'
 
 const INITIAL_VISIBLE_TRACKS = 45
 const VISIBLE_TRACKS_INCREMENT = 45
@@ -122,6 +125,7 @@ export default function PlaylistDetailPage() {
   const [playlistContextMenuMode, setPlaylistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [playlistContextMenuPosition, setPlaylistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
+  const [playlistSortOrder, setPlaylistSortOrder] = useState<PlaylistSortOrder>('PlaylistOrder')
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Detect if this is a mood route
@@ -206,59 +210,39 @@ export default function PlaylistDetailPage() {
     setVisibleTracksCount(INITIAL_VISIBLE_TRACKS)
   }, [tracks.length])
 
-  // Incrementally reveal more tracks as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
+  // Scroll-based lazy loading using .main-scrollable container
+  useScrollLazyLoad({
+    totalCount: tracks.length,
+    visibleCount: visibleTracksCount,
+    increment: VISIBLE_TRACKS_INCREMENT,
+    setVisibleCount: setVisibleTracksCount,
+    threshold: 1.5
+  })
 
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleTracksCount((prev) =>
-          Math.min(prev + VISIBLE_TRACKS_INCREMENT, tracks.length)
-        )
-      }
+  // Sorted tracks for playlist (mood pages don't get sorting)
+  const sortedTracks = useMemo(() => {
+    if (isMoodRoute) return tracks
+    if (playlistSortOrder === 'Alphabetical') {
+      return [...tracks].sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
     }
-
-    // Initial check: if content doesn't fill viewport, load more
-    const checkInitialHeight = () => {
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      if (fullHeight <= viewportHeight && visibleTracksCount < tracks.length) {
-        setVisibleTracksCount((prev) =>
-          Math.min(prev + VISIBLE_TRACKS_INCREMENT, tracks.length)
-        )
-      }
-    }
-
-    // Check after a short delay to let the DOM update
-    const timeoutId = setTimeout(checkInitialHeight, 100)
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      clearTimeout(timeoutId)
-    }
-  }, [tracks.length, visibleTracksCount])
+    return tracks // PlaylistOrder = original order from API
+  }, [tracks, playlistSortOrder, isMoodRoute])
 
   const handlePlayAll = () => {
-    if (tracks.length > 0) {
-      playAlbum(tracks)
+    if (sortedTracks.length > 0) {
+      playAlbum(sortedTracks)
     }
   }
 
   const handleShuffleAll = () => {
-    if (tracks.length > 0) {
-      shuffleArtist(tracks)
+    if (sortedTracks.length > 0) {
+      shuffleArtist(sortedTracks)
     }
   }
 
   const isPlaylistPlaying = () => {
-    if (!tracks.length || !currentTrack) return false
-    // Check if current track is in this playlist
-    return tracks.some(track => track.Id === currentTrack.Id)
+    if (!sortedTracks.length || !currentTrack) return false
+    return sortedTracks.some(track => track.Id === currentTrack.Id)
   }
 
   if (loading) {
@@ -321,7 +305,7 @@ export default function PlaylistDetailPage() {
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
               <div className="text-gray-400">
-                {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'}
+                {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
               </div>
               <button
                 onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
@@ -348,15 +332,28 @@ export default function PlaylistDetailPage() {
           </div>
         </div>
 
+        {!isMoodRoute && (
+          <div className="px-4 mb-1">
+            <button
+              type="button"
+              onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
+              className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+            >
+              {playlistSortOrder === 'PlaylistOrder' ? 'Playlist Order' : 'Alphabetically'}
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div>
           <div className="space-y-0">
-            {tracks.slice(0, visibleTracksCount).map((track, index) => (
+            {sortedTracks.slice(0, visibleTracksCount).map((track, index) => (
               <PlaylistTrackItem
                 key={track.Id}
                 track={track}
                 index={index}
-                tracks={tracks}
-                onClick={(track) => playTrack(track, tracks)}
+                tracks={sortedTracks}
+                onClick={(track) => playTrack(track, sortedTracks)}
                 onContextMenu={(track, mode, position) => {
                   setContextMenuItem(track)
                   setContextMenuMode(mode || 'mobile')

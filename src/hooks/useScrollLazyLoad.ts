@@ -17,7 +17,7 @@ interface UseScrollLazyLoadOptions {
 
 /**
  * Hook for scroll-based lazy loading that uses a single, efficient scroll listener.
- * Consolidates duplicate document/window scroll listeners into one.
+ * Listens on .main-scrollable container (the app's scrollable viewport).
  */
 export function useScrollLazyLoad({
   totalCount,
@@ -31,6 +31,9 @@ export function useScrollLazyLoad({
   const throttleMs = 100 // Throttle scroll handling
 
   const handleScroll = useCallback(() => {
+    const container = document.querySelector('.main-scrollable')
+    if (!container) return
+
     // Throttle scroll events
     const now = Date.now()
     if (now - lastScrollTime.current < throttleMs) return
@@ -39,15 +42,10 @@ export function useScrollLazyLoad({
     // Already showing all items
     if (visibleCount >= totalCount) return
 
-    const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
-    const viewportHeight = window.innerHeight
-    const fullHeight = Math.max(
-      document.body.scrollHeight,
-      document.documentElement.scrollHeight
-    )
+    const { scrollTop, clientHeight, scrollHeight } = container
 
     // Load more when within threshold viewports of bottom
-    if (scrollTop + viewportHeight * (1 + threshold) >= fullHeight) {
+    if (scrollTop + clientHeight * (1 + threshold) >= scrollHeight) {
       setVisibleCount(prev => Math.min(prev + increment, totalCount))
     }
   }, [totalCount, visibleCount, increment, setVisibleCount, threshold])
@@ -55,14 +53,16 @@ export function useScrollLazyLoad({
   useEffect(() => {
     if (!enabled) return
 
-    // Single scroll listener on window with passive option
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    const container = document.querySelector('.main-scrollable')
+    if (!container) return
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
 
     // Initial check in case content is short
     handleScroll()
 
     return () => {
-      window.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('scroll', handleScroll)
     }
   }, [handleScroll, enabled])
 }
