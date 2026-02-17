@@ -158,14 +158,14 @@ export default function MoodCards() {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex" style={{ width: `${pages.length * 100}%` }}>
+          <div className="flex gap-2">
             {pages.map((pageMoods, pageIndex) => {
               const rowsNeeded = Math.ceil(pageMoods.length / 3)
               return (
                 <div
                   key={pageIndex}
-                  className="snap-start flex-shrink-0 w-full"
-                  style={{ width: `${100 / pages.length}%` }}
+                  className="snap-start flex-shrink-0"
+                  style={{ width: 'calc(100% - 8px)' }}
                 >
                   <div
                     className="grid grid-cols-3 gap-2"

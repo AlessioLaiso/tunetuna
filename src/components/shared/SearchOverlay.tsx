@@ -69,11 +69,12 @@ interface SearchOverlayProps {
 interface SearchAlbumItemProps {
   album: BaseItemDto
   onClick: (id: string) => void
+  onArtistClick: (id: string) => void
   onContextMenu: (item: BaseItemDto, type: 'album', mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => void
   contextMenuItemId: string | null
 }
 
-function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: SearchAlbumItemProps) {
+function SearchAlbumItem({ album, onClick, onArtistClick, onContextMenu, contextMenuItemId }: SearchAlbumItemProps) {
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
@@ -122,7 +123,20 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
       </div>
       <div className="text-sm font-semibold text-white truncate mb-1 group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
       <div className="text-xs text-gray-400 truncate">
-        {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+        {album.ArtistItems?.[0]?.Id ? (
+          <span
+            className="clickable-text"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onArtistClick(album.ArtistItems![0].Id)
+            }}
+          >
+            {album.AlbumArtist || album.ArtistItems[0].Name || 'Unknown Artist'}
+          </span>
+        ) : (
+          album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
+        )}
       </div>
     </button>
   )
@@ -132,12 +146,13 @@ function SearchAlbumItem({ album, onClick, onContextMenu, contextMenuItemId }: S
 interface SearchSongItemProps {
   song: BaseItemDto
   onClick: (song: BaseItemDto) => void
+  onArtistClick: (id: string) => void
   onContextMenu: (item: BaseItemDto, type: 'song', mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => void
   contextMenuItemId: string | null
   showImage?: boolean
 }
 
-function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
+function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
   const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
 
@@ -198,7 +213,20 @@ function SearchSongItem({ song, onClick, onContextMenu, contextMenuItemId, showI
           {song.Name}
         </div>
         <div className="text-xs text-gray-400 truncate">
-          {song.ArtistItems?.map(a => a.Name).join(', ') || song.AlbumArtist || 'Unknown Artist'}
+          {song.ArtistItems?.[0]?.Id ? (
+            <span
+              className="clickable-text"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                onArtistClick(song.ArtistItems![0].Id)
+              }}
+            >
+              {song.ArtistItems[0].Name || song.AlbumArtist || 'Unknown Artist'}
+            </span>
+          ) : (
+            song.AlbumArtist || 'Unknown Artist'
+          )}
         </div>
       </div>
       {song.RunTimeTicks && (
@@ -429,6 +457,7 @@ export default function SearchOverlay({
                   key={album.Id}
                   album={album}
                   onClick={onAlbumClick}
+                  onArtistClick={onArtistClick}
                   onContextMenu={openContextMenu}
                   contextMenuItemId={contextMenuItem?.Id || null}
                 />
@@ -469,6 +498,7 @@ export default function SearchOverlay({
                   key={song.Id}
                   song={song}
                   onClick={onSongClick}
+                  onArtistClick={onArtistClick}
                   onContextMenu={openContextMenu}
                   contextMenuItemId={contextMenuItem?.Id || null}
                   showImage
@@ -601,8 +631,7 @@ export default function SearchOverlay({
 
       {/* Desktop: positioning wrapper */}
       <div
-        className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? '' : 'right-0'}`}
-        style={isQueueSidebarOpen ? { right: 'var(--sidebar-width)' } : undefined}
+        className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-0 right-0 xl:left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
       >
         <div className="w-[768px] max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800 flex flex-col overflow-hidden">
           {/* Desktop header - sticky */}

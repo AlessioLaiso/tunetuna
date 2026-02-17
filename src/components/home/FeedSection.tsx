@@ -26,9 +26,15 @@ import {
 import { FEED_COOLDOWN_MS } from '../../utils/constants'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 
+interface SubtitlePart {
+  text: string
+  onClick?: (e: React.MouseEvent) => void
+}
+
 interface HomeListItemProps {
   title: string
   subtitle: string
+  subtitleParts?: SubtitlePart[]
   artworkUrl: string
   fallbackArtworkUrl?: string
   secondFallbackUrl?: string
@@ -48,6 +54,7 @@ interface HomeListItemProps {
 export function HomeListItem({
   title,
   subtitle,
+  subtitleParts,
   artworkUrl,
   fallbackArtworkUrl,
   secondFallbackUrl,
@@ -130,7 +137,25 @@ export function HomeListItem({
             {title}
           </div>
           <div className="text-xs text-gray-400 flex items-center gap-1.5 min-w-0">
-            <span className="truncate">{subtitle}</span>
+            <span className="truncate">
+              {subtitleParts ? subtitleParts.map((part, i) => (
+                part.onClick ? (
+                  <span
+                    key={i}
+                    className="clickable-text"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      part.onClick!(e)
+                    }}
+                  >
+                    {part.text}
+                  </span>
+                ) : (
+                  <span key={i}>{part.text}</span>
+                )
+              )) : subtitle}
+            </span>
             {subtitleIcon && <span className="flex-shrink-0">{subtitleIcon}</span>}
           </div>
         </div>
@@ -169,6 +194,7 @@ function FeedSkeleton() {
 
 // Top 10 Section Component
 export function Top10Section() {
+  const navigate = useNavigate()
   const { playTrack } = usePlayerStore()
   const { feedTopSongs, feedLastUpdated, loading, setFeedTopSongs, setFeedLastUpdated, setLoading } = useMusicStore()
   const { feedCountry, showTop10 } = useSettingsStore()
@@ -276,12 +302,17 @@ export function Top10Section() {
           {feedTopSongs.map((song, index) => {
             const matchedSong = findSong(song.name, song.artistName)
             const isInLibrary = matchedSong !== null
+            const artistId = matchedSong?.ArtistItems?.[0]?.Id
+            const top10SubtitleParts: SubtitlePart[] | undefined = isInLibrary && artistId
+              ? [{ text: song.artistName, onClick: () => navigate(`/artist/${artistId}`) }]
+              : undefined
             return (
               <HomeListItem
                 key={song.id}
                 rank={index + 1}
                 title={song.name}
                 subtitle={song.artistName}
+                subtitleParts={top10SubtitleParts}
                 artworkUrl={isInLibrary && matchedSong.AlbumId
                   ? jellyfinClient.getAlbumArtUrl(matchedSong.AlbumId, 96)
                   : getAppleMusicArtworkUrl(song.artworkUrl100, 96)
@@ -571,11 +602,19 @@ export function NewReleasesSection() {
               ? <Music className="w-3 h-3" />
               : <Disc className="w-3 h-3" />
 
+            const releaseSubtitleParts: SubtitlePart[] | undefined = isInLibrary && artistId
+              ? [
+                  { text: release.artistName, onClick: () => navigate(`/artist/${artistId}`) },
+                  ...(formattedDate ? [{ text: ` • ${formattedDate}` }] : []),
+                ]
+              : undefined
+
             return (
               <HomeListItem
                 key={release.id}
                 title={release.title}
                 subtitle={subtitle}
+                subtitleParts={releaseSubtitleParts}
                 subtitleIcon={subtitleIcon}
                 artworkUrl={primaryUrl}
                 fallbackArtworkUrl={firstFallback}
@@ -665,6 +704,7 @@ export function NewReleasesSection() {
 
 // Recently Played Section Component
 export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boolean }) {
+  const navigate = useNavigate()
   const { recentlyPlayed, loading, setRecentlyPlayed, setLoading } = useMusicStore()
   const { showRecentlyPlayed } = useSettingsStore()
   const { playTrack } = usePlayerStore()
@@ -697,6 +737,24 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
     playTrack(song, recentlyPlayed)
   }
 
+  const getRecentlyPlayedSubtitleParts = (song: BaseItemDto): SubtitlePart[] => {
+    const parts: SubtitlePart[] = []
+    const artistName = song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'
+    const artistId = song.ArtistItems?.[0]?.Id
+    parts.push({
+      text: artistName,
+      onClick: artistId ? () => navigate(`/artist/${artistId}`) : undefined,
+    })
+    if (song.Album) {
+      parts.push({ text: ' • ' })
+      parts.push({
+        text: song.Album,
+        onClick: song.AlbumId ? () => navigate(`/album/${song.AlbumId}`) : undefined,
+      })
+    }
+    return parts
+  }
+
   if (!showRecentlyPlayed) {
     return null
   }
@@ -720,6 +778,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
                     key={song.Id}
                     title={song.Name || 'Unknown'}
                     subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    subtitleParts={getRecentlyPlayedSubtitleParts(song)}
                     artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
                     isCurrentTrack={currentTrack?.Id === song.Id}
                     isInLibrary={true}
@@ -748,6 +807,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
                     key={song.Id}
                     title={song.Name || 'Unknown'}
                     subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    subtitleParts={getRecentlyPlayedSubtitleParts(song)}
                     artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
                     isCurrentTrack={currentTrack?.Id === song.Id}
                     isInLibrary={true}

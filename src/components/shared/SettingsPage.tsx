@@ -9,7 +9,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useStatsStore } from '../../stores/statsStore'
-import BottomSheet from '../shared/BottomSheet'
+import ResponsiveModal from '../shared/ResponsiveModal'
 import { isServerUrlLocked, isLocalServerUrlLocked, getLockedLocalServerUrl } from '../../utils/config'
 import { probeAndUpdateServerUrl } from '../../utils/serverUrl'
 
@@ -629,7 +629,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Sync Options Modal */}
-        <BottomSheet isOpen={showSyncOptions} onClose={handleCloseSyncOptions} zIndex={10001}>
+        <ResponsiveModal isOpen={showSyncOptions} onClose={handleCloseSyncOptions} zIndex={10001}>
           <div className="pb-6">
             <div className="mb-6 pl-4 pr-4">
               <div className="text-lg font-semibold text-white">
@@ -666,10 +666,10 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        </BottomSheet>
+        </ResponsiveModal>
 
         {/* Clear Stats Confirmation Modal */}
-        <BottomSheet isOpen={showClearStatsConfirm} onClose={() => setShowClearStatsConfirm(false)} zIndex={10001}>
+        <ResponsiveModal isOpen={showClearStatsConfirm} onClose={() => setShowClearStatsConfirm(false)} zIndex={10001}>
           <div className="pb-6">
             <div className="mb-6 pl-4 pr-4 flex items-start gap-3">
               <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
@@ -711,7 +711,7 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        </BottomSheet>
+        </ResponsiveModal>
       </div>
     </div>
   )

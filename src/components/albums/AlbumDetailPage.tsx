@@ -16,15 +16,18 @@ interface AlbumTrackItemProps {
   track: BaseItemDto
   trackNumber: number | null
   tracks: BaseItemDto[]
+  albumArtist: string | null
   onClick: (track: BaseItemDto, tracks: BaseItemDto[]) => void
   onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
 }
 
-function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
+function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
+  const navigate = useNavigate()
   const contextMenuJustOpenedRef = useRef(false)
+  const artistClickedRef = useRef(false)
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -43,8 +46,9 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
       onContextMenu(track, 'mobile')
     },
     onClick: () => {
-      if (contextMenuJustOpenedRef.current) {
+      if (contextMenuJustOpenedRef.current || artistClickedRef.current) {
         contextMenuJustOpenedRef.current = false
+        artistClickedRef.current = false
         return
       }
       onClick(track, tracks)
@@ -53,8 +57,9 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
   return (
     <button
       onClick={() => {
-        if (contextMenuJustOpenedRef.current) {
+        if (contextMenuJustOpenedRef.current || artistClickedRef.current) {
           contextMenuJustOpenedRef.current = false
+          artistClickedRef.current = false
           return
         }
         onClick(track, tracks)
@@ -74,6 +79,27 @@ function AlbumTrackItem({ track, trackNumber, tracks, onClick, onContextMenu, co
           }`}>
           {track.Name}
         </div>
+        {track.ArtistItems?.[0] && track.ArtistItems[0].Name !== albumArtist && (
+          <div className="text-xs text-gray-400 truncate">
+            <span
+              className="clickable-text"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                artistClickedRef.current = true
+                if (track.ArtistItems![0].Id) {
+                  navigate(`/artist/${track.ArtistItems![0].Id}`)
+                }
+                setTimeout(() => { artistClickedRef.current = false }, 300)
+              }}
+            >
+              {track.ArtistItems[0].Name}
+            </span>
+          </div>
+        )}
       </div>
       {track.RunTimeTicks && (
         <div className="text-xs text-gray-500 flex-shrink-0 text-right mr-4">
@@ -765,6 +791,7 @@ export default function AlbumDetailPage() {
                         track={track}
                         trackNumber={track.IndexNumber ?? null}
                         tracks={tracks}
+                        albumArtist={getArtistName()}
                         onClick={(track) => playTrack(track, tracks)}
                         onContextMenu={(track, mode, position) => {
                           setContextMenuItem(track)

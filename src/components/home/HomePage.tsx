@@ -36,7 +36,7 @@ export default function HomePage() {
     recentlyPlayed.length === 0
 
   return (
-    <div className="pb-20">
+    <div className="pb-4">
       <div
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import BottomSheet from './BottomSheet'
 import ResponsiveModal from './ResponsiveModal'
 import PlatformPicker from './PlatformPicker'
 import PlaylistPicker from '../playlists/PlaylistPicker'
@@ -608,7 +607,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         ]
       }
       case 'playlist': {
-        const hasItems = item.ChildCount !== undefined ? item.ChildCount > 0 : true
+        const hasItems = 'ChildCount' in item && item.ChildCount !== undefined ? item.ChildCount > 0 : true
         return [
           ...(hasItems ? [
             { id: 'play', label: 'Play', icon: Play },
@@ -712,10 +711,10 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     )
   }
 
-  // Mobile mode - use existing BottomSheet
+  // Mobile mode - use ResponsiveModal
   return (
     <>
-      <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
+      <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
         <div className="pb-6">
           <div className="mb-4 ml-4">
             <div className="text-lg font-semibold text-white break-words">{itemName}</div>
@@ -745,7 +744,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             })}
           </div>
         </div>
-      </BottomSheet>
+      </ResponsiveModal>
       {platformPicker}
       {playlistModals}
     </>

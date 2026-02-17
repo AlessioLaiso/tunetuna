@@ -60,6 +60,9 @@ export default function PlayerBar() {
   const touchStartX = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
   const playerBarRef = useRef<HTMLDivElement>(null)
+  const mobileContentRef = useRef<HTMLDivElement>(null)
+  const swipeAnimatingRef = useRef(false)
+  const didSwipeRef = useRef(false) // Track if a swipe happened to suppress modal open
 
   // Close modal when navigating to a different route
   useEffect(() => {
@@ -424,14 +427,41 @@ export default function PlayerBar() {
     }
   }
 
-  // Swipe gesture handlers for next/previous
+  // Swipe gesture handlers for next/previous with animation
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (swipeAnimatingRef.current) return
     touchStartX.current = e.touches[0].clientX
     touchStartTime.current = Date.now()
+    didSwipeRef.current = false
+    // Remove transition during drag for immediate feedback
+    if (mobileContentRef.current) {
+      mobileContentRef.current.style.transition = 'none'
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (swipeAnimatingRef.current || touchStartX.current === null || !mobileContentRef.current) return
+
+    const deltaX = e.touches[0].clientX - touchStartX.current
+    const opacity = Math.max(0.3, 1 - Math.abs(deltaX) / 300)
+    mobileContentRef.current.style.transform = `translateX(${deltaX}px)`
+    mobileContentRef.current.style.opacity = String(opacity)
+
+    // Mark as swiping if moved more than 10px to suppress modal open
+    if (Math.abs(deltaX) > 10) {
+      didSwipeRef.current = true
+    }
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartTime.current === null) {
+    if (swipeAnimatingRef.current || touchStartX.current === null || touchStartTime.current === null) {
+      touchStartX.current = null
+      touchStartTime.current = null
+      return
+    }
+
+    const el = mobileContentRef.current
+    if (!el) {
       touchStartX.current = null
       touchStartTime.current = null
       return
@@ -440,22 +470,61 @@ export default function PlayerBar() {
     const touchEndX = e.changedTouches[0].clientX
     const deltaX = touchEndX - touchStartX.current
     const deltaTime = Date.now() - touchStartTime.current
-    const swipeThreshold = 50 // Minimum pixels to trigger swipe
-    const velocityThreshold = 0.3 // Minimum velocity (px/ms) to trigger swipe
+    const swipeThreshold = 75
+    const velocityThreshold = 0.45
 
     const velocity = Math.abs(deltaX) / deltaTime
+    const isSwipeRight = deltaX > swipeThreshold || (deltaX > 45 && velocity > velocityThreshold)
+    const isSwipeLeft = deltaX < -swipeThreshold || (deltaX < -45 && velocity > velocityThreshold)
 
-    // Swipe right = previous track
-    if (deltaX > swipeThreshold || (deltaX > 30 && velocity > velocityThreshold)) {
-      if (hasPrevious) {
-        previous()
-      }
-    }
-    // Swipe left = next track
-    else if (deltaX < -swipeThreshold || (deltaX < -30 && velocity > velocityThreshold)) {
-      if (hasNext) {
-        next()
-      }
+    const canSwipeRight = isSwipeRight && hasPrevious
+    const canSwipeLeft = isSwipeLeft && hasNext
+
+    if (canSwipeRight || canSwipeLeft) {
+      // Animate out in swipe direction
+      swipeAnimatingRef.current = true
+      const direction = canSwipeRight ? 1 : -1
+      const exitX = direction * window.innerWidth
+
+      el.style.transition = 'transform 200ms ease-out, opacity 200ms ease-out'
+      el.style.transform = `translateX(${exitX}px)`
+      el.style.opacity = '0'
+
+      setTimeout(() => {
+        // Change track
+        if (canSwipeRight) previous()
+        else next()
+
+        // Position new content from opposite side (no transition)
+        el.style.transition = 'none'
+        el.style.transform = `translateX(${-exitX}px)`
+        el.style.opacity = '0'
+
+        // Force reflow so the position takes effect before animating in
+        void el.offsetHeight
+
+        // Animate in
+        el.style.transition = 'transform 200ms ease-out, opacity 200ms ease-out'
+        el.style.transform = 'translateX(0)'
+        el.style.opacity = '1'
+
+        setTimeout(() => {
+          el.style.transition = ''
+          el.style.transform = ''
+          el.style.opacity = ''
+          swipeAnimatingRef.current = false
+        }, 200)
+      }, 200)
+    } else {
+      // Spring back to center
+      el.style.transition = 'transform 200ms ease-out, opacity 200ms ease-out'
+      el.style.transform = 'translateX(0)'
+      el.style.opacity = '1'
+      setTimeout(() => {
+        el.style.transition = ''
+        el.style.transform = ''
+        el.style.opacity = ''
+      }, 200)
     }
 
     touchStartX.current = null
@@ -476,9 +545,12 @@ export default function PlayerBar() {
           paddingBottom: 'env(safe-area-inset-bottom)'
         }}
         onClick={() => {
-          setShowModal(true)
+          if (!didSwipeRef.current) {
+            setShowModal(true)
+          }
         }}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* Seek bar at top for desktop - positioned absolutely to not affect layout */}
@@ -675,32 +747,35 @@ export default function PlayerBar() {
 
         {/* Mobile layout */}
         <div className="flex items-center gap-3 pt-3 pb-1 pr-3 pl-4 md:hidden">
-          {!imageError && (
-            <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
-              <Image
-                key={currentTrack?.Id || displayTrack.Id}
-                src={jellyfinClient.getAlbumArtUrl(
-                  (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
-                  96
-                )}
-                alt={(currentTrack || displayTrack).Name}
-                className="w-full h-full object-cover"
-                showOutline={true}
-                rounded="rounded-sm"
-                onError={() => setImageError(true)}
-              />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">
-              {(currentTrack || displayTrack).Name}
-            </div>
-            <div className="text-xs text-gray-400 truncate">
-              {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+          {/* Animated content: album art + text */}
+          <div ref={mobileContentRef} className="flex items-center gap-3 flex-1 min-w-0">
+            {!imageError && (
+              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
+                <Image
+                  key={currentTrack?.Id || displayTrack.Id}
+                  src={jellyfinClient.getAlbumArtUrl(
+                    (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
+                    96
+                  )}
+                  alt={(currentTrack || displayTrack).Name}
+                  className="w-full h-full object-cover"
+                  showOutline={true}
+                  rounded="rounded-sm"
+                  onError={() => setImageError(true)}
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-white truncate">
+                {(currentTrack || displayTrack).Name}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+              </div>
             </div>
           </div>
-          {/* Mobile layout: Volume + Play/Pause buttons */}
-          <div className="flex items-center gap-2">
+          {/* Mobile layout: Volume + Play/Pause buttons (stay fixed during swipe) */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {!isIOS() && (
               <VolumeControl
                 variant="compact"
@@ -715,10 +790,8 @@ export default function PlayerBar() {
                 if (currentTrack) {
                   togglePlayPause()
                 } else if (songs.length > 0) {
-                  // Start playing from the beginning of the queue
                   skipToTrack(0)
                 } else if (displayTrack) {
-                  // Resume last played track
                   playTrack(displayTrack)
                 }
               }}

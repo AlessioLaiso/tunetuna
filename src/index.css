@@ -270,6 +270,36 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
+/* On non-touch devices, collapse queue actions until hovering so text gets more room */
+@media (hover: hover) {
+  .queue-actions {
+    overflow: hidden;
+    width: 0;
+    flex-shrink: 0;
+  }
+
+  .queue-row:hover .queue-actions {
+    width: auto;
+  }
+}
+
+/* On non-touch devices, make artist/album text clickable with accent color hover */
+@media (hover: hover) and (pointer: fine) {
+  .clickable-text {
+    cursor: pointer;
+    transition: color 150ms;
+  }
+
+  .clickable-text:hover {
+    color: var(--accent-color);
+  }
+
+  /* When hovering a clickable subtitle, revert the title back to white */
+  .group:has(.clickable-text:hover) .group-hover\:text-\[var\(--accent-color\)\] {
+    color: white;
+  }
+}
+
 
 
 

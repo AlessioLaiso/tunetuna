@@ -242,6 +242,7 @@ function TopSongItem({
   showYear: boolean
   onPlay: (songId: string) => void
 }) {
+  const navigate = useNavigate()
   const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
   const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
   const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
@@ -298,7 +299,7 @@ function TopSongItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
         <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
           {imageUrl ? (
@@ -310,10 +311,22 @@ function TopSongItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{songName}
           </div>
-          <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
+          <div className="text-zinc-400 text-sm truncate ml-[18px]">
+            {artistId ? (
+              <span
+                className="clickable-text"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/artist/${artistId}`)
+                }}
+              >
+                {artistName}
+              </span>
+            ) : artistName}
+          </div>
           {singleDayPlays && (
             <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
           )}
@@ -423,7 +436,7 @@ function TopArtistItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
         <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0`}>
           {currentImageUrl ? (
@@ -435,7 +448,7 @@ function TopArtistItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{artistName}
           </div>
         </div>
@@ -473,12 +486,12 @@ function HorizontalBar({
 
   const Container = onClick ? 'button' : 'div'
   const containerProps = onClick
-    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 -mx-2 px-2 transition-colors' }
+    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 -mx-2 px-2 transition-colors group' }
     : { className: 'flex items-center gap-3 mb-2' }
 
   return (
     <Container {...containerProps}>
-      <div className="w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left">{label}</div>
+      <div className={`w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left ${onClick ? 'group-hover:text-[var(--accent-color)] transition-colors' : ''}`}>{label}</div>
       <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
         <div
           className={`h-full ${color} rounded-full transition-all duration-500`}
@@ -559,6 +572,7 @@ function TopAlbumItem({
   hours: number
   onClick: () => void
 }) {
+  const navigate = useNavigate()
   const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
   const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
   const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
@@ -612,7 +626,7 @@ function TopAlbumItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
         <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
           {imageUrl ? (
@@ -624,10 +638,22 @@ function TopAlbumItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-medium text-white truncate ${rank === 1 ? 'md:text-lg' : ''}`}>
+          <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
             <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
           </div>
-          <div className="text-zinc-400 text-sm truncate ml-[18px]">{artistName}</div>
+          <div className="text-zinc-400 text-sm truncate ml-[18px]">
+            {artistId ? (
+              <span
+                className="clickable-text"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/artist/${artistId}`)
+                }}
+              >
+                {artistName}
+              </span>
+            ) : artistName}
+          </div>
         </div>
         <div className="text-zinc-400 text-sm whitespace-nowrap">
           {formatHours(hours)}

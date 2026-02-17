@@ -57,7 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
         albums: true,
         songs: true,
         genres: true,
-        playlists: false,
+        playlists: true,
         stats: true,
       },
       setPageVisibility: (visibility) =>

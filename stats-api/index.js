@@ -91,7 +91,18 @@ const insertMany = db.transaction((userKey, events) => {
 })
 
 // Create Fastify server
-const fastify = Fastify({ logger: true })
+const fastify = Fastify({
+  logger: true,
+  disableRequestLogging: true,
+})
+
+// Log requests, but skip health checks
+fastify.addHook('onResponse', (request, reply, done) => {
+  if (request.url !== '/api/stats/health') {
+    request.log.info({ req: request, res: reply, responseTime: reply.elapsedTime }, 'request completed')
+  }
+  done()
+})
 
 // Register CORS - allow same-origin and configured origins
 await fastify.register(cors, {

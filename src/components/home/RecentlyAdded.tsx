@@ -17,6 +17,7 @@ interface RecentlyAddedAlbumItemProps {
 
 
 function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAddedAlbumItemProps) {
+  const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const contextMenuJustOpenedRef = useRef(false)
 
@@ -83,7 +84,20 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
       </div>
       <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
       <div className="text-xs text-gray-400 truncate">
-        {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+        {album.ArtistItems?.[0]?.Id ? (
+          <span
+            className="clickable-text"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/artist/${album.ArtistItems![0].Id}`)
+            }}
+          >
+            {album.AlbumArtist || album.ArtistItems[0].Name || 'Unknown Artist'}
+          </span>
+        ) : (
+          album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
+        )}
       </div>
     </button>
   )
@@ -140,15 +154,15 @@ export default function RecentlyAdded() {
             msOverflowStyle: 'none',
           }}
         >
-          <div className="flex" style={{ width: `${pages.length * 100}%` }}>
+          <div className="flex gap-3">
             {pages.map((pageAlbums, pageIndex) => {
               // Calculate rows needed for this page (3 columns per row)
               const rowsNeeded = Math.ceil(pageAlbums.length / 3)
               return (
                 <div
                   key={pageIndex}
-                  className="snap-start flex-shrink-0 w-full"
-                  style={{ width: `${100 / pages.length}%` }}
+                  className="snap-start flex-shrink-0"
+                  style={{ width: 'calc(100% - 12px)' }}
                 >
                   <div
                     className="grid grid-cols-3 gap-3"

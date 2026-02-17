@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
-import { jellyfinClient } from '../../api/jellyfin' // Used for getLyrics
+import { jellyfinClient } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
 
 export default function LyricsModal() {

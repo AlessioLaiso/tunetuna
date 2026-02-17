@@ -343,26 +343,6 @@ export async function fetchOdesliLinks(
   }
 }
 
-/**
- * Searches Odesli by artist and title
- * This is less reliable than URL-based lookup but useful for MusicBrainz data
- */
-export async function searchOdesli(
-  artistName: string,
-  title: string,
-  type: 'song' | 'album' = 'album'
-): Promise<OdesliResponse | null> {
-  // Try searching via a Spotify search URL (Odesli supports search URLs)
-  // This is a workaround since Odesli doesn't have a direct search endpoint
-  const searchQuery = encodeURIComponent(`${artistName} ${title}`)
-  const spotifySearchUrl = `https://open.spotify.com/search/${searchQuery}`
-
-  // Unfortunately, Odesli doesn't support Spotify search URLs
-  // We need to try a different approach - search for the item on one platform
-  // For now, return null and rely on Apple Music URL if available
-  return null
-}
-
 // ============================================================================
 // High-level functions for Feed feature
 // ============================================================================

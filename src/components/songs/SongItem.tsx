@@ -1,4 +1,5 @@
 import { useState, useRef, memo, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -20,6 +21,7 @@ interface SongItemProps {
 const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu, contextMenuItemId }: SongItemProps) {
   // Use selector to only get playTrack function - stable reference
   const playTrack = usePlayerStore((state) => state.playTrack)
+  const navigate = useNavigate()
   const currentTrack = useCurrentTrack()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
@@ -124,8 +126,37 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
             {song.Name}
           </div>
           <div className="text-xs text-gray-400 truncate">
-            {song.ArtistItems?.[0]?.Name || song.AlbumArtist || 'Unknown Artist'}
-            {song.Album && ` • ${song.Album}`}
+            {song.ArtistItems?.[0]?.Id ? (
+              <span
+                className="clickable-text"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/artist/${song.ArtistItems![0].Id}`)
+                }}
+              >
+                {song.ArtistItems[0].Name || song.AlbumArtist || 'Unknown Artist'}
+              </span>
+            ) : (
+              song.AlbumArtist || 'Unknown Artist'
+            )}
+            {song.Album && (
+              <>
+                {' • '}
+                {song.AlbumId ? (
+                  <span
+                    className="clickable-text"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/album/${song.AlbumId}`)
+                    }}
+                  >
+                    {song.Album}
+                  </span>
+                ) : (
+                  song.Album
+                )}
+              </>
+            )}
           </div>
         </div>
         {song.RunTimeTicks && (

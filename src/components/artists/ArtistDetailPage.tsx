@@ -103,6 +103,7 @@ interface ArtistSongItemProps {
 }
 
 function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
+  const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const currentTrack = useCurrentTrack()
   const longPressHandlers = useLongPress({
@@ -145,7 +146,20 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenu
         {(album || year) && (
           <div className="text-xs text-gray-400 flex items-center gap-1 min-w-0">
             {album && (
-              <span className="truncate">{album}</span>
+              song.AlbumId ? (
+                <span
+                  className="clickable-text truncate"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/album/${song.AlbumId}`)
+                  }}
+                >
+                  {album}
+                </span>
+              ) : (
+                <span className="truncate">{album}</span>
+              )
             )}
             {album && year && (
               <span className="flex-shrink-0">•</span>

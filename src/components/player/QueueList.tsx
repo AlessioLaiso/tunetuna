@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback, memo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -44,6 +45,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
     isDragOver,
     onDragEnterRow,
 }: QueueTrackItemProps) {
+    const navigate = useNavigate()
     const contextMenuJustOpenedRef = useRef(false)
 
     const longPressHandlers = useLongPress({
@@ -129,7 +131,19 @@ const QueueTrackItem = memo(function QueueTrackItem({
                     {track.Name}
                 </div>
                 <div className="text-xs text-gray-400 truncate">
-                    {track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown Artist'}
+                    {track.ArtistItems?.[0]?.Id ? (
+                        <span
+                            className="clickable-text"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/artist/${track.ArtistItems![0].Id}`)
+                            }}
+                        >
+                            {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown Artist'}
+                        </span>
+                    ) : (
+                        track.AlbumArtist || 'Unknown Artist'
+                    )}
                 </div>
             </div>
 
@@ -152,7 +166,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             ) : (
                 <>
                     {showRemoveButton && (
-                        <>
+                        <div className="flex items-center queue-actions whitespace-nowrap">
                             <button
                                 draggable
                                 onMouseDown={(e) => e.stopPropagation()}
@@ -184,7 +198,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                     </svg>
                                 </button>
                             )}
-                        </>
+                        </div>
                     )}
                 </>
             )}

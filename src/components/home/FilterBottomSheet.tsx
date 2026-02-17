@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, SquaresUnite, SquaresIntersect } from 'lucide-react'
-import BottomSheet from '../shared/BottomSheet'
+import ResponsiveModal from '../shared/ResponsiveModal'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 
 interface FilterBottomSheetProps {
@@ -191,10 +191,10 @@ export default function FilterBottomSheet({
                          (yearRange.min === null && yearRange.max === null)
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={10001}>
+    <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={10001}>
       <div className="pb-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 px-4">
+        <div className="flex items-center justify-between mb-4 px-4 md:sticky md:top-0 md:bg-zinc-900 md:pb-2 md:z-10 md:-mt-4 md:pt-4">
           <div className="text-lg font-semibold text-white">
             Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : groupingCategory?.name || 'Tag'}
           </div>
@@ -238,7 +238,7 @@ export default function FilterBottomSheet({
         </div>
 
         {/* Content */}
-        <div className="px-4 max-h-[75vh] overflow-y-auto overscroll-none touch-pan-y">
+        <div className="px-4 max-h-[75vh] overflow-y-auto overscroll-none touch-pan-y md:max-h-none md:overflow-y-visible">
           {filterType === 'year' ? (
             <div className="space-y-6">
               {/* Two scrollable year pickers side by side */}
@@ -467,7 +467,7 @@ export default function FilterBottomSheet({
         </div>
 
         {/* Footer buttons */}
-        <div className="flex gap-3 mt-6 px-4">
+        <div className="flex gap-3 mt-6 px-4 md:sticky md:bottom-0 md:bg-zinc-900 md:pb-6 md:pt-2 md:-mb-6">
           <button
             onClick={handleClear}
             disabled={filterType === 'year' && isDefaultRange}
@@ -483,7 +483,7 @@ export default function FilterBottomSheet({
           </button>
         </div>
       </div>
-    </BottomSheet>
+    </ResponsiveModal>
   )
 }
 

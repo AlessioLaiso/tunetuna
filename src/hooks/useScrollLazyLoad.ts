@@ -44,8 +44,15 @@ export function useScrollLazyLoad({
 
     const { scrollTop, clientHeight, scrollHeight } = container
 
-    // Load more when within threshold viewports of bottom
-    if (scrollTop + clientHeight * (1 + threshold) >= scrollHeight) {
+    // Calculate approximate position of the last visible-image item.
+    // Since all items are rendered but only `visibleCount` have images,
+    // we estimate where the image boundary is based on the ratio of
+    // visible items to total items, then trigger when user scrolls near it.
+    const visibleRatio = visibleCount / totalCount
+    const estimatedImageBoundary = scrollHeight * visibleRatio
+
+    // Load more when scrolled within threshold viewports of the image boundary
+    if (scrollTop + clientHeight * (1 + threshold) >= estimatedImageBoundary) {
       setVisibleCount(prev => Math.min(prev + increment, totalCount))
     }
   }, [totalCount, visibleCount, increment, setVisibleCount, threshold])
@@ -90,7 +97,10 @@ export function useContainerScrollLazyLoad(
 
     const { scrollTop, clientHeight, scrollHeight } = container
 
-    if (scrollTop + clientHeight * (1 + threshold) >= scrollHeight) {
+    const visibleRatio = visibleCount / totalCount
+    const estimatedImageBoundary = scrollHeight * visibleRatio
+
+    if (scrollTop + clientHeight * (1 + threshold) >= estimatedImageBoundary) {
       setVisibleCount(prev => Math.min(prev + increment, totalCount))
     }
   }, [containerRef, totalCount, visibleCount, increment, setVisibleCount, threshold])

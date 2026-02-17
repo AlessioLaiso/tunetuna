@@ -11,6 +11,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useToastStore } from '../../stores/toastStore'
 import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
+import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
 import { formatDuration, parseGroupingTag } from '../../utils/formatting'
 
@@ -35,6 +36,7 @@ interface PlaylistTrackItemProps {
 }
 
 function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, contextMenuItemId, reorderable, onReorderDragStart, onReorderDragEnd, onReorderDrop, onDragEnterRow, isDragOver }: PlaylistTrackItemProps) {
+  const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const contextMenuJustOpenedRef = useRef(false)
@@ -116,8 +118,39 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
           {track.Name}
         </div>
         <div className="text-xs text-gray-400 truncate">
-          {track.AlbumArtist || track.ArtistItems?.[0]?.Name || 'Unknown Artist'}
-          {track.Album && ` • ${track.Album}`}
+          {track.ArtistItems?.[0]?.Id ? (
+            <span
+              className="clickable-text"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/artist/${track.ArtistItems![0].Id}`)
+              }}
+            >
+              {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown Artist'}
+            </span>
+          ) : (
+            track.AlbumArtist || 'Unknown Artist'
+          )}
+          {track.Album && (
+            <>
+              {' • '}
+              {track.AlbumId ? (
+                <span
+                  className="clickable-text"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/album/${track.AlbumId}`)
+                  }}
+                >
+                  {track.Album}
+                </span>
+              ) : (
+                track.Album
+              )}
+            </>
+          )}
         </div>
       </div>
       {track.RunTimeTicks && (
@@ -406,8 +439,8 @@ export default function PlaylistDetailPage() {
   if (loading) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
-          <p>Loading...</p>
+        <div className="flex items-center justify-center h-screen">
+          <Spinner />
         </div>
       </div>
     )
@@ -458,53 +491,51 @@ export default function PlaylistDetailPage() {
       </div>
 
       <div className="pt-20">
-        <div className="px-4 pt-4 mb-6">
-          <div className="flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
-            {hasImage && (
-              <div className="w-28 flex-shrink-0 md:w-auto md:col-span-1">
-                <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
-                  <Image
-                    src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')}
-                    alt={playlist.Name}
-                    className="w-full h-full object-cover"
-                    showOutline={true}
-                    rounded="rounded"
-                    onError={() => setHasImage(false)}
-                  />
+        <div className="mb-6 px-4 pt-4">
+          {hasImage && (
+            <div className="flex justify-center mb-6">
+              <div className="w-64 h-64 rounded overflow-hidden bg-zinc-900">
+                <Image
+                  src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')}
+                  alt={playlist.Name}
+                  className="w-full h-full object-cover"
+                  showOutline={true}
+                  rounded="rounded"
+                  onError={() => setHasImage(false)}
+                />
+              </div>
+            </div>
+          )}
+          <div className="w-full">
+            <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
+            {sortedTracks.length > 0 && (
+              <div className="flex items-center justify-between gap-4 mt-2">
+                <div className="text-gray-400">
+                  {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
                 </div>
+                <button
+                  onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
+                >
+                  {isPlaylistPlaying() && isPlaying ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      Pause
+                    </>
+                  ) : isMoodRoute ? (
+                    <>
+                      <Shuffle className="w-3.5 h-3.5" />
+                      Shuffle
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5" />
+                      Play
+                    </>
+                  )}
+                </button>
               </div>
             )}
-            <div className={`flex-1 min-w-0 pb-2 ${hasImage ? 'md:col-span-2' : 'md:col-span-3'}`}>
-              <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
-              {sortedTracks.length > 0 && (
-                <div className="flex items-center justify-between gap-4 mt-2">
-                  <div className="text-gray-400">
-                    {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
-                  </div>
-                  <button
-                    onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
-                    className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
-                  >
-                    {isPlaylistPlaying() && isPlaying ? (
-                      <>
-                        <Pause className="w-3.5 h-3.5" />
-                        Pause
-                      </>
-                    ) : isMoodRoute ? (
-                      <>
-                        <Shuffle className="w-3.5 h-3.5" />
-                        Shuffle
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-3.5 h-3.5" />
-                        Play
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 

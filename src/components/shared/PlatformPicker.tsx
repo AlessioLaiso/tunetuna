@@ -1,4 +1,4 @@
-import BottomSheet from './BottomSheet'
+import ResponsiveModal from './ResponsiveModal'
 import { STREAMING_PLATFORMS, type OdesliResponse } from '../../api/feed'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -220,7 +220,7 @@ export default function PlatformPicker({
 
   // Mobile mode - bottom sheet
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
+    <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
       <div className="pb-6">
         <div className="mb-4 ml-4">
           <div className="text-lg font-semibold text-white break-words">{title}</div>
@@ -261,6 +261,6 @@ export default function PlatformPicker({
           </div>
         )}
       </div>
-    </BottomSheet>
+    </ResponsiveModal>
   )
 }

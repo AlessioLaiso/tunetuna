@@ -45,9 +45,8 @@ function App() {
   // Re-probe local/remote server URL on foreground
   useServerUrlResolver()
 
-  // Debug: Add logout button if authenticated (temporary) - moved to useEffect to avoid hook order issues
-  // CRITICAL: useEffect must be called BEFORE any conditional returns to ensure consistent hook order
-  // Note: logout is a stable function from zustand store, so we can omit it from deps
+  // Handle logout via URL parameter (e.g. ?logout=true)
+  // Must be called before any conditional returns to ensure consistent hook order
   useEffect(() => {
     if (isAuthenticated && window.location.search.includes('logout=true')) {
       logout()

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
@@ -12,6 +12,7 @@ import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
+import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 
 // Section configuration for AlbumsPage: Albums first (no limit), then Artists (5), Playlists, Songs
@@ -238,28 +239,14 @@ export default function AlbumsPage() {
     setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
   }, [currentPage, albums.length])
 
-  // Incrementally reveal more albums as the user scrolls near the bottom
-  const handleScroll = useCallback(() => {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-    const fullHeight = document.documentElement.scrollHeight
-
-    // When the user is within ~1.5 viewports of the bottom, load more rows
-    if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-      setVisibleAlbumsCount((prev) =>
-        Math.min(prev + VISIBLE_ALBUMS_INCREMENT, albums.length)
-      )
-    }
-  }, [albums.length])
-
-  useEffect(() => {
-    // Single window scroll listener handles all scroll events (including touch scrolling)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [handleScroll])
+  // Incrementally reveal more album images as the user scrolls
+  useScrollLazyLoad({
+    totalCount: albums.length,
+    visibleCount: visibleAlbumsCount,
+    increment: VISIBLE_ALBUMS_INCREMENT,
+    setVisibleCount: setVisibleAlbumsCount,
+    threshold: 1.0
+  })
 
   useEffect(() => {
     if (!searchQuery.trim()) {
