@@ -65,25 +65,21 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
+        className="text-left group"
       >
-        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center">
           <Image
-            src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
+            src={jellyfinClient.getAlbumArtUrl(playlist.Id, 474)}
             alt={playlist.Name}
             className="w-full h-full object-cover"
             showOutline={true}
-            rounded="rounded-sm"
+            rounded="rounded"
             fallbackIcon={ListMusic}
           />
         </div>
-        <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
-          <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-            {playlist.Name}
-          </div>
-          <div className="text-xs text-gray-400 truncate">
-            {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
-          </div>
+        <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{playlist.Name}</div>
+        <div className="text-xs text-gray-400 truncate">
+          {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
         </div>
       </button>
       <ContextMenu

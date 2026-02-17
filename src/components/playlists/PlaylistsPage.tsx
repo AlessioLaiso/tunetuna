@@ -312,10 +312,12 @@ export default function PlaylistsPage() {
                 <p>No playlists found</p>
               </div>
             ) : (
-              <div className="space-y-0">
-                {playlists.map((playlist) => (
-                  <PlaylistItem key={playlist.Id} playlist={playlist} />
-                ))}
+              <div className="p-4">
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                  {playlists.map((playlist) => (
+                    <PlaylistItem key={playlist.Id} playlist={playlist} />
+                  ))}
+                </div>
               </div>
             )}
           </div>
