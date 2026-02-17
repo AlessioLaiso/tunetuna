@@ -381,6 +381,27 @@ fastify.get('/api/stats/proxy/apple-music/:country/:limit', async (request, repl
   }
 })
 
+// Proxy for Muspy RSS feed (no auth required, public data)
+fastify.get('/api/stats/proxy/muspy-rss', async (request, reply) => {
+  const { url } = request.query
+  if (!url || !url.startsWith('https://muspy.com/')) {
+    return reply.status(400).send({ error: 'Valid Muspy URL required' })
+  }
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return reply.status(response.status).send({ error: 'Muspy RSS failed' })
+    }
+    const text = await response.text()
+    reply.header('Content-Type', 'application/atom+xml; charset=utf-8')
+    return reply.send(text)
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to fetch Muspy RSS' })
+  }
+})
+
 // Start server
 try {
   await fastify.listen({ port: PORT, host: '0.0.0.0' })

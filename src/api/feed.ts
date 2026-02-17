@@ -92,9 +92,7 @@ const MUSICBRAINZ_BASE_URL = isDev
 
 const MUSICBRAINZ_USER_AGENT = `${APP_CLIENT_NAME}/${APP_VERSION} (https://github.com/AlessioLaiso/tunetuna)`
 
-const COVER_ART_ARCHIVE_BASE_URL = isDev
-  ? '/api/coverart'
-  : 'https://coverartarchive.org'
+const COVER_ART_ARCHIVE_BASE_URL = '/api/coverart'
 
 const ODESLI_BASE_URL = isDev
   ? '/api/odesli/v1-alpha.1'
@@ -200,7 +198,8 @@ export async function searchMusicBrainzReleaseGroup(
 
 /**
  * Gets cover art URL for a release group
- * Returns null if no cover art is available
+ * In production, uses coverartarchive.org directly (HTTPS, avoids mixed content)
+ * In dev, uses the Vite proxy to avoid CORS issues
  */
 export function getCoverArtUrl(
   releaseGroupMbid: string,
@@ -260,10 +259,10 @@ export async function fetchMuspyReleases(
     return []
   }
 
-  // Use proxy in development to avoid CORS, and CORS proxy in production
+  // Use Vite proxy in development, stats-api proxy in production
   const proxyUrl = isDev
     ? `/api/muspy-rss?url=${encodeURIComponent(rssUrl)}`
-    : `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`
+    : `/api/stats/proxy/muspy-rss?url=${encodeURIComponent(rssUrl)}`
   console.log('[Muspy] Fetching from:', proxyUrl)
 
   const response = await fetch(proxyUrl)
