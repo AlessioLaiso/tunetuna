@@ -247,13 +247,6 @@ export default function PlaylistsPage() {
                 <h1 className="text-2xl font-bold text-white">Playlists</h1>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setShowCreatePlaylist(true)}
-                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-                    aria-label="Create playlist"
-                  >
-                    <Plus className="w-6 h-6" />
-                  </button>
-                  <button
                     onClick={() => setIsSearchOpen(true)}
                     className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
                     aria-label="Search"
@@ -271,6 +264,13 @@ export default function PlaylistsPage() {
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
+                  </button>
+                  <button
+                    onClick={() => setShowCreatePlaylist(true)}
+                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    aria-label="Create playlist"
+                  >
+                    <Plus className="w-6 h-6" />
                   </button>
                 </div>
               </div>
