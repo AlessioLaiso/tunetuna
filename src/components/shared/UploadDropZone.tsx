@@ -81,7 +81,8 @@ export default function UploadDropZone({ label, accept = 'image/*', value, onCha
     onChange(null)
   }
 
-  const preview = value ? URL.createObjectURL(value) : (!dismissed ? previewUrl : null)
+  const isImage = value?.type?.startsWith('image/') ?? false
+  const preview = (value && isImage) ? URL.createObjectURL(value) : (!dismissed ? previewUrl : null)
 
   return (
     <div
@@ -93,7 +94,7 @@ export default function UploadDropZone({ label, accept = 'image/*', value, onCha
       className={`relative cursor-pointer rounded-lg border-2 border-dashed transition-colors ${
         isDragging
           ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10'
-          : preview
+          : (preview || (value && !isImage))
             ? 'border-zinc-700 bg-zinc-800/50'
             : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-500'
       }`}
@@ -109,6 +110,17 @@ export default function UploadDropZone({ label, accept = 'image/*', value, onCha
       {preview ? (
         <div className="relative aspect-square w-full overflow-hidden rounded-md">
           <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+          <button
+            onClick={handleRemove}
+            className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+      ) : value ? (
+        <div className="relative flex flex-col items-center justify-center gap-2 py-8 px-4">
+          <Upload className="w-6 h-6 text-[var(--accent-color)]" />
+          <span className="text-sm text-white text-center truncate max-w-full px-2">{value.name}</span>
           <button
             onClick={handleRemove}
             className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center transition-colors"

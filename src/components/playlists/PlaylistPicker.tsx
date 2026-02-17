@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Music } from 'lucide-react'
+import { Plus, Music, ListMusic } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useToastStore } from '../../stores/toastStore'
 import type { BaseItemDto } from '../../api/types'
@@ -10,9 +10,10 @@ interface PlaylistPickerProps {
   isOpen: boolean
   onClose: () => void
   itemIds: string[]
+  zIndex?: number
 }
 
-export default function PlaylistPicker({ isOpen, onClose, itemIds }: PlaylistPickerProps) {
+export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: PlaylistPickerProps) {
   const [playlists, setPlaylists] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreateInput, setShowCreateInput] = useState(false)
@@ -76,7 +77,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds }: PlaylistPic
   }
 
   return (
-    <ResponsiveModal isOpen={isOpen} onClose={onClose}>
+    <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
       <div className="pb-6">
         <div className="mb-4 px-4">
           <div className="text-lg font-semibold text-white">Add to Playlist</div>
@@ -92,7 +93,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds }: PlaylistPic
             <div className="w-10 h-10 rounded-sm bg-zinc-800 flex items-center justify-center flex-shrink-0">
               <Plus className="w-5 h-5 text-white" />
             </div>
-            <span className="text-white font-medium">Create New Playlist</span>
+            <span className="text-sm text-white font-medium">Create New Playlist</span>
           </button>
 
           {showCreateInput && (
@@ -143,6 +144,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds }: PlaylistPic
                     className="w-full h-full object-cover"
                     showOutline={true}
                     rounded="rounded-sm"
+                    fallbackIcon={ListMusic}
                   />
                 </div>
                 <div className="flex-1 min-w-0 text-left">

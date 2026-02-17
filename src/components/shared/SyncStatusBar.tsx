@@ -5,8 +5,11 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { getLockedLocalServerUrl } from '../../utils/config'
 
 export default function SyncStatusBar() {
-  const { state, message, progress, cancelSync } = useSyncStore()
-  const { isQueueSidebarOpen } = usePlayerStore()
+  const state = useSyncStore(s => s.state)
+  const message = useSyncStore(s => s.message)
+  const progress = useSyncStore(s => s.progress)
+  const cancelSync = useSyncStore(s => s.cancelSync)
+  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const localServerUrl = useSettingsStore((s) => s.localServerUrl)
 
   if (state === 'idle') return null

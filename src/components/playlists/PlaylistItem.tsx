@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ListMusic } from 'lucide-react'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto } from '../../api/types'
@@ -73,6 +74,7 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
             className="w-full h-full object-cover"
             showOutline={true}
             rounded="rounded-sm"
+            fallbackIcon={ListMusic}
           />
         </div>
         <div className="flex-1 min-w-0 text-left flex flex-col justify-center">

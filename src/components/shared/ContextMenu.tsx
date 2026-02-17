@@ -6,7 +6,7 @@ import BottomSheet from './BottomSheet'
 import ResponsiveModal from './ResponsiveModal'
 import PlatformPicker from './PlatformPicker'
 import PlaylistPicker from '../playlists/PlaylistPicker'
-import UploadDropZone from './UploadDropZone'
+import PlaylistFormModal from '../playlists/PlaylistFormModal'
 import { jellyfinClient } from '../../api/jellyfin'
 import { createSearchLinksResponse, type OdesliResponse } from '../../api/feed'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -75,17 +75,15 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteTargetName, setDeleteTargetName] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [showRenameInput, setShowRenameInput] = useState(false)
-  const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
-  const [renameLoading, setRenameLoading] = useState(false)
-  const [editImageFile, setEditImageFile] = useState<File | null>(null)
+  const [showEditPlaylist, setShowEditPlaylist] = useState(false)
+  const [editTargetId, setEditTargetId] = useState<string | null>(null)
+  const [editTargetName, setEditTargetName] = useState('')
   const [editHasExistingImage, setEditHasExistingImage] = useState(false)
-  const [editRemoveExistingImage, setEditRemoveExistingImage] = useState(false)
   const [editImageCacheBust, setEditImageCacheBust] = useState(0)
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
-  const { startSync, completeSync } = useSyncStore()
-  const { genres } = useMusicStore()
+  const startSync = useSyncStore(s => s.startSync)
+  const completeSync = useSyncStore(s => s.completeSync)
+  const genres = useMusicStore(s => s.genres)
   const { updateEventMetadata } = useStatsStore()
 
   // Use ref to always have access to the latest item and itemType in async callbacks
@@ -180,13 +178,11 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       return
     }
     if (action === 'renamePlaylist') {
-      setRenameTargetId(currentItem.Id)
-      setRenameValue(currentItem.Name || '')
-      setEditImageFile(null)
+      setEditTargetId(currentItem.Id)
+      setEditTargetName(currentItem.Name || '')
       setEditHasExistingImage(!!('ImageTags' in currentItem && currentItem.ImageTags?.Primary))
-      setEditRemoveExistingImage(false)
       onClose()
-      setShowRenameInput(true)
+      setShowEditPlaylist(true)
       return
     }
 
@@ -496,45 +492,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     }
   }
 
-  const handleEditPlaylist = async () => {
-    if (!renameTargetId || !renameValue.trim()) return
-    setRenameLoading(true)
-    try {
-      await jellyfinClient.updatePlaylist(renameTargetId, renameValue.trim())
-      if (editImageFile) {
-        const reader = new FileReader()
-        const base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string
-            // Strip the data URL prefix to get raw base64
-            resolve(result.split(',')[1])
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(editImageFile)
-        })
-        await jellyfinClient.uploadItemImage(renameTargetId, base64, editImageFile.type)
-      } else if (editRemoveExistingImage) {
-        await jellyfinClient.deleteItemImage(renameTargetId)
-      }
-      useToastStore.getState().addToast('Playlist updated', 'success', 2000)
-      setShowRenameInput(false)
-      setEditImageFile(null)
-      setEditRemoveExistingImage(false)
-      setEditImageCacheBust(Date.now())
-      window.dispatchEvent(new CustomEvent('playlistUpdated'))
-    } catch {
-      useToastStore.getState().addToast('Failed to update playlist', 'error', 3000)
-    } finally {
-      setRenameLoading(false)
-    }
-  }
-
   const playlistModals = (
     <>
       <PlaylistPicker
         isOpen={playlistPickerOpen}
         onClose={() => setPlaylistPickerOpen(false)}
         itemIds={playlistPickerItemIds}
+        zIndex={zIndex}
       />
       <ResponsiveModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
         <div className="pb-6">
@@ -564,62 +528,15 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           </div>
         </div>
       </ResponsiveModal>
-      <ResponsiveModal isOpen={showRenameInput} onClose={() => { setShowRenameInput(false); setEditImageFile(null); setEditRemoveExistingImage(false) }}>
-        <div className="pb-6">
-          <div className="mb-4 px-4">
-            <div className="text-lg font-semibold text-white">Edit Playlist</div>
-          </div>
-          <div className="px-4 space-y-6">
-            <div>
-              <div className="text-base font-medium text-white mb-2">Playlist Name</div>
-              <input
-                type="text"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleEditPlaylist() }}
-                className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
-                placeholder="Playlist name"
-                autoFocus
-                disabled={renameLoading}
-              />
-            </div>
-            <div>
-              <div className="text-base font-medium text-white mb-2">Image (Optional)</div>
-              <div className="w-32">
-                <UploadDropZone
-                  label="Drop or click"
-                  accept="image/*"
-                  value={editImageFile}
-                  onChange={(file) => {
-                    setEditImageFile(file)
-                    if (file) {
-                      setEditRemoveExistingImage(false)
-                    } else if (editHasExistingImage) {
-                      setEditRemoveExistingImage(true)
-                    }
-                  }}
-                  previewUrl={editHasExistingImage && !editRemoveExistingImage && renameTargetId ? jellyfinClient.getImageUrl(renameTargetId, 'Primary', 256) + (editImageCacheBust ? `&cb=${editImageCacheBust}` : '') : null}
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowRenameInput(false); setEditImageFile(null); setEditRemoveExistingImage(false) }}
-                className="flex-1 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditPlaylist}
-                disabled={renameLoading || !renameValue.trim()}
-                className="flex-1 py-3 bg-[var(--accent-color)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
-              >
-                {renameLoading ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </ResponsiveModal>
+      <PlaylistFormModal
+        isOpen={showEditPlaylist}
+        onClose={() => setShowEditPlaylist(false)}
+        editPlaylistId={editTargetId}
+        initialName={editTargetName}
+        hasExistingImage={editHasExistingImage}
+        imageCacheBust={editImageCacheBust}
+        onSaved={() => setEditImageCacheBust(Date.now())}
+      />
     </>
   )
 

@@ -4,10 +4,9 @@ import { ArrowUpDown, Plus } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
-import { useToastStore } from '../../stores/toastStore'
 import PlaylistItem from './PlaylistItem'
+import PlaylistFormModal from './PlaylistFormModal'
 import ContextMenu from '../shared/ContextMenu'
-import ResponsiveModal from '../shared/ResponsiveModal'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
@@ -25,7 +24,8 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 export default function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
-  const { sortPreferences, setSortPreference } = useMusicStore()
+  const sortPreferences = useMusicStore(s => s.sortPreferences)
+  const setSortPreference = useMusicStore(s => s.setSortPreference)
   const { playTrack, playAlbum, addToQueue } = usePlayerStore()
   const sortOrder = sortPreferences.playlists
   const isInitialLoad = useRef(true)
@@ -51,8 +51,6 @@ export default function PlaylistsPage() {
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
-  const [newPlaylistName, setNewPlaylistName] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
 
   // Refresh playlist list when playlists are created/deleted/renamed elsewhere
   useEffect(() => {
@@ -153,24 +151,6 @@ export default function PlaylistsPage() {
     } finally {
       setLoading(false)
       setIsLoadingSortChange(false)
-    }
-  }
-
-  const handleCreatePlaylist = async () => {
-    const name = newPlaylistName.trim()
-    if (!name) return
-    setIsCreating(true)
-    try {
-      const result = await jellyfinClient.createPlaylist(name)
-      useToastStore.getState().addToast('Playlist created', 'success', 2000)
-      setShowCreatePlaylist(false)
-      setNewPlaylistName('')
-      window.dispatchEvent(new CustomEvent('playlistUpdated'))
-      navigate(`/playlist/${result.Id}`)
-    } catch {
-      useToastStore.getState().addToast('Failed to create playlist', 'error', 3000)
-    } finally {
-      setIsCreating(false)
     }
   }
 
@@ -378,32 +358,11 @@ export default function PlaylistsPage() {
         position={contextMenuPosition || undefined}
       />
 
-      <ResponsiveModal isOpen={showCreatePlaylist} onClose={() => { setShowCreatePlaylist(false); setNewPlaylistName('') }}>
-        <div className="pb-6">
-          <div className="mb-4 px-4">
-            <div className="text-lg font-semibold text-white">Create Playlist</div>
-          </div>
-          <div className="px-4 space-y-4">
-            <input
-              type="text"
-              value={newPlaylistName}
-              onChange={(e) => setNewPlaylistName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreatePlaylist() }}
-              className="w-full bg-zinc-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
-              placeholder="Playlist name"
-              autoFocus
-              disabled={isCreating}
-            />
-            <button
-              onClick={handleCreatePlaylist}
-              disabled={isCreating || !newPlaylistName.trim()}
-              className="w-full py-3 bg-[var(--accent-color)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
-            >
-              {isCreating ? 'Creating...' : 'Create'}
-            </button>
-          </div>
-        </div>
-      </ResponsiveModal>
+      <PlaylistFormModal
+        isOpen={showCreatePlaylist}
+        onClose={() => setShowCreatePlaylist(false)}
+        onCreated={(playlistId) => navigate(`/playlist/${playlistId}`)}
+      />
     </>
   )
 }

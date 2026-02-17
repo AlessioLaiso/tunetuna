@@ -731,6 +731,39 @@ class JellyfinClient {
   }
 
   /**
+   * Fetches all songs from the library with their file paths.
+   * Used for M3U import matching where we need to compare file paths.
+   */
+  async fetchAllSongsWithPaths(): Promise<BaseItemDto[]> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+
+    const allSongs: BaseItemDto[] = []
+    let startIndex = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const params = new URLSearchParams({
+        IncludeItemTypes: 'Audio',
+        Recursive: 'true',
+        Limit: API_PAGE_LIMIT.toString(),
+        StartIndex: startIndex.toString(),
+        UserId: this.userId,
+        Fields: 'Path,AlbumArtist,ArtistItems,Album,AlbumId',
+      })
+      const result = await this.request<ItemsResult>(`/Items?${params}`)
+      const items = result.Items || []
+      allSongs.push(...items)
+      hasMore = items.length === API_PAGE_LIMIT
+      startIndex += API_PAGE_LIMIT
+      if (startIndex > SAFETY_FETCH_LIMIT) break
+    }
+
+    return allSongs
+  }
+
+  /**
    * Builds verified genre list from songs.
    * Only includes genres that actually exist in song metadata.
    */
