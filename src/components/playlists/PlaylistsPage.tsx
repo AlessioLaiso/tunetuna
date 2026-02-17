@@ -275,7 +275,7 @@ export default function PlaylistsPage() {
                 </div>
               </div>
               {/* Sorting control */}
-              {!isSearchOpen && (
+              {!isSearchOpen && playlists.length > 0 && (
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setSortPreference('playlists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}

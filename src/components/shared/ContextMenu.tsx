@@ -511,19 +511,19 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               </div>
             </div>
           </div>
-          <div className="px-4 space-y-2">
+          <div className="px-4 flex gap-3">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleDeletePlaylist}
               disabled={deleteLoading}
-              className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-colors disabled:opacity-50"
+              className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-colors disabled:opacity-50"
             >
               {deleteLoading ? 'Deleting...' : 'Delete'}
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              className="w-full py-3 text-white font-medium rounded-full transition-colors hover:bg-white/10"
-            >
-              Cancel
             </button>
           </div>
         </div>
@@ -617,9 +617,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
           ] : []),
           { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
-          { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
+          { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
         ]
       }
       default:
