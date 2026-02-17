@@ -23,15 +23,6 @@ interface AppleMusicRSSResponse {
   }
 }
 
-/** MusicBrainz artist search result */
-interface MusicBrainzArtistResult {
-  id: string
-  name: string
-  score: number
-  'sort-name'?: string
-  disambiguation?: string
-}
-
 /** MusicBrainz release group (album/single/ep) */
 export interface MusicBrainzReleaseGroup {
   id: string
@@ -170,82 +161,6 @@ async function rateLimitMusicBrainz(): Promise<void> {
 }
 
 /**
- * Searches for an artist on MusicBrainz by name
- * @returns The best matching artist's MBID, or null if not found
- */
-export async function searchMusicBrainzArtist(
-  artistName: string
-): Promise<MusicBrainzArtistResult | null> {
-  await rateLimitMusicBrainz()
-
-  const params = new URLSearchParams({
-    query: `artist:"${artistName}"`,
-    fmt: 'json',
-    limit: '5'
-  })
-
-  const response = await fetch(`${MUSICBRAINZ_BASE_URL}/artist/?${params}`, {
-    headers: {
-      'User-Agent': MUSICBRAINZ_USER_AGENT,
-      'Accept': 'application/json'
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(`MusicBrainz search failed: ${response.status}`)
-  }
-
-  const data = await response.json()
-  const artists: MusicBrainzArtistResult[] = data.artists || []
-
-  // Return the best match (highest score)
-  if (artists.length === 0) return null
-
-  // Prefer exact name match
-  const exactMatch = artists.find(
-    a => a.name.toLowerCase() === artistName.toLowerCase()
-  )
-  if (exactMatch) return exactMatch
-
-  // Otherwise return highest scored result
-  return artists[0]
-}
-
-/**
- * Fetches release groups (albums/singles/eps) for an artist
- * @param artistMbid - MusicBrainz artist ID
- * @param types - Release types to include (default: all)
- */
-export async function fetchArtistReleaseGroups(
-  artistMbid: string,
-  types: string[] = ['album', 'single', 'ep']
-): Promise<MusicBrainzReleaseGroup[]> {
-  await rateLimitMusicBrainz()
-
-  const typeFilter = types.join('|')
-  const params = new URLSearchParams({
-    artist: artistMbid,
-    type: typeFilter,
-    fmt: 'json',
-    limit: '100'
-  })
-
-  const response = await fetch(`${MUSICBRAINZ_BASE_URL}/release-group?${params}`, {
-    headers: {
-      'User-Agent': MUSICBRAINZ_USER_AGENT,
-      'Accept': 'application/json'
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(`MusicBrainz release groups failed: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data['release-groups'] || []
-}
-
-/**
  * Searches for a release group on MusicBrainz
  * @returns The best matching release group with MBID and type, or null if not found
  */
@@ -294,21 +209,6 @@ export function getCoverArtUrl(
   return `${COVER_ART_ARCHIVE_BASE_URL}/release-group/${releaseGroupMbid}/front-${size}`
 }
 
-/**
- * Checks if cover art exists for a release group
- */
-export async function checkCoverArtExists(releaseGroupMbid: string): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${COVER_ART_ARCHIVE_BASE_URL}/release-group/${releaseGroupMbid}/front`,
-      { method: 'HEAD' }
-    )
-    return response.ok || response.status === 307
-  } catch {
-    return false
-  }
-}
-
 // ============================================================================
 // Odesli (Song.link) API
 // ============================================================================
@@ -340,105 +240,6 @@ export async function fetchOdesliLinks(
     return await response.json()
   } catch {
     return null
-  }
-}
-
-// ============================================================================
-// High-level functions for Feed feature
-// ============================================================================
-
-/**
- * Fetches new releases from library artists
- * @param artistNames - List of artist names from the user's library
- * @param artistMappings - Cached artist name -> MBID mappings
- * @param maxReleases - Maximum number of releases to return
- * @param maxAgeMonths - Only include releases from the last N months
- */
-export async function fetchNewReleasesFromLibrary(
-  artistNames: string[],
-  artistMappings: Record<string, CachedArtistMapping>,
-  maxReleases: number = 10,
-  maxAgeMonths: number = 3
-): Promise<{
-  releases: NewRelease[]
-  updatedMappings: Record<string, CachedArtistMapping>
-}> {
-  const releases: NewRelease[] = []
-  const updatedMappings = { ...artistMappings }
-  const cutoffDate = new Date()
-  cutoffDate.setMonth(cutoffDate.getMonth() - maxAgeMonths)
-  const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
-
-  // Process artists in batches to respect rate limits
-  let artistsProcessed = 0
-  for (const artistName of artistNames) {
-    // Check if we already have enough releases
-    if (releases.length >= maxReleases * 2) break
-
-    try {
-      // Get or fetch artist MBID
-      let mbid: string | null = null
-      const cached = artistMappings[artistName.toLowerCase()]
-
-      if (cached) {
-        mbid = cached.mbid
-        console.log(`[MusicBrainz] Using cached MBID for "${artistName}": ${mbid}`)
-      } else {
-        console.log(`[MusicBrainz] Searching for artist "${artistName}"...`)
-        const result = await searchMusicBrainzArtist(artistName)
-        if (result) {
-          mbid = result.id
-          console.log(`[MusicBrainz] Found "${artistName}" -> ${result.name} (${mbid})`)
-          updatedMappings[artistName.toLowerCase()] = {
-            mbid: result.id,
-            name: result.name,
-            cachedAt: Date.now()
-          }
-        } else {
-          console.log(`[MusicBrainz] No match found for "${artistName}"`)
-        }
-      }
-
-      if (!mbid) continue
-
-      // Fetch release groups
-      console.log(`[MusicBrainz] Fetching releases for ${artistName}...`)
-      const releaseGroups = await fetchArtistReleaseGroups(mbid)
-      console.log(`[MusicBrainz] Found ${releaseGroups.length} release groups for ${artistName}`)
-      artistsProcessed++
-
-      // Filter to recent releases
-      let recentCount = 0
-      for (const rg of releaseGroups) {
-        const releaseDate = rg['first-release-date']
-        if (!releaseDate || releaseDate < cutoffDateStr) continue
-
-        recentCount++
-        releases.push({
-          id: rg.id,
-          title: rg.title,
-          artistName: artistName,
-          releaseDate: releaseDate,
-          type: rg['primary-type'] || 'Album',
-          artworkUrl: getCoverArtUrl(rg.id, 500)
-        })
-      }
-      if (recentCount > 0) {
-        console.log(`[MusicBrainz] ${artistName}: ${recentCount} releases after ${cutoffDateStr}`)
-      }
-    } catch (error) {
-      // Skip artist on error, continue with others
-      console.warn(`Failed to fetch releases for ${artistName}:`, error)
-    }
-  }
-  console.log(`[MusicBrainz] Processed ${artistsProcessed} artists, found ${releases.length} total releases`)
-
-  // Sort by release date (newest first) and limit
-  releases.sort((a, b) => b.releaseDate.localeCompare(a.releaseDate))
-
-  return {
-    releases: releases.slice(0, maxReleases),
-    updatedMappings
   }
 }
 

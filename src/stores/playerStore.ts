@@ -71,17 +71,6 @@ function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseIte
   reportingTimeouts.set(trackId, timeoutId)
 }
 
-// Helper function to mark item as reported and clear any pending timeout
-export function markItemAsReported(trackId: string) {
-  reportedItems.add(trackId)
-  trimReportedItems()
-  const timeout = reportingTimeouts.get(trackId)
-  if (timeout) {
-    clearTimeout(timeout)
-    reportingTimeouts.delete(trackId)
-  }
-}
-
 export interface QueueSong extends BaseItemDto {
   source: 'user' | 'recommendation'  // 'user' for manually added, 'recommendation' for auto-added
 }
