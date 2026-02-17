@@ -1,7 +1,7 @@
 {
-  "name": "tunetuna-stats-api",
+  "name": "tunetuna-api",
   "version": "1.0.0",
-  "description": "Stats API for Tunetuna listening history",
+  "description": "Backend API for Tunetuna",
   "main": "index.js",
   "type": "module",
   "scripts": {

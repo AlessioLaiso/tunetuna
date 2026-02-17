@@ -115,7 +115,7 @@ export async function fetchAppleMusicTopSongs(
   country: string = 'gb',
   limit: number = 10
 ): Promise<AppleMusicSong[]> {
-  // In dev, use Vite proxy; in production, use stats-api proxy
+  // In dev, use Vite proxy; in production, use tunetuna-api proxy
   const url = isDev
     ? `${APPLE_MUSIC_BASE_URL}/api/v2/${country}/music/most-played/${limit}/songs.json`
     : `/api/stats/proxy/apple-music/${country}/${limit}`
@@ -259,7 +259,7 @@ export async function fetchMuspyReleases(
     return []
   }
 
-  // Use Vite proxy in development, stats-api proxy in production
+  // Use Vite proxy in development, tunetuna-api proxy in production
   const proxyUrl = isDev
     ? `/api/muspy-rss?url=${encodeURIComponent(rssUrl)}`
     : `/api/stats/proxy/muspy-rss?url=${encodeURIComponent(rssUrl)}`

@@ -20,7 +20,7 @@ export default defineConfig({
     // Only allow tunneling when explicitly enabled
     allowedHosts: true,
     proxy: {
-      // Proxy stats API to local backend during development
+      // Proxy API to local backend during development
       '/api/stats': {
         target: 'http://localhost:3001',
         changeOrigin: true,

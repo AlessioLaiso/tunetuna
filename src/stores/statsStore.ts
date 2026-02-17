@@ -114,7 +114,7 @@ const indexedDBStorage = createIndexedDBStorage<StatsState>('tunetuna-stats-stor
  *
  * The key is deterministic (same for all devices with same serverUrl + userId)
  * to enable cross-device sync. Security is handled by:
- * 1. nginx stripping Origin header (stats-api only accessible internally)
+ * 1. nginx stripping Origin header (API only accessible internally)
  * 2. Token-based authentication on the server side
  */
 async function generateStatsKey(serverUrl: string, userId: string): Promise<string> {

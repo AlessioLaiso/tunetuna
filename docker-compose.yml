@@ -8,7 +8,7 @@ services:
       - "8080:80"
     restart: unless-stopped
     depends_on:
-      - stats-api
+      - tunetuna-api
     environment:
       # Optional: Restrict users to a specific Jellyfin server
       # When set, users cannot change the server URL from the login screen
@@ -23,11 +23,11 @@ services:
       retries: 3
       start_period: 10s
 
-  stats-api:
+  tunetuna-api:
     build:
-      context: ./stats-api
+      context: ./api
       dockerfile: Dockerfile
-    container_name: tunetuna-stats
+    container_name: tunetuna-api
     restart: unless-stopped
     volumes:
       - stats-data:/data
