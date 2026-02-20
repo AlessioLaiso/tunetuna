@@ -244,8 +244,10 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         onNavigate()
       }
       if (action === 'goToArtist') {
-        const artistId = currentItem.ArtistItems?.[0]?.Id ||
-          ('AlbumArtists' in currentItem ? currentItem.AlbumArtists?.[0]?.Id : undefined)
+        // For songs, navigate to the song's artist (ArtistItems); for albums, use AlbumArtists
+        const artistId = currentItemType === 'song'
+          ? currentItem.ArtistItems?.[0]?.Id || ('AlbumArtists' in currentItem ? currentItem.AlbumArtists?.[0]?.Id : undefined)
+          : ('AlbumArtists' in currentItem ? currentItem.AlbumArtists?.[0]?.Id : undefined) || currentItem.ArtistItems?.[0]?.Id
         if (artistId) {
           navigate(`/artist/${artistId}`)
         }
@@ -561,8 +563,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const getActions = () => {
     switch (itemType) {
       case 'album': {
-        const artistName = item.ArtistItems?.[0]?.Name ||
-          ('AlbumArtists' in item ? item.AlbumArtists?.[0]?.Name : undefined) || 'Artist'
+        const artistName = item.AlbumArtist ||
+          ('AlbumArtists' in item ? item.AlbumArtists?.[0]?.Name : undefined) ||
+          item.ArtistItems?.[0]?.Name || 'Artist'
         const genreName = fetchedGenreName || 'Genre'
         return [
           { id: 'play', label: 'Play', icon: Play },

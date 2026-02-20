@@ -5,6 +5,7 @@ import type { AppleMusicSong, NewRelease } from '../api/feed'
 import { createIndexedDBStorage } from '../utils/storage'
 import { parseGroupingTag } from '../utils/formatting'
 import { shuffleArray } from '../utils/array'
+import { buildFeaturedArtistMap, type FeaturedArtistResult } from '../utils/featuredArtists'
 
 const indexedDBStorage = createIndexedDBStorage<MusicState>('tunetuna-storage')
 
@@ -156,6 +157,17 @@ export function getGroupingCategories(songs: LightweightSong[]): GroupingCategor
 
   // Sort categories alphabetically by name
   return categories.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Derives featured artist data from song titles (e.g. "Song (feat. X)").
+ * Returns both the artistId -> songs mapping and a name -> IDs lookup
+ * for resolving Jellyfin duplicate artist entries.
+ */
+export function getFeaturedArtistData(
+  songs: LightweightSong[]
+): FeaturedArtistResult {
+  return buildFeaturedArtistMap(songs)
 }
 
 // ============================================================================

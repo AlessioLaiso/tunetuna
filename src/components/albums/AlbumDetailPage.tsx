@@ -205,9 +205,10 @@ export default function AlbumDetailPage() {
           setHasImage(true) // Reset image state when album changes
         }
 
-        // Load artist logo if available
+        // Load artist logo if available (skip for "Various Artists" — show album art instead)
+        const isVariousArtists = (currentAlbum?.AlbumArtist || '').toLowerCase() === 'various artists'
         const artistId = getArtistIdFromTracks(tracksList, currentAlbum)
-        if (artistId) {
+        if (artistId && !isVariousArtists) {
           try {
             const artist = await jellyfinClient.getArtistById(artistId)
             if (!isMounted) return
@@ -430,11 +431,15 @@ export default function AlbumDetailPage() {
   }
 
   const getArtistId = (): string | null => {
-    if (tracks.length > 0 && tracks[0].ArtistItems && tracks[0].ArtistItems.length > 0) {
-      return tracks[0].ArtistItems[0].Id
+    // Prefer AlbumArtists (the actual album artist) over ArtistItems (song artist)
+    if (album?.AlbumArtists && album.AlbumArtists.length > 0) {
+      return album.AlbumArtists[0].Id
     }
     if (album?.ArtistItems && album.ArtistItems.length > 0) {
       return album.ArtistItems[0].Id
+    }
+    if (tracks.length > 0 && tracks[0].ArtistItems && tracks[0].ArtistItems.length > 0) {
+      return tracks[0].ArtistItems[0].Id
     }
     return null
   }
@@ -579,17 +584,19 @@ export default function AlbumDetailPage() {
                         e.currentTarget.style.display = 'none'
                       }}
                     />
-                    {/* Zinc 400 circle covering white center */}
-                    <div
-                      className="absolute top-1/2 left-1/2 rounded-full"
-                      style={{
-                        width: '52%',
-                        height: '52%',
-                        backgroundColor: '#a1a1aa', // zinc-400
-                        transform: 'translate(-50%, -50%)',
-                        transformOrigin: 'center center',
-                      }}
-                    />
+                    {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
+                    {((hasArtistLogo && artistLogoUrl) || hasImage) && (
+                      <div
+                        className="absolute top-1/2 left-1/2 rounded-full"
+                        style={{
+                          width: '52%',
+                          height: '52%',
+                          backgroundColor: '#a1a1aa', // zinc-400
+                          transform: 'translate(-50%, -50%)',
+                          transformOrigin: 'center center',
+                        }}
+                      />
+                    )}
                     {/* Artist Logo or Album Art Overlay - centered */}
                     {hasArtistLogo && artistLogoUrl ? (
                       <div

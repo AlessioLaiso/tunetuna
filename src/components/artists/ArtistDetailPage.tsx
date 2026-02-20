@@ -12,6 +12,8 @@ import { useLongPress } from '../../hooks/useLongPress'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
+import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
+import { normalizeName } from '../../utils/featuredArtists'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -186,6 +188,7 @@ export default function ArtistDetailPage() {
   const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
   const [albums, setAlbums] = useState<BaseItemDto[]>([])
+  const [serverAppearsOn, setServerAppearsOn] = useState<BaseItemDto[]>([])
   const [songs, setSongs] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
@@ -204,6 +207,97 @@ export default function ArtistDetailPage() {
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const bioMeasureRef = useRef<HTMLParagraphElement | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  const storeSongs = useMusicStore(state => state.songs)
+
+  const featuredData = useMemo(
+    () => getFeaturedArtistData(storeSongs),
+    [storeSongs]
+  )
+
+  // Collect featured songs for this artist, resolving duplicate artist IDs by name
+  const featuredSongsForArtist = useMemo(() => {
+    if (!id) return []
+
+    // Direct lookup by current artist ID
+    let featuredSongs = featuredData.map[id] || []
+
+    // If no direct match and we know the artist name, look up all IDs sharing that name
+    if (featuredSongs.length === 0 && artist?.Name) {
+      const normalized = normalizeName(artist.Name)
+      const aliasIds = featuredData.artistIdsByName.get(normalized)
+      if (aliasIds) {
+        const allSongs: typeof featuredSongs = []
+        const seenSongIds = new Set<string>()
+        for (const aliasId of aliasIds) {
+          for (const song of (featuredData.map[aliasId] || [])) {
+            if (!seenSongIds.has(song.Id)) {
+              seenSongIds.add(song.Id)
+              allSongs.push(song)
+            }
+          }
+        }
+        featuredSongs = allSongs
+      }
+    }
+
+    return featuredSongs
+  }, [id, artist?.Name, featuredData])
+
+  // Merge server-fetched songs with featured songs parsed from titles
+  const mergedSongs = useMemo(() => {
+    if (featuredSongsForArtist.length === 0) return songs
+
+    const serverSongIds = new Set(songs.map(s => s.Id))
+    const additionalSongs: BaseItemDto[] = featuredSongsForArtist
+      .filter(fs => !serverSongIds.has(fs.Id))
+      .map(fs => ({
+        Id: fs.Id,
+        Name: fs.Name,
+        AlbumArtist: fs.AlbumArtist,
+        ArtistItems: fs.ArtistItems,
+        Album: fs.Album,
+        AlbumId: fs.AlbumId,
+        IndexNumber: fs.IndexNumber,
+        ProductionYear: fs.ProductionYear,
+        PremiereDate: fs.PremiereDate,
+        RunTimeTicks: fs.RunTimeTicks,
+        Genres: fs.Genres,
+      }))
+
+    return [...songs, ...additionalSongs]
+  }, [songs, featuredSongsForArtist])
+
+  // Merge server "appears on" albums with featured-song-derived albums
+  const appearsOnAlbums = useMemo(() => {
+    const seenAlbumIds = new Set<string>()
+    const result: BaseItemDto[] = []
+
+    // Add server-returned appears-on albums first (they have full metadata)
+    for (const album of serverAppearsOn) {
+      seenAlbumIds.add(album.Id)
+      result.push(album)
+    }
+
+    // Add albums from featured songs that aren't already included
+    const ownAlbumIds = new Set(albums.map(a => a.Id))
+    for (const song of featuredSongsForArtist) {
+      if (song.AlbumId && !ownAlbumIds.has(song.AlbumId) && !seenAlbumIds.has(song.AlbumId)) {
+        seenAlbumIds.add(song.AlbumId)
+        result.push({
+          Id: song.AlbumId,
+          Name: song.Album || 'Unknown Album',
+          ProductionYear: song.ProductionYear,
+          PremiereDate: song.PremiereDate,
+        })
+      }
+    }
+
+    return result.sort((a, b) => {
+      const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
+      const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
+      return yearB - yearA
+    })
+  }, [serverAppearsOn, featuredSongsForArtist, albums])
 
   // Scroll to top when component mounts or artist ID changes
   useEffect(() => {
@@ -257,23 +351,36 @@ export default function ArtistDetailPage() {
 
         if (!isMounted) return
 
-        // If no songs/albums found, try to find a similar artist with content
-        if (result.albums.length === 0 && result.songs.length === 0 && currentArtist.Name) {
+        // Split albums: own albums (artist is album artist) vs appears on
+        const ownAlbums: BaseItemDto[] = []
+        const appearsOn: BaseItemDto[] = []
+        for (const album of result.albums) {
+          const isAlbumArtist = album.AlbumArtists?.some(a => a.Id === id)
+          if (isAlbumArtist || !album.AlbumArtists?.length) {
+            ownAlbums.push(album)
+          } else {
+            appearsOn.push(album)
+          }
+        }
+
+        // If no own albums, try to find a similar artist that has own albums
+        // (handles Jellyfin duplicate artist entries — redirect to the canonical one)
+        if (ownAlbums.length === 0 && currentArtist.Name) {
 
           const normalizedName = normalizeArtistName(currentArtist.Name)
-          // Search for similar artists
           const searchResults = await jellyfinClient.search(currentArtist.Name, 50)
           const similarArtists = searchResults.Artists?.Items || []
 
-          // Find an artist with the same normalized name but different ID that has content
           for (const similarArtist of similarArtists) {
             if (!isMounted) return
             if (similarArtist.Id !== id && normalizeArtistName(similarArtist.Name) === normalizedName) {
-              // Check if this similar artist has content
               const similarResult = await jellyfinClient.getArtistItems(similarArtist.Id)
 
-              if (similarResult.albums.length > 0 || similarResult.songs.length > 0) {
-                // Redirect to the similar artist that has content
+              // Check if the similar artist has own albums (not just appears-on)
+              const similarOwnAlbums = similarResult.albums.filter(album =>
+                album.AlbumArtists?.some(a => a.Id === similarArtist.Id) || !album.AlbumArtists?.length
+              )
+              if (similarOwnAlbums.length > 0) {
                 navigate(`/artist/${similarArtist.Id}`, { replace: true })
                 return
               }
@@ -283,13 +390,13 @@ export default function ArtistDetailPage() {
 
         if (!isMounted) return
 
-        // Sort albums from newest to oldest by year
-        const sortedAlbums = [...result.albums].sort((a, b) => {
+        const sortByYear = (a: BaseItemDto, b: BaseItemDto) => {
           const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
           const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
           return yearB - yearA
-        })
-        setAlbums(sortedAlbums)
+        }
+        setAlbums(ownAlbums.sort(sortByYear))
+        setServerAppearsOn(appearsOn.sort(sortByYear))
         setSongs(result.songs)
       } catch (error) {
         if (!isMounted) return
@@ -411,12 +518,12 @@ export default function ArtistDetailPage() {
   // Reset visible songs window when songs change
   useEffect(() => {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
-  }, [songs.length])
+  }, [mergedSongs.length])
 
   // Consolidated scroll-based lazy loading for songs and albums
   // Uses single efficient scroll listener instead of 4+ duplicate listeners
   useScrollLazyLoad({
-    totalCount: songs.length,
+    totalCount: mergedSongs.length,
     visibleCount: visibleSongsCount,
     increment: VISIBLE_SONGS_INCREMENT,
     setVisibleCount: setVisibleSongsCount,
@@ -478,7 +585,7 @@ export default function ArtistDetailPage() {
 
   const sortedSongs = useMemo(() => {
     if (songSortOrder === 'Alphabetical') {
-      return [...songs].sort((a, b) => {
+      return [...mergedSongs].sort((a, b) => {
         const nameA = a.Name || ''
         const nameB = b.Name || ''
         return nameA.localeCompare(nameB)
@@ -515,8 +622,8 @@ export default function ArtistDetailPage() {
     }
 
     const newestFirst = songSortOrder === 'Newest'
-    return [...songs].sort((a, b) => compareByDate(a, b, newestFirst))
-  }, [songs, songSortOrder, albums])
+    return [...mergedSongs].sort((a, b) => compareByDate(a, b, newestFirst))
+  }, [mergedSongs, songSortOrder, albums])
 
   const handlePlayAllSongsFromArtist = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -775,12 +882,40 @@ export default function ArtistDetailPage() {
           </div>
         )}
 
+        {/* Appears On section - albums where artist is featured */}
+        {appearsOnAlbums.length > 0 && (
+          <div className="mb-10 px-4">
+            <h2 className="text-2xl font-bold text-white mb-4">Appears On ({appearsOnAlbums.length})</h2>
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+              {appearsOnAlbums.map((album, index) => {
+                const year = getAlbumYear(album)
+                return (
+                  <ArtistAlbumItem
+                    key={album.Id}
+                    album={album}
+                    year={year}
+                    onNavigate={(id) => navigate(`/album/${id}`)}
+                    onContextMenu={(album, mode, position) => {
+                      setContextMenuItem(album)
+                      setContextMenuItemType('album')
+                      setContextMenuMode(mode || 'mobile')
+                      setContextMenuPosition(position || null)
+                      setContextMenuOpen(true)
+                    }}
+                    showImage={index < visibleAlbumsCount}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* All songs section */}
-        {songs.length > 0 && (
+        {mergedSongs.length > 0 && (
           <div id="songs-section">
             <div className="px-4 mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-2xl font-bold text-white">Songs ({songs.length})</h2>
+                <h2 className="text-2xl font-bold text-white">Songs ({mergedSongs.length})</h2>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
