@@ -286,6 +286,8 @@ export default function ArtistDetailPage() {
         result.push({
           Id: song.AlbumId,
           Name: song.Album || 'Unknown Album',
+          AlbumArtist: song.AlbumArtist,
+          ArtistItems: song.ArtistItems,
           ProductionYear: song.ProductionYear,
           PremiereDate: song.PremiereDate,
         })
