@@ -86,7 +86,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const genres = useMusicStore(s => s.genres)
   const { updateEventMetadata } = useStatsStore()
 
-  const lastClickPositionRef = useRef<{ x: number; y: number } | null>(null)
+  const desktopMenuRef = useRef<HTMLDivElement>(null)
 
   // Use ref to always have access to the latest item and itemType in async callbacks
   // This prevents stale closure issues when item changes during async operations
@@ -233,7 +233,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setOdesliLoading(true)
       setOdesliData(null)
       setPlatformPickerJellyfinId(currentItem.Id ?? null)
-      setPlatformPickerPosition(lastClickPositionRef.current || position)
+      const menuRect = desktopMenuRef.current?.getBoundingClientRect()
+      setPlatformPickerPosition(menuRect ? { x: menuRect.left, y: menuRect.top } : position)
       onClose()
       setPlatformPickerOpen(true)
       const searchLinks = createSearchLinksResponse(artistName, title)
@@ -679,6 +680,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
 
         {/* Floating Context Menu */}
         <div
+          ref={desktopMenuRef}
           className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 min-w-[200px]"
           style={{
             left: menuX,
@@ -696,11 +698,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               return (
                 <button
                   key={action.id}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    lastClickPositionRef.current = { x: rect.left, y: rect.top }
-                    handleAction(action.id)
-                  }}
+                  onClick={() => handleAction(action.id)}
                   disabled={loading}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
                 >
