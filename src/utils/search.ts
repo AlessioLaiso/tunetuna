@@ -1,5 +1,5 @@
 import { jellyfinClient } from '../api/jellyfin'
-import type { BaseItemDto } from '../api/types'
+import type { BaseItemDto, LightweightSong } from '../api/types'
 import { normalizeForSearch } from './formatting'
 
 export interface UnifiedSearchResults {
@@ -24,7 +24,8 @@ export interface SearchFilterOptions {
 export async function unifiedSearch(
   searchQuery: string,
   limit: number,
-  filters?: SearchFilterOptions
+  filters?: SearchFilterOptions,
+  cachedSongs?: LightweightSong[]
 ): Promise<UnifiedSearchResults> {
   const results = await jellyfinClient.search(searchQuery, limit, filters)
 
@@ -65,6 +66,40 @@ export async function unifiedSearch(
 
     return false
   })
+
+  // Supplement with cached songs whose ArtistItems match the query but
+  // weren't returned by the server (Jellyfin only matches song titles for Audio)
+  if (cachedSongs && cachedSongs.length > 0) {
+    const serverSongIds = new Set(filteredSongs.map(s => s.Id))
+
+    for (const song of cachedSongs) {
+      if (serverSongIds.has(song.Id)) continue
+
+      const matchesArtist = song.ArtistItems?.some(a =>
+        normalizeForSearch(a.Name || '').toLowerCase().includes(queryLower)
+      )
+      const matchesAlbumArtist = song.AlbumArtist &&
+        normalizeForSearch(song.AlbumArtist).toLowerCase().includes(queryLower)
+
+      if (matchesArtist || matchesAlbumArtist) {
+        filteredSongs.push({
+          Id: song.Id,
+          Name: song.Name,
+          AlbumArtist: song.AlbumArtist,
+          ArtistItems: song.ArtistItems,
+          Album: song.Album,
+          AlbumId: song.AlbumId,
+          IndexNumber: song.IndexNumber,
+          ProductionYear: song.ProductionYear,
+          RunTimeTicks: song.RunTimeTicks,
+          Genres: song.Genres,
+          Grouping: song.Grouping,
+          Type: 'Audio',
+        } as BaseItemDto)
+        serverSongIds.add(song.Id)
+      }
+    }
+  }
 
   // Artists: match in normalized name
   const filteredArtists = artistsSource.filter((artist) => {

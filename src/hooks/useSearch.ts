@@ -181,7 +181,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           const serverFilters = buildServerFilters()
           let results
           if (hasQuery) {
-            results = await unifiedSearch(searchQuery, limit, serverFilters)
+            results = await unifiedSearch(searchQuery, limit, serverFilters, cachedSongs)
           } else {
             results = await fetchAllLibraryItems(limit, serverFilters)
           }
