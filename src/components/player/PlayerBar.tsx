@@ -6,6 +6,7 @@ import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
+import ContextMenu from '../shared/ContextMenu'
 import PlayerModal from './PlayerModal'
 import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
@@ -50,6 +51,9 @@ export default function PlayerBar() {
   const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
   const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
   const [mobileVolumeButtonElement, setMobileVolumeButtonElement] = useState<HTMLElement | null>(null)
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const nextAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -427,6 +431,14 @@ export default function PlayerBar() {
     }
   }
 
+  const handleSongContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenuMode('desktop')
+    setContextMenuPosition({ x: e.clientX, y: e.clientY })
+    setContextMenuOpen(true)
+  }
+
   // Swipe gesture handlers for next/previous with animation
   const handleTouchStart = (e: React.TouchEvent) => {
     if (swipeAnimatingRef.current) return
@@ -592,7 +604,7 @@ export default function PlayerBar() {
         {/* Desktop layout: absolute positioning for perfect centering */}
         <div className="hidden md:block md:relative md:px-4 md:pt-3 md:pb-1 lg:pb-3">
           {/* Left: Album art + song info with max width to prevent overlap */}
-          <div className="flex items-center gap-3 min-w-0 max-w-[37%]">
+          <div className="flex items-center gap-3 min-w-0 max-w-[37%]" onContextMenu={handleSongContextMenu}>
             {!imageError && (
               <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
                 <Image
@@ -748,7 +760,7 @@ export default function PlayerBar() {
         {/* Mobile layout */}
         <div className="flex items-center gap-3 pt-3 pb-1 pr-3 pl-4 md:hidden">
           {/* Animated content: album art + text */}
-          <div ref={mobileContentRef} className="flex items-center gap-3 flex-1 min-w-0">
+          <div ref={mobileContentRef} className="flex items-center gap-3 flex-1 min-w-0" onContextMenu={handleSongContextMenu}>
             {!imageError && (
               <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
                 <Image
@@ -858,6 +870,17 @@ export default function PlayerBar() {
           popoverPosition={volumePopoverPosition}
         />
       )}
+      <ContextMenu
+        item={(currentTrack || displayTrack) as import('../../api/types').BaseItemDto}
+        itemType="song"
+        isOpen={contextMenuOpen}
+        onClose={() => {
+          setContextMenuOpen(false)
+          setContextMenuPosition(null)
+        }}
+        mode={contextMenuMode}
+        position={contextMenuPosition || undefined}
+      />
     </>
   )
 }
