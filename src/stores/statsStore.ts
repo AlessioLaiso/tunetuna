@@ -34,8 +34,6 @@ export interface PlayEvent {
   genres: string[]
   /** Production year, if available */
   year: number | null
-  /** Actual listen duration in milliseconds */
-  durationMs: number
   /** Full track duration in milliseconds */
   fullDurationMs: number
 }
@@ -139,7 +137,7 @@ function generateStatsToken(): string {
  * Creates a PlayEvent from track data and actual listen duration.
  * Extracts all relevant metadata for stats tracking.
  */
-function createPlayEvent(track: BaseItemDto, durationMs: number): PlayEvent {
+function createPlayEvent(track: BaseItemDto): PlayEvent {
   return {
     ts: Date.now(),
     songId: track.Id,
@@ -150,7 +148,6 @@ function createPlayEvent(track: BaseItemDto, durationMs: number): PlayEvent {
     albumName: track.Album || 'Unknown',
     genres: track.Genres || [],
     year: track.ProductionYear || null,
-    durationMs,
     fullDurationMs: track.RunTimeTicks ? track.RunTimeTicks / 10000 : 0,
   }
 }
@@ -214,7 +211,7 @@ export const useStatsStore = create<StatsState>()(
         const listenedEnough = actualDurationMs >= 60000 || (isShortSong && actualDurationMs >= fullDurationMs * 0.8)
         if (!listenedEnough) return
 
-        const event = createPlayEvent(track, actualDurationMs)
+        const event = createPlayEvent(track)
         const newPendingEvents = [...pendingEvents, event]
 
         set({
@@ -249,11 +246,7 @@ export const useStatsStore = create<StatsState>()(
           const { cachedStatsKey, cachedStatsToken } = get()
           if (!cachedStatsKey || !cachedStatsToken) return
 
-          // Capture the events we're syncing, ensuring durationMs exists (for legacy events)
-          const eventsToSync = pendingEvents.map(e => ({
-            ...e,
-            durationMs: e.durationMs ?? e.fullDurationMs ?? 60000,
-          }))
+          const eventsToSync = [...pendingEvents]
 
           try {
             // Include token in body (like sendBeacon) and header for compatibility

@@ -47,7 +47,7 @@ const insertEvent = db.prepare(`
 `)
 
 const selectEvents = db.prepare(`
-  SELECT ts, song_id, song_name, artist_ids, artist_names, album_id, album_name, genres, year, duration_ms, full_duration_ms
+  SELECT ts, song_id, song_name, artist_ids, artist_names, album_id, album_name, genres, year, full_duration_ms
   FROM events
   WHERE user_key = ? AND ts >= ? AND ts <= ?
   ORDER BY ts ASC
@@ -84,7 +84,7 @@ const insertMany = db.transaction((userKey, events) => {
       e.albumName,
       JSON.stringify(e.genres),
       e.year,
-      e.durationMs,
+      e.durationMs ?? e.fullDurationMs,
       e.fullDurationMs
     )
   }
@@ -165,7 +165,6 @@ function validateEvent(event) {
   if (typeof event.albumId !== 'string') return false
   if (typeof event.albumName !== 'string') return false
   if (!Array.isArray(event.genres)) return false
-  if (typeof event.durationMs !== 'number' || event.durationMs < 0) return false
   if (typeof event.fullDurationMs !== 'number' || event.fullDurationMs < 0) return false
   // year can be null or a number
   if (event.year !== null && typeof event.year !== 'number') return false
@@ -243,7 +242,6 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
       albumName: row.album_name,
       genres: safeJsonParse(row.genres, []),
       year: row.year,
-      durationMs: row.duration_ms,
       fullDurationMs: row.full_duration_ms,
     }))
 
