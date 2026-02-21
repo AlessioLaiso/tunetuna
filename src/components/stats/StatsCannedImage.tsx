@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Music, User, Disc, Clock, CirclePlay, Flame } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 
@@ -109,6 +109,40 @@ export default function StatsCannedImage({
   // Use #1 album for background if available
   const bgUrl = topAlbums[0] ? jellyfinClient.getAlbumArtUrl(topAlbums[0].albumId, 500) : null
   const timeParts = formatHoursAndMinutesParts(totalHours)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    if (!canvasRef.current || !bgUrl) return
+
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = 1015
+    canvas.height = 1350
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      // Draw blurred background using canvas
+      // Apply blur by drawing with reduced quality and scaling
+      ctx.filter = 'blur(80px)'
+
+      // Scale up to show blurred effect
+      const scale = 1.25
+      const scaledWidth = canvas.width * scale
+      const scaledHeight = canvas.height * scale
+      const offsetX = (canvas.width - scaledWidth) / 2
+      const offsetY = (canvas.height - scaledHeight) / 2
+
+      ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+      // Draw overlay
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
+    img.src = bgUrl
+  }, [bgUrl])
 
   return (
     <div
@@ -116,25 +150,14 @@ export default function StatsCannedImage({
       className="relative overflow-hidden"
       style={{ width: 1015, height: 1350, backgroundColor: '#0a0a0a' }}
     >
-      {/* Background with blur and overlay - using img for better html2canvas support */}
-      {bgUrl && (
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <img
-            src={bgUrl}
-            alt=""
-            className="w-full h-full object-cover"
-            style={{
-              filter: 'blur(80px)',
-              transform: 'scale(1.25)',
-              willChange: 'transform'
-            }}
-            crossOrigin="anonymous"
-          />
-          <div className="absolute inset-0 bg-black/40" />
-        </div>
-      )}
+      {/* Background with blur and overlay - canvas-based for html2canvas compatibility */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 z-0"
+        style={{ width: 1015, height: 1350, display: 'block' }}
+      />
 
-      <div className="relative z-10 w-full h-full px-[52px] py-12 flex flex-col">
+      <div className="relative z-10 w-full h-full px-[52px] py-12 pb-16 flex flex-col">
         {/* Hero stat */}
         <h1 className="text-white font-bold mb-8 flex items-baseline gap-4" style={{ fontSize: '88px', lineHeight: 1 }}>
           <span>{totalStreams.toLocaleString()}</span>
@@ -251,7 +274,7 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Artists</p>
               <div className="flex flex-col gap-3">
                 {topArtists.slice(0, 5).map((artist, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">{artist.name}</p>
+                  <p key={i} className="text-white text-2xl truncate leading-normal">{artist.name}</p>
                 ))}
               </div>
             </div>
@@ -261,7 +284,7 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Genres</p>
               <div className="flex flex-col gap-3">
                 {topGenres.slice(0, 5).map((genre, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">{genre.name}</p>
+                  <p key={i} className="text-white text-2xl truncate leading-normal">{genre.name}</p>
                 ))}
               </div>
             </div>
@@ -274,7 +297,7 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Songs</p>
               <div className="flex flex-col gap-3">
                 {topSongs.slice(0, 5).map((song, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">
+                  <p key={i} className="text-white text-2xl truncate leading-normal">
                     {song.name}
                     <span className="text-white/65"> · </span>
                     <span className="text-white/65">{song.artistName}</span>
@@ -288,7 +311,7 @@ export default function StatsCannedImage({
               <p className="text-white/65 text-2xl mb-4">Top Albums</p>
               <div className="flex flex-col gap-3">
                 {topAlbums.slice(0, 3).map((album, i) => (
-                  <p key={i} className="text-white text-2xl truncate leading-tight">
+                  <p key={i} className="text-white text-2xl truncate leading-normal">
                     {album.name}
                     <span className="text-white/65"> · </span>
                     <span className="text-white/65">{album.artistName}</span>

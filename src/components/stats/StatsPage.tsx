@@ -687,29 +687,6 @@ export default function StatsPage() {
     }
   }
 
-  // Handler to download the stats image
-  const handleDownloadImage = async () => {
-    // We target the export version which is off-screen but full resolution and unscaled
-    const element = document.getElementById('stats-canned-image-export')
-    if (!element) return
-
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 1, // Capture at 1:1 scale of the element (which is 1015x1350)
-        backgroundColor: '#0a0a0a',
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      })
-
-      const link = document.createElement('a')
-      link.download = `tunetuna-canned-${fromMonth}-${toMonth}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
-    } catch (error) {
-      logger.error('Error generating image:', error)
-    }
-  }
 
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<PlayEvent[]>([])
@@ -1116,16 +1093,80 @@ export default function StatsPage() {
           fromMonth={fromMonth}
           toMonth={toMonth}
           onClose={() => setShowCannedModal(false)}
-          onDownload={handleDownloadImage}
         />
       )}
     </div>
   )
 }
 
-function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { stats: ComputedStats, fromMonth: string, toMonth: string, onClose: () => void, onDownload: () => void }) {
+function StatsImageModal({ stats, fromMonth, toMonth, onClose }: { stats: ComputedStats, fromMonth: string, toMonth: string, onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+
+  const handleDownloadClick = async () => {
+    const element = document.getElementById('stats-canned-image-export')
+    if (!element) return
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2, // Use 2x scale for higher quality export
+        backgroundColor: '#0a0a0a',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        // Add window width/height to ensure proper rendering
+        windowWidth: 1015,
+        windowHeight: 1350,
+        onclone: (clonedDocument) => {
+          // Fix text rendering in clone by adjusting line-height and overflow for export only
+          const clonedElement = clonedDocument.getElementById('stats-canned-image-export') as HTMLElement
+          if (clonedElement) {
+            clonedElement.style.position = 'static'
+            // Allow overflow so text isn't clipped at container edges
+            clonedElement.style.overflow = 'visible'
+
+            // Ensure canvas background renders
+            const canvases = clonedElement.querySelectorAll('canvas')
+            canvases.forEach(canvas => {
+              (canvas as HTMLCanvasElement).style.display = 'block'
+            })
+
+            // Apply line-height to text elements to prevent cropping
+            const textElements = clonedElement.querySelectorAll('p, h1, h2, h3, span')
+            textElements.forEach(el => {
+              const htmlEl = el as HTMLElement
+              const computedStyle = window.getComputedStyle(htmlEl)
+              const fontSize = parseFloat(computedStyle.fontSize)
+
+              if (fontSize > 20) {
+                htmlEl.style.lineHeight = '1.4'
+              } else if (fontSize > 16) {
+                htmlEl.style.lineHeight = '1.3'
+              } else {
+                htmlEl.style.lineHeight = '1.25'
+              }
+            })
+
+            // Remove overflow: hidden from all nested elements to allow text to render fully
+            const allElements = clonedElement.querySelectorAll('*')
+            allElements.forEach(el => {
+              const htmlEl = el as HTMLElement
+              if (htmlEl.style.overflow === 'hidden') {
+                htmlEl.style.overflow = 'visible'
+              }
+            })
+          }
+        }
+      })
+
+      const link = document.createElement('a')
+      link.download = `tunetuna-canned-${fromMonth}-${toMonth}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (error) {
+      logger.error('Error generating image:', error)
+    }
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1165,12 +1206,20 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose, onDownload }: { s
       onClick={onClose}
     >
 
-      {/* Modal Header/Controls - Close Button Aligned to Image */}
+      {/* Modal Header/Controls - Download and Close Buttons Aligned to Image */}
       <div
-        className="flex justify-end mb-2 flex-shrink-0 relative z-50 px-4 md:px-0"
+        className="flex justify-end items-center mb-2 flex-shrink-0 relative z-50 px-4 md:px-0"
         style={{ width: 1015 * scale }}
         onClick={e => e.stopPropagation()}
       >
+        <button
+          onClick={handleDownloadClick}
+          className="flex items-center gap-2 px-3 h-10 text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors hidden"
+          aria-label="Download image"
+        >
+          <Download className="w-5 h-5" />
+          <span className="text-sm font-medium">Download</span>
+        </button>
         <button
           onClick={onClose}
           className="w-10 h-10 flex items-center justify-center text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors"
