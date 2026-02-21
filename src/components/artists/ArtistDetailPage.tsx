@@ -809,7 +809,7 @@ export default function ArtistDetailPage() {
       <div className="pt-3 md:pt-7">
         {/* Bio section - always collapsed by default with chevron, regardless of length */}
         {artist.Overview && (
-          <div className="mb-6 -mt-4 px-4">
+          <div className="mb-6 px-4">
             <div className="text-white relative">
               {/* Hidden measurement paragraph (left in place for potential future use) */}
               <p
