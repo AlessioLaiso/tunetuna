@@ -486,7 +486,7 @@ function HorizontalBar({
 
   const Container = onClick ? 'button' : 'div'
   const containerProps = onClick
-    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 -mx-2 pl-2 pr-0 transition-colors group' }
+    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group' }
     : { className: 'flex items-center gap-3 mb-2' }
 
   return (
