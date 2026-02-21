@@ -4,13 +4,13 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'fs'
 import { dirname } from 'path'
 
-const DATA_DIR = process.env.DATA_DIR || '/data'
+const DATA_DIR = process.env.DATA_DIR || './data'
 const DB_PATH = `${DATA_DIR}/stats.db`
 const PORT = process.env.PORT || 3001
 
 // Ensure data directory exists
 try {
-  mkdirSync(dirname(DB_PATH), { recursive: true })
+  mkdirSync(DATA_DIR, { recursive: true })
 } catch (e) {
   // Directory may already exist
 }
