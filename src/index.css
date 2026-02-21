@@ -35,6 +35,37 @@
   .sidebar-open-right-offset {
     right: var(--sidebar-width) !important;
   }
+
+}
+
+/* Hero breakout: stretch from the max-w content wrapper to fill the scroll
+   container's content area. Accounts for the tab-bar (lg+) and the queue
+   sidebar (xl+ when open). */
+.hero-breakout {
+  --hero-pad-left: 0px;
+  --hero-pad-right: 0px;
+  --hero-w: calc(100vw - var(--hero-pad-left) - var(--hero-pad-right));
+  width: var(--hero-w);
+  margin-left: calc((var(--hero-w) - 100%) / -2);
+  margin-right: calc((var(--hero-w) - 100%) / -2);
+  transition: width 300ms, margin 300ms;
+}
+
+@media (min-width: 1024px) {
+  .hero-breakout {
+    --hero-pad-left: 4rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero-breakout.hero-breakout-sidebar {
+    --hero-pad-right: var(--sidebar-width);
+    /* Shift right by half the scrollbar gutter to compensate for the content
+       wrapper being centered in a gutter-reduced area */
+    --hero-gutter-fix: 6px;
+    margin-left: calc((var(--hero-w) - 100%) / -2 + var(--hero-gutter-fix));
+    margin-right: calc((var(--hero-w) - 100%) / -2 - var(--hero-gutter-fix));
+  }
 }
 
 html {

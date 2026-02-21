@@ -209,6 +209,7 @@ export default function ArtistDetailPage() {
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const storeSongs = useMusicStore(state => state.songs)
 
+
   const featuredData = useMemo(
     () => getFeaturedArtistData(storeSongs),
     [storeSongs]
@@ -706,13 +707,13 @@ export default function ArtistDetailPage() {
         </div>
       </div>
 
-      {/* Hero section with large artist image / backdrop */}
+      {/* Hero section with large artist image / backdrop
+           Breaks out of the max-w-768 content wrapper to fill the scroll container's
+           content area (between tab bar and queue sidebar). */}
       <div
-        className="relative z-30 w-screen"
+        className={`relative z-30 hero-breakout ${isQueueSidebarOpen ? 'hero-breakout-sidebar' : ''}`}
         style={{
           marginTop: `calc(-1 * env(safe-area-inset-top))`,
-          marginLeft: 'calc(50% - 50vw)',
-          marginRight: 'calc(50% - 50vw)',
         }}
       >
         {hasImage && (
