@@ -9,6 +9,48 @@ import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { logger } from '../../utils/logger'
 
+function SkeletonAlbumItem() {
+  return (
+    <div>
+      <div className="aspect-square rounded bg-zinc-800 mb-2" />
+      <div className="h-3.5 bg-zinc-800 rounded w-3/4 mb-1.5" />
+      <div className="h-3 bg-zinc-800 rounded w-1/2" />
+    </div>
+  )
+}
+
+function RecentlyAddedSkeleton() {
+  return (
+    <div className="px-4 mb-8 animate-pulse">
+      <h2 className="text-xl font-bold mb-4">Recently Added</h2>
+      {/* Mobile: 3-col, 2-row grid */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(6)].map((_, i) => (
+            <SkeletonAlbumItem key={i} />
+          ))}
+        </div>
+      </div>
+      {/* md to <1680px: 4-col, 2-row grid */}
+      <div className="hidden md:block min-[1680px]:hidden">
+        <div className="grid grid-cols-4 gap-3">
+          {[...Array(8)].map((_, i) => (
+            <SkeletonAlbumItem key={i} />
+          ))}
+        </div>
+      </div>
+      {/* >=1680px: 5-col, 2-row grid */}
+      <div className="hidden min-[1680px]:block">
+        <div className="grid grid-cols-5 gap-3">
+          {[...Array(10)].map((_, i) => (
+            <SkeletonAlbumItem key={i} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface RecentlyAddedAlbumItemProps {
   album: BaseItemDto
   onNavigate: (id: string) => void
@@ -104,7 +146,7 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
 }
 
 export default function RecentlyAdded() {
-  const { recentlyAdded, setRecentlyAdded, setLoading } = useMusicStore()
+  const { recentlyAdded, setRecentlyAdded, setLoading, loading } = useMusicStore()
   const navigate = useNavigate()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -128,9 +170,11 @@ export default function RecentlyAdded() {
     loadRecentlyAdded()
   }, [setRecentlyAdded, setLoading])
 
-  // Always render hooks before any conditional returns
-  // Only return null if we have no data, but after all hooks are called
+  // Show skeleton while loading, null if loaded with no data
   if (!recentlyAdded || recentlyAdded.length === 0) {
+    if (loading.recentlyAdded) {
+      return <RecentlyAddedSkeleton />
+    }
     return null
   }
 
