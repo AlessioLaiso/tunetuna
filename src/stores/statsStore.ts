@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { BaseItemDto } from '../api/types'
 import { useAuthStore } from './authStore'
 import { useSettingsStore } from './settingsStore'
+import { useMusicStore } from './musicStore'
 import { createIndexedDBStorage } from '../utils/storage'
 
 /**
@@ -98,6 +99,12 @@ interface StatsState {
   hasStats: () => Promise<boolean>
   /** Fetches oldest event timestamp from server (called on init to know date range) */
   initializeOldestTs: () => Promise<void>
+  /** Detects events whose songId doesn't match any song in the current library */
+  detectMismatchedEvents: () => Promise<{ mismatched: number; total: number }>
+  /** Remaps mismatched events to the current library by matching song+artist names */
+  remapEvents: () => Promise<{ remapped: number; unmatched: number }>
+  /** Removes all events whose songId doesn't match the current library */
+  removeMismatchedEvents: () => Promise<{ removed: number; kept: number }>
 }
 
 const indexedDBStorage = createIndexedDBStorage<StatsState>('tunetuna-stats-storage')
@@ -131,6 +138,47 @@ function generateStatsToken(): string {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Normalizes a string for fuzzy name matching: lowercase, trim, strip diacritics, collapse whitespace.
+ */
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Fetches all events from the server and merges with pending events.
+ */
+async function fetchAllEvents(get: () => StatsState): Promise<PlayEvent[]> {
+  const { pendingEvents } = get()
+
+  await get().updateStatsKey()
+  const { cachedStatsKey, cachedStatsToken } = get()
+  if (!cachedStatsKey || !cachedStatsToken) return [...pendingEvents]
+
+  try {
+    const response = await fetch(
+      `${STATS_API_BASE}/${cachedStatsKey}/events?from=0&to=${Date.now()}`,
+      { headers: { 'X-Stats-Token': cachedStatsToken } }
+    )
+    if (response.ok) {
+      const data = await response.json()
+      const serverEvents: PlayEvent[] = data.events || []
+      // Merge and deduplicate
+      const keys = new Set(serverEvents.map(e => `${e.ts}-${e.songId}`))
+      const uniquePending = pendingEvents.filter(e => !keys.has(`${e.ts}-${e.songId}`))
+      return [...serverEvents, ...uniquePending]
+    }
+  } catch {
+    // Fall through to pending only
+  }
+  return [...pendingEvents]
 }
 
 /**
@@ -704,6 +752,130 @@ export const useStatsStore = create<StatsState>()(
         } catch {
           // Silently fail - will retry on next page load
         }
+      },
+
+      detectMismatchedEvents: async () => {
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) return { mismatched: 0, total: 0 }
+
+        const allEvents = await fetchAllEvents(get)
+        if (allEvents.length === 0) return { mismatched: 0, total: 0 }
+
+        const { songs } = useMusicStore.getState()
+        if (songs.length === 0) return { mismatched: 0, total: 0 }
+
+        const knownSongIds = new Set(songs.map(s => s.Id))
+        const mismatched = allEvents.filter(e => !knownSongIds.has(e.songId)).length
+
+        return { mismatched, total: allEvents.length }
+      },
+
+      remapEvents: async () => {
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) throw new Error('Not authenticated')
+
+        const allEvents = await fetchAllEvents(get)
+        if (allEvents.length === 0) return { remapped: 0, unmatched: 0 }
+
+        const { songs } = useMusicStore.getState()
+        const knownSongIds = new Set(songs.map(s => s.Id))
+
+        // Build lookup map: normalized "songName::firstArtistName" -> LightweightSong
+        const songLookup = new Map<string, typeof songs[0]>()
+        for (const song of songs) {
+          const firstArtist = song.ArtistItems?.[0]?.Name || song.AlbumArtist || ''
+          const key = `${normalizeName(song.Name)}::${normalizeName(firstArtist)}`
+          if (!songLookup.has(key)) {
+            songLookup.set(key, song)
+          }
+        }
+
+        let remapped = 0
+        let unmatched = 0
+
+        const updatedEvents = allEvents.map(event => {
+          // Already matched — keep as-is
+          if (knownSongIds.has(event.songId)) return event
+
+          const firstArtist = event.artistNames[0] || ''
+          const key = `${normalizeName(event.songName)}::${normalizeName(firstArtist)}`
+          const match = songLookup.get(key)
+
+          if (match) {
+            remapped++
+            return {
+              ...event,
+              songId: match.Id,
+              albumId: match.AlbumId || event.albumId,
+              albumName: match.Album || event.albumName,
+              artistIds: match.ArtistItems?.map(a => a.Id) || event.artistIds,
+              artistNames: match.ArtistItems?.map(a => a.Name || 'Unknown') || event.artistNames,
+            }
+          } else {
+            unmatched++
+            return event
+          }
+        })
+
+        // Replace all server events: delete then re-upload
+        await get().clearAllStats()
+
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
+
+        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Stats-Token': cachedStatsToken,
+          },
+          body: JSON.stringify(updatedEvents),
+        })
+
+        if (!response.ok) throw new Error('Failed to upload remapped events')
+
+        set({ cacheRange: null })
+        return { remapped, unmatched }
+      },
+
+      removeMismatchedEvents: async () => {
+        const { serverUrl, userId } = useAuthStore.getState()
+        if (!serverUrl || !userId) throw new Error('Not authenticated')
+
+        const allEvents = await fetchAllEvents(get)
+        if (allEvents.length === 0) return { removed: 0, kept: 0 }
+
+        const { songs } = useMusicStore.getState()
+        const knownSongIds = new Set(songs.map(s => s.Id))
+
+        const matched = allEvents.filter(e => knownSongIds.has(e.songId))
+        const removed = allEvents.length - matched.length
+
+        if (removed === 0) return { removed: 0, kept: matched.length }
+
+        // Replace all server events: delete then re-upload only matched
+        await get().clearAllStats()
+
+        if (matched.length > 0) {
+          await get().updateStatsKey()
+          const { cachedStatsKey, cachedStatsToken } = get()
+          if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
+
+          const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Stats-Token': cachedStatsToken,
+            },
+            body: JSON.stringify(matched),
+          })
+
+          if (!response.ok) throw new Error('Failed to upload filtered events')
+        }
+
+        set({ cacheRange: null })
+        return { removed, kept: matched.length }
       },
     }),
     {

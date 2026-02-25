@@ -42,10 +42,15 @@ export default function SettingsPage() {
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
   const { addToast } = useToastStore()
-  const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt, syncToServer } = useStatsStore()
+  const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt, syncToServer, detectMismatchedEvents, remapEvents, removeMismatchedEvents } = useStatsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showSyncOptions, setShowSyncOptions] = useState(false)
   const [showClearStatsConfirm, setShowClearStatsConfirm] = useState(false)
+  const [showMismatchModal, setShowMismatchModal] = useState(false)
+  const [mismatchCount, setMismatchCount] = useState(0)
+  const [mismatchTotal, setMismatchTotal] = useState(0)
+  const [isRemapping, setIsRemapping] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -63,6 +68,15 @@ export default function SettingsPage() {
     }
     checkStats()
   }, [hasStats, pendingEvents.length, lastSyncedAt])
+
+  // Check for mismatched stats on mount (recovery case — bad data already imported)
+  const songs = useMusicStore(s => s.songs)
+  useEffect(() => {
+    if (songs.length > 0 && statsExist) {
+      checkForMismatches()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songs.length, statsExist])
 
   // Check if server URL is locked by administrator
   const serverLocked = isServerUrlLocked()
@@ -179,6 +193,45 @@ export default function SettingsPage() {
     }
   }
 
+  const checkForMismatches = async () => {
+    try {
+      const { mismatched, total } = await detectMismatchedEvents()
+      if (mismatched > 0) {
+        setMismatchCount(mismatched)
+        setMismatchTotal(total)
+        setShowMismatchModal(true)
+      }
+    } catch {
+      // Silently fail — detection is best-effort
+    }
+  }
+
+  const handleRemapEvents = async () => {
+    setIsRemapping(true)
+    try {
+      const result = await remapEvents()
+      addToast(`Remapped ${result.remapped} event${result.remapped !== 1 ? 's' : ''}${result.unmatched > 0 ? `, ${result.unmatched} unmatched` : ''}`, 'success')
+      setShowMismatchModal(false)
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Failed to remap events', 'error')
+    } finally {
+      setIsRemapping(false)
+    }
+  }
+
+  const handleRemoveMismatchedEvents = async () => {
+    setIsRemoving(true)
+    try {
+      const result = await removeMismatchedEvents()
+      addToast(`Removed ${result.removed} event${result.removed !== 1 ? 's' : ''}, kept ${result.kept}`, 'success')
+      setShowMismatchModal(false)
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Failed to remove events', 'error')
+    } finally {
+      setIsRemoving(false)
+    }
+  }
+
   const handleImportStats = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -189,6 +242,8 @@ export default function SettingsPage() {
       if (result.imported > 0) {
         addToast(`Imported ${result.imported} events${result.skipped > 0 ? `, ${result.skipped} duplicates skipped` : ''}`, 'success')
         setStatsExist(true)
+        // Check for mismatches after successful import
+        await checkForMismatches()
       } else {
         addToast('No new events to import (all duplicates)', 'info')
       }
@@ -708,6 +763,61 @@ export default function SettingsPage() {
                 className="w-full py-3 text-white font-medium rounded-full transition-colors hover:bg-white/10"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </ResponsiveModal>
+
+        {/* Library Mismatch Modal */}
+        <ResponsiveModal isOpen={showMismatchModal} onClose={() => {}} zIndex={10001}>
+          <div className="pb-6">
+            <div className="mb-6 pl-4 pr-4 flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-lg font-semibold text-white">
+                  Library Mismatch Detected
+                </div>
+                <div className="text-sm text-gray-400 mt-1">
+                  {mismatchCount} of {mismatchTotal} events reference songs that don't exist in your current library. This usually happens when importing stats from a different Jellyfin server.
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 px-4">
+              <button
+                onClick={handleRemapEvents}
+                disabled={isRemapping || isRemoving}
+                className="w-full flex flex-col items-center gap-1 py-3 bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
+              >
+                {isRemapping ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Remapping...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>Remap To Your Library</span>
+                    <span className="text-xs font-normal opacity-70">Match events by song and artist name</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleRemoveMismatchedEvents}
+                disabled={isRemapping || isRemoving}
+                className="w-full flex flex-col items-center gap-1 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
+              >
+                {isRemoving ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Removing...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>Remove Mismatched Events</span>
+                    <span className="text-xs font-normal opacity-70">Permanently delete events that don't match your library</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
