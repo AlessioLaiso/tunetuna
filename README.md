@@ -2,6 +2,10 @@
 
 A Jellyfin music client, built as a mobile-first self-hostable progressive web app.
 
+
+https://github.com/user-attachments/assets/30e20d38-4566-4fba-b4c0-e4981b956e1b
+
+
 <img width="1686" height="1912" alt="mobile and desktop screenshots of tunetuna" src="https://github.com/user-attachments/assets/0110e38a-84bc-4dd7-b4cb-4185213fa239" />
 
 
