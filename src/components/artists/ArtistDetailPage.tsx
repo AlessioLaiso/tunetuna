@@ -98,13 +98,15 @@ interface ArtistSongItemProps {
   song: BaseItemDto
   album: string | null
   year: string | null
+  artistName: string | null
+  artistId: string | null
   onClick: (song: BaseItemDto) => void
   onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
   showImage?: boolean
 }
 
-function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
+function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
   const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const currentTrack = useCurrentTrack()
@@ -145,8 +147,27 @@ function ArtistSongItem({ song, album, year, onClick, onContextMenu, contextMenu
           }`}>
           {song.Name}
         </div>
-        {(album || year) && (
+        {(artistName || album || year) && (
           <div className="text-xs text-gray-400 flex items-center gap-1 min-w-0">
+            {artistName && (
+              artistId ? (
+                <span
+                  className="clickable-text truncate flex-shrink-0"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/artist/${artistId}`)
+                  }}
+                >
+                  {artistName}
+                </span>
+              ) : (
+                <span className="truncate flex-shrink-0">{artistName}</span>
+              )
+            )}
+            {artistName && album && (
+              <span className="flex-shrink-0">•</span>
+            )}
             {album && (
               song.AlbumId ? (
                 <span
@@ -561,11 +582,20 @@ export default function ArtistDetailPage() {
     const album = song.Album || null
     let year: string | null = null
 
-    // Try to find the album in albums array to get year
+    // Try to find the album in own albums or appears-on albums to get year
     if (song.AlbumId) {
-      const albumData = albums.find(a => a.Id === song.AlbumId)
+      const albumData = albums.find(a => a.Id === song.AlbumId) || appearsOnAlbums.find(a => a.Id === song.AlbumId)
       if (albumData) {
         year = getAlbumYear(albumData)
+      }
+    }
+
+    // Fallback to song-level year data
+    if (!year) {
+      if (song.ProductionYear) {
+        year = song.ProductionYear.toString()
+      } else if (song.PremiereDate) {
+        year = new Date(song.PremiereDate).getFullYear().toString()
       }
     }
 
@@ -952,12 +982,18 @@ export default function ArtistDetailPage() {
             <div className="space-y-0">
               {sortedSongs.map((song, index) => {
                 const { album, year } = getSongAlbumAndYear(song)
+                const isFeatSong = featuredSongsForArtist.some(fs => fs.Id === song.Id)
+                const featArtistItem = isFeatSong ? song.ArtistItems?.[0] : undefined
+                const artistName = isFeatSong ? (featArtistItem?.Name || song.AlbumArtist || null) : null
+                const artistId = isFeatSong ? (featArtistItem?.Id || null) : null
                 return (
                   <ArtistSongItem
                     key={song.Id}
                     song={song}
                     album={album}
                     year={year}
+                    artistName={artistName}
+                    artistId={artistId}
                     onClick={playTrack}
                     onContextMenu={(song, mode, position) => {
                       setContextMenuItem(song)
