@@ -15,6 +15,14 @@ import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
 import { formatDuration, parseGroupingTag } from '../../utils/formatting'
 
+// Cassette animation constants
+// Wheel image is 712px on a 1233px cassette — ratio preserved at native size
+const WHEEL_SIZE_PERCENT = (712 / 1233) * 100 // ~57.7%
+// Hole centres measured from the cassette image
+const WHEEL_CENTER_Y_PERCENT = 48.8   // % from top
+const WHEEL_LEFT_CENTER_X_PERCENT = 29  // % from left
+const WHEEL_RIGHT_CENTER_X_PERCENT = 71 // % from left
+
 type PlaylistSortOrder = 'PlaylistOrder' | 'Alphabetical'
 
 const INITIAL_VISIBLE_TRACKS = 45
@@ -213,6 +221,18 @@ export default function PlaylistDetailPage() {
   const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
+  // Cassette animation state
+  const [showCassette, setShowCassette] = useState(false)
+  const [hideCover, setHideCover] = useState(false)
+  const [wheelRotation, setWheelRotation] = useState(0)
+  const wheelRotationRef = useRef<number>(0)
+  const wheelAnimFrameRef = useRef<number | null>(null)
+  const wheelLastTimeRef = useRef<number>(0)
+  const cassetteInitRef = useRef<boolean>(false)
+  const reverseCassetteRef = useRef<boolean>(false)
+  const previousPlayingRef = useRef<boolean>(false)
+  const shouldSplitRef = useRef<boolean>(false)
+
   // Drag-to-reorder state (only active when PlaylistOrder)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
@@ -281,6 +301,105 @@ export default function PlaylistDetailPage() {
     if (draggingIndexRef.current == null) return
     setDragOverIndex(index)
   }, [])
+
+  // --- Cassette animation effects (mirrors vinyl logic from AlbumDetailPage) ---
+
+  const isPlaylistCurrentlyPlaying = useMemo(() => {
+    if (!currentTrack || tracks.length === 0) return false
+    return tracks.some(t => t.Id === currentTrack.Id) && isPlaying
+  }, [currentTrack, tracks, isPlaying])
+
+  // Handle cassette visibility with animation delay
+  useEffect(() => {
+    const playing = isPlaylistCurrentlyPlaying
+    const playbackChanged = previousPlayingRef.current !== playing
+
+    if (playbackChanged) {
+      reverseCassetteRef.current = false
+    }
+    previousPlayingRef.current = playing
+
+    if (playing) {
+      if (!cassetteInitRef.current || !showCassette) {
+        setShowCassette(true)
+        setHideCover(false)
+        cassetteInitRef.current = true
+      }
+
+      shouldSplitRef.current = window.innerWidth >= 560
+
+      if (!reverseCassetteRef.current) {
+        reverseCassetteRef.current = true
+        setTimeout(() => {
+          // Re-check playing state
+          const ps = usePlayerStore.getState()
+          const ct = ps.currentIndex >= 0 && ps.songs[ps.currentIndex] ? ps.songs[ps.currentIndex] : null
+          const stillPlaying = ct && tracks.some(t => t.Id === ct.Id) && ps.isPlaying
+          if (stillPlaying) {
+            setHideCover(true)
+          }
+        }, 500)
+      }
+    } else if (cassetteInitRef.current && showCassette && !playing) {
+      if (!reverseCassetteRef.current) {
+        reverseCassetteRef.current = true
+        setHideCover(false)
+      }
+    } else if (!cassetteInitRef.current) {
+      setShowCassette(false)
+      setHideCover(false)
+      cassetteInitRef.current = true
+    } else {
+      setShowCassette(false)
+      setHideCover(false)
+    }
+  }, [isPlaylistCurrentlyPlaying, showCassette, tracks])
+
+  // Handle window resize for cassette animation
+  useEffect(() => {
+    const handleResize = () => {
+      if (isPlaylistCurrentlyPlaying && showCassette) {
+        const newSplit = window.innerWidth >= 560
+        shouldSplitRef.current = newSplit
+        if (hideCover) {
+          setHideCover(false)
+          setTimeout(() => setHideCover(true), 10)
+        }
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [isPlaylistCurrentlyPlaying, showCassette, hideCover])
+
+  // Handle wheel rotation animation
+  useEffect(() => {
+    if (isPlaylistCurrentlyPlaying) {
+      const animate = (currentTime: number) => {
+        if (wheelLastTimeRef.current === 0) {
+          wheelLastTimeRef.current = currentTime
+        }
+        const dt = currentTime - wheelLastTimeRef.current
+        const speed = 360 / 10000 // 360° per 10s
+        wheelRotationRef.current = (wheelRotationRef.current + speed * dt) % 360
+        setWheelRotation(wheelRotationRef.current)
+        wheelLastTimeRef.current = currentTime
+        wheelAnimFrameRef.current = requestAnimationFrame(animate)
+      }
+      wheelLastTimeRef.current = 0
+      wheelAnimFrameRef.current = requestAnimationFrame(animate)
+    } else {
+      if (wheelAnimFrameRef.current) {
+        cancelAnimationFrame(wheelAnimFrameRef.current)
+        wheelAnimFrameRef.current = null
+      }
+      wheelLastTimeRef.current = 0
+    }
+    return () => {
+      if (wheelAnimFrameRef.current) {
+        cancelAnimationFrame(wheelAnimFrameRef.current)
+      }
+    }
+  }, [isPlaylistCurrentlyPlaying])
 
   // Detect if this is a mood route
   const isMoodRoute = location.pathname.startsWith('/mood/')
@@ -492,20 +611,116 @@ export default function PlaylistDetailPage() {
 
       <div className="pt-20">
         <div className="mb-6 px-4 pt-4">
-          {hasImage && (
-            <div className="flex justify-center mb-6">
-              <div className="w-64 h-64 rounded overflow-hidden bg-zinc-900">
-                <Image
-                  src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')}
-                  alt={playlist.Name}
-                  className="w-full h-full object-cover"
-                  showOutline={true}
-                  rounded="rounded"
-                  onError={() => setHasImage(false)}
-                />
+          <div className="flex justify-center mb-6">
+              <div
+                className="relative"
+                style={{
+                  overflow: 'visible',
+                  width: '256px',
+                  height: '256px',
+                }}
+              >
+                {/* Cassette with spinning wheels */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    opacity: hasImage ? (showCassette ? 1 : 0) : 1,
+                    zIndex: 1,
+                    transform: (isPlaylistCurrentlyPlaying && hasImage && shouldSplitRef.current)
+                      ? 'translateX(calc(50% + 8px))'
+                      : 'translateX(0)',
+                    transition: 'transform 500ms ease-in-out, opacity 300ms ease-in-out',
+                  }}
+                >
+                  {/* Left wheel — behind cassette */}
+                  <img
+                    src="/assets/wheel.png"
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      width: `${WHEEL_SIZE_PERCENT}%`,
+                      height: `${WHEEL_SIZE_PERCENT}%`,
+                      left: `${WHEEL_LEFT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
+                      top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
+                      transform: `rotate(${wheelRotation}deg)`,
+                      transformOrigin: 'center center',
+                      zIndex: 3,
+                    }}
+                  />
+                  {/* Right wheel — behind cassette */}
+                  <img
+                    src="/assets/wheel.png"
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      width: `${WHEEL_SIZE_PERCENT}%`,
+                      height: `${WHEEL_SIZE_PERCENT}%`,
+                      left: `${WHEEL_RIGHT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
+                      top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
+                      transform: `rotate(${wheelRotation}deg)`,
+                      transformOrigin: 'center center',
+                      zIndex: 3,
+                    }}
+                  />
+                  {/* Cassette image */}
+                  <img
+                    src="/assets/cassette.png"
+                    alt="Cassette"
+                    className="w-full h-full object-contain"
+                    style={{ position: 'relative', zIndex: 2 }}
+                    onError={(e) => {
+                      logger.error('Failed to load cassette image')
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  {/* Playlist/mood title on the cassette label */}
+                  <div
+                    className="absolute font-handwritten text-black text-center truncate pointer-events-none"
+                    style={{
+                      top: '27%',
+                      left: '6%',
+                      width: '88%',
+                      fontSize: '1.1rem',
+                      lineHeight: 1.2,
+                      zIndex: 4,
+                    }}
+                  >
+                    {playlist.Name}
+                  </div>
+                </div>
+
+                {/* Playlist Cover Art — on top, slides away when playing */}
+                {hasImage && (
+                  <div
+                    className="absolute inset-0 rounded overflow-hidden bg-zinc-900"
+                    style={{
+                      transform: isPlaylistCurrentlyPlaying
+                        ? shouldSplitRef.current
+                          ? 'translateX(calc(-50% - 8px))'
+                          : 'translateX(calc(-100% - 24px))'
+                        : hideCover
+                          ? shouldSplitRef.current
+                            ? 'translateX(calc(-50% - 8px))'
+                            : 'translateX(calc(-100% - 24px))'
+                          : 'translateX(0)',
+                      transitionProperty: 'transform',
+                      transitionDuration: '500ms',
+                      transitionTimingFunction: 'ease-in-out',
+                      zIndex: 10,
+                    }}
+                  >
+                    <Image
+                      src={jellyfinClient.getImageUrl(playlist.Id, 'Primary', 474) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')}
+                      alt={playlist.Name}
+                      className="w-full h-full object-cover"
+                      showOutline={true}
+                      rounded="rounded"
+                      onError={() => setHasImage(false)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
-          )}
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
             {sortedTracks.length > 0 && (
