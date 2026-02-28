@@ -79,7 +79,7 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
         </div>
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{playlist.Name}</div>
         <div className="text-xs text-gray-400 truncate">
-          {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
+          {playlist.ChildCount ? `${playlist.ChildCount} songs` : 'Playlist'}
         </div>
       </button>
       <ContextMenu

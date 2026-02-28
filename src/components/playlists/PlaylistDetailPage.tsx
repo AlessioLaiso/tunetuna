@@ -726,7 +726,7 @@ export default function PlaylistDetailPage() {
             {sortedTracks.length > 0 && (
               <div className="flex items-center justify-between gap-4 mt-2">
                 <div className="text-gray-400">
-                  {sortedTracks.length} {sortedTracks.length === 1 ? 'track' : 'tracks'}
+                  {sortedTracks.length} {sortedTracks.length === 1 ? 'song' : 'songs'}
                 </div>
                 <button
                   onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}

@@ -150,7 +150,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: Pla
                 <div className="flex-1 min-w-0 text-left">
                   <div className="text-sm font-medium text-white truncate">{playlist.Name}</div>
                   {playlist.ChildCount !== undefined && (
-                    <div className="text-xs text-gray-400">{playlist.ChildCount} tracks</div>
+                    <div className="text-xs text-gray-400">{playlist.ChildCount} songs</div>
                   )}
                 </div>
                 {actionLoading === playlist.Id && (
