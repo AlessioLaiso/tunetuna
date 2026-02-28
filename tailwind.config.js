@@ -24,6 +24,9 @@ export default {
           900: '#18181b',
         },
       },
+      fontFamily: {
+        handwritten: ['"Kalam"', 'cursive'],
+      },
       screens: {
         '2xl': '1440px',
       },
