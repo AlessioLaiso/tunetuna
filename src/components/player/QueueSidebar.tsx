@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playerStore'
 import QueueList from './QueueList'
+import QueueMenu from './QueueMenu'
 import { useEffect } from 'react'
 
 export default function QueueSidebar() {
@@ -29,12 +30,15 @@ export default function QueueSidebar() {
         >
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
                 <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
-                <button
-                    onClick={toggleQueueSidebar}
-                    className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-zinc-800"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center">
+                    <QueueMenu />
+                    <button
+                        onClick={toggleQueueSidebar}
+                        className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-zinc-800"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
             <QueueList contentPaddingBottom="8rem" />
         </div>

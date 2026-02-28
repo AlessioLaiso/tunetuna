@@ -10,7 +10,9 @@ import QueueView from './QueueView'
 import QueueList from './QueueList'
 import LyricsModal from './LyricsModal'
 import VolumeControl from '../layout/VolumeControl'
-import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X } from 'lucide-react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus } from 'lucide-react'
+import PlaylistPicker from '../playlists/PlaylistPicker'
+import QueueMenu from './QueueMenu'
 import { useNavigate } from 'react-router-dom'
 import { isIOS } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
@@ -49,6 +51,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   // Use lastPlayedTrack as fallback for display, matching PlayerBar behavior
   const displayTrack = currentTrack || lastPlayedTrack
   const [showQueue, setShowQueue] = useState(false)
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
 
   // Ensure queue view is closed on mount to prevent flash
   useEffect(() => {
@@ -570,6 +573,16 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </h2>
             )}
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
+              {/* Save queue to playlist button - only on mobile queue view (below xl) */}
+              {showQueue && songs.length > 0 && (
+                <button
+                  onClick={() => setPlaylistPickerOpen(true)}
+                  aria-label="Save queue to playlist"
+                  className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
+                >
+                  <ListPlus className="w-6 h-6" />
+                </button>
+              )}
               {/* Volume button - shown below 768 normally, below 1280 when in queue */}
               <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'}`}>
                 {!isIOS() && (
@@ -850,13 +863,18 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             <div className={`border-l border-white/20 flex-shrink-0 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 flex-shrink-0">
                 <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
-                <button
-                  onClick={toggleQueueSidebar}
-                  aria-label="Close queue sidebar"
-                  className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center">
+                  <QueueMenu
+                    buttonClassName="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+                  />
+                  <button
+                    onClick={toggleQueueSidebar}
+                    aria-label="Close queue sidebar"
+                    className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
             <div className={`flex-1 overflow-y-auto min-h-0 border-l border-white/20 queue-xl-container [&_.text-gray-400]:text-white/60 [&_.text-gray-500]:text-white/50 [&_.text-gray-300]:text-white/70 [&_.border-zinc-800]:border-white/20 [&_.bg-zinc-600]:bg-white/30 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
@@ -868,6 +886,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           </div>
         </div>
       </div>
+      <PlaylistPicker
+        isOpen={playlistPickerOpen}
+        onClose={() => setPlaylistPickerOpen(false)}
+        itemIds={songs.map(s => s.Id)}
+      />
     </>
   )
 }
