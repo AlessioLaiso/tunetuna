@@ -130,6 +130,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
               <span
                 className="clickable-text"
                 onClick={(e) => {
+                  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                   e.stopPropagation()
                   navigate(`/artist/${song.ArtistItems![0].Id}`)
                 }}
@@ -146,6 +147,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
                   <span
                     className="clickable-text"
                     onClick={(e) => {
+                      if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                       e.stopPropagation()
                       navigate(`/album/${song.AlbumId}`)
                     }}

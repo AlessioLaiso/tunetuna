@@ -145,6 +145,7 @@ export function HomeListItem({
                     className="clickable-text"
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
+                      if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                       e.stopPropagation()
                       part.onClick!(e)
                     }}

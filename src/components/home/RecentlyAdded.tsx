@@ -131,6 +131,7 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
             className="clickable-text"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
+              if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
               e.stopPropagation()
               navigate(`/artist/${album.AlbumArtists?.[0]?.Id || album.ArtistItems![0].Id}`)
             }}

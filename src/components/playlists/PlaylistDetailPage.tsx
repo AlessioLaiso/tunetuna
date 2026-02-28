@@ -131,6 +131,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
               className="clickable-text"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
+                if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                 e.stopPropagation()
                 navigate(`/artist/${track.ArtistItems![0].Id}`)
               }}
@@ -148,6 +149,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
                   className="clickable-text"
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
+                    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                     e.stopPropagation()
                     navigate(`/album/${track.AlbumId}`)
                   }}
