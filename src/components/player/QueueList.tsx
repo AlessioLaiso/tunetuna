@@ -135,6 +135,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                         <span
                             className="clickable-text"
                             onClick={(e) => {
+                                if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                                 e.stopPropagation()
                                 navigate(`/artist/${track.ArtistItems![0].Id}`)
                             }}

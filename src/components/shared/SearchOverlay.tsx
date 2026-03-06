@@ -652,6 +652,7 @@ export default function SearchOverlay({
               placeholder="Search for artists, albums, songs..."
               showClearButton={searchQuery.trim().length > 0}
               onClear={onClearSearch}
+              autoFocus
             />
           </div>
 
@@ -689,6 +690,7 @@ export default function SearchOverlay({
                   onChange={onSearchChange}
                   showClearButton={searchQuery.trim().length > 0}
                   onClear={onClearSearch}
+                  autoFocus
                 />
               </div>
               <button

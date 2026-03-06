@@ -7,6 +7,7 @@ interface SearchInputProps {
   debounceMs?: number
   showClearButton?: boolean
   onClear?: () => void
+  autoFocus?: boolean
 }
 
 const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
@@ -16,11 +17,12 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
   debounceMs = 150,
   showClearButton = false,
   onClear,
+  autoFocus = false,
 }, ref) => {
   const [localValue, setLocalValue] = useState(value)
   const onChangeRef = useRef(onChange)
   const inputRef = useRef<HTMLInputElement>(null)
-  
+
   // Callback ref to set both forwarded ref and internal ref
   const setRefs = (element: HTMLInputElement | null) => {
     inputRef.current = element
@@ -28,6 +30,11 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
       ref(element)
     } else if (ref) {
       (ref as React.MutableRefObject<HTMLInputElement | null>).current = element
+    }
+    // Focus immediately on mount when autoFocus is set — this fires
+    // within the user gesture context so mobile browsers open the keyboard
+    if (element && autoFocus) {
+      element.focus()
     }
   }
 
@@ -61,6 +68,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
         onChange={(e) => {
           setLocalValue(e.target.value)
         }}
+        autoFocus={autoFocus}
         placeholder={placeholder}
         className="w-full px-4 py-2 pl-10 pr-10 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
       />

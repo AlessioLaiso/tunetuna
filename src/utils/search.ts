@@ -27,61 +27,87 @@ export async function unifiedSearch(
   filters?: SearchFilterOptions,
   cachedSongs?: LightweightSong[]
 ): Promise<UnifiedSearchResults> {
-  const results = await jellyfinClient.search(searchQuery, limit, filters)
-
-  const songsSource: BaseItemDto[] = results.Songs?.Items || []
-  const albumsSource: BaseItemDto[] = results.Albums?.Items || []
-  const artistsSource: BaseItemDto[] = results.Artists?.Items || []
-  const playlistsSource: BaseItemDto[] = results.Playlists?.Items || []
-
   const normalizedQuery = normalizeForSearch(searchQuery)
-  const queryLower = normalizedQuery.toLowerCase().trim()
+  const queryWords = normalizedQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)
 
-  // Songs: match in title, any artist field, or genre
-  const filteredSongs = songsSource.filter((song) => {
-    const songTitle = normalizeForSearch(song.Name || '')
-    if (songTitle.toLowerCase().includes(queryLower)) return true
+  // For multi-word queries, search each word individually and merge results.
+  // The server only does substring matching on each entity's own name, so
+  // "lady born" won't return "Lady Gaga" or "Born This Way". By searching
+  // each word separately we get all candidates, then filter client-side.
+  const isMultiWord = queryWords.length > 1
 
-    const artistNames: string[] = []
-    if (song.AlbumArtist) artistNames.push(normalizeForSearch(song.AlbumArtist))
+  let songsSource: BaseItemDto[] = []
+  let albumsSource: BaseItemDto[] = []
+  let artistsSource: BaseItemDto[] = []
+  let playlistsSource: BaseItemDto[] = []
+
+  if (isMultiWord) {
+    const searches = await Promise.all(
+      queryWords.map(word => jellyfinClient.search(word, limit, filters))
+    )
+    const seenSongs = new Set<string>()
+    const seenAlbums = new Set<string>()
+    const seenArtists = new Set<string>()
+    const seenPlaylists = new Set<string>()
+
+    for (const results of searches) {
+      for (const s of results.Songs?.Items || []) {
+        if (!seenSongs.has(s.Id)) { seenSongs.add(s.Id); songsSource.push(s) }
+      }
+      for (const a of results.Albums?.Items || []) {
+        if (!seenAlbums.has(a.Id)) { seenAlbums.add(a.Id); albumsSource.push(a) }
+      }
+      for (const a of results.Artists?.Items || []) {
+        if (!seenArtists.has(a.Id)) { seenArtists.add(a.Id); artistsSource.push(a) }
+      }
+      for (const p of results.Playlists?.Items || []) {
+        if (!seenPlaylists.has(p.Id)) { seenPlaylists.add(p.Id); playlistsSource.push(p) }
+      }
+    }
+  } else {
+    const results = await jellyfinClient.search(searchQuery, limit, filters)
+    songsSource = results.Songs?.Items || []
+    albumsSource = results.Albums?.Items || []
+    artistsSource = results.Artists?.Items || []
+    playlistsSource = results.Playlists?.Items || []
+  }
+
+  // Helper: collect searchable text for a song (title + artists + genres, NOT album name)
+  const getSongSearchText = (song: { Name?: string; AlbumArtist?: string; AlbumArtists?: { Name?: string }[]; ArtistItems?: { Name?: string }[]; Genres?: string[] }): string => {
+    const parts: string[] = []
+    if (song.Name) parts.push(normalizeForSearch(song.Name))
+    if (song.AlbumArtist) parts.push(normalizeForSearch(song.AlbumArtist))
     if (song.AlbumArtists?.length) {
-      artistNames.push(
-        ...song.AlbumArtists.map((a) => normalizeForSearch(a.Name || '')).filter(Boolean)
-      )
+      song.AlbumArtists.forEach(a => { if (a.Name) parts.push(normalizeForSearch(a.Name)) })
     }
     if (song.ArtistItems?.length) {
-      artistNames.push(
-        ...song.ArtistItems.map((a) => normalizeForSearch(a.Name || '')).filter(Boolean)
-      )
+      song.ArtistItems.forEach(a => { if (a.Name) parts.push(normalizeForSearch(a.Name)) })
     }
-    if (artistNames.some((name) => name.toLowerCase().includes(queryLower))) return true
-
-    if (
-      song.Genres?.some((genre) =>
-        normalizeForSearch(genre).toLowerCase().includes(queryLower)
-      )
-    ) {
-      return true
+    if (song.Genres?.length) {
+      song.Genres.forEach(g => parts.push(normalizeForSearch(g)))
     }
+    return parts.join(' ').toLowerCase()
+  }
 
-    return false
+  // Helper: check if all query words appear somewhere in the combined text
+  const matchesAllWords = (searchText: string): boolean => {
+    return queryWords.every(word => searchText.includes(word))
+  }
+
+  // Songs: match all query words across title, artist, album, or genre fields
+  const filteredSongs = songsSource.filter((song) => {
+    return matchesAllWords(getSongSearchText(song))
   })
 
-  // Supplement with cached songs whose ArtistItems match the query but
-  // weren't returned by the server (Jellyfin only matches song titles for Audio)
+  // Supplement with cached songs that match the query but weren't returned
+  // by the server (Jellyfin only matches song titles for Audio items)
   if (cachedSongs && cachedSongs.length > 0) {
     const serverSongIds = new Set(filteredSongs.map(s => s.Id))
 
     for (const song of cachedSongs) {
       if (serverSongIds.has(song.Id)) continue
 
-      const matchesArtist = song.ArtistItems?.some(a =>
-        normalizeForSearch(a.Name || '').toLowerCase().includes(queryLower)
-      )
-      const matchesAlbumArtist = song.AlbumArtist &&
-        normalizeForSearch(song.AlbumArtist).toLowerCase().includes(queryLower)
-
-      if (matchesArtist || matchesAlbumArtist) {
+      if (matchesAllWords(getSongSearchText(song))) {
         filteredSongs.push({
           Id: song.Id,
           Name: song.Name,
@@ -101,28 +127,25 @@ export async function unifiedSearch(
     }
   }
 
-  // Artists: match in normalized name
+  // Artists: match all query words in artist name
   const filteredArtists = artistsSource.filter((artist) => {
-    const artistName = normalizeForSearch(artist.Name || '')
-    return artistName.toLowerCase().includes(queryLower)
+    const artistName = normalizeForSearch(artist.Name || '').toLowerCase()
+    return queryWords.every(word => artistName.includes(word))
   })
 
-  // Albums: match in album name or album artist
+  // Albums: match all query words across album name + album artist
   const filteredAlbums = albumsSource.filter((album) => {
-    const albumName = normalizeForSearch(album.Name || '')
-    const albumArtist = normalizeForSearch(
-      album.AlbumArtist || album.ArtistItems?.[0]?.Name || ''
-    )
-    return (
-      albumName.toLowerCase().includes(queryLower) ||
-      albumArtist.toLowerCase().includes(queryLower)
-    )
+    const searchText = [
+      normalizeForSearch(album.Name || ''),
+      normalizeForSearch(album.AlbumArtist || album.ArtistItems?.[0]?.Name || ''),
+    ].join(' ').toLowerCase()
+    return queryWords.every(word => searchText.includes(word))
   })
 
-  // Playlists: match in playlist name
+  // Playlists: match all query words in playlist name
   const filteredPlaylists = playlistsSource.filter((playlist) => {
-    const playlistName = normalizeForSearch(playlist.Name || '')
-    return playlistName.toLowerCase().includes(queryLower)
+    const playlistName = normalizeForSearch(playlist.Name || '').toLowerCase()
+    return queryWords.every(word => playlistName.includes(word))
   })
 
   return {
