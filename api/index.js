@@ -364,7 +364,17 @@ fastify.get('/api/stats/health', async () => {
 // Proxy for Apple Music RSS (no auth required, public data)
 fastify.get('/api/stats/proxy/apple-music/:country/:limit', async (request, reply) => {
   const { country, limit } = request.params
-  const url = `https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${limit}/songs.json`
+
+  // Validate params to prevent path traversal
+  if (!/^[a-z]{2}$/i.test(country)) {
+    return reply.status(400).send({ error: 'Invalid country code' })
+  }
+  const numLimit = parseInt(limit, 10)
+  if (isNaN(numLimit) || numLimit < 1 || numLimit > 200) {
+    return reply.status(400).send({ error: 'Invalid limit' })
+  }
+
+  const url = `https://rss.marketingtools.apple.com/api/v2/${country}/music/most-played/${numLimit}/songs.json`
 
   try {
     const response = await fetch(url)
@@ -382,7 +392,12 @@ fastify.get('/api/stats/proxy/apple-music/:country/:limit', async (request, repl
 // Proxy for Muspy RSS feed (no auth required, public data)
 fastify.get('/api/stats/proxy/muspy-rss', async (request, reply) => {
   const { url } = request.query
-  if (!url || !url.startsWith('https://muspy.com/')) {
+  try {
+    const parsed = new URL(url || '')
+    if (parsed.hostname !== 'muspy.com' || parsed.protocol !== 'https:') {
+      return reply.status(400).send({ error: 'Valid Muspy URL required' })
+    }
+  } catch {
     return reply.status(400).send({ error: 'Valid Muspy URL required' })
   }
 

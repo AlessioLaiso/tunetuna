@@ -1,4 +1,5 @@
 import { APP_CLIENT_NAME, APP_VERSION } from '../utils/constants'
+import { logger } from '../utils/logger'
 
 // ============================================================================
 // Types
@@ -263,7 +264,7 @@ export async function fetchMuspyReleases(
   const proxyUrl = isDev
     ? `/api/muspy-rss?url=${encodeURIComponent(rssUrl)}`
     : `/api/stats/proxy/muspy-rss?url=${encodeURIComponent(rssUrl)}`
-  console.log('[Muspy] Fetching from:', proxyUrl)
+  logger.log('[Muspy] Fetching from:', proxyUrl)
 
   const response = await fetch(proxyUrl)
   if (!response.ok) {
@@ -271,7 +272,7 @@ export async function fetchMuspyReleases(
   }
 
   const text = await response.text()
-  console.log('[Muspy] Response length:', text.length, 'First 500 chars:', text.substring(0, 500))
+  logger.log('[Muspy] Response length:', text.length, 'First 500 chars:', text.substring(0, 500))
 
   const parser = new DOMParser()
   const xml = parser.parseFromString(text, 'text/xml')
@@ -279,12 +280,12 @@ export async function fetchMuspyReleases(
   // Check for parse errors
   const parseError = xml.querySelector('parsererror')
   if (parseError) {
-    console.error('[Muspy] XML parse error:', parseError.textContent)
+    logger.error('[Muspy] XML parse error:', parseError.textContent)
   }
 
   // Muspy uses Atom format, not RSS - look for <entry> instead of <item>
   const items = xml.querySelectorAll('entry')
-  console.log('[Muspy] Found', items.length, 'entries')
+  logger.log('[Muspy] Found', items.length, 'entries')
   const releases: NewRelease[] = []
 
   items.forEach((item, index) => {
