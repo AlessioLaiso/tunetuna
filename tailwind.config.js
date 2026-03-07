@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -32,7 +34,12 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(function ({ addVariant }) {
+      addVariant('hover', '@media (hover: hover) and (pointer: fine) { &:hover }')
+      addVariant('group-hover', '@media (hover: hover) and (pointer: fine) { :merge(.group):hover & }')
+    }),
+  ],
 }
 
 
