@@ -16,6 +16,21 @@ import { computeStats } from '../../utils/statsComputer'
 import Pagination from '../shared/Pagination'
 
 const ITEMS_PER_PAGE = 100
+const FETCH_CONCURRENCY = 5
+
+async function batchFetch<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  concurrency: number
+): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency)
+    const batchResults = await Promise.all(batch.map(fn))
+    results.push(...batchResults)
+  }
+  return results
+}
 
 const SHORT_MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -107,19 +122,19 @@ export default function StatsDetailPage() {
     if (cat !== 'albums' || !stats?.topAlbums.length) return
 
     const pageItems = stats.topAlbums.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
+    const itemsToFetch = pageItems.filter(a => !albumArtistOverrides[a.albumId])
+    if (itemsToFetch.length === 0) return
+
     const fetchAlbumArtists = async () => {
       const overrides: Record<string, string> = {}
-      await Promise.all(
-        pageItems.map(async (album) => {
-          if (albumArtistOverrides[album.albumId]) return
-          try {
-            const albumDetails = await jellyfinClient.getAlbumById(album.albumId)
-            if (albumDetails?.AlbumArtist) {
-              overrides[album.albumId] = albumDetails.AlbumArtist
-            }
-          } catch { /* fallback to song artist */ }
-        })
-      )
+      await batchFetch(itemsToFetch, async (album) => {
+        try {
+          const albumDetails = await jellyfinClient.getAlbumById(album.albumId)
+          if (albumDetails?.AlbumArtist) {
+            overrides[album.albumId] = albumDetails.AlbumArtist
+          }
+        } catch { /* fallback to song artist */ }
+      }, FETCH_CONCURRENCY)
       if (Object.keys(overrides).length > 0) {
         setAlbumArtistOverrides(prev => ({ ...prev, ...overrides }))
       }
@@ -223,7 +238,7 @@ export default function StatsDetailPage() {
                 >
                   <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
                     {imageUrl ? (
-                      <img src={imageUrl} alt={song.songName} className="w-full h-full object-cover" />
+                      <img src={imageUrl} alt={song.songName} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Music className="w-5 h-5 text-zinc-500" />
@@ -269,7 +284,7 @@ export default function StatsDetailPage() {
                 >
                   <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
                     {imageUrl ? (
-                      <img src={imageUrl} alt={artist.artistName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      <img src={imageUrl} alt={artist.artistName} className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <User className="w-5 h-5 text-zinc-500" />
@@ -305,7 +320,7 @@ export default function StatsDetailPage() {
                 >
                   <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
                     {imageUrl ? (
-                      <img src={imageUrl} alt={album.albumName} className="w-full h-full object-cover" />
+                      <img src={imageUrl} alt={album.albumName} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Disc className="w-5 h-5 text-zinc-500" />
