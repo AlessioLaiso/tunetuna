@@ -143,8 +143,14 @@ function emptyStats(): ComputedStats {
 export function computeStats(
   events: PlayEvent[],
   fromDate: Date,
-  toDate: Date
+  toDate: Date,
+  options?: { topLimit?: number }
 ): ComputedStats {
+  const topSongLimit = options?.topLimit ?? 5
+  const topArtistLimit = options?.topLimit ?? 5
+  const topAlbumLimit = options?.topLimit ?? 5
+  const topGenreLimit = options?.topLimit ?? 7
+  const topGenreDecadeLimit = options?.topLimit ?? 7
   if (events.length === 0) {
     return emptyStats()
   }
@@ -317,7 +323,7 @@ export function computeStats(
 
   const topSongs = [...songStats.entries()]
     .sort((a, b) => b[1].plays - a[1].plays)
-    .slice(0, 5)
+    .slice(0, topSongLimit)
     .map(([songId, stat]) => {
       const badges: Array<'obsessed' | 'on-repeat'> = []
       let obsessedDetail: { count: number; date: string } | undefined
@@ -371,7 +377,7 @@ export function computeStats(
 
   const topArtists = [...artistStats.entries()]
     .sort((a, b) => b[1].ms - a[1].ms)
-    .slice(0, 5)
+    .slice(0, topArtistLimit)
     .map(([artistId, stat]) => ({
       artistId,
       artistName: stat.name,
@@ -402,7 +408,7 @@ export function computeStats(
 
   const topAlbums = [...albumStats.entries()]
     .sort((a, b) => b[1].ms - a[1].ms)
-    .slice(0, 5)
+    .slice(0, topAlbumLimit)
     .map(([albumId, stat]) => ({
       albumId,
       albumName: stat.name,
@@ -422,7 +428,7 @@ export function computeStats(
 
   const topGenres = [...genreStats.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 7)
+    .slice(0, topGenreLimit)
     .map(([genre, ms]) => ({ genre, hours: msToHours(ms) }))
 
   // Decades
@@ -454,7 +460,7 @@ export function computeStats(
 
   const topGenreDecades = [...genreDecadeStats.values()]
     .sort((a, b) => b.ms - a.ms)
-    .slice(0, 7)
+    .slice(0, topGenreDecadeLimit)
     .map(({ genre, decade, ms }) => ({
       genre,
       decade,

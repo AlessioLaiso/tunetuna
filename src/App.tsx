@@ -22,6 +22,7 @@ const ArtistDetailPage = lazy(() => import('./components/artists/ArtistDetailPag
 const AlbumDetailPage = lazy(() => import('./components/albums/AlbumDetailPage'))
 const GenreSongsPage = lazy(() => import('./components/genres/GenreSongsPage'))
 const StatsPage = lazy(() => import('./components/stats/StatsPage'))
+const StatsDetailPage = lazy(() => import('./components/stats/StatsDetailPage'))
 const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
 
 // Loading fallback component
@@ -104,6 +105,7 @@ function App() {
               {pageVisibility.stats && (
                 <>
                   <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
+                  <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats Detail')} />
                 </>
               )}
               <Route path="*" element={<Navigate to="/" replace />} />
