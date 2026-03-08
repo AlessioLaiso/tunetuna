@@ -543,7 +543,7 @@ export default function AlbumDetailPage() {
         </div>
       </div>
 
-      <div style={{ paddingTop: `calc(5rem + 12px - 48px)` }}>
+      <div className="pt-11">
         <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (
             <div className="flex justify-center mb-6 relative" style={{ overflowX: 'visible', overflowY: 'visible', paddingLeft: '16px', paddingRight: '16px' }}>

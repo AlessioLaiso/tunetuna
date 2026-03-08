@@ -281,13 +281,13 @@ export default function SettingsPage() {
       <div
         className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5.5rem - 28px)`,
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.75rem)`,
           height: '24px',
           background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
         }}
       />
 
-      <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 5.5rem + 24px)` }}>
+      <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
         {/* Page Visibility Section */}
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Page Visibility</h2>
