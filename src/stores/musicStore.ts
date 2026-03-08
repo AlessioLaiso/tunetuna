@@ -342,6 +342,7 @@ export const useMusicStore = create<MusicState>()(
         feedTopSongs: state.feedTopSongs,
         feedNewReleases: state.feedNewReleases,
         feedLastUpdated: state.feedLastUpdated,
+        sortPreferences: state.sortPreferences,
       }),
     }
   )
