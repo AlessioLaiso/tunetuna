@@ -21,9 +21,9 @@ export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueV
     previous,
   } = usePlayerStore()
 
-  // Check if there are songs after/before current
-  const hasNext = currentIndex >= 0 && currentIndex < songs.length - 1
-  const hasPrevious = currentIndex > 0
+  // Check if there are songs after/before current (accounting for repeat mode)
+  const hasNext = songs.length > 0 && (currentIndex < 0 || currentIndex < songs.length - 1 || repeat !== 'off')
+  const hasPrevious = currentIndex > 0 || (repeat === 'all' && songs.length > 0)
 
   return (
     <div className="absolute inset-0 flex flex-col">
