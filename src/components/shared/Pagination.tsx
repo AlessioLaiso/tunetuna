@@ -23,7 +23,7 @@ export default function Pagination({
   const endItem = Math.min((currentPage + 1) * itemsPerPage, totalItems)
 
   return (
-    <div className="flex items-center justify-between px-4 py-4">
+    <div className="flex items-center justify-between py-4">
       <div className="text-sm text-gray-400">
         Showing {startItem}-{endItem} of {totalItems}
       </div>

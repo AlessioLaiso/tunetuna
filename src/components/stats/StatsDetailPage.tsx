@@ -157,28 +157,27 @@ export default function StatsDetailPage() {
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
         <div className="max-w-[768px] mx-auto">
-          <div className="flex items-center gap-3 py-4 pl-3 pr-4">
+          <div className="flex items-center justify-between gap-3 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
               className="text-white hover:text-zinc-300 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Icon className="w-5 h-5 text-zinc-400" />
-                <h1 className="text-lg font-bold text-white truncate">{config?.title || 'Stats'}</h1>
-              </div>
-              {subtitle && (
-                <p className="text-sm text-zinc-400 ml-7">{subtitle}</p>
-              )}
-            </div>
           </div>
         </div>
       </div>
 
       {/* Spacer */}
       <div className="h-20" />
+
+      {/* Title section - matching album detail page style */}
+      <div className="px-4 mb-6">
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{config?.title || 'Stats'}</h1>
+        {subtitle && (
+          <p className="text-gray-400">{subtitle}</p>
+        )}
+      </div>
 
       <div className="px-4">
         {/* Songs */}
