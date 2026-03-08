@@ -32,7 +32,7 @@ function RecentlyAddedSkeleton() {
         </div>
       </div>
       {/* md to <1680px: 4-col, 2-row grid */}
-      <div className="hidden md:block min-[1680px]:hidden">
+      <div className="hidden md:block min-[1500px]:hidden">
         <div className="grid grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <SkeletonAlbumItem key={i} />
@@ -40,7 +40,7 @@ function RecentlyAddedSkeleton() {
         </div>
       </div>
       {/* >=1680px: 5-col, 2-row grid */}
-      <div className="hidden min-[1680px]:block">
+      <div className="hidden min-[1500px]:block">
         <div className="grid grid-cols-5 gap-3">
           {[...Array(10)].map((_, i) => (
             <SkeletonAlbumItem key={i} />
@@ -236,7 +236,7 @@ export default function RecentlyAdded() {
       </div>
 
       {/* Large screens: 2x4 grid (8 albums) on md to <1680px, 2x5 grid (10 albums) on >=1680px */}
-      <div className="hidden md:block min-[1680px]:hidden">
+      <div className="hidden md:block min-[1500px]:hidden">
         <div className="grid grid-cols-4 gap-3">
           {recentlyAdded.slice(0, 8).map((album) => (
             <RecentlyAddedAlbumItem
@@ -254,7 +254,7 @@ export default function RecentlyAdded() {
           ))}
         </div>
       </div>
-      <div className="hidden min-[1680px]:block">
+      <div className="hidden min-[1500px]:block">
         <div className="grid grid-cols-5 gap-3">
           {recentlyAdded.slice(0, 10).map((album) => (
             <RecentlyAddedAlbumItem

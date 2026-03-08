@@ -234,8 +234,8 @@ export default function Layout({ children }: LayoutProps) {
           scrollbarGutter: 'stable'
         }}
       >
-        <div className={`w-full mx-auto lg:flex lg:justify-center ${location.pathname === '/' ? 'max-w-[768px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
-          <div className={`w-full ${location.pathname === '/' ? 'max-w-[768px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
+        <div className={`w-full mx-auto lg:flex lg:justify-center ${location.pathname === '/' ? 'max-w-[768px] min-[1500px]:max-w-[968px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
+          <div className={`w-full ${location.pathname === '/' ? 'max-w-[768px] min-[1500px]:max-w-[968px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
             {children}
           </div>
         </div>

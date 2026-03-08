@@ -770,7 +770,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasRecentlyPlayed ? (
-        <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1680px]:block' : ''}>
+        <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1500px]:block' : ''}>
           {twoColumns ? (
             <>
               <div>

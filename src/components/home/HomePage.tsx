@@ -41,7 +41,7 @@ export default function HomePage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] min-[1680px]:max-w-[1080px] w-full mx-auto">
+        <div className="max-w-[768px] min-[1500px]:max-w-[968px] min-[1680px]:max-w-[1080px] w-full mx-auto">
           <SearchBar onSearchStateChange={setIsSearchActive} />
         </div>
       </div>
@@ -76,10 +76,10 @@ export default function HomePage() {
               mt-4 px-4
               ${activeFeedSections >= 2 ? 'md:grid md:gap-3' : ''}
               ${activeFeedSections === 2 ? 'md:grid-cols-2' : ''}
-              ${activeFeedSections >= 3 ? 'md:grid-cols-2 min-[1680px]:grid-cols-3' : ''}
+              ${activeFeedSections >= 3 ? 'md:grid-cols-2 min-[1500px]:grid-cols-3' : ''}
             `}>
               {showRecentlyPlayed && (
-                <div className={activeFeedSections === 3 ? 'md:col-span-2 min-[1680px]:col-span-1' : ''}>
+                <div className={activeFeedSections === 3 ? 'md:col-span-2 min-[1500px]:col-span-1' : ''}>
                   <RecentlyPlayedSection twoColumns={activeFeedSections === 3} />
                 </div>
               )}
