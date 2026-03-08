@@ -15,23 +15,7 @@ import { useMusicStore } from '../../stores/musicStore'
 import { computeStats } from '../../utils/statsComputer'
 import Pagination from '../shared/Pagination'
 
-const ITEMS_PER_PAGE = 100
-const FETCH_CONCURRENCY = 5
-
-async function batchFetch<T, R>(
-  items: T[],
-  fn: (item: T) => Promise<R>,
-  concurrency: number
-): Promise<R[]> {
-  const results: R[] = []
-  for (let i = 0; i < items.length; i += concurrency) {
-    const batch = items.slice(i, i + concurrency)
-    const batchResults = await Promise.all(batch.map(fn))
-    results.push(...batchResults)
-  }
-  return results
-}
-
+const ITEMS_PER_PAGE = 50
 const SHORT_MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -81,8 +65,6 @@ export default function StatsDetailPage() {
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<PlayEvent[]>([])
   const [page, setPage] = useState(0)
-  const [albumArtistOverrides, setAlbumArtistOverrides] = useState<Record<string, string>>({})
-
   const cat = (category || 'songs') as Category
   const config = CATEGORY_CONFIG[cat]
 
@@ -116,31 +98,6 @@ export default function StatsDetailPage() {
     const toDate = new Date(toYear, toM, 0)
     return computeStats(events, fromDate, toDate, { topLimit: Infinity })
   }, [events, fromMonth, toMonth])
-
-  // Fetch album artist overrides for albums category
-  useEffect(() => {
-    if (cat !== 'albums' || !stats?.topAlbums.length) return
-
-    const pageItems = stats.topAlbums.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
-    const itemsToFetch = pageItems.filter(a => !albumArtistOverrides[a.albumId])
-    if (itemsToFetch.length === 0) return
-
-    const fetchAlbumArtists = async () => {
-      const overrides: Record<string, string> = {}
-      await batchFetch(itemsToFetch, async (album) => {
-        try {
-          const albumDetails = await jellyfinClient.getAlbumById(album.albumId)
-          if (albumDetails?.AlbumArtist) {
-            overrides[album.albumId] = albumDetails.AlbumArtist
-          }
-        } catch { /* fallback to song artist */ }
-      }, FETCH_CONCURRENCY)
-      if (Object.keys(overrides).length > 0) {
-        setAlbumArtistOverrides(prev => ({ ...prev, ...overrides }))
-      }
-    }
-    fetchAlbumArtists()
-  }, [cat, stats?.topAlbums, page])
 
   const handlePlaySong = async (songId: string) => {
     const song = await jellyfinClient.getSongById(songId)
@@ -311,7 +268,7 @@ export default function StatsDetailPage() {
             {(pageItems as typeof stats.topAlbums).map((album, i) => {
               const rank = page * ITEMS_PER_PAGE + i + 1
               const imageUrl = jellyfinClient.getAlbumArtUrl(album.albumId, 96)
-              const displayArtist = albumArtistOverrides[album.albumId] || album.artistName
+              const displayArtist = album.artistName
               return (
                 <button
                   key={album.albumId}
