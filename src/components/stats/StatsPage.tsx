@@ -320,7 +320,7 @@ function TopSongItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2">{rank}</span>{songName}
+            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{songName}
           </div>
           <div className="text-zinc-400 text-sm truncate ml-[18px]">
             {artistId ? (
@@ -339,7 +339,7 @@ function TopSongItem({
             <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
           )}
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap">
+        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
           {plays} streams
         </div>
       </button>
@@ -457,10 +457,10 @@ function TopArtistItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2">{rank}</span>{artistName}
+            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{artistName}
           </div>
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap">
+        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
           {formatHours(hours)}
         </div>
       </button>
@@ -506,7 +506,7 @@ function HorizontalBar({
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(value)}</div>
+      <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(value)}</div>
     </Container>
   )
 }
@@ -647,7 +647,7 @@ function TopAlbumItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2">{rank}</span>{albumName}
+            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{albumName}
           </div>
           <div className="text-zinc-400 text-sm truncate ml-[18px]">
             {artistId ? (
@@ -663,7 +663,7 @@ function TopAlbumItem({
             ) : artistName}
           </div>
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap">
+        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
           {formatHours(hours)}
         </div>
       </button>

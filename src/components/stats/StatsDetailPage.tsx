@@ -181,132 +181,147 @@ export default function StatsDetailPage() {
 
       <div className="px-4">
         {/* Songs */}
-        {cat === 'songs' && (
-          <div className="space-y-1">
-            {(pageItems as typeof stats.topSongs).map((song, i) => {
-              const rank = page * ITEMS_PER_PAGE + i + 1
-              const imageUrl = jellyfinClient.getAlbumArtUrl(song.albumId, 96)
-              return (
-                <button
-                  key={song.songId}
-                  onClick={() => handlePlaySong(song.songId)}
-                  className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
-                >
-                  <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt={song.songName} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Music className="w-5 h-5 text-zinc-500" />
+        {cat === 'songs' && (() => {
+          return (
+            <div className="space-y-1">
+              {(pageItems as typeof stats.topSongs).map((song, i) => {
+                const rank = page * ITEMS_PER_PAGE + i + 1
+                const rankDigits = String(rank).length
+                const rankItemWidth = `${rankDigits * 0.6 + 0.2}rem`
+                const imageUrl = jellyfinClient.getAlbumArtUrl(song.albumId, 96)
+                return (
+                  <button
+                    key={song.songId}
+                    onClick={() => handlePlaySong(song.songId)}
+                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={song.songName} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Music className="w-5 h-5 text-zinc-500" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                        {song.songName}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                      <span className="text-zinc-500 mr-2">{rank}</span>{song.songName}
+                      <div className="text-zinc-400 text-sm truncate">
+                        <span
+                          className="clickable-text"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (song.artistId) navigate(`/artist/${song.artistId}`)
+                          }}
+                        >
+                          {song.artistName}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-zinc-400 text-sm truncate ml-[18px]">
-                      <span
-                        className="clickable-text"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (song.artistId) navigate(`/artist/${song.artistId}`)
-                        }}
-                      >
-                        {song.artistName}
-                      </span>
+                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                      {song.plays} streams
                     </div>
-                  </div>
-                  <div className="text-zinc-400 text-sm whitespace-nowrap">
-                    {song.plays} streams
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Artists */}
-        {cat === 'artists' && (
-          <div className="space-y-1">
-            {(pageItems as typeof stats.topArtists).map((artist, i) => {
-              const rank = page * ITEMS_PER_PAGE + i + 1
-              const imageUrl = jellyfinClient.getArtistImageUrl(artist.artistId, 96)
-              return (
-                <button
-                  key={artist.artistId}
-                  onClick={() => navigate(`/artist/${artist.artistId}`)}
-                  className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt={artist.artistName} className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-zinc-500" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                      <span className="text-zinc-500 mr-2">{rank}</span>{artist.artistName}
+        {cat === 'artists' && (() => {
+          return (
+            <div className="space-y-1">
+              {(pageItems as typeof stats.topArtists).map((artist, i) => {
+                const rank = page * ITEMS_PER_PAGE + i + 1
+                const rankDigits = String(rank).length
+                const rankItemWidth = `${rankDigits * 0.6 + 0.2}rem`
+                const imageUrl = jellyfinClient.getArtistImageUrl(artist.artistId, 96)
+                return (
+                  <button
+                    key={artist.artistId}
+                    onClick={() => navigate(`/artist/${artist.artistId}`)}
+                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={artist.artistName} className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-zinc-500" />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="text-zinc-400 text-sm whitespace-nowrap">
-                    {formatHours(artist.hours)}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
+                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                        {artist.artistName}
+                      </div>
+                    </div>
+                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                      {formatHours(artist.hours)}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Albums */}
-        {cat === 'albums' && (
-          <div className="space-y-1">
-            {(pageItems as typeof stats.topAlbums).map((album, i) => {
-              const rank = page * ITEMS_PER_PAGE + i + 1
-              const imageUrl = jellyfinClient.getAlbumArtUrl(album.albumId, 96)
-              const displayArtist = album.artistName
-              return (
-                <button
-                  key={album.albumId}
-                  onClick={() => navigate(`/album/${album.albumId}`)}
-                  className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
-                >
-                  <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt={album.albumName} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Disc className="w-5 h-5 text-zinc-500" />
+        {cat === 'albums' && (() => {
+          return (
+            <div className="space-y-1">
+              {(pageItems as typeof stats.topAlbums).map((album, i) => {
+                const rank = page * ITEMS_PER_PAGE + i + 1
+                const rankDigits = String(rank).length
+                const rankItemWidth = `${rankDigits * 0.6 + 0.2}rem`
+                const imageUrl = jellyfinClient.getAlbumArtUrl(album.albumId, 96)
+                const displayArtist = album.artistName
+                return (
+                  <button
+                    key={album.albumId}
+                    onClick={() => navigate(`/album/${album.albumId}`)}
+                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={album.albumName} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Disc className="w-5 h-5 text-zinc-500" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                        {album.albumName}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                      <span className="text-zinc-500 mr-2">{rank}</span>{album.albumName}
+                      <div className="text-zinc-400 text-sm truncate">
+                        <span
+                          className="clickable-text"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (album.artistId) navigate(`/artist/${album.artistId}`)
+                          }}
+                        >
+                          {displayArtist}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-zinc-400 text-sm truncate ml-[18px]">
-                      <span
-                        className="clickable-text"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (album.artistId) navigate(`/artist/${album.artistId}`)
-                        }}
-                      >
-                        {displayArtist}
-                      </span>
+                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                      {formatHours(album.hours)}
                     </div>
-                  </div>
-                  <div className="text-zinc-400 text-sm whitespace-nowrap">
-                    {formatHours(album.hours)}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Genres */}
         {cat === 'genres' && (() => {
@@ -324,7 +339,7 @@ export default function StatsDetailPage() {
                     onClick={genreItem ? () => navigate(`/genre/${encodeURIComponent(genreItem.Id)}`) : undefined}
                     className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group"
                   >
-                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0">{rank}</div>
+                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
                     <div className="w-36 text-zinc-300 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{genre.genre}</div>
                     <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
                       <div
@@ -332,7 +347,7 @@ export default function StatsDetailPage() {
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(genre.hours)}</div>
+                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(genre.hours)}</div>
                   </button>
                 )
               })}
@@ -357,7 +372,7 @@ export default function StatsDetailPage() {
                     onClick={() => navigate(`/?yearMin=${decadeStart}&yearMax=${decadeEnd}&genre=${encodeURIComponent(combo.genre)}`)}
                     className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group"
                   >
-                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0">{rank}</div>
+                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
                     <div className="w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{combo.decade} {combo.genre}</div>
                     <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
                       <div
@@ -365,7 +380,7 @@ export default function StatsDetailPage() {
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0">{formatHours(combo.hours)}</div>
+                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(combo.hours)}</div>
                   </button>
                 )
               })}
