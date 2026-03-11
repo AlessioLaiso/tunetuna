@@ -244,7 +244,7 @@ export default function StatsDetailPage() {
                   <button
                     key={artist.artistId}
                     onClick={() => navigate(`/artist/${artist.artistId}`)}
-                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                    className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
                     <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
                       {imageUrl ? (
