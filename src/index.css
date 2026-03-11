@@ -28,7 +28,7 @@
   --sidebar-width: 320px;
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1680px) {
   :root {
     --sidebar-width: 400px;
   }
