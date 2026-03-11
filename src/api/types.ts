@@ -38,6 +38,7 @@ export interface BaseItemDto {
     Logo?: string
     Art?: string
     Banner?: string
+    Disc?: string
   }
   AlbumArtists?: BaseItemDto[]
   ArtistItems?: BaseItemDto[]

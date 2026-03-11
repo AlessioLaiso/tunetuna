@@ -259,7 +259,7 @@ class JellyfinClient {
 
   getImageUrl(
     itemId: string,
-    imageType: 'Primary' | 'Logo' | 'Art' | 'Banner' | 'Backdrop' = 'Primary',
+    imageType: 'Primary' | 'Logo' | 'Art' | 'Banner' | 'Backdrop' | 'Disc' = 'Primary',
     maxWidth?: number
   ): string {
     if (!this.baseUrl || !itemId) return ''

@@ -129,6 +129,7 @@ export default function AlbumDetailPage() {
   const [albumContextMenuPosition, setAlbumContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [artistLogoUrl, setArtistLogoUrl] = useState<string | null>(null)
   const [hasArtistLogo, setHasArtistLogo] = useState(false)
+  const [discImageUrl, setDiscImageUrl] = useState<string | null>(null)
   const [showVinyl, setShowVinyl] = useState(false)
   const [hideAlbumArt, setHideAlbumArt] = useState(false)
   const reverseAnimationStartedRef = useRef<boolean>(false)
@@ -203,6 +204,13 @@ export default function AlbumDetailPage() {
         if (currentAlbum) {
           setAlbum(currentAlbum)
           setHasImage(true) // Reset image state when album changes
+
+          // Check if album has a Disc image from Jellyfin
+          if (currentAlbum.ImageTags?.Disc) {
+            setDiscImageUrl(jellyfinClient.getImageUrl(currentAlbum.Id, 'Disc', 600))
+          } else {
+            setDiscImageUrl(null)
+          }
         }
 
         // Load artist logo if available (skip for "Various Artists" — show album art instead)
@@ -575,66 +583,78 @@ export default function AlbumDetailPage() {
                       transform: `rotate(${rotationAngle}deg)`,
                     }}
                   >
-                    <img
-                      src="/assets/vinyl.png"
-                      alt="Vinyl Record"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        logger.error('Failed to load vinyl image')
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                    {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
-                    {((hasArtistLogo && artistLogoUrl) || hasImage) && (
-                      <div
-                        className="absolute top-1/2 left-1/2 rounded-full"
-                        style={{
-                          width: '52%',
-                          height: '52%',
-                          backgroundColor: '#a1a1aa', // zinc-400
-                          transform: 'translate(-50%, -50%)',
-                          transformOrigin: 'center center',
-                        }}
+                    {discImageUrl ? (
+                      /* Use Jellyfin's Disc image if available */
+                      <img
+                        src={discImageUrl}
+                        alt="Disc"
+                        className="w-full h-full object-cover rounded-full"
+                        onError={() => setDiscImageUrl(null)}
                       />
-                    )}
-                    {/* Artist Logo or Album Art Overlay - centered */}
-                    {hasArtistLogo && artistLogoUrl ? (
-                      <div
-                        className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                        style={{
-                          width: '47%',
-                          height: '47%',
-                          transform: 'translate(-50%, -50%)',
-                          transformOrigin: 'center center',
-                        }}
-                      >
+                    ) : (
+                      <>
                         <img
-                          src={artistLogoUrl}
-                          alt="Artist Logo"
-                          className="w-full h-full object-contain"
-                          onError={() => {
-                            setHasArtistLogo(false)
-                            setArtistLogoUrl(null)
+                          src="/assets/vinyl.png"
+                          alt="Vinyl Record"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            logger.error('Failed to load vinyl image')
+                            e.currentTarget.style.display = 'none'
                           }}
                         />
-                      </div>
-                    ) : hasImage ? (
-                      <div
-                        className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                        style={{
-                          width: '52%',
-                          height: '52%',
-                          transform: 'translate(-50%, -50%)',
-                          transformOrigin: 'center center',
-                        }}
-                      >
-                        <img
-                          src={jellyfinClient.getAlbumArtUrl(album.Id)}
-                          alt={album.Name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : null}
+                        {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
+                        {((hasArtistLogo && artistLogoUrl) || hasImage) && (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full"
+                            style={{
+                              width: '52%',
+                              height: '52%',
+                              backgroundColor: '#a1a1aa', // zinc-400
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          />
+                        )}
+                        {/* Artist Logo or Album Art Overlay - centered */}
+                        {hasArtistLogo && artistLogoUrl ? (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
+                            style={{
+                              width: '47%',
+                              height: '47%',
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          >
+                            <img
+                              src={artistLogoUrl}
+                              alt="Artist Logo"
+                              className="w-full h-full object-contain"
+                              onError={() => {
+                                setHasArtistLogo(false)
+                                setArtistLogoUrl(null)
+                              }}
+                            />
+                          </div>
+                        ) : hasImage ? (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
+                            style={{
+                              width: '52%',
+                              height: '52%',
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          >
+                            <img
+                              src={jellyfinClient.getAlbumArtUrl(album.Id)}
+                              alt={album.Name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
 
