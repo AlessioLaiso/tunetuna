@@ -26,6 +26,7 @@ import StatsCannedImage from './StatsCannedImage'
 import html2canvas from 'html2canvas'
 import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
+import Image from '../shared/Image'
 import { useLongPress } from '../../hooks/useLongPress'
 
 // Month names for display
@@ -206,22 +207,28 @@ function TimelineCard({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors text-center border ${isTop ? 'border-[var(--accent-color)]' : 'border-zinc-700'}`}
+      className="group flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors text-left border border-zinc-700"
     >
-      <div className="text-zinc-500 text-xs font-medium mb-2">
-        {formatMonthShort(month, showYear)}
-      </div>
-      <div className="w-16 h-16 rounded-full bg-zinc-700 overflow-hidden mb-2">
+      <div className="w-11 h-11 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 relative">
         {imageUrl ? (
           <img src={imageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <User className="w-6 h-6 text-zinc-500" />
+            <User className="w-5 h-5 text-zinc-500" />
           </div>
         )}
+        <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
       </div>
-      <div className="font-medium text-white text-sm truncate w-full">{artistName}</div>
-      <div className={`text-xs ${isTop ? 'text-[var(--accent-color)]' : 'text-zinc-400'}`}>{formatHours(hours)}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-zinc-400">
+          {formatMonthShort(month, showYear)}
+        </div>
+        <div className="font-medium text-white text-sm truncate group-hover:text-[var(--accent-color)] transition-colors">{artistName}</div>
+        <div className={`text-xs flex items-center gap-1 ${isTop ? 'text-[var(--accent-color)]' : 'text-zinc-400'}`}>
+          {formatHours(hours)}
+          {isTop && <TrendingUp className="w-3 h-3" />}
+        </div>
+      </div>
     </button>
   )
 }
@@ -309,14 +316,15 @@ function TopSongItem({
         {...longPressHandlers}
         className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
-        <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
-          {imageUrl ? (
-            <img src={imageUrl} alt={songName} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music className={`${iconSize} text-zinc-500`} />
-            </div>
-          )}
+        <div className={`${sizeClass} rounded-sm overflow-hidden flex-shrink-0`}>
+          <Image
+            src={imageUrl}
+            alt={songName}
+            className="w-full h-full object-cover"
+            showOutline={true}
+            rounded="rounded-sm"
+            fallbackIcon={Music}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
@@ -446,7 +454,7 @@ function TopArtistItem({
         {...longPressHandlers}
         className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
-        <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0`}>
+        <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 relative`}>
           {currentImageUrl ? (
             <img src={currentImageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
           ) : (
@@ -454,6 +462,7 @@ function TopArtistItem({
               <User className={`${iconSize} text-zinc-500`} />
             </div>
           )}
+          <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
@@ -636,14 +645,15 @@ function TopAlbumItem({
         {...longPressHandlers}
         className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
       >
-        <div className={`${sizeClass} rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0`}>
-          {imageUrl ? (
-            <img src={imageUrl} alt={albumName} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Disc className={`${iconSize} text-zinc-500`} />
-            </div>
-          )}
+        <div className={`${sizeClass} rounded-sm overflow-hidden flex-shrink-0`}>
+          <Image
+            src={imageUrl}
+            alt={albumName}
+            className="w-full h-full object-cover"
+            showOutline={true}
+            rounded="rounded-sm"
+            fallbackIcon={Disc}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
@@ -1072,7 +1082,7 @@ export default function StatsPage() {
         {stats.timeline.length >= 2 && (
           <>
             <SectionHeader icon={CalendarDays} title="Top Artist by Month" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {(() => {
                 const showYear = rangeHasDuplicateMonths(fromMonth, toMonth)
                 const maxHours = Math.max(...stats.timeline.map(t => t.hours))

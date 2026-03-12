@@ -5,6 +5,7 @@ import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucid
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import ContextMenu from './ContextMenu'
+import Image from './Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import type { LucideIcon } from 'lucide-react'
@@ -113,13 +114,14 @@ function SearchAlbumItem({ album, onClick, onArtistClick, onContextMenu, context
       className="text-left group"
       {...longPressHandlers}
     >
-      <div className="aspect-square rounded overflow-hidden mb-3 bg-zinc-900 shadow-lg relative flex items-center justify-center">
-        <img
+      <div className="aspect-square rounded overflow-hidden mb-3 bg-zinc-900 shadow-lg">
+        <Image
           src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
           alt={album.Name}
           className="w-full h-full object-cover"
+          showOutline={true}
+          rounded="rounded"
         />
-        <div className="absolute inset-0 pointer-events-none border border-white rounded" style={{ borderColor: 'rgba(255, 255, 255, 0.03)', borderWidth: '1px' }} />
       </div>
       <div className="text-sm font-semibold text-white truncate mb-1 group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
       <div className="text-xs text-gray-400 truncate">
@@ -200,11 +202,12 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
     >
       {showImage && (
         <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-          <img
+          <Image
             src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
             alt={song.Name}
             className="w-full h-full object-cover"
-            loading="lazy"
+            showOutline={true}
+            rounded="rounded-sm"
           />
         </div>
       )}
@@ -276,11 +279,12 @@ function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemPr
       {...longPressHandlers}
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
-        <img
+        <Image
           src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
           alt={playlist.Name}
           className="w-full h-full object-cover"
-          loading="lazy"
+          showOutline={true}
+          rounded="rounded-sm"
         />
       </div>
       <div className="flex-1 min-w-0 text-left">

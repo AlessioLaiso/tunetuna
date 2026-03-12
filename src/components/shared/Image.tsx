@@ -69,7 +69,7 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
       {showOutline && (
         <div
           className={`absolute inset-0 pointer-events-none border ${rounded}`}
-          style={{ borderColor: 'rgba(24, 24, 27, 0.6)', borderWidth: '1px' }}
+          style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }}
         />
       )}
     </div>

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Trash2, AlertTriangle, MoreHorizontal, BarChart3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ResponsiveModal from './ResponsiveModal'
 import PlatformPicker from './PlatformPicker'
+import MoreActionsPicker from './MoreActionsPicker'
+import type { MoreAction } from './MoreActionsPicker'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import PlaylistFormModal from '../playlists/PlaylistFormModal'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -69,6 +71,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [odesliData, setOdesliData] = useState<OdesliResponse | null>(null)
   const [odesliLoading, setOdesliLoading] = useState(false)
   const [odesliTitle, setOdesliTitle] = useState('')
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false)
+  const [moreActionsPosition, setMoreActionsPosition] = useState<{ x: number; y: number } | undefined>(undefined)
+  const [moreActionsList, setMoreActionsList] = useState<MoreAction[]>([])
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
   const [playlistPickerItemIds, setPlaylistPickerItemIds] = useState<string[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -84,7 +89,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
   const genres = useMusicStore(s => s.genres)
-  const { updateEventMetadata } = useStatsStore()
+  const { updateEventMetadata, logStream } = useStatsStore()
 
   const desktopMenuRef = useRef<HTMLDivElement>(null)
 
@@ -144,6 +149,45 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     if (extraActions?.some(a => a.id === action)) {
       onClose()
       onExtraAction?.(action, currentItem)
+      return
+    }
+
+    // Handle "More..." (opens secondary actions picker)
+    if (action === 'more') {
+      const menuRect = desktopMenuRef.current?.getBoundingClientRect()
+      setMoreActionsPosition(menuRect ? { x: menuRect.left, y: menuRect.top } : position)
+      // Build the list of secondary actions based on item type
+      const secondaryActions: MoreAction[] = []
+      if (currentItemType === 'album' || currentItemType === 'playlist') {
+        secondaryActions.push({ id: 'shuffle', label: 'Shuffle', icon: Shuffle })
+      }
+      if (currentItemType === 'album' || currentItemType === 'song') {
+        secondaryActions.push({ id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus })
+      }
+      if (currentItemType !== 'artist') {
+        secondaryActions.push({ id: 'sync', label: 'Sync', icon: RefreshCw })
+      }
+      if (currentItemType === 'album') {
+        // Fetch tracks to detect multi-disc albums
+        try {
+          const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+          const discNumbers = [...new Set(tracks.map(t => t.ParentIndexNumber ?? 1))].sort((a, b) => a - b)
+          secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+          if (discNumbers.length > 1) {
+            for (const disc of discNumbers) {
+              secondaryActions.push({ id: `logStreamDisc:${disc}`, label: `Log Disc ${disc} Stream`, icon: BarChart3 })
+            }
+          }
+        } catch {
+          secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+        }
+      }
+      if (currentItemType === 'song') {
+        secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+      }
+      setMoreActionsList(secondaryActions)
+      onClose()
+      setMoreActionsOpen(true)
       return
     }
 
@@ -338,6 +382,16 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             } catch (error) {
               completeSync(false, `Failed to sync ${currentItem.Name}`)
             }
+          } else if (action === 'logStream') {
+            const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            logStream(tracks)
+            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
+          } else if (action.startsWith('logStreamDisc:')) {
+            const discNum = parseInt(action.split(':')[1], 10)
+            const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+            const discTracks = tracks.filter(t => (t.ParentIndexNumber ?? 1) === discNum)
+            logStream(discTracks)
+            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
           }
           break
         }
@@ -382,6 +436,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               } catch (error) {
                 completeSync(false, `Failed to sync ${currentItem.Name}`)
               }
+          } else if (action === 'logStream') {
+            logStream([currentItem])
+            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
           }
           break
         }
@@ -480,7 +537,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setLoading(false)
       setLoadingAction(null)
     }
-  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync])
+  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync, logStream])
+
+  const handleMoreAction = useCallback((actionId: string) => {
+    setMoreActionsOpen(false)
+    // Delegate to the main handler which still has the item via ref
+    handleAction(actionId)
+  }, [handleAction])
 
   const handleDeletePlaylist = async () => {
     if (!deleteTargetId) return
@@ -559,6 +622,16 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           position={position}
           jellyfinItemId={platformPickerJellyfinId}
         />
+        <MoreActionsPicker
+          isOpen={moreActionsOpen}
+          onClose={() => setMoreActionsOpen(false)}
+          actions={moreActionsList}
+          loading={loading}
+          loadingAction={loadingAction}
+          onAction={handleMoreAction}
+          mode={mode}
+          position={moreActionsPosition}
+        />
         {playlistModals}
       </>
     )
@@ -574,14 +647,12 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         const genreName = fetchedGenreName || 'Genre'
         return [
           { id: 'play', label: 'Play', icon: Play },
-          { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
           { id: 'playNext', label: 'Play Next', icon: ListStart },
           { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
-          { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
-          { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
+          { id: 'more', label: 'More\u2026', icon: MoreHorizontal },
         ]
       }
       case 'song': {
@@ -596,10 +667,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'goToAlbum', label: `Go to ${albumName}`, icon: Disc },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
-          { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
           ...(extraActions || []),
-          { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
+          { id: 'more', label: 'More\u2026', icon: MoreHorizontal },
         ]
         return baseActions
       }
@@ -623,8 +693,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             { id: 'playNext', label: 'Play Next', icon: ListStart },
             { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
           ] : []),
-          { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
+          { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
           { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
           { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
         ]
@@ -647,6 +717,19 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       mode={mode}
       position={platformPickerPosition}
       jellyfinItemId={platformPickerJellyfinId}
+    />
+  )
+
+  const moreActionsPicker = (
+    <MoreActionsPicker
+      isOpen={moreActionsOpen}
+      onClose={() => setMoreActionsOpen(false)}
+      actions={moreActionsList}
+      loading={loading}
+      loadingAction={loadingAction}
+      onAction={handleMoreAction}
+      mode={mode}
+      position={moreActionsPosition}
     />
   )
 
@@ -715,6 +798,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           </div>
         </div>
         {platformPicker}
+        {moreActionsPicker}
         {playlistModals}
       </>
     )
@@ -755,6 +839,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         </div>
       </ResponsiveModal>
       {platformPicker}
+      {moreActionsPicker}
       {playlistModals}
     </>
   )

@@ -105,6 +105,8 @@ interface StatsState {
   remapEvents: () => Promise<{ remapped: number; unmatched: number }>
   /** Removes all events whose songId doesn't match the current library */
   removeMismatchedEvents: () => Promise<{ removed: number; kept: number }>
+  /** Logs a stream (play event) for each track, bypassing the duration threshold */
+  logStream: (tracks: BaseItemDto[]) => void
 }
 
 const indexedDBStorage = createIndexedDBStorage<StatsState>('tunetuna-stats-storage')
@@ -268,6 +270,15 @@ export const useStatsStore = create<StatsState>()(
         })
 
         // Always attempt to sync - if server is down, events stay pending for retry
+        get().syncToServer()
+      },
+
+      logStream: (tracks) => {
+        if (!useSettingsStore.getState().statsTrackingEnabled) return
+
+        const { pendingEvents } = get()
+        const newEvents = tracks.map(track => createPlayEvent(track))
+        set({ pendingEvents: [...pendingEvents, ...newEvents] })
         get().syncToServer()
       },
 

@@ -14,6 +14,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { computeStats } from '../../utils/statsComputer'
 import Pagination from '../shared/Pagination'
+import Image from '../shared/Image'
 
 const ITEMS_PER_PAGE = 50
 const SHORT_MONTH_NAMES = [
@@ -195,14 +196,15 @@ export default function StatsDetailPage() {
                     onClick={() => handlePlaySong(song.songId)}
                     className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
-                    <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={song.songName} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Music className="w-5 h-5 text-zinc-500" />
-                        </div>
-                      )}
+                    <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0">
+                      <Image
+                        src={imageUrl}
+                        alt={song.songName}
+                        className="w-full h-full object-cover"
+                        showOutline={true}
+                        rounded="rounded-sm"
+                        fallbackIcon={Music}
+                      />
                     </div>
                     <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -246,14 +248,15 @@ export default function StatsDetailPage() {
                     onClick={() => navigate(`/artist/${artist.artistId}`)}
                     className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
-                    <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={artist.artistName} className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-zinc-500" />
-                        </div>
-                      )}
+                    <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                      <Image
+                        src={imageUrl}
+                        alt={artist.artistName}
+                        className="w-full h-full object-cover"
+                        showOutline={true}
+                        rounded="rounded-full"
+                        fallbackIcon={User}
+                      />
                     </div>
                     <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0">
@@ -287,14 +290,15 @@ export default function StatsDetailPage() {
                     onClick={() => navigate(`/album/${album.albumId}`)}
                     className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
-                    <div className="w-12 h-12 rounded-sm bg-zinc-700 overflow-hidden flex-shrink-0">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={album.albumName} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Disc className="w-5 h-5 text-zinc-500" />
-                        </div>
-                      )}
+                    <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0">
+                      <Image
+                        src={imageUrl}
+                        alt={album.albumName}
+                        className="w-full h-full object-cover"
+                        showOutline={true}
+                        rounded="rounded-sm"
+                        fallbackIcon={Disc}
+                      />
                     </div>
                     <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">

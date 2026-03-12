@@ -223,7 +223,7 @@ export default function ArtistDetailPage() {
   const [artistContextMenuOpen, setArtistContextMenuOpen] = useState(false)
   const [artistContextMenuMode, setArtistContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [artistContextMenuPosition, setArtistContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Alphabetical')
+  const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>('Newest')
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
   const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
   const bioMeasureRef = useRef<HTMLParagraphElement | null>(null)
@@ -676,9 +676,9 @@ export default function ArtistDetailPage() {
 
   const cycleSongSortOrder = () => {
     setSongSortOrder((current) => {
-      if (current === 'Alphabetical') return 'Newest'
       if (current === 'Newest') return 'Oldest'
-      return 'Alphabetical'
+      if (current === 'Oldest') return 'Alphabetical'
+      return 'Newest'
     })
   }
 

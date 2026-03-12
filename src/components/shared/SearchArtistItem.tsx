@@ -93,7 +93,7 @@ const SearchArtistItem = memo(function SearchArtistItem({
       className={`group w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       aria-label={`Go to artist ${artist.Name}`}
     >
-      <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
+      <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center relative">
         {imageError ? (
           <User className="w-6 h-6 text-gray-500" />
         ) : imageUrl ? (
@@ -107,6 +107,7 @@ const SearchArtistItem = memo(function SearchArtistItem({
         ) : (
           <User className="w-6 h-6 text-gray-500" />
         )}
+        <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-base font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
