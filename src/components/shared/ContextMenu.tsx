@@ -186,7 +186,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
       }
       setMoreActionsList(secondaryActions)
-      onClose()
+      // Don't call onClose() here — it would null out the item in parent components,
+      // causing itemRef to lose the reference before the secondary action runs.
+      // Instead, just open the more actions picker (primary menu hides via moreActionsOpen state).
       setMoreActionsOpen(true)
       return
     }
@@ -624,7 +626,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         />
         <MoreActionsPicker
           isOpen={moreActionsOpen}
-          onClose={() => setMoreActionsOpen(false)}
+          onClose={() => { setMoreActionsOpen(false); onClose() }}
           actions={moreActionsList}
           loading={loading}
           loadingAction={loadingAction}
@@ -723,7 +725,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const moreActionsPicker = (
     <MoreActionsPicker
       isOpen={moreActionsOpen}
-      onClose={() => setMoreActionsOpen(false)}
+      onClose={() => { setMoreActionsOpen(false); onClose() }}
       actions={moreActionsList}
       loading={loading}
       loadingAction={loadingAction}
@@ -734,7 +736,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   )
 
   // Floating menu for desktop right-clicks
-  if (mode === 'desktop' && isOpen) {
+  if (mode === 'desktop' && isOpen && !moreActionsOpen) {
     // Calculate position to keep menu within viewport
     const menuWidth = 240 // Estimated width
     const menuHeight = Math.min(400, actions.length * 44 + 8) // Estimated height based on actions
@@ -807,7 +809,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   // Mobile mode - use ResponsiveModal
   return (
     <>
-      <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
+      <ResponsiveModal isOpen={isOpen && !moreActionsOpen} onClose={onClose} zIndex={zIndex}>
         <div className="pb-6">
           <div className="mb-4 ml-4">
             <div className="text-lg font-semibold text-white break-words">{itemName}</div>
