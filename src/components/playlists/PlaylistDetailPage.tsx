@@ -593,22 +593,25 @@ export default function PlaylistDetailPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            {!isMoodRoute && (
-              <button
-                onClick={(e) => {
+            <button
+              onClick={(e) => {
+                if (window.innerWidth < 768) {
+                  setPlaylistContextMenuMode('mobile')
+                  setPlaylistContextMenuPosition(null)
+                } else {
                   const rect = e.currentTarget.getBoundingClientRect()
                   setPlaylistContextMenuMode('desktop')
                   setPlaylistContextMenuPosition({
                     x: rect.left + rect.width / 2,
                     y: rect.bottom + 5
                   })
-                  setPlaylistContextMenuOpen(true)
-                }}
-                className="text-white hover:text-zinc-300 transition-colors"
-              >
-                <MoreHorizontal className="w-6 h-6" />
-              </button>
-            )}
+                }
+                setPlaylistContextMenuOpen(true)
+              }}
+              className="text-white hover:text-zinc-300 transition-colors"
+            >
+              <MoreHorizontal className="w-6 h-6" />
+            </button>
           </div>
         </div>
       </div>
@@ -822,13 +825,14 @@ export default function PlaylistDetailPage() {
       />
       <ContextMenu
         item={playlist}
-        itemType="playlist"
+        itemType={isMoodRoute ? 'mood' : 'playlist'}
         isOpen={playlistContextMenuOpen}
         onClose={() => {
           setPlaylistContextMenuOpen(false)
         }}
         mode={playlistContextMenuMode}
         position={playlistContextMenuPosition || undefined}
+        tracks={isMoodRoute ? sortedTracks : undefined}
       />
     </div>
   )

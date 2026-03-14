@@ -27,7 +27,7 @@ const JellyfinIcon = ({ className }: { className?: string }) => (
 
 interface ContextMenuProps {
   item: BaseItemDto | LightweightSong | null
-  itemType: 'album' | 'song' | 'artist' | 'playlist' | null
+  itemType: 'album' | 'song' | 'artist' | 'playlist' | 'mood' | null
   isOpen: boolean
   onClose: () => void
   zIndex?: number
@@ -49,6 +49,10 @@ interface ContextMenuProps {
    */
   position?: { x: number, y: number }
   /**
+   * Pre-fetched tracks for item types that don't have a Jellyfin ID to fetch from (e.g. mood)
+   */
+  tracks?: BaseItemDto[]
+  /**
    * Additional actions appended to the action list (e.g. "Remove from Playlist")
    */
   extraActions?: Array<{ id: string; label: string; icon: LucideIcon }>
@@ -59,7 +63,7 @@ interface ContextMenuProps {
 }
 
 
-export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position, extraActions, onExtraAction }: ContextMenuProps) {
+export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, onNavigate, mode = 'mobile', position, tracks: providedTracks, extraActions, onExtraAction }: ContextMenuProps) {
 
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -555,6 +559,24 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           }
           break
         }
+        case 'mood': {
+          const tracks = providedTracks || []
+          if (tracks.length === 0) break
+          if (action === 'play') {
+            const { shuffle } = usePlayerStore.getState()
+            if (shuffle) {
+              toggleShuffle()
+            }
+            playAlbum(tracks)
+          } else if (action === 'shuffle') {
+            shuffleArtist(tracks)
+          } else if (action === 'playNext') {
+            playNext(tracks)
+          } else if (action === 'addToQueue') {
+            addToQueueWithToast(tracks)
+          }
+          break
+        }
       }
       onClose()
     } catch (error) {
@@ -563,7 +585,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setLoading(false)
       setLoadingAction(null)
     }
-  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync, logStream])
+  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync, logStream, providedTracks])
 
   const handleMoreAction = useCallback((actionId: string) => {
     setMoreActionsOpen(false)
@@ -762,6 +784,14 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           { id: 'duplicatePlaylist', label: 'Duplicate Playlist', icon: Copy },
           { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
           { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
+        ]
+      }
+      case 'mood': {
+        return [
+          { id: 'play', label: 'Play', icon: Play },
+          { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
+          { id: 'playNext', label: 'Play Next', icon: ListStart },
+          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
         ]
       }
       default:
