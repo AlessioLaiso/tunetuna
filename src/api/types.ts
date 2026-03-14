@@ -90,6 +90,7 @@ export interface LightweightSong {
   IndexNumber?: number
   ProductionYear?: number
   PremiereDate?: string
+  DateCreated?: string
   RunTimeTicks?: number
   Genres?: string[]
   Grouping?: string[]

@@ -26,6 +26,8 @@ const GenreSongsPage = lazy(() => import('./components/genres/GenreSongsPage'))
 const StatsPage = lazy(() => import('./components/stats/StatsPage'))
 const StatsDetailPage = lazy(() => import('./components/stats/StatsDetailPage'))
 const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
+const SmartPlaylistDetailPage = lazy(() => import('./components/smart/SmartPlaylistDetailPage'))
+const SmartPickerPage = lazy(() => import('./components/smart/SmartPickerPage'))
 
 // Loading fallback component
 function PageLoader() {
@@ -89,6 +91,8 @@ function App() {
               <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
               <Route path="/song/:id" element={withErrorBoundary(<SongDetailPage />, 'Song')} />
               <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
+              <Route path="/smart/picker/:pickerId" element={withErrorBoundary(<SmartPickerPage />, 'Smart Picker')} />
+              <Route path="/smart/:smartId" element={withErrorBoundary(<SmartPlaylistDetailPage />, 'Smart Playlist')} />
               <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
               {pageVisibility.artists && (
                 <>

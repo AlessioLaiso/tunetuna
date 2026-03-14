@@ -741,6 +741,7 @@ class JellyfinClient {
       IndexNumber: song.IndexNumber,
       ProductionYear: song.ProductionYear,
       PremiereDate: song.PremiereDate,
+      DateCreated: song.DateCreated,
       RunTimeTicks: song.RunTimeTicks,
       Genres: song.Genres,
       Grouping: extractGroupingFromTags(song.Tags)
@@ -894,6 +895,7 @@ class JellyfinClient {
         IndexNumber: song.IndexNumber,
         ProductionYear: song.ProductionYear,
         PremiereDate: song.PremiereDate,
+        DateCreated: song.DateCreated,
         RunTimeTicks: song.RunTimeTicks,
         Genres: song.Genres,
         Grouping: extractGroupingFromTags(song.Tags)

@@ -323,7 +323,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div className="p-3 bg-zinc-900 rounded-lg">
               <div className="flex items-center justify-between">
-                <label className="text-white font-medium">Mood Cards</label>
+                <label className="text-white font-medium">Mixes</label>
                 <button
                   onClick={() => setShowMoodCards(!showMoodCards)}
                   className={`relative w-12 h-6 rounded-full transition-colors ${showMoodCards ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
@@ -334,7 +334,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Requires the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>. Set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'.
+                Some mixes require the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>. For moods, set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'. For languages, set grouping as 'language_value1'.
               </p>
             </div>
 
