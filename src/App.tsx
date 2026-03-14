@@ -8,6 +8,8 @@ import ScrollToTop from './ScrollToTop'
 import ToastContainer from './components/shared/Toast'
 import ComponentErrorBoundary from './components/shared/ComponentErrorBoundary'
 import { useServerUrlResolver } from './hooks/useServerUrlResolver'
+import { jellyfinClient } from './api/jellyfin'
+import { useToastStore } from './stores/toastStore'
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
@@ -45,6 +47,17 @@ function App() {
 
   // Re-probe local/remote server URL on foreground
   useServerUrlResolver()
+
+  // Handle 401 from Jellyfin API — session expired
+  useEffect(() => {
+    let handled = false
+    jellyfinClient.setOnUnauthorized(() => {
+      if (handled) return
+      handled = true
+      useToastStore.getState().addToast('Session expired — please log in again', 'error', 5000)
+      logout()
+    })
+  }, [logout])
 
   // Handle logout via URL parameter (e.g. ?logout=true)
   // Must be called before any conditional returns to ensure consistent hook order

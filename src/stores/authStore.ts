@@ -62,6 +62,9 @@ export const useAuthStore = create<AuthState>()(
         indexedDB.deleteDatabase('tunetuna-storage')
         indexedDB.deleteDatabase('tunetuna-stats-storage')
 
+        // Clear in-memory API client credentials
+        jellyfinClient.setCredentials('', '', '')
+
         // Reset auth state and remove auth storage last
         set({
           serverUrl: '',

@@ -45,6 +45,12 @@ class JellyfinClient {
   private isPreloading: boolean = false
   // Request deduplication: cache in-flight requests to avoid duplicate API calls
   private pendingRequests = new Map<string, Promise<unknown>>()
+  // Callback for 401 handling — set from app layer to avoid circular imports
+  private onUnauthorized: (() => void) | null = null
+
+  setOnUnauthorized(callback: () => void) {
+    this.onUnauthorized = callback
+  }
 
   get serverBaseUrl(): string {
     return this.baseUrl
@@ -135,8 +141,8 @@ class JellyfinClient {
 
         if (!response.ok) {
           if (response.status === 401) {
-            // Clear tracking state on auth failure to prevent memory leaks
             clearPlaybackTrackingState()
+            this.onUnauthorized?.()
             throw new Error('Unauthorized - please login again')
           }
           throw new Error(`API request failed: ${response.statusText}`)
@@ -184,6 +190,7 @@ class JellyfinClient {
         if (!response.ok) {
           if (response.status === 401) {
             clearPlaybackTrackingState()
+            this.onUnauthorized?.()
             throw new Error('Unauthorized - please login again')
           }
           throw new Error(`API request failed: ${response.statusText}`)

@@ -72,18 +72,25 @@ export function createIndexedDBStorage<T>(dbName: string) {
       }
     },
     setItem: async (name: string, value: StorageValue<T>): Promise<void> => {
-      const db = await getDB()
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['zustand'], 'readwrite')
-        const store = transaction.objectStore('zustand')
-        const setRequest = store.put(JSON.stringify(value), name)
-        setRequest.onsuccess = () => {
-          resolve()
-        }
-        setRequest.onerror = () => {
-          reject(setRequest.error)
-        }
-      })
+      try {
+        const db = await getDB()
+        return await new Promise((resolve, reject) => {
+          const transaction = db.transaction(['zustand'], 'readwrite')
+          const store = transaction.objectStore('zustand')
+          const setRequest = store.put(JSON.stringify(value), name)
+          setRequest.onsuccess = () => {
+            resolve()
+          }
+          setRequest.onerror = () => {
+            reject(setRequest.error)
+          }
+        })
+      } catch (error) {
+        logger.error(`IndexedDB write failed for ${dbName}/${name}:`, error)
+        // Import dynamically to avoid circular dependency
+        const { useToastStore } = await import('../stores/toastStore')
+        useToastStore.getState().addToast('Storage full — some data may not be saved', 'error', 5000)
+      }
     },
     removeItem: async (name: string): Promise<void> => {
       try {
