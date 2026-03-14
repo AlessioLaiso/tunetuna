@@ -3,11 +3,13 @@ import { useLocation } from 'react-router-dom'
 import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
+import SleepTimerBar from '../shared/SleepTimerBar'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSyncStore } from '../../stores/syncStore'
+import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -53,6 +55,7 @@ export default function Layout({ children }: LayoutProps) {
   const songs = useMusicStore(s => s.songs)
   const genreSongs = useMusicStore(s => s.genreSongs)
   const syncState = useSyncStore(s => s.state)
+  const sleepTimerMode = useSleepTimerStore(s => s.mode)
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
 
@@ -64,11 +67,14 @@ export default function Layout({ children }: LayoutProps) {
     document.documentElement.style.setProperty('--accent-color', colorHex)
   }, [accentColor])
 
-  // Update header offset when sync state changes
+  // Update header offset when sync state or sleep timer changes
+  const isSyncActive = syncState !== 'idle'
+  const isSleepTimerActive = sleepTimerMode !== 'off'
   useEffect(() => {
-    const headerOffset = syncState !== 'idle' ? '28px' : '0px'
+    const bars = (isSyncActive ? 1 : 0) + (isSleepTimerActive ? 1 : 0)
+    const headerOffset = bars > 0 ? `${bars * 28}px` : '0px'
     document.documentElement.style.setProperty('--header-offset', headerOffset)
-  }, [syncState])
+  }, [isSyncActive, isSleepTimerActive])
 
   // Preload genres in background if not already loaded
   useEffect(() => {
@@ -199,7 +205,8 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, [songs.length, genreSongs])
 
-  const topOffset = syncState !== 'idle' ? '28px' : '0px'
+  const topBars = (isSyncActive ? 1 : 0) + (isSleepTimerActive ? 1 : 0)
+  const topOffset = topBars > 0 ? `${topBars * 28}px` : '0px'
 
   return (
     <>
@@ -208,10 +215,11 @@ export default function Layout({ children }: LayoutProps) {
         className="fixed top-0 right-0 bg-black z-50 pointer-events-none left-0 lg:left-8"
         style={{
           height: `env(safe-area-inset-top)`,
-          top: syncState !== 'idle' ? '28px' : '0px'
+          top: topOffset
         }}
       />
       <SyncStatusBar />
+      <SleepTimerBar topOffset={isSyncActive ? 28 : 0} />
       {/* Fixed overlay to hide content behind TabBar - only on mobile */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none lg:hidden"
@@ -226,7 +234,7 @@ export default function Layout({ children }: LayoutProps) {
         className={`main-scrollable h-screen bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
         style={{
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
-          paddingTop: syncState !== 'idle' ? '28px' : '0',
+          paddingTop: topOffset,
           overflowY: 'auto',
           overflowX: 'hidden',
           maxWidth: '100vw',

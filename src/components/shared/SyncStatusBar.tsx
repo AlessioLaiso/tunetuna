@@ -31,12 +31,12 @@ export default function SyncStatusBar() {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-[10002] ${getBackgroundColor()} transition-colors duration-300`}
+      className={`fixed top-0 left-0 right-0 z-[10002] ${getBackgroundColor()} transition-colors duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
       style={{
         height: '28px',
         top: '0px',
         paddingLeft: '16px',
-        paddingRight: isQueueSidebarOpen ? 'var(--sidebar-width)' : '12px',
+        paddingRight: '12px',
         scrollbarGutter: 'stable'
       }}
     >

@@ -10,9 +10,11 @@ import QueueView from './QueueView'
 import QueueList from './QueueList'
 import LyricsModal from './LyricsModal'
 import VolumeControl from '../layout/VolumeControl'
-import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus } from 'lucide-react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus, Moon } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
+import SleepTimerPicker from './SleepTimerPicker'
 import QueueMenu from './QueueMenu'
+import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { useNavigate } from 'react-router-dom'
 import { isIOS } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
@@ -52,6 +54,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   const displayTrack = currentTrack || lastPlayedTrack
   const [showQueue, setShowQueue] = useState(false)
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
+  const [sleepTimerPickerOpen, setSleepTimerPickerOpen] = useState(false)
+  const sleepTimerMode = useSleepTimerStore(s => s.mode)
 
   // Ensure queue view is closed on mount to prevent flash
   useEffect(() => {
@@ -505,9 +509,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           }`}
         style={{
           top: `var(--header-offset, 0px)`,
-          paddingTop: `calc(env(safe-area-inset-top) + var(--header-offset, 0px))`,
+          paddingTop: `env(safe-area-inset-top)`,
           bottom: `calc(-1 * env(safe-area-inset-bottom))`,
-          height: `calc(100% + env(safe-area-inset-bottom) + var(--header-offset, 0px))`,
+          height: `calc(100% - var(--header-offset, 0px) + env(safe-area-inset-bottom))`,
           transition: touchStartY.current === null ? 'transform 300ms ease-out' : 'none'
         }}
       >
@@ -573,15 +577,26 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </h2>
             )}
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
-              {/* Save queue to playlist button - only on mobile queue view (below xl) */}
+              {/* Sleep timer and save queue buttons - only on mobile queue view (below xl) */}
               {showQueue && songs.length > 0 && (
-                <button
-                  onClick={() => setPlaylistPickerOpen(true)}
-                  aria-label="Save queue to playlist"
-                  className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
-                >
-                  <ListPlus className="w-6 h-6" />
-                </button>
+                <>
+                  <button
+                    onClick={() => setSleepTimerPickerOpen(true)}
+                    aria-label="Pause playback timer"
+                    className={`hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden ${
+                      sleepTimerMode !== 'off' ? 'text-[var(--accent-color)]' : 'text-white'
+                    }`}
+                  >
+                    <Moon className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => setPlaylistPickerOpen(true)}
+                    aria-label="Save queue to playlist"
+                    className="text-white hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden"
+                  >
+                    <ListPlus className="w-6 h-6" />
+                  </button>
+                </>
               )}
               {/* Volume button - shown below 768 normally, below 1280 when in queue */}
               <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'}`}>
@@ -890,6 +905,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         isOpen={playlistPickerOpen}
         onClose={() => setPlaylistPickerOpen(false)}
         itemIds={songs.map(s => s.Id)}
+      />
+      <SleepTimerPicker
+        isOpen={sleepTimerPickerOpen}
+        onClose={() => setSleepTimerPickerOpen(false)}
       />
     </>
   )

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { MoreHorizontal, ListPlus } from 'lucide-react'
+import { MoreHorizontal, ListPlus, Moon } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import PlaylistPicker from '../playlists/PlaylistPicker'
+import SleepTimerPicker from './SleepTimerPicker'
 
 interface QueueMenuProps {
   buttonClassName?: string
@@ -13,8 +15,10 @@ export default function QueueMenu({
   menuClassName = '',
 }: QueueMenuProps) {
   const songs = usePlayerStore((s) => s.songs)
+  const sleepTimerMode = useSleepTimerStore((s) => s.mode)
   const [menuOpen, setMenuOpen] = useState(false)
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
+  const [sleepTimerPickerOpen, setSleepTimerPickerOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -62,6 +66,16 @@ export default function QueueMenu({
               <ListPlus className="w-4 h-4 text-gray-400" />
               Add Queue to Playlist
             </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false)
+                setSleepTimerPickerOpen(true)
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-zinc-800 transition-colors"
+            >
+              <Moon className={`w-4 h-4 ${sleepTimerMode !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400'}`} />
+              Pause Playback
+            </button>
           </div>
         )}
       </div>
@@ -69,6 +83,10 @@ export default function QueueMenu({
         isOpen={playlistPickerOpen}
         onClose={() => setPlaylistPickerOpen(false)}
         itemIds={songs.map((s) => s.Id)}
+      />
+      <SleepTimerPicker
+        isOpen={sleepTimerPickerOpen}
+        onClose={() => setSleepTimerPickerOpen(false)}
       />
     </>
   )
