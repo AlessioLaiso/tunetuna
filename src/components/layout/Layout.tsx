@@ -4,6 +4,8 @@ import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
 import SleepTimerBar from '../shared/SleepTimerBar'
+import ConnectionStatusBar from '../shared/ConnectionStatusBar'
+import { useConnectionStatus } from '../../hooks/useConnectionStatus'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -58,6 +60,7 @@ export default function Layout({ children }: LayoutProps) {
   const sleepTimerMode = useSleepTimerStore(s => s.mode)
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
+  const connection = useConnectionStatus()
 
   const { isQueueSidebarOpen } = usePlayerStore()
   const autoSyncTriggered = useRef(false)
@@ -67,14 +70,15 @@ export default function Layout({ children }: LayoutProps) {
     document.documentElement.style.setProperty('--accent-color', colorHex)
   }, [accentColor])
 
-  // Update header offset when sync state or sleep timer changes
+  // Update header offset when status bars change
   const isSyncActive = syncState !== 'idle'
   const isSleepTimerActive = sleepTimerMode !== 'off'
+  const isConnectionBarVisible = connection.isVisible
   useEffect(() => {
-    const bars = (isSyncActive ? 1 : 0) + (isSleepTimerActive ? 1 : 0)
+    const bars = (isConnectionBarVisible ? 1 : 0) + (isSyncActive ? 1 : 0) + (isSleepTimerActive ? 1 : 0)
     const headerOffset = bars > 0 ? `${bars * 28}px` : '0px'
     document.documentElement.style.setProperty('--header-offset', headerOffset)
-  }, [isSyncActive, isSleepTimerActive])
+  }, [isSyncActive, isSleepTimerActive, isConnectionBarVisible])
 
   // Preload genres in background if not already loaded
   useEffect(() => {
@@ -205,8 +209,14 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, [songs.length, genreSongs])
 
-  const topBars = (isSyncActive ? 1 : 0) + (isSleepTimerActive ? 1 : 0)
-  const topOffset = topBars > 0 ? `${topBars * 28}px` : '0px'
+  // Stack bars: connection (top) → sync → sleep timer
+  let nextBarOffset = 0
+  const connectionBarOffset = nextBarOffset
+  if (isConnectionBarVisible) nextBarOffset += 28
+  const syncBarOffset = nextBarOffset
+  if (isSyncActive) nextBarOffset += 28
+  const sleepTimerBarOffset = nextBarOffset
+  const topOffset = nextBarOffset > 0 ? `${nextBarOffset}px` : '0px'
 
   return (
     <>
@@ -218,8 +228,11 @@ export default function Layout({ children }: LayoutProps) {
           top: topOffset
         }}
       />
-      <SyncStatusBar />
-      <SleepTimerBar topOffset={isSyncActive ? 28 : 0} />
+      {isConnectionBarVisible && (
+        <ConnectionStatusBar state={connection.state} dismiss={connection.dismiss} topOffset={connectionBarOffset} />
+      )}
+      <SyncStatusBar topOffset={syncBarOffset} />
+      <SleepTimerBar topOffset={sleepTimerBarOffset} />
       {/* Fixed overlay to hide content behind TabBar - only on mobile */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none lg:hidden"

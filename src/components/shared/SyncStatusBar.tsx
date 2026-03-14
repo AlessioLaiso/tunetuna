@@ -1,27 +1,23 @@
 import { useSyncStore } from '../../stores/syncStore'
-import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { getLockedLocalServerUrl } from '../../utils/config'
+import StatusBar from './StatusBar'
 
-export default function SyncStatusBar() {
+interface SyncStatusBarProps {
+  topOffset?: number
+}
+
+export default function SyncStatusBar({ topOffset = 0 }: SyncStatusBarProps) {
   const state = useSyncStore(s => s.state)
   const message = useSyncStore(s => s.message)
   const progress = useSyncStore(s => s.progress)
   const cancelSync = useSyncStore(s => s.cancelSync)
-  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const localServerUrl = useSettingsStore((s) => s.localServerUrl)
 
   if (state === 'idle') return null
 
-  const getBackgroundColor = () => {
-    switch (state) {
-      case 'syncing': return 'bg-zinc-800'
-      case 'success': return 'bg-green-800'
-      case 'error': return 'bg-red-800'
-      default: return 'bg-zinc-800'
-    }
-  }
+  const backgroundColor = state === 'success' ? 'bg-green-800' : state === 'error' ? 'bg-red-800' : 'bg-zinc-800'
 
   // When a local URL is configured, show which server is being used during sync
   const localUrl = getLockedLocalServerUrl() || localServerUrl
@@ -29,30 +25,14 @@ export default function SyncStatusBar() {
     ? (jellyfinClient.serverBaseUrl === localUrl.replace(/\/$/, '') ? 'Syncing via LAN server...' : 'Syncing via remote server...')
     : message
 
+  const fullMessage = displayMessage + (state === 'syncing' && progress !== null ? ` (${progress}%)` : '')
+
   return (
-    <div
-      className={`fixed top-0 left-0 right-0 z-[10002] ${getBackgroundColor()} transition-colors duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
-      style={{
-        height: '28px',
-        top: '0px',
-        paddingLeft: '16px',
-        paddingRight: '12px',
-        scrollbarGutter: 'stable'
-      }}
-    >
-      <div className="h-full flex items-center">
-        <span className="text-white text-sm font-medium truncate">
-          {displayMessage}{state === 'syncing' && progress !== null && <span className="tabular-nums"> ({progress}%)</span>}
-        </span>
-        {state === 'syncing' && (
-          <button
-            onClick={cancelSync}
-            className="text-white text-sm font-medium hover:text-zinc-300 transition-colors ml-8"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
-    </div>
+    <StatusBar
+      message={fullMessage}
+      backgroundColor={backgroundColor}
+      action={state === 'syncing' ? { label: 'Cancel', onClick: cancelSync } : undefined}
+      topOffset={topOffset}
+    />
   )
 }

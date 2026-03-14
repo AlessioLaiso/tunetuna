@@ -1,5 +1,5 @@
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
-import { usePlayerStore } from '../../stores/playerStore'
+import StatusBar from './StatusBar'
 
 function formatRemaining(seconds: number): string {
   if (seconds >= 60) {
@@ -17,7 +17,6 @@ export default function SleepTimerBar({ topOffset = 0 }: SleepTimerBarProps) {
   const mode = useSleepTimerStore(s => s.mode)
   const remainingSeconds = useSleepTimerStore(s => s.remainingSeconds)
   const cancel = useSleepTimerStore(s => s.cancel)
-  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
 
   if (mode === 'off') return null
 
@@ -28,27 +27,10 @@ export default function SleepTimerBar({ topOffset = 0 }: SleepTimerBarProps) {
       : 'Pausing soon'
 
   return (
-    <div
-      className={`fixed left-0 right-0 z-[10001] bg-zinc-800 transition-colors duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
-      style={{
-        height: '28px',
-        top: `${topOffset}px`,
-        paddingLeft: '16px',
-        paddingRight: '12px',
-        scrollbarGutter: 'stable'
-      }}
-    >
-      <div className="h-full flex items-center">
-        <span className="text-white text-sm font-medium truncate tabular-nums">
-          {message}
-        </span>
-        <button
-          onClick={cancel}
-          className="text-white text-sm font-medium hover:text-zinc-300 transition-colors ml-8"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <StatusBar
+      message={message}
+      action={{ label: 'Cancel', onClick: cancel }}
+      topOffset={topOffset}
+    />
   )
 }
