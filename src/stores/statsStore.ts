@@ -100,7 +100,7 @@ interface StatsState {
   /** Fetches oldest event timestamp from server (called on init to know date range) */
   initializeOldestTs: () => Promise<void>
   /** Detects events whose songId doesn't match any song in the current library */
-  detectMismatchedEvents: () => Promise<{ mismatched: number; total: number }>
+  detectMismatchedEvents: () => Promise<{ mismatched: number; total: number; mismatchedSongs: { songName: string; artistName: string }[] }>
   /** Remaps mismatched events to the current library by matching song+artist names */
   remapEvents: () => Promise<{ remapped: number; unmatched: number }>
   /** Removes all events whose songId doesn't match the current library */
@@ -767,18 +767,29 @@ export const useStatsStore = create<StatsState>()(
 
       detectMismatchedEvents: async () => {
         const { serverUrl, userId } = useAuthStore.getState()
-        if (!serverUrl || !userId) return { mismatched: 0, total: 0 }
+        if (!serverUrl || !userId) return { mismatched: 0, total: 0, mismatchedSongs: [] }
 
         const allEvents = await fetchAllEvents(get)
-        if (allEvents.length === 0) return { mismatched: 0, total: 0 }
+        if (allEvents.length === 0) return { mismatched: 0, total: 0, mismatchedSongs: [] }
 
         const { songs } = useMusicStore.getState()
-        if (songs.length === 0) return { mismatched: 0, total: 0 }
+        if (songs.length === 0) return { mismatched: 0, total: 0, mismatchedSongs: [] }
 
         const knownSongIds = new Set(songs.map(s => s.Id))
-        const mismatched = allEvents.filter(e => !knownSongIds.has(e.songId)).length
+        const mismatchedEvents = allEvents.filter(e => !knownSongIds.has(e.songId))
 
-        return { mismatched, total: allEvents.length }
+        // Deduplicate by songName + first artist
+        const seen = new Set<string>()
+        const mismatchedSongs: { songName: string; artistName: string }[] = []
+        for (const e of mismatchedEvents) {
+          const key = `${e.songName}::${e.artistNames[0] || ''}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            mismatchedSongs.push({ songName: e.songName, artistName: e.artistNames[0] || 'Unknown' })
+          }
+        }
+
+        return { mismatched: mismatchedEvents.length, total: allEvents.length, mismatchedSongs }
       },
 
       remapEvents: async () => {

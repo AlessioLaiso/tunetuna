@@ -49,6 +49,8 @@ export default function SettingsPage() {
   const [showMismatchModal, setShowMismatchModal] = useState(false)
   const [mismatchCount, setMismatchCount] = useState(0)
   const [mismatchTotal, setMismatchTotal] = useState(0)
+  const [mismatchedSongs, setMismatchedSongs] = useState<{ songName: string; artistName: string }[]>([])
+  const [showAllMismatchedSongs, setShowAllMismatchedSongs] = useState(false)
   const [isRemapping, setIsRemapping] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -195,10 +197,12 @@ export default function SettingsPage() {
 
   const checkForMismatches = async () => {
     try {
-      const { mismatched, total } = await detectMismatchedEvents()
+      const { mismatched, total, mismatchedSongs: songs } = await detectMismatchedEvents()
       if (mismatched > 0) {
         setMismatchCount(mismatched)
         setMismatchTotal(total)
+        setMismatchedSongs(songs)
+        setShowAllMismatchedSongs(false)
         setShowMismatchModal(true)
       }
     } catch {
@@ -782,6 +786,24 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+
+            {mismatchedSongs.length > 0 && (
+              <div className="mx-4 mb-4 p-3 bg-white/5 rounded-xl max-h-[40vh] overflow-y-auto">
+                {(showAllMismatchedSongs ? mismatchedSongs : mismatchedSongs.slice(0, 5)).map((song, i) => (
+                  <div key={i} className="text-sm text-gray-300 py-0.5">
+                    • {song.songName}, {song.artistName}
+                  </div>
+                ))}
+                {mismatchedSongs.length > 5 && !showAllMismatchedSongs && (
+                  <button
+                    onClick={() => setShowAllMismatchedSongs(true)}
+                    className="text-sm text-[var(--accent-color)] mt-1 hover:underline"
+                  >
+                    Show All Songs ({mismatchedSongs.length})
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="space-y-3 px-4">
               <button
