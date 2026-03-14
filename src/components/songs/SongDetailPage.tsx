@@ -120,7 +120,7 @@ export default function SongDetailPage() {
 
   const [song, setSong] = useState<BaseItemDto | null>(null)
   const [loading, setLoading] = useState(true)
-  const [lyrics, setLyrics] = useState<string | null>(null)
+  const [lyrics, setLyrics] = useState<string[] | null>(null)
   const [lyricsLoading, setLyricsLoading] = useState(true)
   const [hasImage, setHasImage] = useState(true)
   const [hasBackdrop, setHasBackdrop] = useState(true)
@@ -199,7 +199,7 @@ export default function SongDetailPage() {
           setSong(songData)
           setHasImage(!!songData.AlbumId)
         }
-        setLyrics(lyricsData)
+        setLyrics(lyricsData && lyricsData.lines.length > 0 ? lyricsData.lines.map(l => l.text) : null)
       } catch (error) {
         if (!isMounted) return
         logger.error('Failed to load song data:', error)
@@ -596,7 +596,7 @@ export default function SongDetailPage() {
                     <span className="text-base text-white/50">Loading...</span>
                   ) : lyrics ? (
                     <div className="text-white whitespace-pre-line text-base">
-                      {lyrics.split('\n').map((line, index) => (
+                      {lyrics.map((line, index) => (
                         <div key={index} className="mb-1 leading-relaxed">
                           {line}
                         </div>
@@ -614,7 +614,7 @@ export default function SongDetailPage() {
                     <div className="text-base text-white/50 pl-7">Loading...</div>
                   ) : lyrics ? (
                     <div className="text-white whitespace-pre-line text-base pl-7">
-                      {lyrics.split('\n').map((line, index) => (
+                      {lyrics.map((line, index) => (
                         <div key={index} className="mb-1 leading-relaxed">
                           {line}
                         </div>

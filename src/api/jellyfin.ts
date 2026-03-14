@@ -27,6 +27,16 @@ import {
 } from '../utils/constants'
 import { clearPlaybackTrackingState } from '../stores/playerStore'
 
+export interface LyricsLine {
+  text: string
+  startSeconds?: number
+}
+
+export interface LyricsResult {
+  lines: LyricsLine[]
+  isSynced: boolean
+}
+
 class JellyfinClient {
   private baseUrl: string = ''
   private accessToken: string = ''
@@ -1299,7 +1309,7 @@ class JellyfinClient {
     return result.Items
   }
 
-  async getLyrics(itemId: string): Promise<string | null> {
+  async getLyrics(itemId: string): Promise<LyricsResult | null> {
     if (!this.userId || !this.baseUrl || !itemId) {
       return null
     }
@@ -1310,35 +1320,41 @@ class JellyfinClient {
         `/Items/${itemId}/RemoteLyrics`,
         `/Audio/${itemId}/Lyrics`,
       ]
-      
+
       let lastError: string | null = null
-      
+
       for (const endpoint of endpoints) {
         const query = new URLSearchParams({
           UserId: this.userId,
         })
         const url = `${this.baseUrl}${endpoint}?${query}`
-        
+
         try {
           const response = await fetch(url, {
             headers: this.getHeaders(),
           })
-          
+
           if (response.ok) {
             const data = await response.json()
 
-            // Jellyfin lyrics API can return different formats
-            interface LyricsLine {
-              Text?: string
-              Start?: number
-            }
             if (data.Lyrics && Array.isArray(data.Lyrics) && data.Lyrics.length > 0) {
-              const lyricsText = (data.Lyrics as LyricsLine[]).map((line) => line.Text || '').join('\n')
-              return lyricsText
+              const lines: LyricsLine[] = data.Lyrics.map((line: { Text?: string; Start?: number }) => ({
+                text: line.Text || '',
+                // Jellyfin returns Start in ticks (10,000 ticks = 1ms)
+                startSeconds: typeof line.Start === 'number' ? line.Start / 10_000_000 : undefined,
+              }))
+              const isSynced = lines.some(l => l.startSeconds !== undefined)
+              return { lines, isSynced }
             } else if (typeof data === 'string') {
-              return data
+              return {
+                lines: data.split('\n').map((text: string) => ({ text })),
+                isSynced: false,
+              }
             } else if (data.Text) {
-              return data.Text
+              return {
+                lines: data.Text.split('\n').map((text: string) => ({ text })),
+                isSynced: false,
+              }
             }
           } else if (response.status === 404) {
             lastError = `404 for ${endpoint}`
@@ -1353,7 +1369,7 @@ class JellyfinClient {
           continue // Try next endpoint
         }
       }
-      
+
       // All endpoints failed
       return null
     } catch (error) {

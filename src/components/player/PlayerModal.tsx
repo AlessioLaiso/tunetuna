@@ -127,7 +127,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
       try {
         const lyrics = await jellyfinClient.getLyrics(displayTrack.Id)
-        const hasLyricsValue = lyrics !== null && lyrics.trim().length > 0
+        const hasLyricsValue = lyrics !== null && lyrics.lines.length > 0
         setHasLyrics(hasLyricsValue)
       } catch (error) {
         logger.warn('[PlayerModal] Lyrics check failed:', error)
