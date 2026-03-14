@@ -358,6 +358,13 @@ export default function PlayerBar() {
     }
   }, [currentTrack, togglePlayPause, next, previous])
 
+  // Keep Media Session playback state in sync
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+    }
+  }, [isPlaying])
+
   // Update Media Session position state to keep notification seek bar in sync (iOS PWA fix)
   // This runs in PlayerBar which is always mounted, unlike PlayerModal
   useEffect(() => {
