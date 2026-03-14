@@ -16,12 +16,16 @@ interface PlaylistFormModalProps {
   initialName?: string
   /** Whether the playlist already has a primary image (edit mode) */
   hasExistingImage?: boolean
-  /** Called after a successful create. Receives the new playlist ID. */
-  onCreated?: (playlistId: string) => void
+  /** Called after a successful create. Receives the new playlist ID. Awaited if async. */
+  onCreated?: (playlistId: string) => void | Promise<void>
   /** Called after a successful edit save. */
   onSaved?: () => void
   /** Cache-bust key for existing image preview */
   imageCacheBust?: number
+  /** Number of songs that will be copied from a source playlist (for duplicate) */
+  duplicateSongCount?: number
+  /** Image URL to preview from a source playlist (for duplicate) */
+  sourceImageUrl?: string | null
 }
 
 function M3uResultText({ result }: { result: M3UImportResult }) {
@@ -78,6 +82,8 @@ export default function PlaylistFormModal({
   onCreated,
   onSaved,
   imageCacheBust = 0,
+  duplicateSongCount,
+  sourceImageUrl,
 }: PlaylistFormModalProps) {
   const isEditMode = !!editPlaylistId
 
@@ -237,13 +243,13 @@ export default function PlaylistFormModal({
             logger.error('M3U import failed during playlist creation')
             useToastStore.getState().addToast('Playlist created, but M3U import failed', 'info', 3000)
           }
-        } else {
+        } else if (!onCreated) {
           useToastStore.getState().addToast('Playlist created', 'success', 2000)
         }
 
+        await onCreated?.(result.Id)
         window.dispatchEvent(new CustomEvent('playlistUpdated'))
         handleClose()
-        onCreated?.(result.Id)
       }
     } catch {
       useToastStore.getState().addToast(
@@ -258,7 +264,7 @@ export default function PlaylistFormModal({
 
   const imagePreviewUrl = isEditMode && hasExistingImage && !removeExistingImage && editPlaylistId
     ? jellyfinClient.getImageUrl(editPlaylistId, 'Primary', 256) + (imageCacheBust ? `&cb=${imageCacheBust}` : '')
-    : null
+    : sourceImageUrl || null
 
   return (
     <ResponsiveModal isOpen={isOpen} onClose={handleClose}>
@@ -302,7 +308,12 @@ export default function PlaylistFormModal({
             </div>
           </div>
           <div>
-            <div className="text-base font-medium text-white mb-2">Add from M3U (Optional)</div>
+            <div className="text-base font-medium text-white mb-1">Add from M3U (Optional)</div>
+            {duplicateSongCount != null && duplicateSongCount > 0 && (
+              <div className="text-sm text-gray-400 mb-2">
+                {duplicateSongCount} {duplicateSongCount === 1 ? 'song' : 'songs'} will be added from the original playlist
+              </div>
+            )}
             {m3uImporting ? (
               <div className="relative rounded-lg border-2 border-dashed border-zinc-700 bg-zinc-800/50">
                 <div className="flex flex-col items-center justify-center gap-2 py-8 px-4">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Trash2, AlertTriangle, MoreHorizontal, BarChart3 } from 'lucide-react'
+import { Play, ListStart, ListEnd, Shuffle, RefreshCw, User, Guitar, Disc, Music, ExternalLink, ListPlus, Pencil, Copy, Trash2, AlertTriangle, MoreHorizontal, BarChart3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ResponsiveModal from './ResponsiveModal'
 import PlatformPicker from './PlatformPicker'
@@ -85,6 +85,11 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [editTargetName, setEditTargetName] = useState('')
   const [editHasExistingImage, setEditHasExistingImage] = useState(false)
   const [editImageCacheBust, setEditImageCacheBust] = useState(0)
+  const [showDuplicatePlaylist, setShowDuplicatePlaylist] = useState(false)
+  const [duplicateName, setDuplicateName] = useState('')
+  const [duplicateSongIds, setDuplicateSongIds] = useState<string[]>([])
+  const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null)
+  const [duplicateHasImage, setDuplicateHasImage] = useState(false)
   const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
@@ -231,6 +236,25 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setEditHasExistingImage(!!('ImageTags' in currentItem && currentItem.ImageTags?.Primary))
       onClose()
       setShowEditPlaylist(true)
+      return
+    }
+    if (action === 'duplicatePlaylist') {
+      setLoading(true)
+      setLoadingAction(action)
+      try {
+        const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
+        setDuplicateName(`${currentItem.Name || 'Playlist'} (Copy)`)
+        setDuplicateSongIds(tracks.map(t => t.Id))
+        setDuplicateSourceId(currentItem.Id)
+        setDuplicateHasImage(!!('ImageTags' in currentItem && currentItem.ImageTags?.Primary))
+        onClose()
+        setShowDuplicatePlaylist(true)
+      } catch (error) {
+        logger.error('Failed to fetch playlist tracks for duplication:', error)
+      } finally {
+        setLoading(false)
+        setLoadingAction(null)
+      }
       return
     }
 
@@ -608,6 +632,44 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         imageCacheBust={editImageCacheBust}
         onSaved={() => setEditImageCacheBust(Date.now())}
       />
+      <PlaylistFormModal
+        isOpen={showDuplicatePlaylist}
+        onClose={() => setShowDuplicatePlaylist(false)}
+        initialName={duplicateName}
+        duplicateSongCount={duplicateSongIds.length}
+        sourceImageUrl={duplicateHasImage && duplicateSourceId ? jellyfinClient.getImageUrl(duplicateSourceId, 'Primary', 256) : null}
+        onCreated={async (playlistId) => {
+          try {
+            // Copy image from source playlist
+            if (duplicateHasImage && duplicateSourceId) {
+              try {
+                const imageUrl = jellyfinClient.getImageUrl(duplicateSourceId, 'Primary')
+                const response = await fetch(imageUrl)
+                if (response.ok) {
+                  const blob = await response.blob()
+                  const reader = new FileReader()
+                  const base64 = await new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve((reader.result as string).split(',')[1])
+                    reader.onerror = reject
+                    reader.readAsDataURL(blob)
+                  })
+                  await jellyfinClient.uploadItemImage(playlistId, base64, blob.type)
+                }
+              } catch {
+                logger.error('Failed to copy playlist image')
+              }
+            }
+            // Copy songs
+            if (duplicateSongIds.length > 0) {
+              await jellyfinClient.addItemsToPlaylist(playlistId, duplicateSongIds)
+            }
+            useToastStore.getState().addToast('Playlist duplicated', 'success', 2000)
+          } catch {
+            useToastStore.getState().addToast('Playlist created but failed to copy songs', 'error', 3000)
+          }
+          window.dispatchEvent(new CustomEvent('playlistUpdated'))
+        }}
+      />
     </>
   )
 
@@ -697,6 +759,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           ] : []),
           { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
+          { id: 'duplicatePlaylist', label: 'Duplicate Playlist', icon: Copy },
           { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
           { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
         ]

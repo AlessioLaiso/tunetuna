@@ -1272,13 +1272,18 @@ class JellyfinClient {
     if (!this.userId || !this.baseUrl || !playlistId || itemIds.length === 0) {
       throw new Error('Not authenticated or invalid parameters')
     }
-    const query = new URLSearchParams({
-      ids: itemIds.join(','),
-      userId: this.userId,
-    })
-    await this.requestVoid(`/Playlists/${playlistId}/Items?${query}`, {
-      method: 'POST',
-    })
+    // Batch in chunks of 100 to avoid URL length limits
+    const BATCH_SIZE = 100
+    for (let i = 0; i < itemIds.length; i += BATCH_SIZE) {
+      const batch = itemIds.slice(i, i + BATCH_SIZE)
+      const query = new URLSearchParams({
+        ids: batch.join(','),
+        userId: this.userId,
+      })
+      await this.requestVoid(`/Playlists/${playlistId}/Items?${query}`, {
+        method: 'POST',
+      })
+    }
   }
 
   async movePlaylistItem(playlistId: string, itemId: string, newIndex: number): Promise<void> {
