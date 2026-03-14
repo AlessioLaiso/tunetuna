@@ -13,6 +13,8 @@ import { useLongPress } from '../../hooks/useLongPress'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
+import wheelImage from '../../assets/wheel.png'
+import cassetteImage from '../../assets/cassette.png'
 import { formatDuration, parseGroupingTag } from '../../utils/formatting'
 
 // Cassette animation constants
@@ -636,7 +638,7 @@ export default function PlaylistDetailPage() {
                 >
                   {/* Left wheel — behind cassette */}
                   <img
-                    src="/assets/wheel.png"
+                    src={wheelImage}
                     alt=""
                     style={{
                       position: 'absolute',
@@ -651,7 +653,7 @@ export default function PlaylistDetailPage() {
                   />
                   {/* Right wheel — behind cassette */}
                   <img
-                    src="/assets/wheel.png"
+                    src={wheelImage}
                     alt=""
                     style={{
                       position: 'absolute',
@@ -666,7 +668,7 @@ export default function PlaylistDetailPage() {
                   />
                   {/* Cassette image */}
                   <img
-                    src="/assets/cassette.png"
+                    src={cassetteImage}
                     alt="Cassette"
                     className="w-full h-full object-contain"
                     style={{ position: 'relative', zIndex: 2 }}

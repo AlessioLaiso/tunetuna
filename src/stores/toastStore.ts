@@ -1,24 +1,30 @@
 import { create } from 'zustand'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface Toast {
   id: string
   message: string
   type: 'success' | 'error' | 'info'
   duration?: number
+  action?: ToastAction
 }
 
 interface ToastState {
   toasts: Toast[]
-  addToast: (message: string, type?: Toast['type'], duration?: number) => void
+  addToast: (message: string, type?: Toast['type'], duration?: number, action?: ToastAction) => void
   removeToast: (id: string) => void
 }
 
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
 
-  addToast: (message, type = 'success', duration = 3000) => {
+  addToast: (message, type = 'success', duration = 3000, action?) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-    const toast: Toast = { id, message, type, duration }
+    const toast: Toast = { id, message, type, duration, action }
 
     set((state) => ({
       toasts: [...state.toasts, toast],

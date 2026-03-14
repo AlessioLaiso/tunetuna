@@ -26,6 +26,18 @@ const ToastItem = memo(function ToastItem({ toast }: { toast: ToastType }) {
     >
       <span className="flex-shrink-0">{icons[toast.type]}</span>
       <span className="flex-1 text-sm font-medium">{toast.message}</span>
+      {toast.action && (
+        <button
+          onClick={() => {
+            toast.action!.onClick()
+            removeToast(toast.id)
+          }}
+          className="flex-shrink-0 text-sm font-semibold hover:opacity-80 transition-opacity"
+          style={{ color: 'var(--accent-color)' }}
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         onClick={() => removeToast(toast.id)}
         className="flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"

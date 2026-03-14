@@ -12,6 +12,7 @@ import LyricsModal from './LyricsModal'
 import VolumeControl from '../layout/VolumeControl'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus, Moon } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
+import vinylImage from '../../assets/vinyl.png'
 import SleepTimerPicker from './SleepTimerPicker'
 import QueueMenu from './QueueMenu'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
@@ -689,7 +690,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                       {imageError ? (
                         <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center relative">
                           <img
-                            src="/assets/vinyl.png"
+                            src={vinylImage}
                             alt="Vinyl Record"
                             className="w-full h-full object-cover"
                             onError={(e) => {
