@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
+import { logger } from '../../utils/logger'
 import PlatformPicker from '../shared/PlatformPicker'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
@@ -462,21 +463,21 @@ export function NewReleasesSection() {
         attemptedSearchesRef.current.add(release.id)
 
         try {
-          console.log(`[FeedSection] Searching MB for: ${release.title} - ${release.artistName}`)
+          logger.log(`[FeedSection] Searching MB for: ${release.title} - ${release.artistName}`)
           const result = await searchMusicBrainzReleaseGroup(release.artistName, release.title)
 
           if (result) {
-            console.log(`[FeedSection] Found MBID for "${release.title}": ${result.id} (${result.type})`)
+            logger.log(`[FeedSection] Found MBID for "${release.title}": ${result.id} (${result.type})`)
             const current = useMusicStore.getState().feedNewReleases
             const updated = current.map(p =>
               p.id === release.id ? { ...p, id: result.id, type: result.type } : p
             )
             setFeedNewReleases(updated)
           } else {
-            console.log(`[FeedSection] No MBID found for "${release.title}"`)
+            logger.log(`[FeedSection] No MBID found for "${release.title}"`)
           }
         } catch (error) {
-          console.error(`[FeedSection] Failed to search MB for "${release.title}":`, error)
+          logger.error(`[FeedSection] Failed to search MB for "${release.title}":`, error)
         }
       }
     }
