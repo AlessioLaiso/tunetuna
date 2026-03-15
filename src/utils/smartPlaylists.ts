@@ -111,17 +111,23 @@ function getLongestUnplayed(songs: LightweightSong[], events: PlayEvent[]): Ligh
 }
 
 /**
- * Collab Central — all songs that have featured artists.
+ * Collab Central — all songs with collaborations:
+ * songs with featured artists (parsed from title) OR multiple ArtistItems in metadata.
  */
 function getCollabCentral(songs: LightweightSong[]): LightweightSong[] {
   const { map } = buildFeaturedArtistMap(songs)
-  const featuredSongIds = new Set<string>()
+  const collabSongIds = new Set<string>()
   for (const songList of Object.values(map)) {
     for (const song of songList) {
-      featuredSongIds.add(song.Id)
+      collabSongIds.add(song.Id)
     }
   }
-  return songs.filter(s => featuredSongIds.has(s.Id))
+  for (const song of songs) {
+    if (song.ArtistItems && song.ArtistItems.length > 1) {
+      collabSongIds.add(song.Id)
+    }
+  }
+  return songs.filter(s => collabSongIds.has(s.Id))
 }
 
 /**
