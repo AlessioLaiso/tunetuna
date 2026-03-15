@@ -331,7 +331,7 @@ export default function AlbumsPage() {
                 </button>
               </div>
               {/* Sorting control */}
-              {!isSearchOpen && (
+              {!isSearchOpen && albums.length > 1 && (
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => {
@@ -341,7 +341,7 @@ export default function AlbumsPage() {
                             'RecentlyAdded'
                       setSortPreference('albums', nextSort)
                     }}
-                    className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                    className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
                     {sortOrder === 'RecentlyAdded' ? 'Recently Added' :
                       sortOrder === 'Newest' ? 'Newest' :

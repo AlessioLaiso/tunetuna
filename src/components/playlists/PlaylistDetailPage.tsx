@@ -772,7 +772,7 @@ export default function PlaylistDetailPage() {
                 <button
                   type="button"
                   onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
-                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                  className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                 >
                   {playlistSortOrder === 'PlaylistOrder' ? 'Playlist Order' : 'Alphabetically'}
                   <ArrowUpDown className="w-4 h-4" />

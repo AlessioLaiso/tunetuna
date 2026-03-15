@@ -721,7 +721,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                             navigate(`/artist/${artistId}`)
                           }
                         }}
-                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left max-w-full min-w-0"
+                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-[var(--accent-color)] transition-colors mx-auto landscape:mx-0 landscape:text-left max-w-full min-w-0"
                       >
                         <User className="w-4 h-4 text-white/50 flex-shrink-0" />
                         <span className="break-words min-w-0">{getArtistName()}</span>
@@ -733,7 +733,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                           onClose()
                           navigate(`/album/${displayTrack.AlbumId}`)
                         }}
-                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-white transition-colors mx-auto landscape:mx-0 landscape:text-left mt-1 max-w-full min-w-0"
+                        className="flex items-center justify-start landscape:justify-start gap-2 text-white/70 text-base sm:text-lg hover:text-[var(--accent-color)] transition-colors mx-auto landscape:mx-0 landscape:text-left mt-1 max-w-full min-w-0"
                       >
                         <Disc className="w-4 h-4 text-white/50 flex-shrink-0" />
                         <span className="break-words min-w-0">{displayTrack.Album}</span>

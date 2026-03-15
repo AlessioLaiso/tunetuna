@@ -656,7 +656,7 @@ export default function GenreSongsPage() {
                 <button
                   type="button"
                   onClick={cycleSongSortOrder}
-                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                  className={`text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1 ${sortedSongs.length <= 1 ? 'hidden' : ''}`}
                 >
                   {songSortOrder}
                   <ArrowUpDown className="w-4 h-4" />

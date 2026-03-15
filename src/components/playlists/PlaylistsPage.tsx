@@ -275,11 +275,11 @@ export default function PlaylistsPage() {
                 </div>
               </div>
               {/* Sorting control */}
-              {!isSearchOpen && playlists.length > 0 && (
+              {!isSearchOpen && playlists.length > 1 && (
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setSortPreference('playlists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
-                    className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                    className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
                     {sortOrder === 'RecentlyAdded' ? 'Recently Added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />

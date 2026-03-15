@@ -700,7 +700,7 @@ export default function AlbumDetailPage() {
                   <>
                     <button
                       onClick={handleArtistClick}
-                      className={`hover:text-white transition-colors ${getArtistId() ? 'cursor-pointer' : 'cursor-default'}`}
+                      className={`hover:text-[var(--accent-color)] transition-colors ${getArtistId() ? 'cursor-pointer' : 'cursor-default'}`}
                     >
                       {getArtistName()}
                     </button>
@@ -710,7 +710,7 @@ export default function AlbumDetailPage() {
                 {getAlbumYear() && (
                   <button
                     onClick={() => navigate(`/albums?year=${getAlbumYear()}`)}
-                    className="hover:text-white transition-colors cursor-pointer"
+                    className="hover:text-[var(--accent-color)] transition-colors cursor-pointer"
                   >
                     {getAlbumYear()}
                   </button>
@@ -774,7 +774,7 @@ export default function AlbumDetailPage() {
                   </p>
                   <button
                     onClick={() => setBioExpanded(false)}
-                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors ml-auto"
+                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors ml-auto"
                   >
                     Show less
                     <ChevronUp className="w-4 h-4" />

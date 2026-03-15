@@ -876,7 +876,7 @@ export default function ArtistDetailPage() {
                   </p>
                   <button
                     onClick={() => setBioExpanded(false)}
-                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors ml-auto"
+                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors ml-auto"
                   >
                     Show less
                     <ChevronUp className="w-4 h-4" />
@@ -968,16 +968,18 @@ export default function ArtistDetailPage() {
                   </button>
                 </div>
               </div>
-              <div className="mt-1">
-                <button
-                  type="button"
-                  onClick={cycleSongSortOrder}
-                  className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                >
-                  {songSortOrder}
-                  <ArrowUpDown className="w-4 h-4" />
-                </button>
-              </div>
+              {sortedSongs.length > 1 && (
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={cycleSongSortOrder}
+                    className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+                  >
+                    {songSortOrder}
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-0">
               {sortedSongs.map((song, index) => {

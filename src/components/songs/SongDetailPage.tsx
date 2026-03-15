@@ -448,7 +448,7 @@ export default function SongDetailPage() {
                           const genreId = getGenreId(genre)
                           if (genreId) navigate(`/genre/${encodeURIComponent(genreId)}`)
                         }}
-                        className="text-base text-white hover:text-gray-300 transition-colors"
+                        className="text-base text-white hover:text-[var(--accent-color)] transition-colors"
                       >
                         {genre}
                       </button>
@@ -472,7 +472,7 @@ export default function SongDetailPage() {
                         <span key={v.raw}>
                           <button
                             onClick={() => navigate(key === 'mood' ? `/mood/${v.raw}` : `/songs?grouping=${key}_${v.raw}`)}
-                            className="text-base text-white hover:text-gray-300 transition-colors"
+                            className="text-base text-white hover:text-[var(--accent-color)] transition-colors"
                           >
                             {v.display}
                           </button>
@@ -504,7 +504,7 @@ export default function SongDetailPage() {
                       <span key={tag.key}>
                         <button
                           onClick={() => navigate(`/songs?grouping=${tag.key}`)}
-                          className="text-base text-white hover:text-gray-300 transition-colors"
+                          className="text-base text-white hover:text-[var(--accent-color)] transition-colors"
                         >
                           {tag.category}
                         </button>
@@ -649,7 +649,7 @@ function MetadataRow({ icon: Icon, label, value, onClick }: { icon: LucideIcon; 
       {onClick ? (
         <button
           onClick={onClick}
-          className="text-base text-white hover:text-gray-300 transition-colors text-left break-all"
+          className="text-base text-white hover:text-[var(--accent-color)] transition-colors text-left break-all"
         >
           {value}
         </button>
