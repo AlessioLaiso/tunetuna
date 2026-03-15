@@ -8,6 +8,24 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
 import { logger } from '../../utils/logger'
+import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
+
+/**
+ * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
+ */
+function reorderForRowFlow<T>(items: T[], rows: number): T[] {
+  const cols = Math.ceil(items.length / rows)
+  const result: T[] = []
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
+      const srcIndex = row * cols + col
+      if (srcIndex < items.length) {
+        result.push(items[srcIndex])
+      }
+    }
+  }
+  return result
+}
 
 function SkeletonAlbumItem() {
   return (
@@ -149,7 +167,6 @@ function RecentlyAddedAlbumItem({ album, onNavigate, onContextMenu }: RecentlyAd
 export default function RecentlyAdded() {
   const { recentlyAdded, setRecentlyAdded, setLoading, loading } = useMusicStore()
   const navigate = useNavigate()
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -179,104 +196,51 @@ export default function RecentlyAdded() {
     return null
   }
 
-  // Group albums into pages of 6 (2 rows × 3 columns)
-  const albumsPerPage = 6
-  const pages = []
-  for (let i = 0; i < recentlyAdded.length; i += albumsPerPage) {
-    pages.push(recentlyAdded.slice(i, i + albumsPerPage))
+  const handleContextMenu = (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => {
+    setContextMenuItem(album)
+    setContextMenuMode(mode || 'desktop')
+    setContextMenuPosition(position || null)
+    setContextMenuOpen(true)
   }
+
+  const renderAlbum = (album: BaseItemDto) => (
+    <RecentlyAddedAlbumItem
+      key={album.Id}
+      album={album}
+      onNavigate={(id) => navigate(`/album/${id}`)}
+      onContextMenu={handleContextMenu}
+    />
+  )
 
   return (
     <div className="px-4 mb-8">
       <h2 className="text-xl font-bold mb-4">Recently Added</h2>
-      {/* Mobile / small screens: horizontal paged carousel */}
+      {/* Small screens (<768px): 3-col, 2-row with arrow navigation */}
       <div className="md:hidden">
-        <div
-          ref={scrollContainerRef}
-          className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
-        >
-          <div className="flex gap-3">
-            {pages.map((pageAlbums, pageIndex) => {
-              // Calculate rows needed for this page (3 columns per row)
-              const rowsNeeded = Math.ceil(pageAlbums.length / 3)
-              return (
-                <div
-                  key={pageIndex}
-                  className="snap-start flex-shrink-0"
-                  style={{ width: 'calc(100% - 12px)' }}
-                >
-                  <div
-                    className="grid grid-cols-3 gap-3"
-                    style={{ gridTemplateRows: `repeat(${rowsNeeded}, minmax(0, 1fr))` }}
-                  >
-                    {pageAlbums.map((album) => (
-                      <RecentlyAddedAlbumItem
-                        key={album.Id}
-                        album={album}
-                        onNavigate={(id) => navigate(`/album/${id}`)}
-                        onContextMenu={(album, mode, position) => {
-                          setContextMenuItem(album)
-                          const newMode = mode || 'desktop'
-                          setContextMenuMode(newMode)
-                          setContextMenuPosition(position || null)
-                          setContextMenuOpen(true)
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+        <HorizontalScrollContainer gap={12}>
+          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 24px) / 3)' }}>
+            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
           </div>
-        </div>
+        </HorizontalScrollContainer>
       </div>
 
-      {/* Large screens: 2x4 grid (8 albums) on md to <1680px, 2x5 grid (10 albums) on >=1680px */}
+      {/* Medium screens (768px–1500px): 4-col, 2-row with arrow navigation */}
       <div className="hidden md:block min-[1500px]:hidden">
-        <div className="grid grid-cols-4 gap-3">
-          {recentlyAdded.slice(0, 8).map((album) => (
-            <RecentlyAddedAlbumItem
-              key={album.Id}
-              album={album}
-              onNavigate={(id) => navigate(`/album/${id}`)}
-              onContextMenu={(album, mode, position) => {
-                setContextMenuItem(album)
-                const newMode = mode || 'desktop'
-                setContextMenuMode(newMode)
-                setContextMenuPosition(position || null)
-                setContextMenuOpen(true)
-              }}
-            />
-          ))}
-        </div>
+        <HorizontalScrollContainer gap={12}>
+          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 36px) / 4)' }}>
+            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
+          </div>
+        </HorizontalScrollContainer>
       </div>
+
+      {/* Large screens (>=1500px): 5-col, 2-row with arrow navigation */}
       <div className="hidden min-[1500px]:block">
-        <div className="grid grid-cols-5 gap-3">
-          {recentlyAdded.slice(0, 10).map((album) => (
-            <RecentlyAddedAlbumItem
-              key={album.Id}
-              album={album}
-              onNavigate={(id) => navigate(`/album/${id}`)}
-              onContextMenu={(album, mode, position) => {
-                setContextMenuItem(album)
-                const newMode = mode || 'desktop'
-                setContextMenuMode(newMode)
-                setContextMenuPosition(position || null)
-                setContextMenuOpen(true)
-              }}
-            />
-          ))}
-        </div>
+        <HorizontalScrollContainer gap={12}>
+          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 48px) / 5)' }}>
+            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
+          </div>
+        </HorizontalScrollContainer>
       </div>
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
       <ContextMenu
         item={contextMenuItem}
         itemType="album"

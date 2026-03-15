@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
+import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
 import type { LightweightSong } from '../../api/types'
 import {
   getAvailableSmartPlaylists,
@@ -95,8 +96,6 @@ export default function SmartPlaylistCards() {
   const { statsTrackingEnabled, showMoodCards } = useSettingsStore()
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-
   const [events, setEvents] = useState<PlayEvent[]>([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
 
@@ -253,74 +252,63 @@ export default function SmartPlaylistCards() {
     return null
   }
 
-  // Group cards into pages of 6 (2 rows × 3 columns) for mobile
-  const cardsPerPage = 6
-  const pages: CardItem[][] = []
-  for (let i = 0; i < displayCards.length; i += cardsPerPage) {
-    pages.push(displayCards.slice(i, i + cardsPerPage))
-  }
-
   return (
     <div className="px-4 mb-12">
-      {/* Mobile / small screens: horizontal paged carousel */}
-      <div className="md:hidden">
-        <div
-          ref={scrollContainerRef}
-          className="overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
-        >
-          <div className="flex gap-2">
-            {pages.map((pageCards, pageIndex) => {
-              const rowsNeeded = Math.ceil(pageCards.length / 3)
-              return (
-                <div
-                  key={pageIndex}
-                  className="snap-start flex-shrink-0"
-                  style={{ width: 'calc(100% - 8px)' }}
-                >
-                  <div
-                    className="grid grid-cols-3 gap-2"
-                    style={{ gridTemplateRows: `repeat(${rowsNeeded}, minmax(0, 1fr))` }}
-                  >
-                    {pageCards.map((card) => (
-                      <SmartCardItem key={card.id} card={card} />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+      {/* Narrow screens (<620px): 2-col, 2-row with arrow navigation */}
+      <div className="min-[620px]:hidden">
+        <HorizontalScrollContainer gap={8}>
+          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 8px) / 2)' }}>
+            {reorderForRowFlow(displayCards, 2).map((card) => (
+              <SmartCardItem key={card.id} card={card} />
+            ))}
           </div>
-        </div>
+        </HorizontalScrollContainer>
       </div>
 
-      {/* Medium screens (768-1680px): 4 columns, wrapping grid */}
-      <div className="hidden md:block min-[1680px]:hidden">
-        <div className="grid grid-cols-4 gap-2">
-          {displayCards.map((card) => (
-            <SmartCardItem key={card.id} card={card} />
-          ))}
-        </div>
+      {/* Medium screens (620px–1500px): 3-col, 2-row with arrow navigation */}
+      <div className="hidden min-[620px]:block min-[1500px]:hidden">
+        <HorizontalScrollContainer gap={8}>
+          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 16px) / 3)' }}>
+            {reorderForRowFlow(displayCards, 2).map((card) => (
+              <SmartCardItem key={card.id} card={card} />
+            ))}
+          </div>
+        </HorizontalScrollContainer>
       </div>
 
-      {/* Large screens (>=1680px): 5 columns, wrapping grid */}
-      <div className="hidden min-[1680px]:block">
-        <div className="grid grid-cols-5 gap-2">
-          {displayCards.map((card) => (
-            <SmartCardItem key={card.id} card={card} />
-          ))}
-        </div>
+      {/* Large screens (>=1500px): 4-col, 2-row with arrow navigation */}
+      <div className="hidden min-[1500px]:block">
+        <HorizontalScrollContainer gap={8}>
+          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 24px) / 4)' }}>
+            {reorderForRowFlow(displayCards, 2).map((card) => (
+              <SmartCardItem key={card.id} card={card} />
+            ))}
+          </div>
+        </HorizontalScrollContainer>
       </div>
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   )
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
+ */
+function reorderForRowFlow<T>(items: T[], rows: number): T[] {
+  const cols = Math.ceil(items.length / rows)
+  const result: T[] = []
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
+      const srcIndex = row * cols + col
+      if (srcIndex < items.length) {
+        result.push(items[srcIndex])
+      }
+    }
+  }
+  return result
 }
 
 // ============================================================================
@@ -330,7 +318,7 @@ export default function SmartPlaylistCards() {
 function SkeletonCardItem() {
   return (
     <div className="bg-zinc-800/50 rounded border border-zinc-700/50 flex items-center w-full h-11 overflow-hidden">
-      <div className="h-full aspect-square bg-zinc-700/50 flex-shrink-0 hidden md:block" />
+      <div className="h-full aspect-square bg-zinc-700/50 flex-shrink-0" />
       <div className="h-3.5 bg-zinc-700/50 rounded w-2/3 ml-3" />
     </div>
   )
@@ -339,25 +327,25 @@ function SkeletonCardItem() {
 function SmartPlaylistCardsSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div className="px-4 mb-12 animate-pulse">
-      {/* Mobile: 3-col */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-3 gap-2">
-          {[...Array(Math.min(count, 6))].map((_, i) => (
+      {/* Narrow (<620px): 2-col */}
+      <div className="min-[620px]:hidden">
+        <div className="grid grid-cols-2 gap-2">
+          {[...Array(Math.min(count, 4))].map((_, i) => (
             <SkeletonCardItem key={i} />
           ))}
         </div>
       </div>
-      {/* md to <1680px: 4-col */}
-      <div className="hidden md:block min-[1680px]:hidden">
-        <div className="grid grid-cols-4 gap-2">
+      {/* 620px–1680px: 3-col */}
+      <div className="hidden min-[620px]:block min-[1500px]:hidden">
+        <div className="grid grid-cols-3 gap-2">
           {[...Array(count)].map((_, i) => (
             <SkeletonCardItem key={i} />
           ))}
         </div>
       </div>
-      {/* >=1680px: 5-col */}
-      <div className="hidden min-[1680px]:block">
-        <div className="grid grid-cols-5 gap-2">
+      {/* >=1680px: 4-col */}
+      <div className="hidden min-[1500px]:block">
+        <div className="grid grid-cols-4 gap-2">
           {[...Array(count)].map((_, i) => (
             <SkeletonCardItem key={i} />
           ))}
@@ -379,7 +367,7 @@ function SmartCardItem({ card }: { card: CardItem }) {
       onClick={() => navigate(card.route)}
       className="bg-zinc-800/50 rounded border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
-      <div className="h-full aspect-square flex-shrink-0 hidden md:block bg-zinc-700/50">
+      <div className="h-full aspect-square flex-shrink-0 bg-zinc-700/50">
         {card.albumId && (
           <Image
             src={jellyfinClient.getAlbumArtUrl(card.albumId, 56)}
