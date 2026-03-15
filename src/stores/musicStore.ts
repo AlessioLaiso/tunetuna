@@ -81,6 +81,8 @@ interface MusicState {
   }
   /** Recently accessed moods with timestamps for ordering (synced across devices) */
   recentlyAccessedMoods: Record<string, number>
+  /** Cached mix card IDs from last session for skeleton-free loading */
+  cachedMixCardIds: { id: string; name: string; route: string }[]
 
   // Actions
   setArtists: (artists: BaseItemDto[]) => void
@@ -102,6 +104,7 @@ interface MusicState {
   setFeedNewReleases: (releases: NewRelease[]) => void
   setFeedLastUpdated: (timestamp: number) => void
   recordMoodAccess: (moodValue: string) => void
+  setCachedMixCardIds: (cards: { id: string; name: string; route: string }[]) => void
 }
 
 // ============================================================================
@@ -212,6 +215,7 @@ export const useMusicStore = create<MusicState>()(
         playlists: 'RecentlyAdded',
       },
       recentlyAccessedMoods: {},
+      cachedMixCardIds: [],
 
       // Simple setters
       setArtists: (artists) => set({ artists }),
@@ -316,6 +320,8 @@ export const useMusicStore = create<MusicState>()(
           [moodValue.toLowerCase()]: Date.now(),
         },
       })),
+
+      setCachedMixCardIds: (cards) => set({ cachedMixCardIds: cards }),
     }),
     {
       name: 'music-storage',
@@ -343,6 +349,7 @@ export const useMusicStore = create<MusicState>()(
         feedNewReleases: state.feedNewReleases,
         feedLastUpdated: state.feedLastUpdated,
         sortPreferences: state.sortPreferences,
+        cachedMixCardIds: state.cachedMixCardIds,
       }),
     }
   )

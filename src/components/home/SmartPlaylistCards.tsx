@@ -90,6 +90,8 @@ function pickAlbumFromSubItems(
 
 export default function SmartPlaylistCards() {
   const songs = useMusicStore(s => s.songs)
+  const cachedMixCardIds = useMusicStore(s => s.cachedMixCardIds)
+  const setCachedMixCardIds = useMusicStore(s => s.setCachedMixCardIds)
   const { statsTrackingEnabled, showMoodCards } = useSettingsStore()
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
@@ -218,15 +220,44 @@ export default function SmartPlaylistCards() {
     return items
   }, [songs, events, eventsLoaded, statsTrackingEnabled, hasMoods])
 
+  // Persist card layout when fully loaded so next session can show it instantly
+  const fullyLoaded = eventsLoaded && songs.length > 0
+  useEffect(() => {
+    if (!fullyLoaded || cards.length === 0) return
+    const newCached = cards.map(c => ({ id: c.id, name: c.name, route: c.route }))
+    const prev = cachedMixCardIds
+    if (prev.length === newCached.length && prev.every((p, i) => p.id === newCached[i].id)) return
+    setCachedMixCardIds(newCached)
+  }, [fullyLoaded, cards, cachedMixCardIds, setCachedMixCardIds])
+
+  // While events are loading, merge real cards with cached placeholders to keep layout stable.
+  // Real cards (moods/decades/languages) get their album art; cached-only cards (smart playlists,
+  // year throwback) appear as name-only placeholders until events resolve.
+  const displayCards: CardItem[] = useMemo(() => {
+    if (fullyLoaded) return cards
+    if (cachedMixCardIds.length > 0 && songs.length > 0) {
+      const realCardsById = new Map(cards.map(c => [c.id, c]))
+      return cachedMixCardIds.map(cached => {
+        const real = realCardsById.get(cached.id)
+        if (real) return real
+        return { ...cached, description: '', albumId: null }
+      })
+    }
+    return cards
+  }, [fullyLoaded, cards, songs.length, cachedMixCardIds])
+
   // The showMoodCards setting controls the entire mix cards section
   if (!showMoodCards) return null
-  if (cards.length === 0) return null
+  if (displayCards.length === 0) {
+    if (cachedMixCardIds.length > 0 && songs.length === 0) return <SmartPlaylistCardsSkeleton count={cachedMixCardIds.length} />
+    return null
+  }
 
   // Group cards into pages of 6 (2 rows × 3 columns) for mobile
   const cardsPerPage = 6
   const pages: CardItem[][] = []
-  for (let i = 0; i < cards.length; i += cardsPerPage) {
-    pages.push(cards.slice(i, i + cardsPerPage))
+  for (let i = 0; i < displayCards.length; i += cardsPerPage) {
+    pages.push(displayCards.slice(i, i + cardsPerPage))
   }
 
   return (
@@ -268,7 +299,7 @@ export default function SmartPlaylistCards() {
       {/* Medium screens (768-1680px): 4 columns, wrapping grid */}
       <div className="hidden md:block min-[1680px]:hidden">
         <div className="grid grid-cols-4 gap-2">
-          {cards.map((card) => (
+          {displayCards.map((card) => (
             <SmartCardItem key={card.id} card={card} />
           ))}
         </div>
@@ -277,7 +308,7 @@ export default function SmartPlaylistCards() {
       {/* Large screens (>=1680px): 5 columns, wrapping grid */}
       <div className="hidden min-[1680px]:block">
         <div className="grid grid-cols-5 gap-2">
-          {cards.map((card) => (
+          {displayCards.map((card) => (
             <SmartCardItem key={card.id} card={card} />
           ))}
         </div>
@@ -288,6 +319,50 @@ export default function SmartPlaylistCards() {
           display: none;
         }
       `}</style>
+    </div>
+  )
+}
+
+// ============================================================================
+// Skeleton
+// ============================================================================
+
+function SkeletonCardItem() {
+  return (
+    <div className="bg-zinc-800/50 rounded border border-zinc-700/50 flex items-center w-full h-11 overflow-hidden">
+      <div className="h-full aspect-square bg-zinc-700/50 flex-shrink-0 hidden md:block" />
+      <div className="h-3.5 bg-zinc-700/50 rounded w-2/3 ml-3" />
+    </div>
+  )
+}
+
+function SmartPlaylistCardsSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="px-4 mb-12 animate-pulse">
+      {/* Mobile: 3-col */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-3 gap-2">
+          {[...Array(Math.min(count, 6))].map((_, i) => (
+            <SkeletonCardItem key={i} />
+          ))}
+        </div>
+      </div>
+      {/* md to <1680px: 4-col */}
+      <div className="hidden md:block min-[1680px]:hidden">
+        <div className="grid grid-cols-4 gap-2">
+          {[...Array(count)].map((_, i) => (
+            <SkeletonCardItem key={i} />
+          ))}
+        </div>
+      </div>
+      {/* >=1680px: 5-col */}
+      <div className="hidden min-[1680px]:block">
+        <div className="grid grid-cols-5 gap-2">
+          {[...Array(count)].map((_, i) => (
+            <SkeletonCardItem key={i} />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -304,8 +379,8 @@ function SmartCardItem({ card }: { card: CardItem }) {
       onClick={() => navigate(card.route)}
       className="bg-zinc-800/50 rounded border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
-      {card.albumId && (
-        <div className="h-full flex-shrink-0 hidden md:block">
+      <div className="h-full aspect-square flex-shrink-0 hidden md:block bg-zinc-700/50">
+        {card.albumId && (
           <Image
             src={jellyfinClient.getAlbumArtUrl(card.albumId, 56)}
             alt=""
@@ -313,8 +388,8 @@ function SmartCardItem({ card }: { card: CardItem }) {
             showOutline={false}
             rounded=""
           />
-        </div>
-      )}
+        )}
+      </div>
       <div className="text-sm font-medium text-white group-hover:text-[var(--accent-color)] transition-colors truncate py-2 pl-3 pr-3">
         {card.name}
       </div>
