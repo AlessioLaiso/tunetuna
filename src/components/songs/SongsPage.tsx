@@ -12,6 +12,7 @@ import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
+import { useSearchOpen } from '../../hooks/useSearchOpen'
 import { logger } from '../../utils/logger'
 
 // Section configuration for SongsPage: Songs first (no limit), then Artists (5), Albums (12), Playlists
@@ -38,7 +39,7 @@ export default function SongsPage() {
   const playAlbum = usePlayerStore((state) => state.playAlbum)
   const addToQueue = usePlayerStore((state) => state.addToQueue)
   const isQueueSidebarOpen = usePlayerStore((state) => state.isQueueSidebarOpen)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -159,7 +160,7 @@ export default function SongsPage() {
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim().length > 0 && !isSearchOpen) {
-      setIsSearchOpen(true)
+      openSearch()
     }
   }
 
@@ -332,6 +333,7 @@ export default function SongsPage() {
 
   return (
     <>
+      <input {...proxyInputProps} />
       <div className="pb-20">
         <div
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
@@ -343,7 +345,7 @@ export default function SongsPage() {
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-2xl font-bold text-white">Songs</h1>
                 <button
-                  onClick={() => setIsSearchOpen(true)}
+                  onClick={openSearch}
                   className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
                   aria-label="Search"
                 >

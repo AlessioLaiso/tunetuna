@@ -8,6 +8,7 @@ import FilterBottomSheet from './FilterBottomSheet'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSearch } from '../../hooks/useSearch'
+import { useSearchOpen } from '../../hooks/useSearchOpen'
 import { logger } from '../../utils/logger'
 
 interface SearchBarProps {
@@ -24,7 +25,7 @@ const SEARCH_SECTIONS: SearchSectionConfig[] = [
 ]
 
 export default function SearchBar({ onSearchStateChange, title = 'Search' }: SearchBarProps) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
@@ -133,7 +134,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setSearchQuery(query)
     // Open search overlay when user starts typing
     if (query.trim().length > 0 && !isSearchOpen) {
-      setIsSearchOpen(true)
+      openSearch()
     }
   }
 
@@ -261,6 +262,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   return (
     <>
+      <input {...proxyInputProps} />
       <div className="px-4 md:pl-2 md:pr-4 pt-4 pb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">
@@ -299,7 +301,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
               )}
             </button>
             <button
-              onClick={() => setIsSearchOpen(true)}
+              onClick={openSearch}
               className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
               aria-label="Search"
             >

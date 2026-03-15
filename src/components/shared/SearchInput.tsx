@@ -22,6 +22,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
   const [localValue, setLocalValue] = useState(value)
   const onChangeRef = useRef(onChange)
   const inputRef = useRef<HTMLInputElement>(null)
+  const hasAutoFocused = useRef(false)
 
   // Callback ref to set both forwarded ref and internal ref
   const setRefs = (element: HTMLInputElement | null) => {
@@ -31,9 +32,10 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
     } else if (ref) {
       (ref as React.MutableRefObject<HTMLInputElement | null>).current = element
     }
-    // Focus immediately on mount when autoFocus is set — this fires
+    // Focus only once on mount when autoFocus is set — this fires
     // within the user gesture context so mobile browsers open the keyboard
-    if (element && autoFocus) {
+    if (element && autoFocus && !hasAutoFocused.current) {
+      hasAutoFocused.current = true
       element.focus()
     }
   }

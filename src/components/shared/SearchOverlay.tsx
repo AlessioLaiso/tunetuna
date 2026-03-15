@@ -339,7 +339,6 @@ export default function SearchOverlay({
   const desktopInputRef = desktopSearchInputRef || internalDesktopRef
   const mobileInputRef = mobileSearchInputRef || internalMobileRef
 
-
   // Animation state for backdrop fade
   const [isVisible, setIsVisible] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
@@ -387,7 +386,6 @@ export default function SearchOverlay({
   // Focus search input when overlay opens
   useEffect(() => {
     if (isOpen) {
-      // Check if desktop or mobile
       const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)').matches
       if (isDesktop) {
         desktopInputRef.current?.focus()
@@ -546,7 +544,7 @@ export default function SearchOverlay({
       <>
         {filterConfig.showGenreFilter && (
           <button
-            onClick={() => onOpenFilterSheet('genre')}
+            onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('genre'); }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
               filterState.selectedGenres.length > 0
                 ? 'bg-[var(--accent-color)] text-white'
@@ -560,7 +558,7 @@ export default function SearchOverlay({
         )}
         {filterConfig.showYearFilter && (
           <button
-            onClick={() => onOpenFilterSheet('year')}
+            onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('year') }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
               filterState.yearRange.min !== null || filterState.yearRange.max !== null
                 ? 'bg-[var(--accent-color)] text-white'
@@ -578,7 +576,7 @@ export default function SearchOverlay({
           return (
             <button
               key={category.key}
-              onClick={() => onOpenGroupingFilterSheet?.(category)}
+              onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenGroupingFilterSheet?.(category) }}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 hasSelection
                   ? 'bg-[var(--accent-color)] text-white'

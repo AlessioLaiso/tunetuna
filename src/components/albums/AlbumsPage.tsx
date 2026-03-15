@@ -12,6 +12,7 @@ import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
+import { useSearchOpen } from '../../hooks/useSearchOpen'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 
@@ -39,7 +40,7 @@ export default function AlbumsPage() {
   const playTrack = usePlayerStore((state) => state.playTrack)
   const playAlbum = usePlayerStore((state) => state.playAlbum)
   const addToQueue = usePlayerStore((state) => state.addToQueue)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -144,7 +145,7 @@ export default function AlbumsPage() {
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim().length > 0 && !isSearchOpen) {
-      setIsSearchOpen(true)
+      openSearch()
     }
   }
 
@@ -300,6 +301,7 @@ export default function AlbumsPage() {
 
   return (
     <>
+      <input {...proxyInputProps} />
       <div className="pb-20">
         <div
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
@@ -311,7 +313,7 @@ export default function AlbumsPage() {
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-2xl font-bold text-white">Albums</h1>
                 <button
-                  onClick={() => setIsSearchOpen(true)}
+                  onClick={openSearch}
                   className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
                   aria-label="Search"
                 >

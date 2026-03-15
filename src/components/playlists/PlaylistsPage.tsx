@@ -12,6 +12,7 @@ import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay
 import type { BaseItemDto } from '../../api/types'
 import { unifiedSearch } from '../../utils/search'
 import { logger } from '../../utils/logger'
+import { useSearchOpen } from '../../hooks/useSearchOpen'
 
 // Section configuration for PlaylistsPage: Playlists first (all), then Artists (5), Albums (12), Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -35,7 +36,7 @@ export default function PlaylistsPage() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
   const [rawSearchResults, setRawSearchResults] = useState<{
     artists: BaseItemDto[]
     albums: BaseItemDto[]
@@ -157,7 +158,7 @@ export default function PlaylistsPage() {
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim().length > 0 && !isSearchOpen) {
-      setIsSearchOpen(true)
+      openSearch()
     }
   }
 
@@ -235,6 +236,7 @@ export default function PlaylistsPage() {
 
   return (
     <>
+      <input {...proxyInputProps} />
       <div className="pb-20">
         <div
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
@@ -247,7 +249,7 @@ export default function PlaylistsPage() {
                 <h1 className="text-2xl font-bold text-white">Playlists</h1>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setIsSearchOpen(true)}
+                    onClick={openSearch}
                     className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
                     aria-label="Search"
                   >
