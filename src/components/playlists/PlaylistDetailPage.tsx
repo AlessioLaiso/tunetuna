@@ -9,7 +9,7 @@ import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown, ListMinus
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useToastStore } from '../../stores/toastStore'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
@@ -49,31 +49,10 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
   const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
-  const contextMenuJustOpenedRef = useRef(false)
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(track, 'mobile')
-    },
-    onClick: () => {
-      if (contextMenuJustOpenedRef.current) {
-        contextMenuJustOpenedRef.current = false
-        return
-      }
-      onClick(track, tracks)
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: track,
+    onContextMenu,
   })
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -94,10 +73,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
     <div
       className={`relative w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 cursor-pointer ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       onClick={() => {
-        if (contextMenuJustOpenedRef.current) {
-          contextMenuJustOpenedRef.current = false
-          return
-        }
+        if (shouldSuppressClick()) return
         onClick(track, tracks)
       }}
       onContextMenu={handleContextMenu}

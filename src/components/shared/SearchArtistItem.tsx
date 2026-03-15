@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { User } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { getArtistFallbackArt, getCachedArtistFallbackArt } from '../../utils/artistImageCache'
 import type { BaseItemDto } from '../../api/types'
 
@@ -20,18 +20,15 @@ const SearchArtistItem = memo(function SearchArtistItem({
   contextMenuItemId
 }: SearchArtistItemProps) {
   const [imageError, setImageError] = useState(false)
-  const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === artist.Id
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    // If the artist already has a primary image, prefer that
     if (artist.ImageTags?.Primary) {
       setFallbackAlbumArtUrl(null)
       return
     }
 
-    // Check cache first
     const cached = getCachedArtistFallbackArt(artist.Id)
     if (cached !== undefined) {
       setFallbackAlbumArtUrl(cached)
@@ -39,8 +36,6 @@ const SearchArtistItem = memo(function SearchArtistItem({
     }
 
     let isCancelled = false
-
-    // Load fallback art using shared cache
     getArtistFallbackArt(artist.Id).then((url) => {
       if (!isCancelled) {
         setFallbackAlbumArtUrl(url)
@@ -52,33 +47,13 @@ const SearchArtistItem = memo(function SearchArtistItem({
     }
   }, [artist.Id, artist.ImageTags])
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    onClick(artist.Id)
-  }
+  const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
+    onContextMenu(item, 'artist', mode, position)
+  }, [onContextMenu])
 
-  const handleContextMenuClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(artist, 'artist', 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(artist, 'artist', 'mobile')
-    },
-    onClick: handleClick,
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: artist,
+    onContextMenu: externalHandler,
   })
 
   const imageUrl = artist.ImageTags?.Primary
@@ -87,8 +62,15 @@ const SearchArtistItem = memo(function SearchArtistItem({
 
   return (
     <button
-      onClick={handleClick}
-      onContextMenu={handleContextMenuClick}
+      onClick={(e) => {
+        if (isThisItemMenuOpen || shouldSuppressClick()) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+        onClick(artist.Id)
+      }}
+      onContextMenu={handleContextMenu}
       {...longPressHandlers}
       className={`group w-full flex items-center gap-4 hover:bg-white/10 transition-colors text-left cursor-pointer px-4 h-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       aria-label={`Go to artist ${artist.Name}`}

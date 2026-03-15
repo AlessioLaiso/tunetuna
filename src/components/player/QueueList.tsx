@@ -7,7 +7,7 @@ import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import { Play, Pause, GripHorizontal } from 'lucide-react'
 import ContextMenu from '../shared/ContextMenu'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import type { BaseItemDto } from '../../api/types'
 
 const INITIAL_VISIBLE_SONGS = 45
@@ -46,38 +46,20 @@ const QueueTrackItem = memo(function QueueTrackItem({
     onDragEnterRow,
 }: QueueTrackItemProps) {
     const navigate = useNavigate()
-    const contextMenuJustOpenedRef = useRef(false)
 
-    const longPressHandlers = useLongPress({
-        onLongPress: (e) => {
-            e.preventDefault()
-            contextMenuJustOpenedRef.current = true
-            onContextMenu(track, 'mobile')
-            // Reset after delay
-            setTimeout(() => {
-                contextMenuJustOpenedRef.current = false
-            }, 300)
-        },
+    const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+        item: track,
+        onContextMenu,
     })
 
-    // Wrap external onClick to respect context menu state
     const handleRowClick = useCallback((e: React.MouseEvent) => {
-        if (contextMenuJustOpenedRef.current) {
+        if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
         }
         onClick()
-    }, [onClick])
-
-    const handleContextMenuClick = useCallback((e: React.MouseEvent) => {
-        e.preventDefault()
-        contextMenuJustOpenedRef.current = true
-        onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
-        setTimeout(() => {
-            contextMenuJustOpenedRef.current = false
-        }, 300)
-    }, [onContextMenu, track])
+    }, [onClick, shouldSuppressClick])
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault()
@@ -105,7 +87,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             className={`group queue-row flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
                 } ${isCurrent ? 'bg-zinc-900' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
             onClick={isCurrent ? undefined : handleRowClick}
-            onContextMenu={handleContextMenuClick}
+            onContextMenu={handleContextMenu}
             tabIndex={0}
             role="button"
             aria-label={`${track.Name} by ${track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown Artist'}`}

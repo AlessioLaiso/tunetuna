@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react'
+import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 
 interface AlbumCardProps {
   album: BaseItemDto
@@ -18,91 +18,33 @@ interface AlbumCardProps {
 
 export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true, subtitle, onNavigate, onArtistClick }: AlbumCardProps) {
   const navigate = useNavigate()
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
+  const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
+    onContextMenu?.(item, 'album', mode, position)
+  }, [onContextMenu])
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Don't navigate if context menu was just opened
-    if (contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    if (onNavigate) {
-      onNavigate(album.Id)
-    } else {
-      navigate(`/album/${album.Id}`)
-    }
-  }
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-
-    e.preventDefault()
-    e.stopPropagation()
-    // Prevent any default browser behavior
-    e.nativeEvent?.preventDefault?.()
-    e.nativeEvent?.stopImmediatePropagation?.()
-
-    // Prevent navigation/click for the next 300ms
-    contextMenuJustOpenedRef.current = true
-
-    if (onContextMenu) {
-
-      onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
-    } else {
-      // Fallback to local context menu
-      setContextMenuMode('desktop')
-      setContextMenuPosition({ x: e.clientX, y: e.clientY })
-      setContextMenuOpen(true)
-    }
-
-    // Reset the flag after a longer delay
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      if (onContextMenu) {
-        contextMenuJustOpenedRef.current = true
-        onContextMenu(album, 'album', 'mobile')
-      } else {
-        // Fallback to local context menu
-        contextMenuJustOpenedRef.current = true
-        setContextMenuMode('mobile')
-        setContextMenuPosition(null)
-        setContextMenuOpen(true)
-      }
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick, menuState } = useContextMenu({
+    item: album,
+    onContextMenu: onContextMenu ? externalHandler : undefined,
   })
-
 
   return (
     <>
       <button
         onClick={(e) => {
-
-          // Prevent click if context menu is open or was just opened
-          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
-
+          if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
           }
-
-
-          handleClick(e)
+          if (onNavigate) {
+            onNavigate(album.Id)
+          } else {
+            navigate(`/album/${album.Id}`)
+          }
         }}
-        onContextMenu={(e) => {
-
-          handleContextMenu(e)
-        }}
+        onContextMenu={handleContextMenu}
         {...longPressHandlers}
         className={`text-left group ${isThisItemMenuOpen ? 'ring-2 ring-blue-500' : ''}`}
       >
@@ -150,10 +92,10 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
         <ContextMenu
           item={album}
           itemType="album"
-          isOpen={contextMenuOpen}
-          onClose={() => setContextMenuOpen(false)}
-          mode={contextMenuMode}
-          position={contextMenuPosition || undefined}
+          isOpen={menuState.isOpen}
+          onClose={menuState.close}
+          mode={menuState.mode}
+          position={menuState.position || undefined}
         />
       )}
     </>

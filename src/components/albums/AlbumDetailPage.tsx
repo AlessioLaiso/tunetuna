@@ -8,7 +8,7 @@ import Spinner from '../shared/Spinner'
 import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
 import vinylImage from '../../assets/vinyl.png'
@@ -27,39 +27,17 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const navigate = useNavigate()
-  const contextMenuJustOpenedRef = useRef(false)
   const artistClickedRef = useRef(false)
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(track, 'mobile')
-    },
-    onClick: () => {
-      if (contextMenuJustOpenedRef.current || artistClickedRef.current) {
-        contextMenuJustOpenedRef.current = false
-        artistClickedRef.current = false
-        return
-      }
-      onClick(track, tracks)
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: track,
+    onContextMenu,
   })
+
   return (
     <button
       onClick={() => {
-        if (contextMenuJustOpenedRef.current || artistClickedRef.current) {
-          contextMenuJustOpenedRef.current = false
+        if (shouldSuppressClick() || artistClickedRef.current) {
           artistClickedRef.current = false
           return
         }

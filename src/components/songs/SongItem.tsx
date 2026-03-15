@@ -1,4 +1,4 @@
-import { useState, useRef, memo, useMemo } from 'react'
+import { useState, useCallback, memo, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -6,7 +6,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { Disc } from 'lucide-react'
 import { formatDuration } from '../../utils/formatting'
 
@@ -23,12 +23,17 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
   const playTrack = usePlayerStore((state) => state.playTrack)
   const navigate = useNavigate()
   const currentTrack = useCurrentTrack()
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const contextMenuJustOpenedRef = useRef(false)
   const [imageError, setImageError] = useState(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
+
+  const externalHandler = useCallback((item: LightweightSong, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
+    onContextMenu?.(item, 'song', mode, position)
+  }, [onContextMenu])
+
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick, menuState } = useContextMenu({
+    item: song,
+    onContextMenu: onContextMenu ? externalHandler : undefined,
+  })
 
   // Memoize the image URL to prevent recalculation on every render
   const imageUrl = useMemo(() =>
@@ -36,67 +41,16 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
     [song.AlbumId, song.Id]
   )
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Don't play if context menu was just opened
-    if (contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    playTrack(song)
-  }
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    // Prevent any default browser behavior
-    e.nativeEvent?.preventDefault?.()
-    e.nativeEvent?.stopImmediatePropagation?.()
-
-    // Prevent any click action for the next 300ms
-    contextMenuJustOpenedRef.current = true
-    if (onContextMenu) {
-      onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
-    } else {
-      // Fallback to local context menu
-      setContextMenuMode('desktop')
-      setContextMenuPosition({ x: e.clientX, y: e.clientY })
-      setContextMenuOpen(true)
-    }
-    // Reset the flag after a longer delay
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      if (onContextMenu) {
-        contextMenuJustOpenedRef.current = true
-        onContextMenu(song, 'song', 'mobile')
-      } else {
-        // Fallback to local context menu
-        contextMenuJustOpenedRef.current = true
-        setContextMenuMode('mobile')
-        setContextMenuPosition(null)
-        setContextMenuOpen(true)
-      }
-    },
-  })
-
-
   return (
     <>
       <button
         onClick={(e) => {
-          // Prevent click if context menu is open or was just opened
-          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+          if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
           }
-          handleClick(e)
+          playTrack(song)
         }}
         onContextMenu={handleContextMenu}
         className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
@@ -170,19 +124,13 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
       <ContextMenu
         item={song}
         itemType="song"
-        isOpen={contextMenuOpen}
-        onClose={() => setContextMenuOpen(false)}
-        mode={contextMenuMode}
-        position={contextMenuPosition || undefined}
+        isOpen={menuState.isOpen}
+        onClose={menuState.close}
+        mode={menuState.mode}
+        position={menuState.position || undefined}
       />
     </>
   )
 })
 
 export default SongItem
-
-
-
-
-
-

@@ -10,7 +10,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { ArrowLeft, Pause, Shuffle } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import { formatDuration } from '../../utils/formatting'
@@ -344,39 +344,17 @@ function SmartTrackItem({
   const navigate = useNavigate()
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
-  const contextMenuJustOpenedRef = useRef(false)
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(track, 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => { contextMenuJustOpenedRef.current = false }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(track, 'mobile')
-    },
-    onClick: () => {
-      if (contextMenuJustOpenedRef.current) {
-        contextMenuJustOpenedRef.current = false
-        return
-      }
-      playTrack(track, tracks)
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: track,
+    onContextMenu,
   })
 
   return (
     <div
       className="relative w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 cursor-pointer"
       onClick={() => {
-        if (contextMenuJustOpenedRef.current) {
-          contextMenuJustOpenedRef.current = false
-          return
-        }
+        if (shouldSuppressClick()) return
         playTrack(track, tracks)
       }}
       onContextMenu={handleContextMenu}

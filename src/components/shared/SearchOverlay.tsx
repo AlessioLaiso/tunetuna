@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState } from 'react'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { createPortal } from 'react-dom'
 import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucide-react'
 import SearchInput from './SearchInput'
@@ -81,7 +81,6 @@ interface SearchSongItemProps {
 }
 
 function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
-  const contextMenuJustOpenedRef = useRef(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
 
   const formatDuration = (ticks: number): string => {
@@ -91,38 +90,26 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    onClick(song)
-  }
+  const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
+    onContextMenu(item, 'song', mode, position)
+  }, [onContextMenu])
 
-  const handleContextMenuClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(song, 'song', 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(song, 'song', 'mobile')
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: song,
+    onContextMenu: externalHandler,
   })
 
   return (
     <button
-      onClick={handleClick}
-      onContextMenu={handleContextMenuClick}
+      onClick={(e) => {
+        if (isThisItemMenuOpen || shouldSuppressClick()) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+        onClick(song)
+      }}
+      onContextMenu={handleContextMenu}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       {...longPressHandlers}
     >
@@ -175,32 +162,22 @@ interface PlaylistItemProps {
 }
 
 function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemProps) {
-  const contextMenuJustOpenedRef = useRef(false)
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(playlist, 'playlist', 'mobile')
-    },
+  const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
+    onContextMenu(item, 'playlist', mode, position)
+  }, [onContextMenu])
+
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
+    item: playlist,
+    onContextMenu: externalHandler,
   })
+
   return (
     <button
       onClick={() => {
-        if (contextMenuJustOpenedRef.current) {
-          contextMenuJustOpenedRef.current = false
-          return
-        }
+        if (shouldSuppressClick()) return
         onClick(playlist.Id)
       }}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        contextMenuJustOpenedRef.current = true
-        onContextMenu(playlist, 'playlist', 'desktop', { x: e.clientX, y: e.clientY })
-        setTimeout(() => {
-          contextMenuJustOpenedRef.current = false
-        }, 300)
-      }}
+      onContextMenu={handleContextMenu}
       className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
       {...longPressHandlers}
     >

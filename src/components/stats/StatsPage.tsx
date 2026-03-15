@@ -27,7 +27,7 @@ import html2canvas from 'html2canvas'
 import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
 import Image from '../shared/Image'
-import { useLongPress } from '../../hooks/useLongPress'
+import { useContextMenu } from '../../hooks/useContextMenu'
 
 // Month names for display
 const SHORT_MONTH_NAMES = [
@@ -264,11 +264,6 @@ function TopSongItem({
   const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const contextMenuJustOpenedRef = useRef(false)
-
   const songItem = {
     Id: songId,
     Name: songName,
@@ -279,33 +274,15 @@ function TopSongItem({
     RunTimeTicks: 0
   }
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    setContextMenuMode('desktop')
-    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-    setContextMenuOpen(true)
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      setContextMenuMode('mobile')
-      setContextMenuPosition(null)
-      setContextMenuOpen(true)
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick, menuState } = useContextMenu({
+    item: songItem as BaseItemDto,
   })
 
   return (
     <>
       <button
         onClick={(e) => {
-          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+          if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
@@ -354,10 +331,10 @@ function TopSongItem({
       <ContextMenu
         item={songItem as BaseItemDto}
         itemType="song"
-        isOpen={contextMenuOpen}
-        onClose={() => setContextMenuOpen(false)}
-        mode={contextMenuMode}
-        position={contextMenuPosition || undefined}
+        isOpen={menuState.isOpen}
+        onClose={menuState.close}
+        mode={menuState.mode}
+        position={menuState.position || undefined}
       />
     </>
   )
@@ -384,16 +361,15 @@ function TopArtistItem({
   const imageUrl = jellyfinClient.getArtistImageUrl(artistId, imageSize)
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
 
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const contextMenuJustOpenedRef = useRef(false)
-
   const artistItem = {
     Id: artistId,
     Name: artistName,
     Type: 'MusicArtist'
   }
+
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick, menuState } = useContextMenu({
+    item: artistItem as BaseItemDto,
+  })
 
   useEffect(() => {
     setCurrentImageUrl(imageUrl)
@@ -417,33 +393,11 @@ function TopArtistItem({
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    setContextMenuMode('desktop')
-    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-    setContextMenuOpen(true)
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      setContextMenuMode('mobile')
-      setContextMenuPosition(null)
-      setContextMenuOpen(true)
-    },
-  })
-
   return (
     <>
       <button
         onClick={(e) => {
-          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+          if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
@@ -476,10 +430,10 @@ function TopArtistItem({
       <ContextMenu
         item={artistItem as BaseItemDto}
         itemType="artist"
-        isOpen={contextMenuOpen}
-        onClose={() => setContextMenuOpen(false)}
-        mode={contextMenuMode}
-        position={contextMenuPosition || undefined}
+        isOpen={menuState.isOpen}
+        onClose={menuState.close}
+        mode={menuState.mode}
+        position={menuState.position || undefined}
       />
     </>
   )
@@ -596,11 +550,6 @@ function TopAlbumItem({
   const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const contextMenuJustOpenedRef = useRef(false)
-
   const albumItem = {
     Id: albumId,
     Name: albumName,
@@ -608,33 +557,15 @@ function TopAlbumItem({
     Type: 'MusicAlbum'
   }
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    setContextMenuMode('desktop')
-    setContextMenuPosition({ x: e.clientX, y: e.clientY })
-    setContextMenuOpen(true)
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      setContextMenuMode('mobile')
-      setContextMenuPosition(null)
-      setContextMenuOpen(true)
-    },
+  const { handleContextMenu, longPressHandlers, shouldSuppressClick, menuState } = useContextMenu({
+    item: albumItem as BaseItemDto,
   })
 
   return (
     <>
       <button
         onClick={(e) => {
-          if (contextMenuOpen || contextMenuJustOpenedRef.current) {
+          if (shouldSuppressClick()) {
             e.preventDefault()
             e.stopPropagation()
             return
@@ -680,10 +611,10 @@ function TopAlbumItem({
       <ContextMenu
         item={albumItem as BaseItemDto}
         itemType="album"
-        isOpen={contextMenuOpen}
-        onClose={() => setContextMenuOpen(false)}
-        mode={contextMenuMode}
-        position={contextMenuPosition || undefined}
+        isOpen={menuState.isOpen}
+        onClose={menuState.close}
+        mode={menuState.mode}
+        position={menuState.position || undefined}
       />
     </>
   )
