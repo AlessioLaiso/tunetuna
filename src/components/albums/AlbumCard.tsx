@@ -11,9 +11,12 @@ interface AlbumCardProps {
   onContextMenu?: (item: BaseItemDto, type: 'album', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId?: string | null
   showImage?: boolean
+  subtitle?: string | null
+  onNavigate?: (id: string) => void
+  onArtistClick?: (id: string) => void
 }
 
-export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true }: AlbumCardProps) {
+export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true, subtitle, onNavigate, onArtistClick }: AlbumCardProps) {
   const navigate = useNavigate()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
@@ -29,7 +32,11 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
       contextMenuJustOpenedRef.current = false
       return
     }
-    navigate(`/album/${album.Id}`)
+    if (onNavigate) {
+      onNavigate(album.Id)
+    } else {
+      navigate(`/album/${album.Id}`)
+    }
   }
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -99,7 +106,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
         {...longPressHandlers}
         className={`text-left group ${isThisItemMenuOpen ? 'ring-2 ring-blue-500' : ''}`}
       >
-        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center">
+        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
           {showImage ? (
             <Image
               src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
@@ -113,31 +120,42 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
           )}
         </div>
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
-        <div className="text-xs text-gray-400 truncate">
-          {(album.AlbumArtists?.[0]?.Id || album.ArtistItems?.[0]?.Id) ? (
-            <span
-              className="clickable-text"
-              onClick={(e) => {
-                e.stopPropagation()
-                navigate(`/artist/${album.AlbumArtists?.[0]?.Id || album.ArtistItems![0].Id}`)
-              }}
-            >
-              {album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
-            </span>
-          ) : (
-            album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
-          )}
-        </div>
+        {subtitle !== undefined ? (
+          subtitle && <div className="text-xs text-gray-400 truncate">{subtitle}</div>
+        ) : (
+          <div className="text-xs text-gray-400 truncate">
+            {(album.AlbumArtists?.[0]?.Id || album.ArtistItems?.[0]?.Id) ? (
+              <span
+                className="clickable-text"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const artistId = album.AlbumArtists?.[0]?.Id || album.ArtistItems![0].Id
+                  if (onArtistClick) {
+                    onArtistClick(artistId)
+                  } else {
+                    navigate(`/artist/${artistId}`)
+                  }
+                }}
+              >
+                {album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+              </span>
+            ) : (
+              album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
+            )}
+          </div>
+        )}
       </button>
-      <ContextMenu
-        item={album}
-        itemType="album"
-        isOpen={contextMenuOpen}
-        onClose={() => setContextMenuOpen(false)}
-        mode={contextMenuMode}
-        position={contextMenuPosition || undefined}
-      />
+      {!onContextMenu && (
+        <ContextMenu
+          item={album}
+          itemType="album"
+          isOpen={contextMenuOpen}
+          onClose={() => setContextMenuOpen(false)}
+          mode={contextMenuMode}
+          position={contextMenuPosition || undefined}
+        />
+      )}
     </>
   )
 }
-

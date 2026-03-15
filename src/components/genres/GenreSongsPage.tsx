@@ -1,6 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Disc } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -8,12 +7,11 @@ import { useSyncStore } from '../../stores/syncStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import SongItem from '../songs/SongItem'
-import Image from '../shared/Image'
+import AlbumCard from '../albums/AlbumCard'
 import { ArrowLeft, Shuffle, Pause, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
 import Pagination from '../shared/Pagination'
-import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 import { logger } from '../../utils/logger'
 
@@ -24,79 +22,6 @@ const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
-
-interface GenreAlbumItemProps {
-  album: BaseItemDto
-  onNavigate: (id: string) => void
-  onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
-  showImage?: boolean
-}
-
-function GenreAlbumItem({ album, onNavigate, onContextMenu, showImage = true }: GenreAlbumItemProps) {
-  const [imageError, setImageError] = useState(false)
-  const contextMenuJustOpenedRef = useRef(false)
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(album, 'mobile')
-    },
-    onClick: () => {
-      if (contextMenuJustOpenedRef.current) {
-        contextMenuJustOpenedRef.current = false
-        return
-      }
-      onNavigate(album.Id)
-    },
-  })
-
-  return (
-    <button
-      onClick={() => {
-        if (contextMenuJustOpenedRef.current) {
-          contextMenuJustOpenedRef.current = false
-          return
-        }
-        onNavigate(album.Id)
-      }}
-      onContextMenu={handleContextMenu}
-      {...longPressHandlers}
-      className="text-left group"
-    >
-      <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 flex items-center justify-center">
-        {imageError ? (
-          <Disc className="w-12 h-12 text-gray-500" />
-        ) : showImage ? (
-          <Image
-            src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
-            alt={album.Name}
-            className="w-full h-full object-cover"
-            showOutline={true}
-            rounded="rounded"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-900" />
-        )}
-      </div>
-      <div className="text-sm font-medium text-white truncate">{album.Name}</div>
-      <div className="text-xs text-gray-400 truncate">
-        {album.AlbumArtist || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
-      </div>
-    </button>
-  )
-}
 
 export default function GenreSongsPage() {
   const { id: rawId } = useParams<{ id: string }>()
@@ -597,12 +522,11 @@ export default function GenreSongsPage() {
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {(usePaginationForAlbums ? paginatedAlbums : albums).map((album, index) => {
                 return (
-                  <GenreAlbumItem
+                  <AlbumCard
                     key={album.Id}
                     album={album}
-                    onNavigate={(id) => navigate(`/album/${id}`)}
-                    onContextMenu={(album, mode, position) => {
-                      setContextMenuItem(album)
+                    onContextMenu={(item, _type, mode, position) => {
+                      setContextMenuItem(item)
                       setContextMenuItemType('album')
                       setContextMenuMode(mode || 'mobile')
                       setContextMenuPosition(position || null)

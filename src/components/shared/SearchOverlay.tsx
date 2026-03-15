@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
+import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from './ContextMenu'
 import Image from './Image'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -67,82 +68,7 @@ interface SearchOverlayProps {
 }
 
 // Memoized album item component
-interface SearchAlbumItemProps {
-  album: BaseItemDto
-  onClick: (id: string) => void
-  onArtistClick: (id: string) => void
-  onContextMenu: (item: BaseItemDto, type: 'album', mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => void
-  contextMenuItemId: string | null
-}
-
-function SearchAlbumItem({ album, onClick, onArtistClick, onContextMenu, contextMenuItemId }: SearchAlbumItemProps) {
-  const contextMenuJustOpenedRef = useRef(false)
-  const isThisItemMenuOpen = contextMenuItemId === album.Id
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (isThisItemMenuOpen || contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    onClick(album.Id)
-  }
-
-  const handleContextMenuClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(album, 'album', 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 300)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(album, 'album', 'mobile')
-    },
-  })
-
-  return (
-    <button
-      onClick={handleClick}
-      onContextMenu={handleContextMenuClick}
-      className="text-left group"
-      {...longPressHandlers}
-    >
-      <div className="aspect-square rounded overflow-hidden mb-3 bg-zinc-900 shadow-lg">
-        <Image
-          src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
-          alt={album.Name}
-          className="w-full h-full object-cover"
-          showOutline={true}
-          rounded="rounded"
-        />
-      </div>
-      <div className="text-sm font-semibold text-white truncate mb-1 group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
-      <div className="text-xs text-gray-400 truncate">
-        {(album.AlbumArtists?.[0]?.Id || album.ArtistItems?.[0]?.Id) ? (
-          <span
-            className="clickable-text"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onArtistClick(album.AlbumArtists?.[0]?.Id || album.ArtistItems![0].Id)
-            }}
-          >
-            {album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
-          </span>
-        ) : (
-          album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
-        )}
-      </div>
-    </button>
-  )
-}
+// SearchAlbumItem removed - using shared AlbumCard component instead
 
 // Memoized song item component
 interface SearchSongItemProps {
@@ -455,10 +381,10 @@ export default function SearchOverlay({
             <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {items.map((album) => (
-                <SearchAlbumItem
+                <AlbumCard
                   key={album.Id}
                   album={album}
-                  onClick={onAlbumClick}
+                  onNavigate={onAlbumClick}
                   onArtistClick={onArtistClick}
                   onContextMenu={openContextMenu}
                   contextMenuItemId={contextMenuItem?.Id || null}

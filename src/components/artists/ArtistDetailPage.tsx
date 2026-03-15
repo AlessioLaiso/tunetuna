@@ -7,6 +7,7 @@ import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import Image from '../shared/Image'
 import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, Disc, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
+import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Spinner from '../shared/Spinner'
@@ -21,78 +22,6 @@ const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
-
-interface ArtistAlbumItemProps {
-  album: BaseItemDto
-  year: string | null
-  onNavigate: (id: string) => void
-  onContextMenu: (album: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
-  showImage?: boolean
-}
-
-function ArtistAlbumItem({ album, year, onNavigate, onContextMenu, showImage = true }: ArtistAlbumItemProps) {
-  const [imageError, setImageError] = useState(false)
-  const contextMenuJustOpenedRef = useRef(false)
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (contextMenuJustOpenedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      contextMenuJustOpenedRef.current = false
-      return
-    }
-    onNavigate(album.Id)
-  }
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    contextMenuJustOpenedRef.current = true
-    onContextMenu(album, 'desktop', { x: e.clientX, y: e.clientY })
-    setTimeout(() => {
-      contextMenuJustOpenedRef.current = false
-    }, 100)
-  }
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault()
-      contextMenuJustOpenedRef.current = true
-      onContextMenu(album, 'mobile')
-    },
-    onClick: handleClick,
-  })
-
-  return (
-    <button
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      {...longPressHandlers}
-      className="text-left group"
-    >
-      <div className="aspect-square rounded overflow-hidden mb-2 bg-zinc-900 flex items-center justify-center">
-        {imageError ? (
-          <Disc className="w-12 h-12 text-gray-500" />
-        ) : showImage ? (
-          <Image
-            src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
-            alt={album.Name}
-            className="w-full h-full object-cover"
-            showOutline={true}
-            rounded="rounded"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-900" />
-        )}
-      </div>
-      <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
-      {year && (
-        <div className="text-xs text-gray-400 truncate">{year}</div>
-      )}
-    </button>
-  )
-}
 
 interface ArtistSongItemProps {
   song: BaseItemDto
@@ -895,13 +824,12 @@ export default function ArtistDetailPage() {
               {albums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (
-                  <ArtistAlbumItem
+                  <AlbumCard
                     key={album.Id}
                     album={album}
-                    year={year}
-                    onNavigate={(id) => navigate(`/album/${id}`)}
-                    onContextMenu={(album, mode, position) => {
-                      setContextMenuItem(album)
+                    subtitle={year}
+                    onContextMenu={(item, _type, mode, position) => {
+                      setContextMenuItem(item)
                       setContextMenuItemType('album')
                       setContextMenuMode(mode || 'mobile')
                       setContextMenuPosition(position || null)
@@ -923,13 +851,12 @@ export default function ArtistDetailPage() {
               {appearsOnAlbums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (
-                  <ArtistAlbumItem
+                  <AlbumCard
                     key={album.Id}
                     album={album}
-                    year={year}
-                    onNavigate={(id) => navigate(`/album/${id}`)}
-                    onContextMenu={(album, mode, position) => {
-                      setContextMenuItem(album)
+                    subtitle={year}
+                    onContextMenu={(item, _type, mode, position) => {
+                      setContextMenuItem(item)
                       setContextMenuItemType('album')
                       setContextMenuMode(mode || 'mobile')
                       setContextMenuPosition(position || null)
