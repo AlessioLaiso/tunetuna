@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
 import { createIndexedDBStorage } from '../utils/storage'
-import { parseGroupingTag } from '../utils/formatting'
+import { capitalizeFirst, parseGroupingTag } from '../utils/formatting'
 import { shuffleArray } from '../utils/array'
 import { buildFeaturedArtistMap, type FeaturedArtistResult } from '../utils/featuredArtists'
 
@@ -115,13 +115,6 @@ interface MusicState {
 // Grouping Categories Helper
 // ============================================================================
 
-/**
- * Capitalizes the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
 
 /**
  * Derives grouping categories from songs.

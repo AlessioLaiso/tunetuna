@@ -15,7 +15,9 @@ import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
 import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
-import { formatDuration, parseGroupingTag } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration, parseGroupingTag } from '../../utils/formatting'
+import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
+import { useLargeViewport } from '../../hooks/useLargeViewport'
 
 // Cassette animation constants
 // Wheel image is 712px on a 1233px cassette — ratio preserved at native size
@@ -169,14 +171,6 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
   )
 }
 
-/**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
 export default function PlaylistDetailPage() {
   const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
   const location = useLocation()
@@ -200,14 +194,11 @@ export default function PlaylistDetailPage() {
   const [hasImage, setHasImage] = useState(false)
   const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  const isLargeViewport = useLargeViewport()
 
   // Cassette animation state
   const [showCassette, setShowCassette] = useState(false)
   const [hideCover, setHideCover] = useState(false)
-  const [wheelRotation, setWheelRotation] = useState(0)
-  const wheelRotationRef = useRef<number>(0)
-  const wheelAnimFrameRef = useRef<number | null>(null)
-  const wheelLastTimeRef = useRef<number>(0)
   const cassetteInitRef = useRef<boolean>(false)
   const reverseCassetteRef = useRef<boolean>(false)
   const previousPlayingRef = useRef<boolean>(false)
@@ -289,6 +280,8 @@ export default function PlaylistDetailPage() {
     return tracks.some(t => t.Id === currentTrack.Id) && isPlaying
   }, [currentTrack, tracks, isPlaying])
 
+  const wheelRotation = useCassetteWheelAnimation(isPlaylistCurrentlyPlaying)
+
   // Handle cassette visibility with animation delay
   useEffect(() => {
     const playing = isPlaylistCurrentlyPlaying
@@ -350,36 +343,6 @@ export default function PlaylistDetailPage() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [isPlaylistCurrentlyPlaying, showCassette, hideCover])
-
-  // Handle wheel rotation animation
-  useEffect(() => {
-    if (isPlaylistCurrentlyPlaying) {
-      const animate = (currentTime: number) => {
-        if (wheelLastTimeRef.current === 0) {
-          wheelLastTimeRef.current = currentTime
-        }
-        const dt = currentTime - wheelLastTimeRef.current
-        const speed = 360 / 10000 // 360° per 10s
-        wheelRotationRef.current = (wheelRotationRef.current + speed * dt) % 360
-        setWheelRotation(wheelRotationRef.current)
-        wheelLastTimeRef.current = currentTime
-        wheelAnimFrameRef.current = requestAnimationFrame(animate)
-      }
-      wheelLastTimeRef.current = 0
-      wheelAnimFrameRef.current = requestAnimationFrame(animate)
-    } else {
-      if (wheelAnimFrameRef.current) {
-        cancelAnimationFrame(wheelAnimFrameRef.current)
-        wheelAnimFrameRef.current = null
-      }
-      wheelLastTimeRef.current = 0
-    }
-    return () => {
-      if (wheelAnimFrameRef.current) {
-        cancelAnimationFrame(wheelAnimFrameRef.current)
-      }
-    }
-  }, [isPlaylistCurrentlyPlaying])
 
   // Detect if this is a mood route
   const isMoodRoute = location.pathname.startsWith('/mood/')
@@ -599,8 +562,8 @@ export default function PlaylistDetailPage() {
                 className="relative"
                 style={{
                   overflow: 'visible',
-                  width: '256px',
-                  height: '256px',
+                  width: isLargeViewport ? '360px' : '256px',
+                  height: isLargeViewport ? '360px' : '256px',
                 }}
               >
                 {/* Cassette with spinning wheels */}
@@ -663,7 +626,7 @@ export default function PlaylistDetailPage() {
                       top: '27%',
                       left: '6%',
                       width: '88%',
-                      fontSize: '1.1rem',
+                      fontSize: isLargeViewport ? '1.55rem' : '1.1rem',
                       lineHeight: 1.2,
                       zIndex: 4,
                     }}

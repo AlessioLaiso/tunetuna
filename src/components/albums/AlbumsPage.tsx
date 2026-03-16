@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -13,6 +13,11 @@ import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay
 import type { BaseItemDto } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
 import { useSearchOpen } from '../../hooks/useSearchOpen'
+import { useSearchFocus } from '../../hooks/useSearchFocus'
+import { usePageContextMenu } from '../../hooks/usePageContextMenu'
+import { useYears } from '../../hooks/useYears'
+import { useSearchHandlers } from '../../hooks/useSearchHandlers'
+import { useSortChangeLoading } from '../../hooks/useSortChangeLoading'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 
@@ -37,19 +42,11 @@ export default function AlbumsPage() {
   const setLoading = useMusicStore((state) => state.setLoading)
   const loading = useMusicStore((state) => state.loading)
   const genres = useMusicStore((state) => state.genres)
-  const playTrack = usePlayerStore((state) => state.playTrack)
-  const playAlbum = usePlayerStore((state) => state.playAlbum)
-  const addToQueue = usePlayerStore((state) => state.addToQueue)
   const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
-  const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
+  const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
@@ -57,12 +54,10 @@ export default function AlbumsPage() {
   // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | null>(null)
-  const [years, setYears] = useState<number[]>([])
+  const years = useYears()
 
   const sortOrder = sortPreferences.albums
-  const isInitialLoad = useRef(true)
-  const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
-  const prevSortOrderRef = useRef(sortOrder)
+  const { isInitialLoad, isLoadingSortChange, checkSortChange, clearSortLoading } = useSortChangeLoading(sortOrder)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Use centralized search hook
@@ -95,38 +90,16 @@ export default function AlbumsPage() {
     }
   }, [searchParams, setSearchParams, setYearRange])
 
-  // Load filter values
-  useEffect(() => {
-    const loadFilterValues = async () => {
-      try {
-        const store = useMusicStore.getState()
-        if (store.years.length > 0) {
-          setYears(store.years)
-        } else {
-          const yearsData = await jellyfinClient.getYears()
-          setYears(yearsData)
-        }
-      } catch (error) {
-        logger.error('Failed to load filter values:', error)
-      }
-    }
-    loadFilterValues()
-  }, [])
+  useSearchFocus(isSearchOpen, searchInputRef, desktopSearchInputRef)
 
-  // Focus search input when overlay opens
-  useEffect(() => {
-    if (isSearchOpen) {
-      const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)').matches
-      const inputRef = isDesktop ? desktopSearchInputRef : searchInputRef
-      setTimeout(() => {
-        inputRef.current?.focus()
-        if (inputRef.current) {
-          const length = inputRef.current.value.length
-          inputRef.current.setSelectionRange(length, length)
-        }
-      }, 50)
-    }
-  }, [isSearchOpen])
+  const {
+    handleSearch, handleClearSearch, handleCancelSearch,
+    handleArtistClick, handleAlbumClick, handleSongClick,
+    handlePlayAllSongs, handleAddSongsToQueue, handlePlaylistClick,
+  } = useSearchHandlers({
+    setSearchQuery, isSearchOpen, setIsSearchOpen, openSearch,
+    clearSearch, clearAll, searchResults,
+  })
 
   // Handle escape key to close search (all devices)
   useEffect(() => {
@@ -140,23 +113,7 @@ export default function AlbumsPage() {
     }
     window.addEventListener('keydown', handleKeyDown, true)
     return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [isSearchOpen])
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (query.trim().length > 0 && !isSearchOpen) {
-      openSearch()
-    }
-  }
-
-  const handleClearSearch = () => {
-    clearSearch()
-  }
-
-  const handleCancelSearch = () => {
-    setIsSearchOpen(false)
-    clearAll()
-  }
+  }, [isSearchOpen, handleCancelSearch])
 
   const openFilterSheet = (type: 'genre' | 'year') => {
     setActiveFilterType(type)
@@ -169,51 +126,6 @@ export default function AlbumsPage() {
 
   const handleYearApply = (range: { min: number | null; max: number | null }) => {
     setYearRange(range)
-  }
-
-  const handleArtistClick = (artistId: string) => {
-    navigate(`/artist/${artistId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const handleAlbumClick = (albumId: string) => {
-    navigate(`/album/${albumId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const handleSongClick = (song: BaseItemDto) => {
-    // Play only the selected song
-    playTrack(song, [song])
-    // Don't close search - keep it open so user can continue browsing
-  }
-
-  const handlePlayAllSongs = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      playAlbum(searchResults.songs)
-    }
-  }
-
-  const handleAddSongsToQueue = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      addToQueue(searchResults.songs)
-    }
-  }
-
-  const handlePlaylistClick = (playlistId: string) => {
-    navigate(`/playlist/${playlistId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
-
-    setContextMenuItem(item)
-    setContextMenuItemType(type)
-    setContextMenuMode(mode)
-    setContextMenuPosition(position || null)
-    setContextMenuOpen(true)
   }
 
   useEffect(() => {
@@ -251,21 +163,10 @@ export default function AlbumsPage() {
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      // Check if sortOrder changed (not initial load)
-      if (!isInitialLoad.current && prevSortOrderRef.current !== sortOrder) {
-        setIsLoadingSortChange(true)
-      }
-      prevSortOrderRef.current = sortOrder
+      checkSortChange()
       loadAlbums()
     }
   }, [currentPage, sortOrder, searchQuery])
-
-  useEffect(() => {
-    // Mark initial load as complete after first render
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false
-    }
-  }, [])
 
   const loadAlbums = async () => {
     setLoading('albums', true)
@@ -295,7 +196,7 @@ export default function AlbumsPage() {
       setTotalCount(0)
     } finally {
       setLoading('albums', false)
-      setIsLoadingSortChange(false)
+      clearSortLoading()
     }
   }
 
@@ -470,11 +371,7 @@ export default function AlbumsPage() {
         item={contextMenuItem}
         itemType={contextMenuItemType}
         isOpen={contextMenuOpen}
-        onClose={() => {
-          setContextMenuOpen(false)
-          setContextMenuItem(null)
-          setContextMenuItemType(null)
-        }}
+        onClose={closeContextMenu}
         zIndex={99999}
         mode={contextMenuMode}
         position={contextMenuPosition || undefined}

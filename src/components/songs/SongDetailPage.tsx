@@ -12,7 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
-import { formatDuration } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 // Month helpers (same logic as StatsPage)
@@ -63,11 +63,6 @@ function getDefaultRange(oldestTs: number | null): { from: string; to: string } 
 function formatMonthYear(monthStr: string): string {
   const [year, month] = monthStr.split('-').map(Number)
   return `${SHORT_MONTH_NAMES[month - 1]} ${year}`
-}
-
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
 function parseGroupingTags(tags: string[]): { key: string; category: string; values: { display: string; raw: string }[] }[] {

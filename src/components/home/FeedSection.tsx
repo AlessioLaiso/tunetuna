@@ -25,6 +25,7 @@ import {
   type OdesliResponse
 } from '../../api/feed'
 import { FEED_COOLDOWN_MS } from '../../utils/constants'
+import { getCachedCoverArt, loadCachedCoverArt, fetchAndCacheCoverArt, cleanupCoverArtCache } from '../../utils/coverArtCache'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 
 interface SubtitlePart {
@@ -435,14 +436,31 @@ export function NewReleasesSection() {
     }
   }, [showNewReleases, muspyRssUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Preload cover art when we have releases (e.g. from persistence on refresh) so they cache
+  // Cache cover art images in IndexedDB for instant display on refresh
+  const [, setCoverArtVersion] = useState(0)
+
   useEffect(() => {
-    feedNewReleases.forEach((r) => {
-      if (!r.id.startsWith('muspy-')) {
-        const img = new window.Image()
-        img.src = getCoverArtUrl(r.id, 250)
+    const validIds = feedNewReleases
+      .filter((r) => !r.id.startsWith('muspy-'))
+      .map((r) => r.id)
+
+    if (validIds.length === 0) return
+
+    // Load cached blobs from IndexedDB, then fetch any missing ones
+    loadCachedCoverArt(validIds).then(() => {
+      setCoverArtVersion((v) => v + 1)
+
+      // Fetch and cache any that weren't in IndexedDB
+      const uncached = validIds.filter((id) => !getCachedCoverArt(id))
+      if (uncached.length > 0) {
+        Promise.all(
+          uncached.map((id) => fetchAndCacheCoverArt(id, getCoverArtUrl(id, 250)))
+        ).then(() => setCoverArtVersion((v) => v + 1))
       }
     })
+
+    // Clean up stale entries
+    cleanupCoverArtCache(new Set(validIds))
   }, [feedNewReleases])
 
   // Background process to resolve missing MBIDs for new releases
@@ -565,7 +583,9 @@ export function NewReleasesSection() {
                 : null
             const isInLibrary = match !== null
             const hasValidMbid = !release.id.startsWith('muspy-')
-            const coverArtUrl = hasValidMbid ? getCoverArtUrl(release.id, 250) : null
+            const coverArtUrl = hasValidMbid
+              ? (getCachedCoverArt(release.id) || getCoverArtUrl(release.id, 250))
+              : null
             const artistId = findArtistImageUrl(release.artistName)
             const artistFallbackUrl = artistId ? jellyfinClient.getArtistImageUrl(artistId, 96) : null
 

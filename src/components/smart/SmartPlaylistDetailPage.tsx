@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
@@ -13,7 +13,9 @@ import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
-import { formatDuration } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration } from '../../utils/formatting'
+import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
+import { useLargeViewport } from '../../hooks/useLargeViewport'
 import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
 import {
@@ -37,11 +39,6 @@ function decadeLabel(decade: number): string {
   return `${decade}s`
 }
 
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
 export default function SmartPlaylistDetailPage() {
   const { smartId } = useParams<{ smartId: string }>()
   const navigate = useNavigate()
@@ -52,6 +49,7 @@ export default function SmartPlaylistDetailPage() {
   const { shuffleArtist, isPlaying } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
+  const isLargeViewport = useLargeViewport()
 
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,12 +60,6 @@ export default function SmartPlaylistDetailPage() {
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
-
-  // Cassette animation state
-  const [wheelRotation, setWheelRotation] = useState(0)
-  const wheelRotationRef = useRef<number>(0)
-  const wheelAnimFrameRef = useRef<number | null>(null)
-  const wheelLastTimeRef = useRef<number>(0)
 
   useEffect(() => {
     if (!smartId || songs.length === 0) return
@@ -148,35 +140,7 @@ export default function SmartPlaylistDetailPage() {
     return tracks.some(t => t.Id === currentTrack.Id) && isPlaying
   }, [currentTrack, tracks, isPlaying])
 
-  // Cassette wheel rotation animation
-  useEffect(() => {
-    if (isListPlaying) {
-      const animate = (currentTime: number) => {
-        if (wheelLastTimeRef.current === 0) {
-          wheelLastTimeRef.current = currentTime
-        }
-        const dt = currentTime - wheelLastTimeRef.current
-        const speed = 360 / 10000
-        wheelRotationRef.current = (wheelRotationRef.current + speed * dt) % 360
-        setWheelRotation(wheelRotationRef.current)
-        wheelLastTimeRef.current = currentTime
-        wheelAnimFrameRef.current = requestAnimationFrame(animate)
-      }
-      wheelLastTimeRef.current = 0
-      wheelAnimFrameRef.current = requestAnimationFrame(animate)
-    } else {
-      if (wheelAnimFrameRef.current) {
-        cancelAnimationFrame(wheelAnimFrameRef.current)
-        wheelAnimFrameRef.current = null
-      }
-      wheelLastTimeRef.current = 0
-    }
-    return () => {
-      if (wheelAnimFrameRef.current) {
-        cancelAnimationFrame(wheelAnimFrameRef.current)
-      }
-    }
-  }, [isListPlaying])
+  const wheelRotation = useCassetteWheelAnimation(isListPlaying)
 
   if (loading) {
     return (
@@ -209,7 +173,7 @@ export default function SmartPlaylistDetailPage() {
         <div className="mb-6 px-4 pt-4">
           {/* Cassette */}
           <div className="flex justify-center mb-6">
-            <div className="relative" style={{ width: '256px', height: '256px' }}>
+            <div className="relative" style={{ width: isLargeViewport ? '360px' : '256px', height: isLargeViewport ? '360px' : '256px' }}>
               {/* Left wheel */}
               <img
                 src={wheelImage}
@@ -254,7 +218,7 @@ export default function SmartPlaylistDetailPage() {
                   top: '27%',
                   left: '6%',
                   width: '88%',
-                  fontSize: '1.1rem',
+                  fontSize: isLargeViewport ? '1.55rem' : '1.1rem',
                   lineHeight: 1.2,
                   zIndex: 4,
                 }}

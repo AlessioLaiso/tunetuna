@@ -17,6 +17,7 @@ import {
   getLanguageSongs,
 } from '../../utils/smartPlaylists'
 import type { LightweightSong } from '../../api/types'
+import { capitalizeFirst } from '../../utils/formatting'
 
 // ============================================================================
 // Helpers
@@ -44,11 +45,6 @@ function pickAlbum(key: string, songs: LightweightSong[], usedAlbumIds: Set<stri
   if (candidates.length === 0) candidates = withAlbum
   const seed = getDailySeed(key)
   return candidates[Math.abs(seed) % candidates.length].AlbumId!
-}
-
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
 function decadeLabel(decade: number): string {

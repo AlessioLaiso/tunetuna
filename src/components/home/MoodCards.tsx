@@ -1,8 +1,11 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import MoodCardItem from './MoodCardItem'
 import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
 import type { LightweightSong } from '../../api/types'
+import { capitalizeFirst } from '../../utils/formatting'
+import { getCachedCoverArt, loadCachedCoverArt, fetchAndCacheCoverArt, cleanupCoverArtCache } from '../../utils/coverArtCache'
+import { jellyfinClient } from '../../api/jellyfin'
 
 /**
  * Simple hash function for seeded random.
@@ -24,14 +27,6 @@ function hashCode(str: string): number {
 function getDailySeed(moodValue: string): number {
   const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
   return hashCode(`${dateStr}-${moodValue}`)
-}
-
-/**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
 /**
@@ -96,10 +91,19 @@ function reorderForRowFlow<T>(items: T[], rows: number): T[] {
   return result
 }
 
+function getTodayDateStr(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+function moodCacheKey(moodValue: string): string {
+  return `mood_${getTodayDateStr()}_${moodValue}`
+}
+
 interface MoodWithAlbum {
   value: string
   name: string
   albumId: string | null
+  cachedArtUrl: string | null
 }
 
 /**
@@ -118,8 +122,8 @@ export default function MoodCards() {
     return categories.find(c => c.key === 'mood')
   }, [songs])
 
-  // Build ordered list of moods with album art
-  const moods: MoodWithAlbum[] = useMemo(() => {
+  // Build ordered list of moods with album art (without cache URLs yet)
+  const moodsBase = useMemo(() => {
     if (!moodCategory || moodCategory.values.length === 0) return []
 
     const orderedValues = orderMoodsByRecency(moodCategory.values, recentlyAccessedMoods)
@@ -135,6 +139,56 @@ export default function MoodCards() {
       }
     })
   }, [moodCategory, songs, recentlyAccessedMoods])
+
+  // Cache mood card album art in IndexedDB so images load instantly on revisit
+  const [artCacheReady, setArtCacheReady] = useState(false)
+  useEffect(() => {
+    if (moodsBase.length === 0) return
+
+    const cacheKeys = moodsBase
+      .filter(m => m.albumId)
+      .map(m => moodCacheKey(m.value))
+
+    let cancelled = false
+
+    // Load existing cached blobs from IndexedDB
+    loadCachedCoverArt(cacheKeys).then(() => {
+      if (cancelled) return
+      setArtCacheReady(true)
+
+      // Fetch and cache any missing ones
+      const uncached = moodsBase.filter(
+        m => m.albumId && !getCachedCoverArt(moodCacheKey(m.value))
+      )
+      if (uncached.length > 0) {
+        Promise.all(
+          uncached.map(m =>
+            fetchAndCacheCoverArt(
+              moodCacheKey(m.value),
+              jellyfinClient.getAlbumArtUrl(m.albumId!, 56)
+            )
+          )
+        ).then(() => {
+          if (!cancelled) setArtCacheReady(prev => !prev) // trigger re-render
+        })
+      }
+
+      // Clean up stale entries (old days)
+      const activeKeys = new Set(cacheKeys)
+      cleanupCoverArtCache(activeKeys)
+    })
+
+    return () => { cancelled = true }
+  }, [moodsBase])
+
+  // Merge cached URLs into moods
+  const moods: MoodWithAlbum[] = useMemo(() => {
+    return moodsBase.map(m => ({
+      ...m,
+      cachedArtUrl: m.albumId ? getCachedCoverArt(moodCacheKey(m.value)) : null,
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moodsBase, artCacheReady])
 
   // Don't render if no moods
   if (moods.length === 0) return null
@@ -177,6 +231,7 @@ export default function MoodCards() {
                         moodValue={mood.value}
                         moodName={mood.name}
                         albumId={mood.albumId}
+                        cachedArtUrl={mood.cachedArtUrl}
                       />
                     ))}
                   </div>
@@ -197,6 +252,7 @@ export default function MoodCards() {
                 moodValue={mood.value}
                 moodName={mood.name}
                 albumId={mood.albumId}
+                cachedArtUrl={mood.cachedArtUrl}
               />
             ))}
           </div>
@@ -213,6 +269,7 @@ export default function MoodCards() {
                 moodValue={mood.value}
                 moodName={mood.name}
                 albumId={mood.albumId}
+                cachedArtUrl={mood.cachedArtUrl}
               />
             ))}
           </div>

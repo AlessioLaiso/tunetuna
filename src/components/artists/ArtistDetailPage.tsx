@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useNavigationType } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
@@ -15,6 +15,7 @@ import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
+import { getSavedScrollPosition } from '../../ScrollToTop'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -134,6 +135,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
 export default function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const { playAlbum, playTrack, isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
@@ -251,14 +253,6 @@ export default function ArtistDetailPage() {
       return yearB - yearA
     })
   }, [serverAppearsOn, featuredSongsForArtist, albums])
-
-  // Scroll to top when component mounts or artist ID changes
-  useEffect(() => {
-    const scrollContainer = document.querySelector('.main-scrollable')
-    if (scrollContainer) {
-      scrollContainer.scrollTo({ top: 0, behavior: 'auto' })
-    }
-  }, [id])
 
   // Normalize artist name by removing special characters for comparison
   const normalizeArtistName = (name: string): string => {
@@ -460,6 +454,32 @@ export default function ArtistDetailPage() {
       window.removeEventListener('resize', handleResize)
     }
   }, [artist?.Overview])
+
+  // Restore scroll position on back navigation after data finishes loading.
+  // Retries briefly to wait for images/layout to establish full content height.
+  useEffect(() => {
+    if (loading || navigationType !== 'POP') return
+    const targetScroll = getSavedScrollPosition('/artist/' + id)
+    if (!targetScroll || targetScroll <= 0) return
+
+    const scrollContainer = document.querySelector('.main-scrollable')
+    if (!scrollContainer) return
+
+    let attempts = 0
+    const maxAttempts = 15 // ~750ms max
+
+    const tryRestore = () => {
+      const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight
+      if (maxScroll >= targetScroll || attempts >= maxAttempts) {
+        scrollContainer.scrollTo({ top: targetScroll, behavior: 'auto' })
+        return
+      }
+      attempts++
+      requestAnimationFrame(tryRestore)
+    }
+
+    requestAnimationFrame(tryRestore)
+  }, [loading, navigationType, id])
 
   // Reset visible albums window when albums change
   useEffect(() => {

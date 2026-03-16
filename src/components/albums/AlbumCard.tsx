@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { saveScrollPosition } from '../../ScrollToTop'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto } from '../../api/types'
@@ -38,6 +39,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
             e.stopPropagation()
             return
           }
+          saveScrollPosition()
           if (onNavigate) {
             onNavigate(album.Id)
           } else {

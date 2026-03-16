@@ -1,3 +1,8 @@
+export function capitalizeFirst(str: string): string {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 export function formatDuration(ticks: number): string {
   const seconds = Math.floor(ticks / 10000000)
   const mins = Math.floor(seconds / 60)

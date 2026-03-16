@@ -11,6 +11,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
+import { useLargeViewport } from '../../hooks/useLargeViewport'
 import vinylImage from '../../assets/vinyl.png'
 
 interface AlbumTrackItemProps {
@@ -116,8 +117,7 @@ export default function AlbumDetailPage() {
   // Add new ref for split animation
   const shouldSplitRef = useRef<boolean>(false)
 
-  // Track if viewport is large enough for bigger album art
-  const [isLargeViewport, setIsLargeViewport] = useState(false)
+  const isLargeViewport = useLargeViewport()
 
   const [rotationAngle, setRotationAngle] = useState(0)
   const rotationRef = useRef<number>(0)
@@ -129,17 +129,6 @@ export default function AlbumDetailPage() {
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   const previousPlayingRef = useRef<boolean>(false)
-
-  // Check viewport size for large display
-  useEffect(() => {
-    const checkViewportSize = () => {
-      setIsLargeViewport(window.innerWidth >= 1280 && window.innerHeight >= 1080)
-    }
-
-    checkViewportSize()
-    window.addEventListener('resize', checkViewportSize)
-    return () => window.removeEventListener('resize', checkViewportSize)
-  }, [])
 
   useEffect(() => {
     if (!id) return

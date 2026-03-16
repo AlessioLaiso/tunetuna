@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -10,9 +9,12 @@ import FilterBottomSheet from '../home/FilterBottomSheet'
 import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
-import type { BaseItemDto } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
 import { useSearchOpen } from '../../hooks/useSearchOpen'
+import { useSearchFocus } from '../../hooks/useSearchFocus'
+import { usePageContextMenu } from '../../hooks/usePageContextMenu'
+import { useSearchHandlers } from '../../hooks/useSearchHandlers'
+import { useSortChangeLoading } from '../../hooks/useSortChangeLoading'
 import { logger } from '../../utils/logger'
 
 // Section configuration for ArtistsPage: Artists (all), Albums (12), Playlists, Songs
@@ -30,17 +32,11 @@ const VISIBLE_INCREMENT = 45
 
 export default function ArtistsPage() {
   const { artists, setArtists, sortPreferences, setSortPreference, setLoading, loading, genres } = useMusicStore()
-  const { playTrack, playAlbum, addToQueue } = usePlayerStore()
   const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
-  const [contextMenuOpen, setContextMenuOpen] = useState(false)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
-  const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
-  const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
+  const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [visibleArtistsCount, setVisibleArtistsCount] = useState(INITIAL_VISIBLE_ARTISTS)
-  const navigate = useNavigate()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
 
@@ -49,9 +45,7 @@ export default function ArtistsPage() {
   const [activeFilterType, setActiveFilterType] = useState<'genre' | null>(null)
 
   const sortOrder = sortPreferences.artists
-  const isInitialLoad = useRef(true)
-  const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
-  const prevSortOrderRef = useRef(sortOrder)
+  const { isInitialLoad, isLoadingSortChange, checkSortChange, clearSortLoading } = useSortChangeLoading(sortOrder)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
   // Use centralized search hook (no year filter for artists page)
@@ -67,36 +61,16 @@ export default function ArtistsPage() {
     clearAll,
   } = useSearch({ includeYearFilter: false })
 
-  // Focus search input when overlay opens
-  useEffect(() => {
-    if (isSearchOpen) {
-      const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)').matches
-      const inputRef = isDesktop ? desktopSearchInputRef : searchInputRef
-      setTimeout(() => {
-        inputRef.current?.focus()
-        if (inputRef.current) {
-          const length = inputRef.current.value.length
-          inputRef.current.setSelectionRange(length, length)
-        }
-      }, 50)
-    }
-  }, [isSearchOpen])
+  useSearchFocus(isSearchOpen, searchInputRef, desktopSearchInputRef)
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (query.trim().length > 0 && !isSearchOpen) {
-      openSearch()
-    }
-  }
-
-  const handleClearSearch = () => {
-    clearSearch()
-  }
-
-  const handleCancelSearch = () => {
-    setIsSearchOpen(false)
-    clearAll()
-  }
+  const {
+    handleSearch, handleClearSearch, handleCancelSearch,
+    handleArtistClick, handleAlbumClick, handleSongClick,
+    handlePlayAllSongs, handleAddSongsToQueue, handlePlaylistClick,
+  } = useSearchHandlers({
+    setSearchQuery, isSearchOpen, setIsSearchOpen, openSearch,
+    clearSearch, clearAll, searchResults,
+  })
 
   const openFilterSheet = (type: 'genre' | 'year') => {
     if (type === 'genre') {
@@ -107,50 +81,6 @@ export default function ArtistsPage() {
 
   const handleGenreApply = (selected: string[]) => {
     setSelectedGenres(selected)
-  }
-
-  const handleArtistClick = (artistId: string) => {
-    navigate(`/artist/${artistId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const handleAlbumClick = (albumId: string) => {
-    navigate(`/album/${albumId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const handleSongClick = (song: BaseItemDto) => {
-    // Play only the selected song
-    playTrack(song, [song])
-    // Don't close search - keep it open so user can continue browsing
-  }
-
-  const handlePlayAllSongs = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      playAlbum(searchResults.songs)
-    }
-  }
-
-  const handleAddSongsToQueue = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      addToQueue(searchResults.songs)
-    }
-  }
-
-  const handlePlaylistClick = (playlistId: string) => {
-    navigate(`/playlist/${playlistId}`)
-    setIsSearchOpen(false)
-    clearSearch()
-  }
-
-  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
-    setContextMenuItem(item)
-    setContextMenuItemType(type)
-    setContextMenuMode(mode)
-    setContextMenuPosition(position || null)
-    setContextMenuOpen(true)
   }
 
   const loadArtists = async () => {
@@ -192,7 +122,7 @@ export default function ArtistsPage() {
       const loadingEndTime = Date.now()
       const totalTime = loadingEndTime - loadStartTime
       setLoading('artists', false)
-      setIsLoadingSortChange(false)
+      clearSortLoading()
     }
   }
 
@@ -226,21 +156,10 @@ export default function ArtistsPage() {
 
   useEffect(() => {
     if (!searchQuery.trim() && !isSearchOpen) {
-      // Check if sortOrder changed (not initial load)
-      if (!isInitialLoad.current && prevSortOrderRef.current !== sortOrder) {
-        setIsLoadingSortChange(true)
-      }
-      prevSortOrderRef.current = sortOrder
+      checkSortChange()
       loadArtists()
     }
   }, [currentPage, sortOrder, searchQuery, isSearchOpen])
-
-  useEffect(() => {
-    // Mark initial load as complete after first render
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false
-    }
-  }, [])
 
   return (
     <>
@@ -382,11 +301,7 @@ export default function ArtistsPage() {
         item={contextMenuItem}
         itemType={contextMenuItemType}
         isOpen={contextMenuOpen}
-        onClose={() => {
-          setContextMenuOpen(false)
-          setContextMenuItem(null)
-          setContextMenuItemType(null)
-        }}
+        onClose={closeContextMenu}
         zIndex={99999}
         mode={contextMenuMode}
         position={contextMenuPosition || undefined}

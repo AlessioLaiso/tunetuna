@@ -7,13 +7,14 @@ interface MoodCardItemProps {
   moodValue: string
   moodName: string
   albumId: string | null
+  cachedArtUrl: string | null
 }
 
 /**
  * Individual mood card component.
  * Shorter than genre cards, shows mood name and optional album art.
  */
-export default function MoodCardItem({ moodValue, moodName, albumId }: MoodCardItemProps) {
+export default function MoodCardItem({ moodValue, moodName, albumId, cachedArtUrl }: MoodCardItemProps) {
   const navigate = useNavigate()
   const { recordMoodAccess } = useMusicStore()
 
@@ -30,7 +31,7 @@ export default function MoodCardItem({ moodValue, moodName, albumId }: MoodCardI
       {albumId && (
         <div className="h-full flex-shrink-0 hidden md:block">
           <Image
-            src={jellyfinClient.getAlbumArtUrl(albumId, 56)}
+            src={cachedArtUrl || jellyfinClient.getAlbumArtUrl(albumId, 56)}
             alt=""
             className="w-full h-full object-cover"
             showOutline={false}
