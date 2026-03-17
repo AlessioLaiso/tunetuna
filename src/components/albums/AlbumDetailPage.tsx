@@ -22,9 +22,10 @@ interface AlbumTrackItemProps {
   onClick: (track: BaseItemDto, tracks: BaseItemDto[]) => void
   onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
+  trackNumberWidth: string
 }
 
-function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onContextMenu, contextMenuItemId }: AlbumTrackItemProps) {
+function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onContextMenu, contextMenuItemId, trackNumberWidth }: AlbumTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
   const navigate = useNavigate()
@@ -46,12 +47,12 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
       }}
       onContextMenu={handleContextMenu}
       {...longPressHandlers}
-      className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+      className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 pl-4 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${currentTrack?.Id === track.Id
+      <span className={`text-sm text-left flex-shrink-0 mr-4 ${currentTrack?.Id === track.Id
         ? 'text-[var(--accent-color)]'
         : 'text-gray-500'
-        }`}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
+        }`} style={{ width: trackNumberWidth }}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
       <div className="flex-1 min-w-0 text-left">
         <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
           ? 'text-[var(--accent-color)]'
@@ -773,6 +774,11 @@ export default function AlbumDetailPage() {
 
               return sortedDiscNumbers.map(discNumber => {
                 const discTracks = tracksByDisc.get(discNumber)!
+                const maxLen = Math.max(...discTracks.map(t => {
+                  const num = t.IndexNumber && t.IndexNumber > 0 ? String(t.IndexNumber) : '-'
+                  return num.length
+                }))
+                const trackNumberWidth = `${maxLen}ch`
                 return (
                   <div key={discNumber}>
                     {hasMultipleDiscs && (
@@ -795,6 +801,7 @@ export default function AlbumDetailPage() {
                           setContextMenuOpen(true)
                         }}
                         contextMenuItemId={contextMenuItem?.Id || null}
+                        trackNumberWidth={trackNumberWidth}
                       />
                     ))}
                   </div>

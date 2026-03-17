@@ -24,6 +24,12 @@ interface MatchedTrack {
   libraryMatch: LightweightSong | null
 }
 
+function getTrackNumber(track: MatchedTrack, index: number): string {
+  const rawPos = track.discogsTrack.position || ''
+  const discPrefixMatch = rawPos.match(/^\d+-(\d+)$/)
+  return discPrefixMatch ? String(parseInt(discPrefixMatch[1], 10)) : rawPos || String(index + 1)
+}
+
 function CollectionTrackItem({
   track,
   index,
@@ -31,6 +37,7 @@ function CollectionTrackItem({
   libraryMatches,
   onContextMenu,
   contextMenuItemId,
+  trackNumberWidth,
 }: {
   track: MatchedTrack
   index: number
@@ -38,6 +45,7 @@ function CollectionTrackItem({
   libraryMatches: LightweightSong[]
   onContextMenu: (item: LightweightSong, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => void
   contextMenuItemId: string | null
+  trackNumberWidth: string
 }) {
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
@@ -56,10 +64,7 @@ function CollectionTrackItem({
     }
   }
 
-  // Strip disc prefix from position (e.g. "1-03" → "3", "2-09" → "9")
-  const rawPos = track.discogsTrack.position || ''
-  const discPrefixMatch = rawPos.match(/^\d+-(\d+)$/)
-  const trackNumber = discPrefixMatch ? String(parseInt(discPrefixMatch[1], 10)) : rawPos || String(index + 1)
+  const trackNumber = getTrackNumber(track, index)
 
   return (
     <button
@@ -67,15 +72,15 @@ function CollectionTrackItem({
       onContextMenu={isMatched ? handleContextMenu : undefined}
       {...(isMatched ? longPressHandlers : {})}
       disabled={!isMatched}
-      className={`w-full flex items-baseline py-3 transition-colors ${
+      className={`w-full flex items-baseline py-3 pl-4 transition-colors ${
         isMatched
           ? `hover:bg-white/10 group ${contextMenuItemId === track.libraryMatch?.Id ? 'bg-white/10' : ''}`
           : 'opacity-60 cursor-default'
       }`}
     >
-      <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${
+      <span className={`text-sm text-left flex-shrink-0 mr-4 ${
         isPlaying ? 'text-[var(--accent-color)]' : isMatched ? 'text-gray-500' : 'text-gray-700'
-      }`}>
+      }`} style={{ width: trackNumberWidth }}>
         {trackNumber}
       </span>
       <div className="flex-1 min-w-0 text-left">
@@ -817,26 +822,31 @@ export default function CollectionDetailPage() {
 
         {/* Tracklist */}
         <div className="space-y-0">
-          {Array.from(tracksByDisc.entries()).map(([discLabel, discTracks], discIndex) => (
-            <div key={discLabel || 'all'}>
-              {hasMultipleDiscs && discLabel && (
-                <div className={`px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider ${discIndex > 0 ? 'pt-4' : ''}`}>
-                  {discLabel}
-                </div>
-              )}
-              {discTracks.map((track, index) => (
-                <CollectionTrackItem
-                  key={`${track.discogsTrack.position}-${index}`}
-                  track={track}
-                  index={index}
-                  artistName={artistName}
-                  libraryMatches={libraryMatches}
-                  onContextMenu={handleTrackContextMenu}
-                  contextMenuItemId={contextMenuItem?.Id || null}
-                />
-              ))}
-            </div>
-          ))}
+          {Array.from(tracksByDisc.entries()).map(([discLabel, discTracks], discIndex) => {
+            const maxLen = Math.max(...discTracks.map((t, i) => getTrackNumber(t, i).length))
+            const trackNumberWidth = `${maxLen}ch`
+            return (
+              <div key={discLabel || 'all'}>
+                {hasMultipleDiscs && discLabel && (
+                  <div className={`px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider ${discIndex > 0 ? 'pt-4' : ''}`}>
+                    {discLabel}
+                  </div>
+                )}
+                {discTracks.map((track, index) => (
+                  <CollectionTrackItem
+                    key={`${track.discogsTrack.position}-${index}`}
+                    track={track}
+                    index={index}
+                    artistName={artistName}
+                    libraryMatches={libraryMatches}
+                    onContextMenu={handleTrackContextMenu}
+                    contextMenuItemId={contextMenuItem?.Id || null}
+                    trackNumberWidth={trackNumberWidth}
+                  />
+                ))}
+              </div>
+            )
+          })}
         </div>
       </div>
 
