@@ -17,6 +17,7 @@ import ContextMenu from '../shared/ContextMenu'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Spinner from '../shared/Spinner'
+import Image from '../shared/Image'
 import vinylImage from '../../assets/vinyl.png'
 
 interface MatchedTrack {
@@ -753,10 +754,12 @@ export default function CollectionDetailPage() {
                   }}
                 >
                   {coverImage ? (
-                    <img
+                    <Image
                       src={coverImage}
                       alt={detail.title}
-                      className="w-full h-full object-cover rounded"
+                      className="w-full h-full object-cover"
+                      showOutline={true}
+                      rounded="rounded"
                       onError={() => setHasImage(false)}
                     />
                   ) : (

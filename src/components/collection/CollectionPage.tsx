@@ -12,6 +12,7 @@ import type { DiscogsRelease } from '../../api/discogs'
 import type { BaseItemDto } from '../../api/types'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
+import Image from '../shared/Image'
 
 export default function CollectionPage() {
   const navigate = useNavigate()
@@ -352,10 +353,12 @@ export default function CollectionPage() {
                 >
                   <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
                     {info.cover_image ? (
-                      <img
+                      <Image
                         src={info.cover_image}
                         alt={info.title}
                         className="w-full h-full object-cover"
+                        showOutline={true}
+                        rounded="rounded"
                         loading="lazy"
                       />
                     ) : (
