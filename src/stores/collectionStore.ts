@@ -1,0 +1,110 @@
+import { create } from 'zustand'
+import {
+  fetchDiscogsIdentity,
+  fetchDiscogsCollection,
+  fetchDiscogsReleaseDetail,
+  type DiscogsRelease,
+  type DiscogsReleaseDetail,
+} from '../api/discogs'
+import { useSettingsStore } from './settingsStore'
+import { logger } from '../utils/logger'
+
+interface CollectionState {
+  releases: DiscogsRelease[]
+  isLoading: boolean
+  error: string | null
+  username: string | null
+  loadingProgress: { page: number; totalPages: number } | null
+  releaseDetailCache: Record<number, DiscogsReleaseDetail>
+  formats: string[]
+
+  fetchCollection: () => Promise<void>
+  fetchReleaseDetail: (releaseId: number) => Promise<DiscogsReleaseDetail | null>
+  clearCollection: () => void
+}
+
+export const useCollectionStore = create<CollectionState>()((set, get) => ({
+  releases: [],
+  isLoading: false,
+  error: null,
+  username: null,
+  loadingProgress: null,
+  releaseDetailCache: {},
+  formats: [],
+
+  fetchCollection: async () => {
+    const { discogsToken } = useSettingsStore.getState()
+    if (!discogsToken) {
+      set({ error: 'No Discogs token configured' })
+      return
+    }
+
+    set({ isLoading: true, error: null, loadingProgress: null })
+
+    try {
+      // Derive username from token if we don't have it yet
+      let { username } = get()
+      if (!username) {
+        username = await fetchDiscogsIdentity(discogsToken)
+        set({ username })
+      }
+
+      const releases = await fetchDiscogsCollection(discogsToken, username, (page, totalPages) => {
+        set({ loadingProgress: { page, totalPages } })
+      })
+
+      // Derive unique format names
+      const formatSet = new Set<string>()
+      for (const release of releases) {
+        for (const format of release.basic_information.formats) {
+          formatSet.add(format.name)
+        }
+      }
+
+      set({
+        releases,
+        formats: Array.from(formatSet).sort(),
+        isLoading: false,
+        loadingProgress: null,
+      })
+      logger.log(`[Collection] Loaded ${releases.length} releases`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch collection'
+      set({ error: message, isLoading: false, loadingProgress: null })
+      logger.error(`[Collection] Error:`, message)
+    }
+  },
+
+  fetchReleaseDetail: async (releaseId) => {
+    const { releaseDetailCache } = get()
+    if (releaseDetailCache[releaseId]) {
+      return releaseDetailCache[releaseId]
+    }
+
+    const { discogsToken } = useSettingsStore.getState()
+    if (!discogsToken) return null
+
+    try {
+      const detail = await fetchDiscogsReleaseDetail(discogsToken, releaseId)
+      set({
+        releaseDetailCache: { ...get().releaseDetailCache, [releaseId]: detail },
+      })
+      return detail
+    } catch (err) {
+      logger.error(`[Collection] Failed to fetch release ${releaseId}:`, err)
+      return null
+    }
+  },
+
+  clearCollection: () => {
+    set({
+      releases: [],
+      isLoading: false,
+      error: null,
+      username: null,
+      loadingProgress: null,
+      releaseDetailCache: {},
+      formats: [],
+    })
+  },
+}))

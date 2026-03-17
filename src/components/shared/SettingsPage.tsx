@@ -36,7 +36,7 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
@@ -296,22 +296,47 @@ export default function SettingsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-4">Page Visibility</h2>
           <div className="space-y-3">
-            {(['artists', 'albums', 'songs', 'genres', 'playlists', 'stats'] as const).map((page) => (
+            {(['artists', 'albums', 'songs', 'genres', 'playlists', 'collection', 'stats'] as const).map((page) => (
               <div
                 key={page}
-                className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg"
+                className="p-3 bg-zinc-900 rounded-lg"
               >
-                <label className="text-white capitalize font-medium">{page}</label>
-                <button
-                  onClick={() => togglePage(page)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
-                    }`}
-                >
-                  <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
+                <div className="flex items-center justify-between">
+                  <label className="text-white capitalize font-medium">{page}</label>
+                  <button
+                    onClick={() => togglePage(page)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
                       }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                    />
+                  </button>
+                </div>
+                {page === 'collection' && pageVisibility.collection && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-400 mb-2">
+                      Track your physical collection on{' '}
+                      <a
+                        href="https://www.discogs.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--accent-color)] hover:underline"
+                      >
+                        Discogs
+                      </a>
+                      {' '}and paste your personal access token here
+                    </p>
+                    <input
+                      type="password"
+                      value={discogsToken}
+                      onChange={(e) => setDiscogsToken(e.target.value)}
+                      placeholder="Personal access token"
+                      className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>

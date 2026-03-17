@@ -286,6 +286,17 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
+/* Hide tab labels when 8+ tabs visible on small viewports */
+@media (max-width: 429px) {
+  .hidden-narrow { display: none; }
+  .narrow-icon-nudge { margin-bottom: 0.5rem; }
+}
+
+@media (max-height: 759px) {
+  .hidden-short { display: none; }
+  .hide-label-short { margin-bottom: 0; }
+}
+
 
 
 

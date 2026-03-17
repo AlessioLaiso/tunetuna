@@ -23,6 +23,8 @@ const SettingsPage = lazy(() => import('./components/shared/SettingsPage'))
 const ArtistDetailPage = lazy(() => import('./components/artists/ArtistDetailPage'))
 const AlbumDetailPage = lazy(() => import('./components/albums/AlbumDetailPage'))
 const GenreSongsPage = lazy(() => import('./components/genres/GenreSongsPage'))
+const CollectionPage = lazy(() => import('./components/collection/CollectionPage'))
+const CollectionDetailPage = lazy(() => import('./components/collection/CollectionDetailPage'))
 const StatsPage = lazy(() => import('./components/stats/StatsPage'))
 const StatsDetailPage = lazy(() => import('./components/stats/StatsDetailPage'))
 const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
@@ -117,6 +119,12 @@ function App() {
                 <>
                   <Route path="/playlists" element={withErrorBoundary(<PlaylistsPage />, 'Playlists')} />
                   <Route path="/playlist/:id" element={withErrorBoundary(<PlaylistDetailPage />, 'Playlist')} />
+                </>
+              )}
+              {pageVisibility.collection && (
+                <>
+                  <Route path="/collection" element={withErrorBoundary(<CollectionPage />, 'Collection')} />
+                  <Route path="/collection/:releaseId" element={withErrorBoundary(<CollectionDetailPage />, 'Collection Detail')} />
                 </>
               )}
               {pageVisibility.stats && (

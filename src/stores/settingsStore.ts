@@ -7,6 +7,7 @@ interface PageVisibility {
   songs: boolean
   genres: boolean
   playlists: boolean
+  collection: boolean
   stats: boolean
 }
 
@@ -45,6 +46,9 @@ interface SettingsState {
   /** Optional local/LAN server URL for auto-switching */
   localServerUrl: string
   setLocalServerUrl: (url: string) => void
+  /** Discogs personal access token */
+  discogsToken: string
+  setDiscogsToken: (token: string) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -58,6 +62,7 @@ export const useSettingsStore = create<SettingsState>()(
         songs: true,
         genres: true,
         playlists: true,
+        collection: false,
         stats: true,
       },
       setPageVisibility: (visibility) =>
@@ -86,6 +91,8 @@ export const useSettingsStore = create<SettingsState>()(
       setMuspyRssUrl: (url) => set({ muspyRssUrl: url }),
       localServerUrl: '',
       setLocalServerUrl: (url) => set({ localServerUrl: url }),
+      discogsToken: '',
+      setDiscogsToken: (token) => set({ discogsToken: token }),
     }),
     {
       name: 'settings-storage',

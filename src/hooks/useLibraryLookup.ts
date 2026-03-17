@@ -126,17 +126,20 @@ export function useLibraryLookup() {
     const normalizedTitle = normalizeForMatch(cleanTitle(songName))
     if (!normalizedTitle) return null
 
+    let bestMatch: LightweightSong | null = null
+    let bestDiff = Infinity
     for (const song of artistSongs) {
       const libTitle = normalizeForMatch(cleanTitle(song.Name || ''))
-      if (
-        libTitle === normalizedTitle ||
-        libTitle.includes(normalizedTitle) ||
-        normalizedTitle.includes(libTitle)
-      ) {
-        return song
+      if (libTitle === normalizedTitle) return song
+      if (libTitle.includes(normalizedTitle) || normalizedTitle.includes(libTitle)) {
+        const diff = Math.abs(libTitle.length - normalizedTitle.length)
+        if (diff < bestDiff) {
+          bestDiff = diff
+          bestMatch = song
+        }
       }
     }
-    return null
+    return bestMatch
   }
 
   // Find a matching album
@@ -147,18 +150,23 @@ export function useLibraryLookup() {
     const normalizedAlbum = normalizeForMatch(cleanTitle(albumName))
     if (!normalizedAlbum) return null
 
+    let bestMatch: AlbumMatch | null = null
+    let bestDiff = Infinity
     for (const song of artistSongs) {
       if (!song.AlbumId || !song.Album) continue
       const libAlbum = normalizeForMatch(cleanTitle(song.Album))
-      if (
-        libAlbum === normalizedAlbum ||
-        libAlbum.includes(normalizedAlbum) ||
-        normalizedAlbum.includes(libAlbum)
-      ) {
+      if (libAlbum === normalizedAlbum) {
         return { albumId: song.AlbumId, albumName: song.Album }
       }
+      if (libAlbum.includes(normalizedAlbum) || normalizedAlbum.includes(libAlbum)) {
+        const diff = Math.abs(libAlbum.length - normalizedAlbum.length)
+        if (diff < bestDiff) {
+          bestDiff = diff
+          bestMatch = { albumId: song.AlbumId, albumName: song.Album }
+        }
+      }
     }
-    return null
+    return bestMatch
   }
 
   // Find artist image URL from library
@@ -169,5 +177,68 @@ export function useLibraryLookup() {
     return artistId || null
   }
 
-  return { findSong, findAlbum, findArtistImageUrl, artistIndex }
+  // Find a matching song with album name as tiebreaker when multiple matches exist.
+  // excludeIds: optional set of song IDs already matched (prevents duplicate mapping).
+  const findSongWithAlbumHint = (
+    songName: string,
+    artistName: string,
+    albumName?: string,
+    excludeIds?: Set<string>,
+    exactOnly?: boolean
+  ): LightweightSong | null => {
+    const artistSongs = findArtistSongs(artistName)
+    if (!artistSongs) return null
+
+    const normalizedTitle = normalizeForMatch(cleanTitle(songName))
+    if (!normalizedTitle) return null
+
+    // Collect matches in priority order: exact > query-includes-lib > lib-includes-query
+    const exactMatches: LightweightSong[] = []
+    const substringMatches: LightweightSong[] = []
+    for (const song of artistSongs) {
+      if (excludeIds?.has(song.Id)) continue
+      const libTitle = normalizeForMatch(cleanTitle(song.Name || ''))
+      if (libTitle === normalizedTitle) {
+        exactMatches.push(song)
+      } else if (
+        libTitle.includes(normalizedTitle) ||
+        normalizedTitle.includes(libTitle)
+      ) {
+        substringMatches.push(song)
+      }
+    }
+
+    // Prefer exact matches, fall back to substring matches (sorted by length closeness)
+    if (exactOnly) {
+      if (exactMatches.length === 0) return null
+    }
+    const matches = exactMatches.length > 0
+      ? exactMatches
+      : substringMatches.sort((a, b) => {
+          const aLen = normalizeForMatch(cleanTitle(a.Name || '')).length
+          const bLen = normalizeForMatch(cleanTitle(b.Name || '')).length
+          return Math.abs(aLen - normalizedTitle.length) - Math.abs(bLen - normalizedTitle.length)
+        })
+
+    if (matches.length === 0) return null
+    if (matches.length === 1 || !albumName) return matches[0]
+
+    // Use album name as tiebreaker
+    const normalizedAlbum = normalizeForMatch(cleanTitle(albumName))
+    if (!normalizedAlbum) return matches[0]
+
+    // Prefer exact album match, then includes match
+    for (const song of matches) {
+      const libAlbum = normalizeForMatch(cleanTitle(song.Album || ''))
+      if (libAlbum === normalizedAlbum) return song
+    }
+    for (const song of matches) {
+      const libAlbum = normalizeForMatch(cleanTitle(song.Album || ''))
+      if (libAlbum.includes(normalizedAlbum) || normalizedAlbum.includes(libAlbum)) return song
+    }
+
+    return matches[0]
+  }
+
+  return { findSong, findSongWithAlbumHint, findAlbum, findArtistImageUrl, artistIndex }
 }

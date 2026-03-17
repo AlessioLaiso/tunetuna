@@ -49,6 +49,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/odesli/, ''),
       },
+      // Proxy Discogs API
+      '/api/discogs': {
+        target: 'https://api.discogs.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/discogs/, ''),
+      },
       // Proxy Muspy RSS feed
       '/api/muspy-rss': {
         target: 'https://muspy.com',

@@ -209,6 +209,108 @@ export function getCoverArtUrl(
   return `${COVER_ART_ARCHIVE_BASE_URL}/release-group/${releaseGroupMbid}/front-${size}`
 }
 
+/**
+ * Searches MusicBrainz for a release (not release-group) and returns
+ * the disc/medium image URL from the Cover Art Archive, if available.
+ */
+export async function fetchDiscImageFromMusicBrainz(
+  artistName: string,
+  title: string
+): Promise<string | null> {
+  try {
+    await rateLimitMusicBrainz()
+
+    const query = `release:"${title}" AND artist:"${artistName}"`
+    const params = new URLSearchParams({ query, fmt: 'json', limit: '5' })
+
+    const response = await fetch(`${MUSICBRAINZ_BASE_URL}/release/?${params}`, {
+      headers: { 'User-Agent': MUSICBRAINZ_USER_AGENT, Accept: 'application/json' },
+    })
+    if (!response.ok) return null
+
+    const data = await response.json()
+    const releases = data.releases || []
+    if (releases.length === 0) return null
+
+    // Try each release until we find one with a medium image
+    for (const release of releases) {
+      try {
+        const caaResponse = await fetch(`${COVER_ART_ARCHIVE_BASE_URL}/release/${release.id}`, {
+          headers: { Accept: 'application/json' },
+        })
+        if (!caaResponse.ok) continue
+
+        const caaData = await caaResponse.json()
+        const images = caaData.images || []
+        const mediumImage = images.find(
+          (img: { types?: string[] }) => img.types?.includes('Medium')
+        )
+        if (mediumImage) {
+          // Use the 500px thumbnail if available
+          return mediumImage.thumbnails?.['500'] || mediumImage.thumbnails?.large || mediumImage.image
+        }
+      } catch {
+        continue
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Fetch ALL medium (disc) images from MusicBrainz Cover Art Archive.
+ * Returns an array of URLs ordered by their position in the CAA response
+ * (typically disc 1, disc 2, etc.). Falls back to a single-element array
+ * when only one medium image exists.
+ */
+export async function fetchAllDiscImagesFromMusicBrainz(
+  artistName: string,
+  title: string
+): Promise<string[]> {
+  try {
+    await rateLimitMusicBrainz()
+
+    const query = `release:"${title}" AND artist:"${artistName}"`
+    const params = new URLSearchParams({ query, fmt: 'json', limit: '5' })
+
+    const response = await fetch(`${MUSICBRAINZ_BASE_URL}/release/?${params}`, {
+      headers: { 'User-Agent': MUSICBRAINZ_USER_AGENT, Accept: 'application/json' },
+    })
+    if (!response.ok) return []
+
+    const data = await response.json()
+    const releases = data.releases || []
+    if (releases.length === 0) return []
+
+    for (const release of releases) {
+      try {
+        const caaResponse = await fetch(`${COVER_ART_ARCHIVE_BASE_URL}/release/${release.id}`, {
+          headers: { Accept: 'application/json' },
+        })
+        if (!caaResponse.ok) continue
+
+        const caaData = await caaResponse.json()
+        const images = caaData.images || []
+        const mediumImages = images
+          .filter((img: { types?: string[] }) => img.types?.includes('Medium'))
+          .map((img: { thumbnails?: Record<string, string>; image?: string }) =>
+            img.thumbnails?.['500'] || img.thumbnails?.large || img.image || ''
+          )
+          .filter(Boolean) as string[]
+
+        if (mediumImages.length > 0) return mediumImages
+      } catch {
+        continue
+      }
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
 // ============================================================================
 // Odesli (Song.link) API
 // ============================================================================

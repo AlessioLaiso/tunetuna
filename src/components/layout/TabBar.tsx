@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, User, Disc, Music, Guitar, ListMusic, BarChart3 } from 'lucide-react'
+import { Home, User, Disc, Music, Guitar, ListMusic, LibraryBig, BarChart3 } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSyncStore } from '../../stores/syncStore'
 import VolumeControl from './VolumeControl'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { isIOS } from '../../utils/formatting'
 
 const allTabs = [
@@ -13,19 +13,23 @@ const allTabs = [
   { path: '/songs', label: 'Songs', icon: Music, key: 'songs' },
   { path: '/genres', label: 'Genres', icon: Guitar, key: 'genres' },
   { path: '/playlists', label: 'Playlists', icon: ListMusic, key: 'playlists' },
+  { path: '/collection', label: 'Collection', icon: LibraryBig, key: 'collection' },
   { path: '/stats', label: 'Stats', icon: BarChart3, key: 'stats' },
 ]
 
 export default function TabBar() {
   const location = useLocation()
-  const { pageVisibility } = useSettingsStore()
+  const { pageVisibility, discogsToken } = useSettingsStore()
   const { state: syncState } = useSyncStore()
   const [showVolumePopover, setShowVolumePopover] = useState(false)
 
   const tabs = allTabs.filter((tab) => {
     if (tab.key === 'home') return true
+    if (tab.key === 'collection') return pageVisibility.collection && !!discogsToken
     return pageVisibility[tab.key as keyof typeof pageVisibility]
   })
+
+  const hideLabels = tabs.length >= 8
 
   const handleTabClick = (e: React.MouseEvent<HTMLAnchorElement>, tabPath: string) => {
     // Always close the modal when any tab is clicked
@@ -62,8 +66,8 @@ export default function TabBar() {
                       isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
                     }`}
                   >
-                    <Icon className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">{tab.label}</span>
+                    <Icon className={`w-5 h-5 ${hideLabels ? 'mb-0 narrow-icon-nudge' : 'mb-1'}`} />
+                    <span className={`text-xs font-medium ${hideLabels ? 'hidden-narrow' : ''}`}>{tab.label}</span>
                   </Link>
                 )
               })}
@@ -101,8 +105,8 @@ export default function TabBar() {
                 } ${index < tabs.length - 1 ? 'mb-0' : ''}`}
                 style={{ marginBottom: index < tabs.length - 1 ? '0px' : '0' }}
               >
-                <Icon className="w-6 h-6 mb-2" />
-                <span className="text-xs font-medium text-center leading-tight">{tab.label}</span>
+                <Icon className={`w-6 h-6 ${hideLabels ? 'mb-0 hide-label-short' : 'mb-2'}`} />
+                <span className={`text-xs font-medium text-center leading-tight ${hideLabels ? 'hidden-short' : ''}`}>{tab.label}</span>
               </Link>
             )
           })}
