@@ -93,9 +93,9 @@ function CollectionTrackItem({
         }`}>
           {track.discogsTrack.title}
         </div>
-        {/* Show the Jellyfin artist if it differs from album artist */}
+        {/* Show the Jellyfin artist if it differs from album artist (more than just capitalization) */}
         {isMatched && track.libraryMatch?.ArtistItems?.[0]?.Name &&
-          track.libraryMatch.ArtistItems[0].Name !== artistName && (
+          track.libraryMatch.ArtistItems[0].Name.toLowerCase() !== artistName.toLowerCase() && (
           <div className="text-xs text-gray-400 truncate">
             {track.libraryMatch.ArtistItems[0].Name}
           </div>
@@ -189,11 +189,14 @@ export default function CollectionDetailPage() {
     return ''
   }, [detail, release])
 
-  // Prefer the Jellyfin-canonical artist name for display (correct capitalization)
-  const displayArtistName = useMemo(
-    () => findLibraryArtistName(artistName) || artistName,
-    [artistName, findLibraryArtistName]
+  // If Jellyfin artist name differs from Discogs only in capitalization, use Jellyfin's.
+  // Otherwise, use Discogs as-is.
+  const libraryArtistName = useMemo(() => findLibraryArtistName(artistName), [artistName, findLibraryArtistName])
+  const artistNamesMatchCaseInsensitive = useMemo(
+    () => !!libraryArtistName && libraryArtistName.toLowerCase() === artistName.toLowerCase(),
+    [libraryArtistName, artistName]
   )
+  const displayArtistName = artistNamesMatchCaseInsensitive ? libraryArtistName! : artistName
 
   const matchedTracks: MatchedTrack[] = useMemo(() => {
     if (!detail) return []
