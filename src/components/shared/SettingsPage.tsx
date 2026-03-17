@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
@@ -49,9 +49,16 @@ export default function SettingsPage() {
   const [showMismatchModal, setShowMismatchModal] = useState(false)
   const [mismatchCount, setMismatchCount] = useState(0)
   const [mismatchTotal, setMismatchTotal] = useState(0)
-  const [mismatchedSongs, setMismatchedSongs] = useState<{ songName: string; artistName: string }[]>([])
-  const [showAllMismatchedSongs, setShowAllMismatchedSongs] = useState(false)
+  const [autoMatchable, setAutoMatchable] = useState<{ songName: string; artistName: string; eventCount: number }[]>([])
+  const [unmatchedSongs, setUnmatchedSongs] = useState<{ songName: string; artistName: string; eventCount: number }[]>([])
+  const [showAutoMatchList, setShowAutoMatchList] = useState(false)
+  const [showUnmatchedList, setShowUnmatchedList] = useState(false)
   const [isRemapping, setIsRemapping] = useState(false)
+  // Manual mapping: key is "songName::artistName", value is selected library songId
+  const [manualMappings, setManualMappings] = useState<Map<string, string>>(new Map())
+  // Which unmatched song is currently being searched (by key)
+  const [searchingFor, setSearchingFor] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [isRemoving, setIsRemoving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -197,12 +204,17 @@ export default function SettingsPage() {
 
   const checkForMismatches = async () => {
     try {
-      const { mismatched, total, mismatchedSongs: songs } = await detectMismatchedEvents()
+      const { mismatched, total, autoMatchable: auto, unmatched } = await detectMismatchedEvents()
       if (mismatched > 0) {
         setMismatchCount(mismatched)
         setMismatchTotal(total)
-        setMismatchedSongs(songs)
-        setShowAllMismatchedSongs(false)
+        setAutoMatchable(auto)
+        setUnmatchedSongs(unmatched)
+        setShowAutoMatchList(false)
+        setShowUnmatchedList(false)
+        setManualMappings(new Map())
+        setSearchingFor(null)
+        setSearchQuery('')
         setShowMismatchModal(true)
       }
     } catch {
@@ -213,7 +225,7 @@ export default function SettingsPage() {
   const handleRemapEvents = async () => {
     setIsRemapping(true)
     try {
-      const result = await remapEvents()
+      const result = await remapEvents(manualMappings.size > 0 ? manualMappings : undefined)
       addToast(`Remapped ${result.remapped} event${result.remapped !== 1 ? 's' : ''}${result.unmatched > 0 ? `, ${result.unmatched} unmatched` : ''}`, 'success')
       setShowMismatchModal(false)
     } catch (error) {
@@ -807,47 +819,158 @@ export default function SettingsPage() {
                   Library Mismatch Detected
                 </div>
                 <div className="text-sm text-gray-400 mt-1">
-                  {mismatchCount} of {mismatchTotal} events reference songs that don't exist in your current library. This usually happens when importing stats from a different Jellyfin server.
+                  {mismatchCount} of {mismatchTotal} events reference songs not in your current library.
                 </div>
               </div>
             </div>
 
-            {mismatchedSongs.length > 0 && (
-              <div className="mx-4 mb-4 p-3 bg-white/5 rounded-xl max-h-[40vh] overflow-y-auto">
-                {(showAllMismatchedSongs ? mismatchedSongs : mismatchedSongs.slice(0, 5)).map((song, i) => (
-                  <div key={i} className="text-sm text-gray-300 py-0.5">
-                    • {song.songName}, {song.artistName}
+            {/* Auto-matchable section */}
+            {autoMatchable.length > 0 && (
+              <div className="mx-4 mb-3">
+                <button
+                  onClick={() => setShowAutoMatchList(!showAutoMatchList)}
+                  className="flex items-center gap-2 text-sm text-green-400 mb-1"
+                >
+                  {showAutoMatchList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  <span>{autoMatchable.reduce((sum, s) => sum + s.eventCount, 0)} event{autoMatchable.reduce((sum, s) => sum + s.eventCount, 0) !== 1 ? 's' : ''} can be auto-remapped ({autoMatchable.length} song{autoMatchable.length !== 1 ? 's' : ''})</span>
+                </button>
+                {showAutoMatchList && (
+                  <div className="p-3 bg-white/5 rounded-xl max-h-[20vh] overflow-y-auto">
+                    {autoMatchable.map((song, i) => (
+                      <div key={i} className="text-sm text-gray-300 py-0.5">
+                        {song.songName} - {song.artistName} <span className="text-gray-500">({song.eventCount})</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {mismatchedSongs.length > 5 && !showAllMismatchedSongs && (
-                  <button
-                    onClick={() => setShowAllMismatchedSongs(true)}
-                    className="text-sm text-[var(--accent-color)] mt-1 hover:underline"
-                  >
-                    Show All Songs ({mismatchedSongs.length})
-                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Unmatched section with manual mapping */}
+            {unmatchedSongs.length > 0 && (
+              <div className="mx-4 mb-4">
+                <button
+                  onClick={() => setShowUnmatchedList(!showUnmatchedList)}
+                  className="flex items-center gap-2 text-sm text-amber-400 mb-1"
+                >
+                  {showUnmatchedList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  <span>{unmatchedSongs.reduce((sum, s) => sum + s.eventCount, 0)} event{unmatchedSongs.reduce((sum, s) => sum + s.eventCount, 0) !== 1 ? 's' : ''} have no match ({unmatchedSongs.length} song{unmatchedSongs.length !== 1 ? 's' : ''})</span>
+                </button>
+                {showUnmatchedList && (
+                  <div className="p-3 bg-white/5 rounded-xl max-h-[40vh] overflow-y-auto space-y-2">
+                    {unmatchedSongs.map((song) => {
+                      const songKey = `${song.songName}::${song.artistName}`
+                      const mappedSongId = manualMappings.get(songKey)
+                      const mappedSong = mappedSongId ? songs.find(s => s.Id === mappedSongId) : null
+                      const isSearching = searchingFor === songKey
+
+                      return (
+                        <div key={songKey} className="text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-gray-300 min-w-0 flex-1">
+                              <span className="truncate block">{song.songName} - {song.artistName}</span>
+                              <span className="text-gray-500 text-xs">({song.eventCount} event{song.eventCount !== 1 ? 's' : ''})</span>
+                            </div>
+                            {mappedSong ? (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="text-green-400 text-xs truncate max-w-[120px]">{mappedSong.Name}</span>
+                                <button
+                                  onClick={() => {
+                                    const next = new Map(manualMappings)
+                                    next.delete(songKey)
+                                    setManualMappings(next)
+                                  }}
+                                  className="text-gray-400 hover:text-white p-0.5"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSearchingFor(isSearching ? null : songKey)
+                                  setSearchQuery(isSearching ? '' : song.songName)
+                                }}
+                                className="text-[var(--accent-color)] hover:text-white p-1 flex-shrink-0"
+                              >
+                                <Search className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Inline search picker */}
+                          {isSearching && (
+                            <div className="mt-2 mb-1">
+                              <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search your library..."
+                                autoFocus
+                                className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                              />
+                              {searchQuery.length >= 2 && (
+                                <div className="mt-1 max-h-[150px] overflow-y-auto bg-zinc-800 rounded-lg border border-zinc-700">
+                                  {(() => {
+                                    const query = searchQuery.toLowerCase()
+                                    const results = songs.filter(s =>
+                                      s.Name.toLowerCase().includes(query) ||
+                                      (s.AlbumArtist || '').toLowerCase().includes(query) ||
+                                      (s.ArtistItems?.[0]?.Name || '').toLowerCase().includes(query)
+                                    ).slice(0, 20)
+                                    if (results.length === 0) {
+                                      return <div className="text-sm text-gray-500 p-2">No results</div>
+                                    }
+                                    return results.map(s => (
+                                      <button
+                                        key={s.Id}
+                                        onClick={() => {
+                                          const next = new Map(manualMappings)
+                                          next.set(songKey, s.Id)
+                                          setManualMappings(next)
+                                          setSearchingFor(null)
+                                          setSearchQuery('')
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-white/10 text-sm transition-colors"
+                                      >
+                                        <div className="text-white truncate">{s.Name}</div>
+                                        <div className="text-gray-400 text-xs truncate">{s.AlbumArtist || s.ArtistItems?.[0]?.Name || 'Unknown'} - {s.Album || 'Unknown'}</div>
+                                      </button>
+                                    ))
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             )}
 
             <div className="space-y-3 px-4">
-              <button
-                onClick={handleRemapEvents}
-                disabled={isRemapping || isRemoving}
-                className="w-full flex flex-col items-center gap-1 py-3 bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
-              >
-                {isRemapping ? (
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Remapping...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span>Remap To Your Library</span>
-                    <span className="text-xs font-normal opacity-70">Match events by song and artist name</span>
-                  </>
-                )}
-              </button>
+              {/* Remap button — handles both auto-matches and manual mappings */}
+              {(autoMatchable.length > 0 || manualMappings.size > 0) && (
+                <button
+                  onClick={handleRemapEvents}
+                  disabled={isRemapping || isRemoving}
+                  className="w-full flex flex-col items-center gap-1 py-3 bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
+                >
+                  {isRemapping ? (
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Remapping...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>Remap{autoMatchable.length > 0 && manualMappings.size > 0 ? ` (${autoMatchable.length} auto + ${manualMappings.size} manual)` : autoMatchable.length > 0 ? ` ${autoMatchable.length} Song${autoMatchable.length !== 1 ? 's' : ''}` : ` ${manualMappings.size} Manual Mapping${manualMappings.size !== 1 ? 's' : ''}`}</span>
+                      <span className="text-xs font-normal opacity-70">{unmatchedSongs.length - manualMappings.size > 0 ? `${unmatchedSongs.length - manualMappings.size} unmapped event${unmatchedSongs.length - manualMappings.size !== 1 ? 's' : ''} will be kept as-is` : 'All events will be remapped'}</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               <button
                 onClick={handleRemoveMismatchedEvents}
@@ -861,8 +984,8 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <>
-                    <span>Remove Mismatched Events</span>
-                    <span className="text-xs font-normal opacity-70">Permanently delete events that don't match your library</span>
+                    <span>Remove All Mismatched Events</span>
+                    <span className="text-xs font-normal opacity-70">Permanently delete {mismatchCount} event{mismatchCount !== 1 ? 's' : ''} that don't match</span>
                   </>
                 )}
               </button>

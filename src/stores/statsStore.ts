@@ -99,10 +99,15 @@ interface StatsState {
   hasStats: () => Promise<boolean>
   /** Fetches oldest event timestamp from server (called on init to know date range) */
   initializeOldestTs: () => Promise<void>
-  /** Detects events whose songId doesn't match any song in the current library */
-  detectMismatchedEvents: () => Promise<{ mismatched: number; total: number; mismatchedSongs: { songName: string; artistName: string }[] }>
-  /** Remaps mismatched events to the current library by matching song+artist names */
-  remapEvents: () => Promise<{ remapped: number; unmatched: number }>
+  /** Detects events whose songId doesn't match any song in the current library, split into auto-matchable vs unmatched */
+  detectMismatchedEvents: () => Promise<{
+    mismatched: number
+    total: number
+    autoMatchable: { songName: string; artistName: string; eventCount: number }[]
+    unmatched: { songName: string; artistName: string; eventCount: number }[]
+  }>
+  /** Remaps mismatched events to the current library by matching song+artist names, with optional manual mappings for unmatched songs */
+  remapEvents: (manualMappings?: Map<string, string>) => Promise<{ remapped: number; unmatched: number }>
   /** Removes all events whose songId doesn't match the current library */
   removeMismatchedEvents: () => Promise<{ removed: number; kept: number }>
   /** Logs a stream (play event) for each track, bypassing the duration threshold */
@@ -767,32 +772,58 @@ export const useStatsStore = create<StatsState>()(
 
       detectMismatchedEvents: async () => {
         const { serverUrl, userId } = useAuthStore.getState()
-        if (!serverUrl || !userId) return { mismatched: 0, total: 0, mismatchedSongs: [] }
+        if (!serverUrl || !userId) return { mismatched: 0, total: 0, autoMatchable: [], unmatched: [] }
 
         const allEvents = await fetchAllEvents(get)
-        if (allEvents.length === 0) return { mismatched: 0, total: 0, mismatchedSongs: [] }
+        if (allEvents.length === 0) return { mismatched: 0, total: 0, autoMatchable: [], unmatched: [] }
 
         const { songs } = useMusicStore.getState()
-        if (songs.length === 0) return { mismatched: 0, total: 0, mismatchedSongs: [] }
+        if (songs.length === 0) return { mismatched: 0, total: 0, autoMatchable: [], unmatched: [] }
 
         const knownSongIds = new Set(songs.map(s => s.Id))
         const mismatchedEvents = allEvents.filter(e => !knownSongIds.has(e.songId))
 
-        // Deduplicate by songName + first artist
-        const seen = new Set<string>()
-        const mismatchedSongs: { songName: string; artistName: string }[] = []
-        for (const e of mismatchedEvents) {
-          const key = `${e.songName}::${e.artistNames[0] || ''}`
-          if (!seen.has(key)) {
-            seen.add(key)
-            mismatchedSongs.push({ songName: e.songName, artistName: e.artistNames[0] || 'Unknown' })
+        // Build lookup map for auto-match check (same as remapEvents)
+        const songLookup = new Map<string, typeof songs[0]>()
+        for (const song of songs) {
+          const firstArtist = song.ArtistItems?.[0]?.Name || song.AlbumArtist || ''
+          const key = `${normalizeName(song.Name)}::${normalizeName(firstArtist)}`
+          if (!songLookup.has(key)) {
+            songLookup.set(key, song)
           }
         }
 
-        return { mismatched: mismatchedEvents.length, total: allEvents.length, mismatchedSongs }
+        // Count events per unique song and classify as auto-matchable or unmatched
+        const eventCounts = new Map<string, number>()
+        for (const e of mismatchedEvents) {
+          const key = `${e.songName}::${e.artistNames[0] || ''}`
+          eventCounts.set(key, (eventCounts.get(key) || 0) + 1)
+        }
+
+        const autoMatchable: { songName: string; artistName: string; eventCount: number }[] = []
+        const unmatched: { songName: string; artistName: string; eventCount: number }[] = []
+        const seen = new Set<string>()
+
+        for (const e of mismatchedEvents) {
+          const key = `${e.songName}::${e.artistNames[0] || ''}`
+          if (seen.has(key)) continue
+          seen.add(key)
+
+          const firstArtist = e.artistNames[0] || ''
+          const lookupKey = `${normalizeName(e.songName)}::${normalizeName(firstArtist)}`
+          const entry = { songName: e.songName, artistName: firstArtist || 'Unknown', eventCount: eventCounts.get(key) || 1 }
+
+          if (songLookup.has(lookupKey)) {
+            autoMatchable.push(entry)
+          } else {
+            unmatched.push(entry)
+          }
+        }
+
+        return { mismatched: mismatchedEvents.length, total: allEvents.length, autoMatchable, unmatched }
       },
 
-      remapEvents: async () => {
+      remapEvents: async (manualMappings?: Map<string, string>) => {
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) throw new Error('Not authenticated')
 
@@ -812,6 +843,16 @@ export const useStatsStore = create<StatsState>()(
           }
         }
 
+        // Build manual mapping lookup: "songName::artistName" -> LightweightSong (by songId)
+        const manualLookup = new Map<string, typeof songs[0]>()
+        if (manualMappings) {
+          const songById = new Map(songs.map(s => [s.Id, s]))
+          for (const [eventKey, songId] of manualMappings) {
+            const song = songById.get(songId)
+            if (song) manualLookup.set(eventKey, song)
+          }
+        }
+
         let remapped = 0
         let unmatched = 0
 
@@ -820,8 +861,11 @@ export const useStatsStore = create<StatsState>()(
           if (knownSongIds.has(event.songId)) return event
 
           const firstArtist = event.artistNames[0] || ''
-          const key = `${normalizeName(event.songName)}::${normalizeName(firstArtist)}`
-          const match = songLookup.get(key)
+          const autoKey = `${normalizeName(event.songName)}::${normalizeName(firstArtist)}`
+          const manualKey = `${event.songName}::${firstArtist}`
+
+          // Try auto-match first, then manual mapping
+          const match = songLookup.get(autoKey) || manualLookup.get(manualKey)
 
           if (match) {
             remapped++

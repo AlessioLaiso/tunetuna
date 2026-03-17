@@ -10,7 +10,7 @@ import { useLibraryLookup } from '../../hooks/useLibraryLookup'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
 import { cleanDiscogsArtistName } from '../../api/discogs'
-import { fetchAllDiscImagesFromMusicBrainz } from '../../api/feed'
+import { jellyfinClient } from '../../api/jellyfin'
 import type { DiscogsReleaseDetail, DiscogsTrack } from '../../api/discogs'
 import type { LightweightSong, BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
@@ -70,7 +70,7 @@ function CollectionTrackItem({
       className={`w-full flex items-baseline py-3 transition-colors ${
         isMatched
           ? `hover:bg-white/10 group ${contextMenuItemId === track.libraryMatch?.Id ? 'bg-white/10' : ''}`
-          : 'opacity-40 cursor-default'
+          : 'opacity-60 cursor-default'
       }`}
     >
       <span className={`text-sm w-6 text-right flex-shrink-0 mr-4 ${
@@ -115,14 +115,16 @@ export default function CollectionDetailPage() {
   const currentTrack = useCurrentTrack()
   const { logStream } = useStatsStore()
   const { addToast } = useToastStore()
-  const { findSongWithAlbumHint } = useLibraryLookup()
+  const { findSongWithAlbumHint, findLibraryArtistName } = useLibraryLookup()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const isLargeViewport = useLargeViewport()
 
   const [detail, setDetail] = useState<DiscogsReleaseDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [discImageUrls, setDiscImageUrls] = useState<string[]>([])
+  const [discImageUrl, setDiscImageUrl] = useState<string | null>(null)
+  const [artistLogoUrl, setArtistLogoUrl] = useState<string | null>(null)
+  const [hasArtistLogo, setHasArtistLogo] = useState(false)
   const [hasImage, setHasImage] = useState(true)
 
   // Context menu state (track-level)
@@ -160,18 +162,6 @@ export default function CollectionDetailPage() {
     [releases, numericReleaseId]
   )
 
-  // Start fetching disc images immediately from basic_information (available before detail loads)
-  useEffect(() => {
-    if (!release) return
-    const artist = cleanDiscogsArtistName(release.basic_information.artists[0]?.name || '')
-    const title = release.basic_information.title
-    if (artist && title) {
-      fetchAllDiscImagesFromMusicBrainz(artist, title).then((urls) => {
-        if (urls.length > 0) setDiscImageUrls(urls)
-      })
-    }
-  }, [release])
-
   // Fetch release detail
   useEffect(() => {
     if (!numericReleaseId) return
@@ -193,6 +183,12 @@ export default function CollectionDetailPage() {
     if (release) return cleanDiscogsArtistName(release.basic_information.artists[0]?.name || '')
     return ''
   }, [detail, release])
+
+  // Prefer the Jellyfin-canonical artist name for display (correct capitalization)
+  const displayArtistName = useMemo(
+    () => findLibraryArtistName(artistName) || artistName,
+    [artistName, findLibraryArtistName]
+  )
 
   const matchedTracks: MatchedTrack[] = useMemo(() => {
     if (!detail) return []
@@ -306,28 +302,61 @@ export default function CollectionDetailPage() {
     [matchedTracks]
   )
 
+  // Load disc image and artist logo from Jellyfin when we have matched tracks
+  useEffect(() => {
+    let isMounted = true
+    const albumId = libraryMatches[0]?.AlbumId
+
+    // Check if album has a Disc image tag before setting URL
+    if (albumId) {
+      jellyfinClient.getAlbumById(albumId).then(album => {
+        if (!isMounted) return
+        if (album?.ImageTags?.Disc) {
+          setDiscImageUrl(jellyfinClient.getImageUrl(albumId, 'Disc', 600))
+        } else {
+          setDiscImageUrl(null)
+        }
+      }).catch(() => {
+        if (!isMounted) return
+        setDiscImageUrl(null)
+      })
+    } else {
+      setDiscImageUrl(null)
+    }
+
+    // Load artist logo (skip for Various Artists)
+    const artistId = libraryMatches[0]?.ArtistItems?.[0]?.Id
+    const isVariousArtists = (libraryMatches[0]?.AlbumArtist || '').toLowerCase() === 'various artists'
+    if (artistId && !isVariousArtists) {
+      jellyfinClient.getArtistById(artistId).then(artist => {
+        if (!isMounted) return
+        if (artist?.ImageTags?.Logo) {
+          setArtistLogoUrl(jellyfinClient.getImageUrl(artistId, 'Logo'))
+          setHasArtistLogo(true)
+        } else {
+          setHasArtistLogo(false)
+          setArtistLogoUrl(null)
+        }
+      }).catch(() => {
+        if (!isMounted) return
+        setHasArtistLogo(false)
+        setArtistLogoUrl(null)
+      })
+    } else {
+      setHasArtistLogo(false)
+      setArtistLogoUrl(null)
+    }
+
+    return () => { isMounted = false }
+  }, [libraryMatches])
+
   // Check if we're currently playing from this collection release
   const isPlayingFromCollection = useMemo(
     () => libraryMatches.some((m) => m.Id === currentTrack?.Id) && isPlaying,
     [libraryMatches, currentTrack, isPlaying]
   )
 
-  // Determine which disc the currently playing track belongs to (0-indexed)
-  const currentDiscIndex = useMemo(() => {
-    if (!currentTrack || !isPlayingFromCollection) return 0
-    const discEntries = Array.from(tracksByDisc.entries())
-    for (let i = 0; i < discEntries.length; i++) {
-      const [, tracks] = discEntries[i]
-      if (tracks.some(t => t.libraryMatch?.Id === currentTrack.Id)) return i
-    }
-    return 0
-  }, [currentTrack, isPlayingFromCollection, tracksByDisc])
 
-  // Pick the right disc image for the current disc (fall back to first if not enough images)
-  const activeDiscImageUrl = useMemo(() => {
-    if (discImageUrls.length === 0) return null
-    return discImageUrls[currentDiscIndex] || discImageUrls[0]
-  }, [discImageUrls, currentDiscIndex])
 
   // Vinyl visibility animation (matching AlbumDetailPage) — disabled for cassettes
   useEffect(() => {
@@ -628,12 +657,12 @@ export default function CollectionDetailPage() {
                     className="w-full h-full"
                     style={{ transformOrigin: 'center center', transform: `rotate(${rotationAngle}deg)` }}
                   >
-                    {activeDiscImageUrl ? (
+                    {discImageUrl ? (
                       <img
-                        src={activeDiscImageUrl}
+                        src={discImageUrl}
                         alt="Disc"
                         className="w-full h-full object-cover rounded-full"
-                        onError={() => setDiscImageUrls(urls => urls.filter(u => u !== activeDiscImageUrl))}
+                        onError={() => setDiscImageUrl(null)}
                       />
                     ) : (
                       <>
@@ -643,30 +672,53 @@ export default function CollectionDetailPage() {
                           className="w-full h-full object-cover"
                           onError={(e) => { e.currentTarget.style.display = 'none' }}
                         />
-                        {/* Album art in center of vinyl */}
-                        {hasImage && coverImage && (
-                          <>
-                            <div
-                              className="absolute top-1/2 left-1/2 rounded-full"
-                              style={{
-                                width: '52%', height: '52%',
-                                backgroundColor: '#a1a1aa',
-                                transform: 'translate(-50%, -50%)',
-                                transformOrigin: 'center center',
+                        {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
+                        {((hasArtistLogo && artistLogoUrl) || hasImage) && (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full"
+                            style={{
+                              width: '52%',
+                              height: '52%',
+                              backgroundColor: '#a1a1aa',
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          />
+                        )}
+                        {/* Artist Logo or Album Art Overlay - centered */}
+                        {hasArtistLogo && artistLogoUrl ? (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
+                            style={{
+                              width: '47%',
+                              height: '47%',
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          >
+                            <img
+                              src={artistLogoUrl}
+                              alt="Artist Logo"
+                              className="w-full h-full object-contain"
+                              onError={() => {
+                                setHasArtistLogo(false)
+                                setArtistLogoUrl(null)
                               }}
                             />
-                            <div
-                              className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                              style={{
-                                width: '52%', height: '52%',
-                                transform: 'translate(-50%, -50%)',
-                                transformOrigin: 'center center',
-                              }}
-                            >
-                              <img src={coverImage} alt={detail.title} className="w-full h-full object-cover" />
-                            </div>
-                          </>
-                        )}
+                          </div>
+                        ) : hasImage && coverImage ? (
+                          <div
+                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
+                            style={{
+                              width: '52%',
+                              height: '52%',
+                              transform: 'translate(-50%, -50%)',
+                              transformOrigin: 'center center',
+                            }}
+                          >
+                            <img src={coverImage} alt={detail.title} className="w-full h-full object-cover" />
+                          </div>
+                        ) : null}
                       </>
                     )}
                   </div>
@@ -714,7 +766,7 @@ export default function CollectionDetailPage() {
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{detail.title}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
               <div className="text-gray-400 flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
-                <span>{artistName}</span>
+                <span>{displayArtistName}</span>
                 {detail.year > 0 && (
                   <>
                     <span>•</span>
