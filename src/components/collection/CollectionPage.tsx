@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, Settings, Play, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink } from 'lucide-react'
-import { useCollectionStore } from '../../stores/collectionStore'
+import { useCollectionStore, type CollectionSortMode } from '../../stores/collectionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useStatsStore } from '../../stores/statsStore'
@@ -13,16 +13,12 @@ import type { BaseItemDto } from '../../api/types'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 
-type SortMode = 'artist' | 'album' | 'year' | 'format'
-
 export default function CollectionPage() {
   const navigate = useNavigate()
-  const { releases, isLoading, error, loadingProgress, formats, fetchCollection } = useCollectionStore()
+  const { releases, isLoading, error, loadingProgress, formats, fetchCollection, sortMode, setSortMode } = useCollectionStore()
   const { discogsToken } = useSettingsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const [sortMode, setSortMode] = useState<SortMode>('artist')
   const [formatFilter, setFormatFilter] = useState<string | null>(null)
-  const [showSortMenu, setShowSortMenu] = useState(false)
 
   // Context menu state for collection items
   const [menuOpen, setMenuOpen] = useState(false)
@@ -242,11 +238,11 @@ export default function CollectionPage() {
     )
   }
 
-  const sortOptions: { value: SortMode; label: string }[] = [
+  const sortOptions: { value: CollectionSortMode; label: string }[] = [
     { value: 'artist', label: 'Artist' },
-    { value: 'album', label: 'Album' },
+    { value: 'album', label: 'Title' },
     { value: 'year', label: 'Year' },
-    ...(formats.length > 1 ? [{ value: 'format' as SortMode, label: 'Format' }] : []),
+    ...(formats.length > 1 ? [{ value: 'format' as CollectionSortMode, label: 'Format' }] : []),
   ]
 
   const sortLabel = sortOptions.find((o) => o.value === sortMode)?.label || 'Artist'
@@ -279,38 +275,16 @@ export default function CollectionPage() {
             </div>
             {/* Sort control */}
             <div className="flex items-center justify-between gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setShowSortMenu(!showSortMenu)}
-                  className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
-                >
-                  {sortLabel}
-                  <ArrowUpDown className="w-4 h-4" />
-                </button>
-                {showSortMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                    <div className="absolute left-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden z-50 min-w-[120px]">
-                      {sortOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => {
-                            setSortMode(opt.value)
-                            setShowSortMenu(false)
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                            sortMode === opt.value
-                              ? 'text-[var(--accent-color)] bg-zinc-700'
-                              : 'text-white hover:bg-zinc-700'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              <button
+                onClick={() => {
+                  const nextIndex = (sortOptions.findIndex(o => o.value === sortMode) + 1) % sortOptions.length
+                  setSortMode(sortOptions[nextIndex].value)
+                }}
+                className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+              >
+                {sortLabel}
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

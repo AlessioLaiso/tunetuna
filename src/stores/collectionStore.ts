@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import {
   fetchDiscogsIdentity,
   fetchDiscogsCollection,
@@ -9,6 +10,8 @@ import {
 import { useSettingsStore } from './settingsStore'
 import { logger } from '../utils/logger'
 
+export type CollectionSortMode = 'artist' | 'album' | 'year' | 'format'
+
 interface CollectionState {
   releases: DiscogsRelease[]
   isLoading: boolean
@@ -17,13 +20,15 @@ interface CollectionState {
   loadingProgress: { page: number; totalPages: number } | null
   releaseDetailCache: Record<number, DiscogsReleaseDetail>
   formats: string[]
+  sortMode: CollectionSortMode
 
   fetchCollection: () => Promise<void>
   fetchReleaseDetail: (releaseId: number) => Promise<DiscogsReleaseDetail | null>
   clearCollection: () => void
+  setSortMode: (mode: CollectionSortMode) => void
 }
 
-export const useCollectionStore = create<CollectionState>()((set, get) => ({
+export const useCollectionStore = create<CollectionState>()(persist((set, get) => ({
   releases: [],
   isLoading: false,
   error: null,
@@ -31,6 +36,7 @@ export const useCollectionStore = create<CollectionState>()((set, get) => ({
   loadingProgress: null,
   releaseDetailCache: {},
   formats: [],
+  sortMode: 'artist',
 
   fetchCollection: async () => {
     const { discogsToken } = useSettingsStore.getState()
@@ -107,4 +113,11 @@ export const useCollectionStore = create<CollectionState>()((set, get) => ({
       formats: [],
     })
   },
+
+  setSortMode: (mode) => set({ sortMode: mode }),
+}), {
+  name: 'collection-store',
+  partialize: (state) => ({
+    sortMode: state.sortMode,
+  }),
 }))
