@@ -245,7 +245,9 @@ export default function CollectionPage() {
     ...(formats.length > 1 ? [{ value: 'format' as CollectionSortMode, label: 'Format' }] : []),
   ]
 
-  const sortLabel = sortOptions.find((o) => o.value === sortMode)?.label || 'Artist'
+  // Reset to 'artist' if persisted sortMode is no longer available (e.g. 'format' with single format)
+  const effectiveSortMode = sortOptions.some(o => o.value === sortMode) ? sortMode : 'artist'
+  const sortLabel = sortOptions.find((o) => o.value === effectiveSortMode)?.label || 'Artist'
 
   return (
     <div className="pb-20">
@@ -277,7 +279,7 @@ export default function CollectionPage() {
             <div className="flex items-center justify-between gap-2">
               <button
                 onClick={() => {
-                  const nextIndex = (sortOptions.findIndex(o => o.value === sortMode) + 1) % sortOptions.length
+                  const nextIndex = (sortOptions.findIndex(o => o.value === effectiveSortMode) + 1) % sortOptions.length
                   setSortMode(sortOptions[nextIndex].value)
                 }}
                 className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
