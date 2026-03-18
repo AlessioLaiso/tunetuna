@@ -176,14 +176,10 @@ export default function CollectionDetailPage() {
     return ''
   }, [detail, release])
 
-  // If Jellyfin artist name differs from Discogs only in capitalization, use Jellyfin's.
-  // Otherwise, use Discogs as-is.
+  // Use the Jellyfin library artist name when available (handles capitalization and
+  // minor spelling differences like "&" vs "and"). Fall back to Discogs name.
   const libraryArtistName = useMemo(() => findLibraryArtistName(artistName), [artistName, findLibraryArtistName])
-  const artistNamesMatchCaseInsensitive = useMemo(
-    () => !!libraryArtistName && libraryArtistName.toLowerCase() === artistName.toLowerCase(),
-    [libraryArtistName, artistName]
-  )
-  const displayArtistName = artistNamesMatchCaseInsensitive ? libraryArtistName! : artistName
+  const displayArtistName = libraryArtistName || artistName
 
   const matchedTracks: MatchedTrack[] = useMemo(() => {
     if (!detail) return []
@@ -571,7 +567,19 @@ export default function CollectionDetailPage() {
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{detail.title}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
               <div className="text-gray-400 flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
-                <span>{displayArtistName}</span>
+                {(() => {
+                  const artistId = libraryMatches[0]?.ArtistItems?.[0]?.Id
+                  return artistId ? (
+                    <button
+                      onClick={() => navigate(`/artist/${artistId}`)}
+                      className="hover:text-[var(--accent-color)] transition-colors cursor-pointer"
+                    >
+                      {displayArtistName}
+                    </button>
+                  ) : (
+                    <span>{displayArtistName}</span>
+                  )
+                })()}
                 {detail.year > 0 && (
                   <>
                     <span>•</span>
@@ -637,7 +645,7 @@ export default function CollectionDetailPage() {
                     key={`${track.discogsTrack.position}-${index}`}
                     track={track}
                     index={index}
-                    artistName={artistName}
+                    artistName={displayArtistName}
                     libraryMatches={libraryMatches}
                     onContextMenu={handleTrackContextMenu}
                     contextMenuItemId={contextMenuItem?.Id || null}

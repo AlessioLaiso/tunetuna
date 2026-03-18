@@ -285,6 +285,7 @@ export default function CoverflowView({
   onSnappedIndexChange?: (index: number) => void
 }) {
   const navigate = useNavigate()
+  const { findArtistImageUrl } = useLibraryLookup()
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Restore snapped index from session storage if available
@@ -655,18 +656,33 @@ export default function CoverflowView({
                 cassetteSlide={cassetteSlide}
               />
               {/* Release title + artist — fades in when snapped */}
-              <div
-                className="absolute left-0 right-0 text-center pointer-events-none transition-opacity duration-300 truncate text-gray-400"
-                style={{
-                  top: coverSize + 4,
-                  opacity: isSnapped ? 1 : 0,
-                  zIndex: 200,
-                }}
-              >
-                <span className="text-sm text-white font-medium">{info.title}</span>
-                <span className="text-sm text-gray-400 mx-1.5">•</span>
-                <span className="text-sm text-gray-400">{artistName}</span>
-              </div>
+              {(() => {
+                const artistId = findArtistImageUrl(artistName)
+                return (
+                  <div
+                    className="absolute left-0 right-0 flex items-baseline justify-center transition-opacity duration-300 text-gray-400"
+                    style={{
+                      top: coverSize + 4,
+                      opacity: isSnapped ? 1 : 0,
+                      zIndex: 200,
+                      pointerEvents: isSnapped ? 'auto' : 'none',
+                    }}
+                  >
+                    <span className="text-sm text-white font-medium truncate min-w-0 shrink">{info.title}</span>
+                    <span className="text-sm text-gray-400 mx-1.5 shrink-0">•</span>
+                    {artistId ? (
+                      <button
+                        className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors cursor-pointer truncate min-w-0 shrink"
+                        onClick={() => navigate(`/artist/${artistId}`)}
+                      >
+                        {artistName}
+                      </button>
+                    ) : (
+                      <span className="text-sm text-gray-400 truncate min-w-0 shrink">{artistName}</span>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )
         })}
