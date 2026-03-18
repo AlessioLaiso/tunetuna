@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpDown, Settings, Play, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, Settings, Play, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink, Grid3X3, GalleryVerticalEnd } from 'lucide-react'
 import { useCollectionStore, type CollectionSortMode } from '../../stores/collectionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -13,10 +13,11 @@ import type { BaseItemDto } from '../../api/types'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Image from '../shared/Image'
+import CoverflowView from './CoverflowView'
 
 export default function CollectionPage() {
   const navigate = useNavigate()
-  const { releases, isLoading, error, loadingProgress, formats, fetchCollection, sortMode, setSortMode } = useCollectionStore()
+  const { releases, isLoading, error, loadingProgress, formats, fetchCollection, sortMode, setSortMode, viewMode, setViewMode } = useCollectionStore()
   const { discogsToken } = useSettingsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [formatFilter, setFormatFilter] = useState<string | null>(null)
@@ -251,33 +252,32 @@ export default function CollectionPage() {
   const sortLabel = sortOptions.find((o) => o.value === effectiveSortMode)?.label || 'Artist'
 
   return (
-    <div className="pb-20">
-      {/* Fixed header */}
+    <div className={viewMode === 'grid' ? 'pb-20' : ''}>
+      {/* Fixed header with gradient background */}
       <div
-        className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+        className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top))' }}
       >
-        <div className="max-w-[768px] mx-auto">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0) 100%)',
+          }}
+        />
+        <div className="max-w-[768px] mx-auto relative">
           <div className="p-4 min-[780px]:px-[0.66rem]">
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-white">Collection</h1>
-              {/* Format filter */}
-              {formats.length > 1 && (
-                <select
-                  value={formatFilter || ''}
-                  onChange={(e) => setFormatFilter(e.target.value || null)}
-                  className="bg-zinc-800 text-white text-sm rounded-lg px-2 py-1.5 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] appearance-none pr-7"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
-                >
-                  <option value="">All formats</option>
-                  {formats.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
-              )}
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'coverflow' : 'grid')}
+                className="p-1.5 rounded-lg text-white hover:text-[var(--accent-color)] transition-colors"
+                title={viewMode === 'grid' ? 'Coverflow view' : 'Grid view'}
+              >
+                {viewMode === 'grid' ? <GalleryVerticalEnd className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
+              </button>
             </div>
-            {/* Sort control */}
-            <div className="flex items-center justify-between gap-2">
+            {/* Sort control + format filter */}
+            <div className="flex items-center gap-7">
               <button
                 onClick={() => {
                   const nextIndex = (sortOptions.findIndex(o => o.value === effectiveSortMode) + 1) % sortOptions.length
@@ -288,100 +288,137 @@ export default function CollectionPage() {
                 {sortLabel}
                 <ArrowUpDown className="w-4 h-4" />
               </button>
+              {formats.length > 1 && (
+                <div className="relative">
+                  <select
+                    value={formatFilter || ''}
+                    onChange={(e) => setFormatFilter(e.target.value || null)}
+                    className="bg-transparent text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors appearance-none pr-5 cursor-pointer focus:outline-none"
+                  >
+                    <option value="">All formats</option>
+                    {formats.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-        style={{
-          top: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 6rem)',
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {viewMode === 'coverflow' ? (
+        <CoverflowView
+          releases={filteredAndSorted}
+          onContextMenu={handleItemContextMenu}
+          onTouchStart={(rel) => {
+            longPressFiredRef.current = false
+            longPressTimerRef.current = setTimeout(() => {
+              longPressFiredRef.current = true
+              suppressClickRef.current = true
+              handleItemContextMenu(rel, 'mobile')
+            }, 500)
+          }}
+          onTouchEnd={() => {
+            if (longPressTimerRef.current) {
+              clearTimeout(longPressTimerRef.current)
+              longPressTimerRef.current = null
+            }
+            if (longPressFiredRef.current) {
+              setTimeout(() => { suppressClickRef.current = false }, 300)
+            }
+          }}
+          onTouchMove={() => {
+            if (longPressTimerRef.current) {
+              clearTimeout(longPressTimerRef.current)
+              longPressTimerRef.current = null
+            }
+          }}
+        />
+      ) : (
+        <>
+          {/* Grid content */}
+          <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
+            <div className="p-4">
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                {filteredAndSorted.map((release) => {
+                  const info = release.basic_information
+                  const artistName = cleanDiscogsArtistName(info.artists[0]?.name || 'Unknown Artist')
+                  const formatName = info.formats[0]?.name || ''
 
-      {/* Grid content */}
-      <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
-        <div className="p-4">
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-            {filteredAndSorted.map((release) => {
-              const info = release.basic_information
-              const artistName = cleanDiscogsArtistName(info.artists[0]?.name || 'Unknown Artist')
-              const formatName = info.formats[0]?.name || ''
-
-              return (
-                <button
-                  key={`${release.id}-${info.id}`}
-                  onClick={() => {
-                    if (suppressClickRef.current) {
-                      suppressClickRef.current = false
-                      return
-                    }
-                    navigate(`/collection/${info.id}`)
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    handleItemContextMenu(release, 'desktop', { x: e.clientX, y: e.clientY })
-                  }}
-                  onTouchStart={() => {
-                    longPressFiredRef.current = false
-                    longPressTimerRef.current = setTimeout(() => {
-                      longPressFiredRef.current = true
-                      suppressClickRef.current = true
-                      handleItemContextMenu(release, 'mobile')
-                    }, 500)
-                  }}
-                  onTouchEnd={() => {
-                    if (longPressTimerRef.current) {
-                      clearTimeout(longPressTimerRef.current)
-                      longPressTimerRef.current = null
-                    }
-                    if (longPressFiredRef.current) {
-                      setTimeout(() => { suppressClickRef.current = false }, 300)
-                    }
-                  }}
-                  onTouchMove={() => {
-                    if (longPressTimerRef.current) {
-                      clearTimeout(longPressTimerRef.current)
-                      longPressTimerRef.current = null
-                    }
-                  }}
-                  className="text-left group"
-                >
-                  <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
-                    {info.cover_image ? (
-                      <Image
-                        src={info.cover_image}
-                        alt={info.title}
-                        className="w-full h-full object-cover"
-                        showOutline={true}
-                        rounded="rounded"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-900" />
-                    )}
-                  </div>
-                  <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
-                    {info.title}
-                  </div>
-                  <div className="text-xs text-gray-400 truncate">{artistName}</div>
-                  {(info.year > 0 || (formats.length > 1 && formatName)) && (
-                    <div className="text-xs text-gray-500 truncate flex items-center gap-1">
-                      {info.year > 0 && <span>{info.year}</span>}
-                      {info.year > 0 && formats.length > 1 && formatName && <span>•</span>}
-                      {formats.length > 1 && formatName && <span>{formatName}</span>}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
+                  return (
+                    <button
+                      key={`${release.id}-${info.id}`}
+                      onClick={() => {
+                        if (suppressClickRef.current) {
+                          suppressClickRef.current = false
+                          return
+                        }
+                        navigate(`/collection/${info.id}`)
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        handleItemContextMenu(release, 'desktop', { x: e.clientX, y: e.clientY })
+                      }}
+                      onTouchStart={() => {
+                        longPressFiredRef.current = false
+                        longPressTimerRef.current = setTimeout(() => {
+                          longPressFiredRef.current = true
+                          suppressClickRef.current = true
+                          handleItemContextMenu(release, 'mobile')
+                        }, 500)
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressTimerRef.current) {
+                          clearTimeout(longPressTimerRef.current)
+                          longPressTimerRef.current = null
+                        }
+                        if (longPressFiredRef.current) {
+                          setTimeout(() => { suppressClickRef.current = false }, 300)
+                        }
+                      }}
+                      onTouchMove={() => {
+                        if (longPressTimerRef.current) {
+                          clearTimeout(longPressTimerRef.current)
+                          longPressTimerRef.current = null
+                        }
+                      }}
+                      className="text-left group"
+                    >
+                      <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
+                        {info.cover_image ? (
+                          <Image
+                            src={info.cover_image}
+                            alt={info.title}
+                            className="w-full h-full object-cover"
+                            showOutline={true}
+                            rounded="rounded"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-900" />
+                        )}
+                      </div>
+                      <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
+                        {info.title}
+                      </div>
+                      <div className="text-xs text-gray-400 truncate">{artistName}</div>
+                      {(info.year > 0 || (formats.length > 1 && formatName)) && (
+                        <div className="text-xs text-gray-400 truncate flex items-center gap-1">
+                          {info.year > 0 && <span>{info.year}</span>}
+                          {info.year > 0 && formats.length > 1 && formatName && <span>•</span>}
+                          {formats.length > 1 && formatName && <span>{formatName}</span>}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Collection item context menu */}
       {menuMode === 'desktop' && menuOpen ? (

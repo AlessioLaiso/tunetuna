@@ -11,6 +11,7 @@ import { useSettingsStore } from './settingsStore'
 import { logger } from '../utils/logger'
 
 export type CollectionSortMode = 'artist' | 'album' | 'year' | 'format'
+export type CollectionViewMode = 'grid' | 'coverflow'
 
 interface CollectionState {
   releases: DiscogsRelease[]
@@ -21,11 +22,13 @@ interface CollectionState {
   releaseDetailCache: Record<number, DiscogsReleaseDetail>
   formats: string[]
   sortMode: CollectionSortMode
+  viewMode: CollectionViewMode
 
   fetchCollection: () => Promise<void>
   fetchReleaseDetail: (releaseId: number) => Promise<DiscogsReleaseDetail | null>
   clearCollection: () => void
   setSortMode: (mode: CollectionSortMode) => void
+  setViewMode: (mode: CollectionViewMode) => void
 }
 
 export const useCollectionStore = create<CollectionState>()(persist((set, get) => ({
@@ -37,6 +40,7 @@ export const useCollectionStore = create<CollectionState>()(persist((set, get) =
   releaseDetailCache: {},
   formats: [],
   sortMode: 'artist',
+  viewMode: 'grid',
 
   fetchCollection: async () => {
     const { discogsToken } = useSettingsStore.getState()
@@ -115,9 +119,11 @@ export const useCollectionStore = create<CollectionState>()(persist((set, get) =
   },
 
   setSortMode: (mode) => set({ sortMode: mode }),
+  setViewMode: (mode) => set({ viewMode: mode }),
 }), {
   name: 'collection-store',
   partialize: (state) => ({
     sortMode: state.sortMode,
+    viewMode: state.viewMode,
   }),
 }))

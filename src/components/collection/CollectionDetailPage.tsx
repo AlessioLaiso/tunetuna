@@ -784,12 +784,12 @@ export default function CollectionDetailPage() {
                     <span>{detail.year}</span>
                   </>
                 )}
-                {formatString && (
-                  <>
-                    <span>•</span>
-                    <span>{formatString}</span>
-                  </>
-                )}
+                {formatString && <>
+                  <span>•</span>
+                  {formatString.split(', ').map((part, i, arr) => (
+                    <span key={i}>{part}{i < arr.length - 1 ? ',' : ''}</span>
+                  ))}
+                </>}
                 {libraryMatches.length < matchedTracks.length && (
                   <>
                     <span>•</span>
@@ -808,7 +808,7 @@ export default function CollectionDetailPage() {
                   }
                 }}
                 disabled={libraryMatches.length === 0}
-                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 disabled:opacity-40 disabled:hover:scale-100 flex-shrink-0"
+                className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 disabled:opacity-40 disabled:hover:scale-100 flex-shrink-0 min-w-[4.5rem] justify-center"
               >
                 {isPlayingFromCollection ? (
                   <>
