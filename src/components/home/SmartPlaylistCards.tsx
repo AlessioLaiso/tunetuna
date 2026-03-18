@@ -26,6 +26,8 @@ interface CardItem {
   description: string
   route: string
   albumId: string | null
+  /** When set, this card is an artist filler — use artist image instead of album art */
+  artistFiller?: { artistId: string }
 }
 
 // ============================================================================
@@ -245,6 +247,93 @@ export default function SmartPlaylistCards() {
     return cards
   }, [fullyLoaded, cards, songs.length, cachedMixCardIds])
 
+  // Build artist filler pool: top-10 most listened (if stats) or random artists
+  const artistFillers: CardItem[] = useMemo(() => {
+    if (songs.length === 0) return []
+
+    // Collect unique artists from all songs
+    const artistMap = new Map<string, string>() // id -> name
+    for (const song of songs) {
+      for (const a of song.ArtistItems || []) {
+        if (a.Id && a.Name && !artistMap.has(a.Id)) {
+          artistMap.set(a.Id, a.Name)
+        }
+      }
+    }
+    if (artistMap.size === 0) return []
+
+    let pickedIds: string[]
+
+    if (statsTrackingEnabled && events.length > 0) {
+      // Pick randomly from top 10 most listened artists, shuffled daily
+      const playCounts = new Map<string, number>()
+      for (const event of events) {
+        for (const artistId of event.artistIds) {
+          playCounts.set(artistId, (playCounts.get(artistId) || 0) + 1)
+        }
+      }
+      const top10 = Array.from(playCounts.entries())
+        .filter(([id]) => artistMap.has(id))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([id]) => id)
+      const seed = getDailySeed('artist-fillers')
+      for (let i = top10.length - 1; i > 0; i--) {
+        const j = Math.abs((seed * (i + 1)) % (i + 1))
+        ;[top10[i], top10[j]] = [top10[j], top10[i]]
+      }
+      pickedIds = top10
+    } else {
+      // Random selection seeded by date for consistency within a day
+      const allIds = Array.from(artistMap.keys())
+      const seed = getDailySeed('artist-fillers')
+      const shuffled = [...allIds]
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.abs((seed * (i + 1)) % (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      }
+      pickedIds = shuffled.slice(0, 10)
+    }
+
+    return pickedIds.map(id => ({
+      id: `artist-filler-${id}`,
+      name: artistMap.get(id)!,
+      description: '',
+      route: `/artist/${id}`,
+      albumId: null,
+      artistFiller: { artistId: id },
+    }))
+  }, [songs, events, statsTrackingEnabled])
+
+  // Pad cards with artist fillers:
+  // - If cards don't fill a single row, pad to complete the row
+  // - Otherwise, pad to complete the last page (visibleCols × rows)
+  const filledCards = (cards: CardItem[], visibleCols: number, rows: number): CardItem[] => {
+    if (artistFillers.length === 0 || cards.length === 0) return cards
+
+    const pageSize = visibleCols * rows
+    let target: number
+    if (cards.length <= visibleCols) {
+      // Less than or equal to one row — just fill the row
+      const remainder = cards.length % visibleCols
+      if (remainder === 0) return cards
+      target = cards.length + (visibleCols - remainder)
+    } else {
+      // More than one row — fill to complete the last page
+      const remainder = cards.length % pageSize
+      if (remainder === 0) return cards
+      target = cards.length + (pageSize - remainder)
+    }
+
+    const needed = target - cards.length
+    const usedIds = new Set(cards.map(c => c.id))
+    const available = artistFillers.filter(f => !usedIds.has(f.id))
+    if (available.length === 0) return cards
+
+    const fillers = available.slice(0, needed)
+    return [...cards, ...fillers]
+  }
+
   // The showMoodCards setting controls the entire mix cards section
   if (!showMoodCards) return null
   if (displayCards.length === 0) {
@@ -258,8 +347,8 @@ export default function SmartPlaylistCards() {
       <div className="min-[620px]:hidden">
         <HorizontalScrollContainer gap={8}>
           <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 8px) / 2)' }}>
-            {reorderForRowFlow(displayCards, 2).map((card) => (
-              <SmartCardItem key={card.id} card={card} />
+            {reorderForRowFlow(filledCards(displayCards, 2, 2), 2, 2).map((card) => (
+              <MixCardItem key={card.id} card={card} />
             ))}
           </div>
         </HorizontalScrollContainer>
@@ -269,8 +358,8 @@ export default function SmartPlaylistCards() {
       <div className="hidden min-[620px]:block min-[1500px]:hidden">
         <HorizontalScrollContainer gap={8}>
           <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 16px) / 3)' }}>
-            {reorderForRowFlow(displayCards, 2).map((card) => (
-              <SmartCardItem key={card.id} card={card} />
+            {reorderForRowFlow(filledCards(displayCards, 3, 2), 2, 3).map((card) => (
+              <MixCardItem key={card.id} card={card} />
             ))}
           </div>
         </HorizontalScrollContainer>
@@ -280,8 +369,8 @@ export default function SmartPlaylistCards() {
       <div className="hidden min-[1500px]:block">
         <HorizontalScrollContainer gap={8}>
           <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 24px) / 4)' }}>
-            {reorderForRowFlow(displayCards, 2).map((card) => (
-              <SmartCardItem key={card.id} card={card} />
+            {reorderForRowFlow(filledCards(displayCards, 4, 2), 2, 4).map((card) => (
+              <MixCardItem key={card.id} card={card} />
             ))}
           </div>
         </HorizontalScrollContainer>
@@ -295,16 +384,24 @@ export default function SmartPlaylistCards() {
 // ============================================================================
 
 /**
- * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
+ * CSS grid-flow-col fills columns first; this reorders so visual reading order
+ * is left-to-right, top-to-bottom within each visible page of `visibleCols` columns.
+ *
+ * Without page-aware reordering, items 1-8 with 2 visible cols and 2 rows would
+ * show [1,5,2,6] on the first page instead of [1,2,3,4].
  */
-function reorderForRowFlow<T>(items: T[], rows: number): T[] {
-  const cols = Math.ceil(items.length / rows)
+function reorderForRowFlow<T>(items: T[], rows: number, visibleCols: number): T[] {
+  const pageSize = visibleCols * rows
   const result: T[] = []
-  for (let col = 0; col < cols; col++) {
-    for (let row = 0; row < rows; row++) {
-      const srcIndex = row * cols + col
-      if (srcIndex < items.length) {
-        result.push(items[srcIndex])
+  for (let pageStart = 0; pageStart < items.length; pageStart += pageSize) {
+    const pageItems = items.slice(pageStart, pageStart + pageSize)
+    const cols = Math.ceil(pageItems.length / rows)
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows; row++) {
+        const srcIndex = row * cols + col
+        if (srcIndex < pageItems.length) {
+          result.push(pageItems[srcIndex])
+        }
       }
     }
   }
@@ -359,8 +456,14 @@ function SmartPlaylistCardsSkeleton({ count = 6 }: { count?: number }) {
 // Card Item
 // ============================================================================
 
-function SmartCardItem({ card }: { card: CardItem }) {
+function MixCardItem({ card }: { card: CardItem }) {
   const navigate = useNavigate()
+
+  const imageSrc = card.artistFiller
+    ? jellyfinClient.getArtistImageUrl(card.artistFiller.artistId, 56)
+    : card.albumId
+      ? jellyfinClient.getAlbumArtUrl(card.albumId, 56)
+      : null
 
   return (
     <button
@@ -368,9 +471,9 @@ function SmartCardItem({ card }: { card: CardItem }) {
       className="bg-zinc-800/50 rounded border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
       <div className="h-full aspect-square flex-shrink-0 bg-zinc-700/50">
-        {card.albumId && (
+        {imageSrc && (
           <Image
-            src={jellyfinClient.getAlbumArtUrl(card.albumId, 56)}
+            src={imageSrc}
             alt=""
             className="w-full h-full object-cover"
             showOutline={false}
