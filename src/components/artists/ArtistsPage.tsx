@@ -248,13 +248,15 @@ export default function ArtistsPage() {
                       )
                     })}
                 </div>
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                  onPageChange={setCurrentPage}
-                  itemsPerPage={ITEMS_PER_PAGE}
-                  totalItems={totalCount}
-                />
+                <div className="px-4">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                    onPageChange={setCurrentPage}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    totalItems={totalCount}
+                  />
+                </div>
               </>
             )}
           </div>

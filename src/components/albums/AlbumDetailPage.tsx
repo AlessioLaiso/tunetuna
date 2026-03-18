@@ -3,16 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import Image from '../shared/Image'
+import { useVinylAnimation } from '../../hooks/useVinylAnimation'
 import Spinner from '../shared/Spinner'
+import VinylArtwork from '../shared/VinylArtwork'
 import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
-import { useLargeViewport } from '../../hooks/useLargeViewport'
-import vinylImage from '../../assets/vinyl.png'
 
 interface AlbumTrackItemProps {
   track: BaseItemDto
@@ -111,25 +110,14 @@ export default function AlbumDetailPage() {
   const [artistLogoUrl, setArtistLogoUrl] = useState<string | null>(null)
   const [hasArtistLogo, setHasArtistLogo] = useState(false)
   const [discImageUrl, setDiscImageUrl] = useState<string | null>(null)
-  const [showVinyl, setShowVinyl] = useState(false)
-  const [hideAlbumArt, setHideAlbumArt] = useState(false)
-  const reverseAnimationStartedRef = useRef<boolean>(false)
-
-  // Add new ref for split animation
-  const shouldSplitRef = useRef<boolean>(false)
-
-  const isLargeViewport = useLargeViewport()
-
-  const [rotationAngle, setRotationAngle] = useState(0)
-  const rotationRef = useRef<number>(0)
-  const animationFrameRef = useRef<number | null>(null)
-  const lastTimeRef = useRef<number>(0)
-  const hasInitializedRef = useRef<boolean>(false)
-  const albumArtRef = useRef<HTMLDivElement | null>(null)
-  const previousAlbumIdRef = useRef<string | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
-  const previousPlayingRef = useRef<boolean>(false)
+  const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
+
+  const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
+    isPlaying: isCurrentAlbumPlaying,
+    hasImage,
+  })
 
   useEffect(() => {
     if (!id) return
@@ -224,141 +212,6 @@ export default function AlbumDetailPage() {
   }, [id])
 
   // Handle vinyl visibility with animation delay
-  useEffect(() => {
-    const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-    const currentAlbumId = album?.Id || null
-    const albumChanged = previousAlbumIdRef.current !== null && previousAlbumIdRef.current !== currentAlbumId
-    const playbackStateChanged = previousPlayingRef.current !== isCurrentAlbumPlaying
-
-    // Reset animation flag when playback state changes
-    if (playbackStateChanged) {
-      reverseAnimationStartedRef.current = false
-    }
-
-    // Update previous playing state at the end
-    previousPlayingRef.current = isCurrentAlbumPlaying
-
-    // Don't show vinyl if there's no album art
-    if (!hasImage) {
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      previousAlbumIdRef.current = currentAlbumId
-      return
-    }
-
-    if (isCurrentAlbumPlaying) {
-
-      // Show vinyl when current album starts playing
-      // Only change state if album actually changed (not just track within same album)
-      // or if not yet initialized, OR if vinyl is not currently showing
-      if (albumChanged || !hasInitializedRef.current || !showVinyl) {
-        setShowVinyl(true)
-        setHideAlbumArt(false)
-        hasInitializedRef.current = true
-      }
-
-      // Check if we should use split animation (screens >= 560px)
-      shouldSplitRef.current = window.innerWidth >= 560
-
-      // Set up animation delay (500ms) - no fade, just positioning
-      if (!reverseAnimationStartedRef.current) { // Reuse this flag for animation setup
-        reverseAnimationStartedRef.current = true // Prevent multiple setups
-        setTimeout(() => {
-          // Double-check that album is still playing
-          const stillPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-          if (stillPlaying) {
-            setHideAlbumArt(true) // This will trigger the animation (split or full slide)
-          }
-        }, 500)
-      }
-
-      // Update previous album ID to track changes
-      previousAlbumIdRef.current = currentAlbumId
-    } else if (hasInitializedRef.current && showVinyl && !isCurrentAlbumPlaying) {
-      // Only start reverse animation once - prevent multiple triggers
-      if (!reverseAnimationStartedRef.current) {
-        reverseAnimationStartedRef.current = true
-
-        // Reverse animation: just slide back immediately
-        setHideAlbumArt(false)
-      }
-
-      previousAlbumIdRef.current = currentAlbumId
-    } else if (!hasInitializedRef.current) {
-      // On initial load, if not playing, keep vinyl hidden (no animation)
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      hasInitializedRef.current = true
-      previousAlbumIdRef.current = currentAlbumId
-    } else {
-      // If vinyl wasn't showing, keep it hidden
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      previousAlbumIdRef.current = currentAlbumId
-    }
-  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, hasImage, hideAlbumArt])
-
-
-  // Handle window resize to update animation behavior
-  useEffect(() => {
-    const handleResize = () => {
-      const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-
-      if (isCurrentAlbumPlaying && showVinyl) {
-        const newShouldSplit = window.innerWidth >= 560
-        shouldSplitRef.current = newShouldSplit
-
-        // If we're currently animated, adjust positioning immediately
-        if (hideAlbumArt) {
-          // Force a re-render by toggling hideAlbumArt briefly
-          setHideAlbumArt(false)
-          setTimeout(() => setHideAlbumArt(true), 10)
-        }
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [currentTrack?.AlbumId, album?.Id, isPlaying, showVinyl, hideAlbumArt])
-
-  // Handle rotation animation
-  useEffect(() => {
-    const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
-
-    if (isCurrentAlbumPlaying) {
-      // Start rotation animation
-      const animate = (currentTime: number) => {
-        if (lastTimeRef.current === 0) {
-          lastTimeRef.current = currentTime
-        }
-
-        const deltaTime = currentTime - lastTimeRef.current
-        const rotationSpeed = 360 / 10000 // 360 degrees per 10 seconds (10s = 10000ms)
-        rotationRef.current = (rotationRef.current + rotationSpeed * deltaTime) % 360
-        setRotationAngle(rotationRef.current)
-        lastTimeRef.current = currentTime
-
-        animationFrameRef.current = requestAnimationFrame(animate)
-      }
-
-      lastTimeRef.current = 0
-      animationFrameRef.current = requestAnimationFrame(animate)
-    } else {
-      // Stop rotation but keep current angle
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      lastTimeRef.current = 0
-    }
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [currentTrack?.AlbumId, album?.Id, isPlaying])
-
   const getArtistIdFromTracks = (tracksList: BaseItemDto[], currentAlbum: BaseItemDto | null): string | null => {
     // First priority: Album's AlbumArtists (most accurate for the album)
     if (currentAlbum?.AlbumArtists && currentAlbum.AlbumArtists.length > 0) {
@@ -523,142 +376,21 @@ export default function AlbumDetailPage() {
       <div className="pt-11">
         <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (
-            <div className="flex justify-center mb-6 relative" style={{ overflowX: 'visible', overflowY: 'visible', paddingLeft: '16px', paddingRight: '16px' }}>
-              <div
-                ref={albumArtRef}
-                className="relative"
-                style={{
-                  overflow: 'visible',
-                  width: isLargeViewport ? '360px' : '256px',
-                  height: isLargeViewport ? '360px' : '256px',
-                }}
-              >
-                {/* Vinyl Record - always present in center, hidden behind album art */}
-                <div
-                  className="absolute inset-0 rounded-full overflow-hidden"
-                  style={{
-                    opacity: showVinyl ? 1 : 0,
-                    zIndex: 1,
-                    transform: (currentTrack?.AlbumId === album.Id && isPlaying && shouldSplitRef.current)
-                      ? 'translateX(calc(50% + 8px))'
-                      : 'translateX(0)',
-                    transition: 'transform 500ms ease-in-out, opacity 300ms ease-in-out',
-                  }}
-                >
-                  <div
-                    className="w-full h-full"
-                    style={{
-                      transformOrigin: 'center center',
-                      transform: `rotate(${rotationAngle}deg)`,
-                    }}
-                  >
-                    {discImageUrl ? (
-                      /* Use Jellyfin's Disc image if available */
-                      <img
-                        src={discImageUrl}
-                        alt="Disc"
-                        className="w-full h-full object-cover rounded-full"
-                        onError={() => setDiscImageUrl(null)}
-                      />
-                    ) : (
-                      <>
-                        <img
-                          src={vinylImage}
-                          alt="Vinyl Record"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            logger.error('Failed to load vinyl image')
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                        {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
-                        {((hasArtistLogo && artistLogoUrl) || hasImage) && (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full"
-                            style={{
-                              width: '52%',
-                              height: '52%',
-                              backgroundColor: '#a1a1aa', // zinc-400
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          />
-                        )}
-                        {/* Artist Logo or Album Art Overlay - centered */}
-                        {hasArtistLogo && artistLogoUrl ? (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                            style={{
-                              width: '47%',
-                              height: '47%',
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          >
-                            <img
-                              src={artistLogoUrl}
-                              alt="Artist Logo"
-                              className="w-full h-full object-contain"
-                              onError={() => {
-                                setHasArtistLogo(false)
-                                setArtistLogoUrl(null)
-                              }}
-                            />
-                          </div>
-                        ) : hasImage ? (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                            style={{
-                              width: '52%',
-                              height: '52%',
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          >
-                            <img
-                              src={jellyfinClient.getAlbumArtUrl(album.Id)}
-                              alt={album.Name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : null}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Album Art */}
-                <div
-                  className="absolute inset-0 rounded overflow-hidden bg-zinc-900 transition-all duration-500"
-                  style={{
-                    transform:
-                      currentTrack?.AlbumId === album.Id && isPlaying
-                        ? shouldSplitRef.current
-                          ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
-                          : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
-                        : hideAlbumArt
-                          ? shouldSplitRef.current
-                            ? 'translateX(calc(-50% - 8px))'  // Split: move halfway left + 8px
-                            : 'translateX(calc(-100% - 24px))'  // Small screens: move completely left
-                          : 'translateX(0)',  // Center position
-                    opacity: 1,  // Always fully opaque - no fading
-                    transitionProperty: 'transform',
-                    transitionDuration: '500ms',
-                    transitionTimingFunction: 'ease-in-out',
-                    zIndex: 10,
-                  }}
-                >
-                  <Image
-                    src={jellyfinClient.getAlbumArtUrl(album.Id)}
-                    alt={album.Name}
-                    className="w-full h-full object-cover"
-                    showOutline={true}
-                    rounded="rounded"
-                    onError={() => setHasImage(false)}
-                  />
-                </div>
-              </div>
-            </div>
+            <VinylArtwork
+              coverImageSrc={jellyfinClient.getAlbumArtUrl(album.Id)}
+              coverImageAlt={album.Name || ''}
+              discImageUrl={discImageUrl}
+              artistLogoUrl={artistLogoUrl}
+              hasArtistLogo={hasArtistLogo}
+              showVinyl={showVinyl}
+              hideAlbumArt={hideAlbumArt}
+              rotationAngle={rotationAngle}
+              shouldSplitRef={shouldSplitRef}
+              isPlaying={isCurrentAlbumPlaying}
+              onCoverError={() => setHasImage(false)}
+              onDiscImageError={() => setDiscImageUrl(null)}
+              onArtistLogoError={() => { setHasArtistLogo(false); setArtistLogoUrl(null) }}
+            />
           )}
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{album.Name}</h2>
@@ -686,7 +418,7 @@ export default function AlbumDetailPage() {
               </div>
               <button
                 onClick={() => {
-                  if (currentTrack?.AlbumId === album.Id && isPlaying) {
+                  if (isCurrentAlbumPlaying) {
                     pause()
                   } else if (currentTrack?.AlbumId === album.Id && !isPlaying) {
                     play()
@@ -696,7 +428,7 @@ export default function AlbumDetailPage() {
                 }}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
               >
-                {currentTrack?.AlbumId === album.Id && isPlaying ? (
+                {isCurrentAlbumPlaying ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
                     Pause

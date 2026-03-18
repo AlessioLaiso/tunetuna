@@ -16,7 +16,13 @@ export default function Pagination({
   totalItems,
 }: PaginationProps) {
   if (totalPages <= 1) {
-    return null
+    return (
+      <div className="flex items-center py-4">
+        <div className="text-sm text-gray-400">
+          Showing {totalItems} item{totalItems !== 1 ? 's' : ''}
+        </div>
+      </div>
+    )
   }
 
   const startItem = currentPage * itemsPerPage + 1

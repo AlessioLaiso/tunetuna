@@ -540,7 +540,7 @@ export default function GenreSongsPage() {
           </div>
         )}
         {usePaginationForAlbums && albums.length > 0 && (
-          <div className="-mt-10 mb-10">
+          <div className="-mt-10 mb-10 px-4">
             <Pagination
               currentPage={currentPage}
               totalPages={Math.ceil(albums.length / ALBUMS_PER_PAGE)}

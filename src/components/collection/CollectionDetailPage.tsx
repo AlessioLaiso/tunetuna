@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink } from 'lucide-react'
 import { useCollectionStore } from '../../stores/collectionStore'
@@ -8,7 +8,7 @@ import { useStatsStore } from '../../stores/statsStore'
 import { useToastStore } from '../../stores/toastStore'
 import { useLibraryLookup } from '../../hooks/useLibraryLookup'
 import { useContextMenu } from '../../hooks/useContextMenu'
-import { useLargeViewport } from '../../hooks/useLargeViewport'
+import { useVinylAnimation } from '../../hooks/useVinylAnimation'
 import { cleanDiscogsArtistName } from '../../api/discogs'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { DiscogsReleaseDetail, DiscogsTrack } from '../../api/discogs'
@@ -17,8 +17,7 @@ import ContextMenu from '../shared/ContextMenu'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Spinner from '../shared/Spinner'
-import Image from '../shared/Image'
-import vinylImage from '../../assets/vinyl.png'
+import VinylArtwork from '../shared/VinylArtwork'
 
 interface MatchedTrack {
   discogsTrack: DiscogsTrack
@@ -123,7 +122,6 @@ export default function CollectionDetailPage() {
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint, findLibraryArtistName } = useLibraryLookup()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const isLargeViewport = useLargeViewport()
 
   const [detail, setDetail] = useState<DiscogsReleaseDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -148,18 +146,6 @@ export default function CollectionDetailPage() {
   // Playlist picker state
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
   const [playlistPickerItemIds, setPlaylistPickerItemIds] = useState<string[]>([])
-
-  // Disc rotation animation (matching AlbumDetailPage pattern)
-  const [showVinyl, setShowVinyl] = useState(false)
-  const [hideAlbumArt, setHideAlbumArt] = useState(false)
-  const [rotationAngle, setRotationAngle] = useState(0)
-  const rotationRef = useRef(0)
-  const animationFrameRef = useRef<number | null>(null)
-  const lastTimeRef = useRef(0)
-  const reverseAnimationStartedRef = useRef(false)
-  const shouldSplitRef = useRef(false)
-  const hasInitializedRef = useRef(false)
-  const previousPlayingRef = useRef(false)
 
   const numericReleaseId = releaseId ? parseInt(releaseId, 10) : null
 
@@ -306,6 +292,14 @@ export default function CollectionDetailPage() {
     return formats.some(fmt => /cassette/i.test(fmt.name))
   }, [detail, release])
 
+  // Detect CD format — use CD disc image instead of vinyl
+  const isCD = useMemo(() => {
+    const formats = detail?.formats || release?.basic_information.formats
+    if (!formats) return false
+    const cdFormats = new Set(['CD', 'CDr', 'SACD', 'DVD', 'Blu-ray', 'Laserdisc'])
+    return formats.some(fmt => cdFormats.has(fmt.name))
+  }, [detail, release])
+
   const libraryMatches = useMemo(
     () => matchedTracks.filter((t) => t.libraryMatch).map((t) => t.libraryMatch!),
     [matchedTracks]
@@ -365,99 +359,11 @@ export default function CollectionDetailPage() {
     [libraryMatches, currentTrack, isPlaying]
   )
 
-
-
-  // Vinyl visibility animation (matching AlbumDetailPage) — disabled for cassettes
-  useEffect(() => {
-    if (isCassette) {
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      hasInitializedRef.current = true
-      return
-    }
-
-    const playbackStateChanged = previousPlayingRef.current !== isPlayingFromCollection
-    if (playbackStateChanged) {
-      reverseAnimationStartedRef.current = false
-    }
-    previousPlayingRef.current = isPlayingFromCollection
-
-    if (!hasImage) {
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      return
-    }
-
-    if (isPlayingFromCollection) {
-      if (!hasInitializedRef.current || !showVinyl) {
-        setShowVinyl(true)
-        setHideAlbumArt(false)
-        hasInitializedRef.current = true
-      }
-
-      shouldSplitRef.current = window.innerWidth >= 560
-
-      if (!reverseAnimationStartedRef.current) {
-        reverseAnimationStartedRef.current = true
-        setTimeout(() => {
-          if (isPlayingFromCollection) {
-            setHideAlbumArt(true)
-          }
-        }, 500)
-      }
-    } else if (hasInitializedRef.current && showVinyl) {
-      if (!reverseAnimationStartedRef.current) {
-        reverseAnimationStartedRef.current = true
-        setHideAlbumArt(false)
-      }
-    } else if (!hasInitializedRef.current) {
-      setShowVinyl(false)
-      setHideAlbumArt(false)
-      hasInitializedRef.current = true
-    }
-  }, [isPlayingFromCollection, showVinyl, hasImage, isCassette])
-
-  // Resize handler for split animation
-  useEffect(() => {
-    const handleResize = () => {
-      if (isPlayingFromCollection && showVinyl) {
-        const newShouldSplit = window.innerWidth >= 560
-        shouldSplitRef.current = newShouldSplit
-        if (hideAlbumArt) {
-          setHideAlbumArt(false)
-          setTimeout(() => setHideAlbumArt(true), 10)
-        }
-      }
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [isPlayingFromCollection, showVinyl, hideAlbumArt])
-
-  // Rotation animation
-  useEffect(() => {
-    if (isPlayingFromCollection) {
-      const animate = (currentTime: number) => {
-        if (lastTimeRef.current === 0) lastTimeRef.current = currentTime
-        const deltaTime = currentTime - lastTimeRef.current
-        const rotationSpeed = 360 / 10000
-        rotationRef.current = (rotationRef.current + rotationSpeed * deltaTime) % 360
-        setRotationAngle(rotationRef.current)
-        lastTimeRef.current = currentTime
-        animationFrameRef.current = requestAnimationFrame(animate)
-      }
-      lastTimeRef.current = 0
-      animationFrameRef.current = requestAnimationFrame(animate)
-    } else {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      lastTimeRef.current = 0
-    }
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
-    }
-  }, [isPlayingFromCollection])
+  const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
+    isPlaying: isPlayingFromCollection,
+    hasImage,
+    enabled: !isCassette,
+  })
 
   const handlePlayAll = () => {
     if (libraryMatches.length === 0) return
@@ -641,135 +547,23 @@ export default function CollectionDetailPage() {
         {/* Album art + disc animation */}
         <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (
-            <div className="flex justify-center mb-6 relative" style={{ overflowX: 'visible', overflowY: 'visible', paddingLeft: '16px', paddingRight: '16px' }}>
-              <div
-                className="relative"
-                style={{
-                  overflow: 'visible',
-                  width: isLargeViewport ? '360px' : '256px',
-                  height: isLargeViewport ? '360px' : '256px',
-                }}
-              >
-                {/* Vinyl Record */}
-                <div
-                  className="absolute inset-0 rounded-full overflow-hidden"
-                  style={{
-                    opacity: showVinyl ? 1 : 0,
-                    zIndex: 1,
-                    transform: (isPlayingFromCollection && shouldSplitRef.current)
-                      ? 'translateX(calc(50% + 8px))'
-                      : 'translateX(0)',
-                    transition: 'transform 500ms ease-in-out, opacity 300ms ease-in-out',
-                  }}
-                >
-                  <div
-                    className="w-full h-full"
-                    style={{ transformOrigin: 'center center', transform: `rotate(${rotationAngle}deg)` }}
-                  >
-                    {discImageUrl ? (
-                      <img
-                        src={discImageUrl}
-                        alt="Disc"
-                        className="w-full h-full object-cover rounded-full"
-                        onError={() => setDiscImageUrl(null)}
-                      />
-                    ) : (
-                      <>
-                        <img
-                          src={vinylImage}
-                          alt="Vinyl Record"
-                          className="w-full h-full object-cover"
-                          onError={(e) => { e.currentTarget.style.display = 'none' }}
-                        />
-                        {/* Zinc 400 circle covering white center (only when we have something to overlay) */}
-                        {((hasArtistLogo && artistLogoUrl) || hasImage) && (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full"
-                            style={{
-                              width: '52%',
-                              height: '52%',
-                              backgroundColor: '#a1a1aa',
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          />
-                        )}
-                        {/* Artist Logo or Album Art Overlay - centered */}
-                        {hasArtistLogo && artistLogoUrl ? (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                            style={{
-                              width: '47%',
-                              height: '47%',
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          >
-                            <img
-                              src={artistLogoUrl}
-                              alt="Artist Logo"
-                              className="w-full h-full object-contain"
-                              onError={() => {
-                                setHasArtistLogo(false)
-                                setArtistLogoUrl(null)
-                              }}
-                            />
-                          </div>
-                        ) : hasImage && coverImage ? (
-                          <div
-                            className="absolute top-1/2 left-1/2 rounded-full overflow-hidden flex items-center justify-center"
-                            style={{
-                              width: '52%',
-                              height: '52%',
-                              transform: 'translate(-50%, -50%)',
-                              transformOrigin: 'center center',
-                            }}
-                          >
-                            <img src={coverImage} alt={detail.title} className="w-full h-full object-cover" />
-                          </div>
-                        ) : null}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Album Art */}
-                <div
-                  className="absolute inset-0 rounded overflow-hidden bg-zinc-900 transition-all duration-500"
-                  style={{
-                    transform: isPlayingFromCollection
-                      ? shouldSplitRef.current
-                        ? 'translateX(calc(-50% - 8px))'
-                        : 'translateX(calc(-100% - 24px))'
-                      : hideAlbumArt
-                        ? shouldSplitRef.current
-                          ? 'translateX(calc(-50% - 8px))'
-                          : 'translateX(calc(-100% - 24px))'
-                        : 'translateX(0)',
-                    opacity: 1,
-                    transitionProperty: 'transform',
-                    transitionDuration: '500ms',
-                    transitionTimingFunction: 'ease-in-out',
-                    zIndex: 10,
-                  }}
-                >
-                  {coverImage ? (
-                    <Image
-                      src={coverImage}
-                      alt={detail.title}
-                      className="w-full h-full object-cover"
-                      showOutline={true}
-                      rounded="rounded"
-                      onError={() => setHasImage(false)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-600 rounded">
-                      No Image
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <VinylArtwork
+              coverImageSrc={coverImage}
+              coverImageAlt={detail.title}
+              discImageUrl={discImageUrl}
+              artistLogoUrl={artistLogoUrl}
+              hasArtistLogo={hasArtistLogo}
+              showVinyl={showVinyl}
+              hideAlbumArt={hideAlbumArt}
+              rotationAngle={rotationAngle}
+              shouldSplitRef={shouldSplitRef}
+              isPlaying={isPlayingFromCollection}
+              isCassette={isCassette}
+              isCD={isCD}
+              onCoverError={() => setHasImage(false)}
+              onDiscImageError={() => setDiscImageUrl(null)}
+              onArtistLogoError={() => { setHasArtistLogo(false); setArtistLogoUrl(null) }}
+            />
           )}
 
           {/* Album info */}

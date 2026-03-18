@@ -13,7 +13,10 @@ import type { BaseItemDto } from '../../api/types'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Image from '../shared/Image'
+import Pagination from '../shared/Pagination'
 import CoverflowView from './CoverflowView'
+
+const ITEMS_PER_PAGE = 84
 
 export default function CollectionPage() {
   const navigate = useNavigate()
@@ -21,6 +24,8 @@ export default function CollectionPage() {
   const { discogsToken } = useSettingsStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [formatFilter, setFormatFilter] = useState<string | null>(null)
+  const [coverflowIndex, setCoverflowIndex] = useState(0)
+  const [gridPage, setGridPage] = useState(0)
 
   // Context menu state for collection items
   const [menuOpen, setMenuOpen] = useState(false)
@@ -46,6 +51,18 @@ export default function CollectionPage() {
     }
   }, [discogsToken, releases.length, isLoading, fetchCollection])
 
+  // Reset grid page when sort/filter changes
+  useEffect(() => { setGridPage(0) }, [sortMode, formatFilter])
+
+  // Lock parent layout scroll when coverflow is active
+  useEffect(() => {
+    if (viewMode !== 'coverflow') return
+    const scrollable = document.querySelector('.main-scrollable') as HTMLElement | null
+    if (!scrollable) return
+    scrollable.style.overflowY = 'hidden'
+    return () => { scrollable.style.overflowY = 'auto' }
+  }, [viewMode])
+
   const filteredAndSorted = useMemo(() => {
     let items = [...releases]
 
@@ -55,12 +72,15 @@ export default function CollectionPage() {
       )
     }
 
+    // Pre-compute cleaned artist names for sort comparisons
+    const artistNameCache = sortMode === 'artist'
+      ? new Map(items.map(r => [r.id, cleanDiscogsArtistName(r.basic_information.artists[0]?.name || '')]))
+      : null
+
     switch (sortMode) {
       case 'artist':
         items.sort((a, b) => {
-          const artistA = cleanDiscogsArtistName(a.basic_information.artists[0]?.name || '')
-          const artistB = cleanDiscogsArtistName(b.basic_information.artists[0]?.name || '')
-          const cmp = artistA.localeCompare(artistB)
+          const cmp = artistNameCache!.get(a.id)!.localeCompare(artistNameCache!.get(b.id)!)
           if (cmp !== 0) return cmp
           return (a.basic_information.year || 0) - (b.basic_information.year || 0)
         })
@@ -252,7 +272,7 @@ export default function CollectionPage() {
   const sortLabel = sortOptions.find((o) => o.value === effectiveSortMode)?.label || 'Artist'
 
   return (
-    <div className={viewMode === 'grid' ? 'pb-20' : ''}>
+    <div className={viewMode === 'grid' ? 'pb-20' : 'h-screen overflow-hidden'}>
       {/* Fixed header with gradient background */}
       <div
         className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
@@ -303,6 +323,27 @@ export default function CollectionPage() {
                   <ChevronDown className="w-3.5 h-3.5 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
                 </div>
               )}
+              {viewMode === 'coverflow' && filteredAndSorted.length > 0 && (() => {
+                const current = filteredAndSorted[coverflowIndex]
+                let contextLabel = ''
+                if (current) {
+                  if (effectiveSortMode === 'year') {
+                    contextLabel = current.basic_information.year ? String(current.basic_information.year) : ''
+                  } else if (effectiveSortMode === 'artist') {
+                    contextLabel = cleanDiscogsArtistName(current.basic_information.artists[0]?.name || '').charAt(0).toUpperCase()
+                  } else if (effectiveSortMode === 'album') {
+                    contextLabel = (current.basic_information.title || '').charAt(0).toUpperCase()
+                  } else if (effectiveSortMode === 'format') {
+                    contextLabel = current.basic_information.formats[0]?.name || ''
+                  }
+                }
+                return (
+                  <span className="ml-auto text-sm text-gray-400 tabular-nums">
+                    {contextLabel && <><span className="text-white">{contextLabel}</span><span className="mx-1.5">•</span></>}
+                    {coverflowIndex + 1} / {filteredAndSorted.length}
+                  </span>
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -311,6 +352,7 @@ export default function CollectionPage() {
       {viewMode === 'coverflow' ? (
         <CoverflowView
           releases={filteredAndSorted}
+          onSnappedIndexChange={setCoverflowIndex}
           onContextMenu={handleItemContextMenu}
           onTouchStart={(rel) => {
             longPressFiredRef.current = false
@@ -342,10 +384,11 @@ export default function CollectionPage() {
           <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
             <div className="p-4">
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                {filteredAndSorted.map((release) => {
+                {filteredAndSorted.slice(gridPage * ITEMS_PER_PAGE, (gridPage + 1) * ITEMS_PER_PAGE).map((release) => {
                   const info = release.basic_information
                   const artistName = cleanDiscogsArtistName(info.artists[0]?.name || 'Unknown Artist')
                   const formatName = info.formats[0]?.name || ''
+                  const isCassette = info.formats.some(f => /cassette/i.test(f.name))
 
                   return (
                     <button
@@ -386,12 +429,12 @@ export default function CollectionPage() {
                       }}
                       className="text-left group"
                     >
-                      <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
+                      <div className={`aspect-square rounded overflow-hidden ${isCassette ? '' : 'bg-zinc-900'} relative flex items-center justify-center mb-1`}>
                         {info.cover_image ? (
                           <Image
                             src={info.cover_image}
                             alt={info.title}
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full ${isCassette ? 'object-contain' : 'object-cover'}`}
                             showOutline={true}
                             rounded="rounded"
                             loading="lazy"
@@ -415,6 +458,13 @@ export default function CollectionPage() {
                   )
                 })}
               </div>
+              <Pagination
+                currentPage={gridPage}
+                totalPages={Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE)}
+                onPageChange={setGridPage}
+                itemsPerPage={ITEMS_PER_PAGE}
+                totalItems={filteredAndSorted.length}
+              />
             </div>
           </div>
         </>
