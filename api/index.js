@@ -415,6 +415,45 @@ fastify.get('/api/stats/proxy/muspy-rss', async (request, reply) => {
   }
 })
 
+// Proxy for Discogs API (forwards Authorization header from client)
+fastify.get('/api/stats/proxy/discogs/*', async (request, reply) => {
+  const path = request.params['*']
+  const authorization = request.headers['authorization']
+
+  if (!authorization || !authorization.startsWith('Discogs ')) {
+    return reply.status(401).send({ error: 'Discogs authorization required' })
+  }
+
+  // Build target URL preserving path and query string
+  const targetUrl = new URL(`https://api.discogs.com/${path}`)
+  const query = request.query
+  for (const [key, value] of Object.entries(query)) {
+    targetUrl.searchParams.set(key, value)
+  }
+
+  try {
+    const response = await fetch(targetUrl.toString(), {
+      headers: {
+        Authorization: authorization,
+        'User-Agent': 'TuneTuna/1.0',
+      },
+    })
+
+    // Forward status and content type
+    reply.status(response.status)
+    const contentType = response.headers.get('content-type')
+    if (contentType) {
+      reply.header('Content-Type', contentType)
+    }
+
+    const data = await response.text()
+    return reply.send(data)
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(502).send({ error: 'Failed to proxy Discogs request' })
+  }
+})
+
 // Start server
 try {
   await fastify.listen({ port: PORT, host: '0.0.0.0' })
