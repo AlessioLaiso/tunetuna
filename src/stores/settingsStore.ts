@@ -50,6 +50,9 @@ interface SettingsState {
   /** Discogs personal access token */
   discogsToken: string
   setDiscogsToken: (token: string) => void
+  /** Genres to exclude from shuffle all, smart mixes, and mood cards */
+  excludedGenres: string[]
+  setExcludedGenres: (genres: string[]) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -94,6 +97,8 @@ export const useSettingsStore = create<SettingsState>()(
       setLocalServerUrl: (url) => set({ localServerUrl: url }),
       discogsToken: '',
       setDiscogsToken: (token) => set({ discogsToken: token }),
+      excludedGenres: [],
+      setExcludedGenres: (genres) => set({ excludedGenres: genres }),
     }),
     {
       name: STORE_KEYS.settings,

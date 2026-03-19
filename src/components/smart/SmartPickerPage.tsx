@@ -18,6 +18,7 @@ import {
 } from '../../utils/smartPlaylists'
 import type { LightweightSong } from '../../api/types'
 import { capitalizeFirst } from '../../utils/formatting'
+import { filterExcludedGenres } from '../../utils/genreFilter'
 
 // ============================================================================
 // Helpers
@@ -66,8 +67,9 @@ interface PickerItem {
 export default function SmartPickerPage() {
   const { pickerId } = useParams<{ pickerId: string }>()
   const navigate = useNavigate()
-  const songs = useMusicStore(s => s.songs)
-  const { statsTrackingEnabled } = useSettingsStore()
+  const allSongs = useMusicStore(s => s.songs)
+  const { statsTrackingEnabled, excludedGenres } = useSettingsStore()
+  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)

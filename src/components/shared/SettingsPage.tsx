@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Github, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -36,10 +36,10 @@ const tailwindColors = [
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
-  const { setGenres, lastSyncCompleted, setLastSyncCompleted } = useMusicStore()
+  const { setGenres, lastSyncCompleted, setLastSyncCompleted, genres: allGenres } = useMusicStore()
   const { state: syncState, startSync, completeSync } = useSyncStore()
   const { addToast } = useToastStore()
   const { exportStats, importStats, clearAllStats, hasStats, pendingEvents, lastSyncedAt, syncToServer, detectMismatchedEvents, remapEvents, removeMismatchedEvents } = useStatsStore()
@@ -67,7 +67,30 @@ export default function SettingsPage() {
   const [statsExist, setStatsExist] = useState(false)
   const [isTop10Spinning, setIsTop10Spinning] = useState(false)
   const [isNewReleasesSpinning, setIsNewReleasesSpinning] = useState(false)
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [genreSearch, setGenreSearch] = useState('')
+  const [genreDropdownOpen, setGenreDropdownOpen] = useState(false)
+  const genreDropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const filteredGenres = useMemo(() => {
+    const genreNames = allGenres.map(g => g.Name).filter((n): n is string => !!n).sort()
+    if (!genreSearch) return genreNames
+    const lower = genreSearch.toLowerCase()
+    return genreNames.filter(g => g.toLowerCase().includes(lower))
+  }, [allGenres, genreSearch])
+
+  // Close genre dropdown on outside click
+  useEffect(() => {
+    if (!genreDropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (genreDropdownRef.current && !genreDropdownRef.current.contains(e.target as Node)) {
+        setGenreDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [genreDropdownOpen])
 
   // Check if stats exist on mount and when pendingEvents changes
   useEffect(() => {
@@ -289,6 +312,25 @@ export default function SettingsPage() {
               <ArrowLeft className="w-6 h-6" />
             </button>
             <h1 className="text-xl font-bold flex-1">Settings</h1>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://github.com/AlessioLaiso/tunetuna"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 text-white hover:text-[var(--accent-color)] transition-colors"
+              >
+                <Github className="w-5 h-5" />
+              </a>
+              <a
+                href="https://www.paypal.com/donate/?hosted_button_id=XBVKHU3JV9W8N"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors text-sm"
+              >
+                <HeartHandshake className="w-5 h-5" />
+                <span>Donate</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -306,12 +348,12 @@ export default function SettingsPage() {
       <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
         {/* Page Visibility Section */}
         <section>
-          <h2 className="text-lg font-semibold text-white mb-4">Page Visibility</h2>
-          <div className="space-y-3">
+          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+            <h2 className="text-lg font-bold text-white p-3">Page Visibility</h2>
             {(['artists', 'albums', 'songs', 'genres', 'playlists', 'collection', 'stats'] as const).map((page) => (
               <div
                 key={page}
-                className="p-3 bg-zinc-900 rounded-lg"
+                className="p-3"
               >
                 <div className="flex items-center justify-between">
                   <label className="text-white capitalize font-medium">{page}</label>
@@ -356,9 +398,9 @@ export default function SettingsPage() {
 
         {/* Home Section */}
         <section>
-          <h2 className="text-lg font-semibold text-white mb-4">Home</h2>
-          <div className="space-y-3">
-            <div className="p-3 bg-zinc-900 rounded-lg">
+          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+            <h2 className="text-lg font-bold text-white p-3">Home</h2>
+            <div className="p-3">
               <div className="flex items-center justify-between">
                 <label className="text-white font-medium">Mixes</label>
                 <button
@@ -375,7 +417,7 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg">
+            <div className="flex items-center justify-between p-3">
               <label className="text-white font-medium">Recently Played</label>
               <button
                 onClick={() => setShowRecentlyPlayed(!showRecentlyPlayed)}
@@ -387,7 +429,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="p-3 bg-zinc-900 rounded-lg">
+            <div className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <label className="text-white font-medium">Top 10</label>
@@ -454,7 +496,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <div className="p-3 bg-zinc-900 rounded-lg">
+            <div className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <label className="text-white font-medium">New Releases</label>
@@ -513,214 +555,275 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Accent Color Section */}
+        {/* Preferences Section */}
         <section>
-          <h2 className="text-lg font-semibold text-white mb-4">Accent Color</h2>
-          <div className="grid grid-cols-6 md:grid-cols-9 gap-3 mb-6">
-            {tailwindColors.map((color) => (
+          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+            <h2 className="text-lg font-bold text-white p-3">Preferences</h2>
+
+            <div className="p-3">
               <button
-                key={color.name}
-                onClick={() => setAccentColor(color.name)}
-                className={`aspect-square rounded-lg transition-all ${accentColor === color.name
-                  ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
-                  : 'hover:scale-105'
-                  }`}
-                style={{ backgroundColor: color.hex }}
-                aria-label={`Select ${color.name} color`}
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="w-full flex items-center justify-between"
+              >
+                <label className="text-white font-medium">Accent Color</label>
+                <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
+              </button>
+              {showColorPicker && (
+                <div className="grid grid-cols-6 md:grid-cols-9 gap-3 mt-3">
+                  {tailwindColors.map((color) => (
+                    <button
+                      key={color.name}
+                      onClick={() => {
+                        setAccentColor(color.name)
+                        setShowColorPicker(false)
+                      }}
+                      className={`aspect-square rounded-lg transition-all ${accentColor === color.name
+                        ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
+                        : 'hover:scale-105'
+                        }`}
+                      style={{ backgroundColor: color.hex }}
+                      aria-label={`Select ${color.name} color`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-3">
+              <div className="flex items-center justify-between">
+                <label className="text-white font-medium">Log Listening Stats</label>
+                <button
+                  onClick={() => setStatsTrackingEnabled(!statsTrackingEnabled)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+              <div className="text-xs text-gray-400 mt-2">
+                {pendingEvents.length > 0 && (
+                  <button
+                    onClick={handleSyncStats}
+                    disabled={isSyncing}
+                    className="hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {isSyncing
+                      ? 'Syncing...'
+                      : `${pendingEvents.length} event${pendingEvents.length !== 1 ? 's' : ''} pending sync`
+                    }
+                  </button>
+                )}
+                {lastSyncedAt && (
+                  <p>Last synced: {new Date(lastSyncedAt).getFullYear()} {new Date(lastSyncedAt).toLocaleString('default', { month: 'short' })} {new Date(lastSyncedAt).getDate().toString().padStart(2, '0')} at {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                )}
+              </div>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  {isImporting ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Importing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      <span>Import</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleExportStats}
+                  disabled={isExporting || !statsExist}
+                  className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  {isExporting ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Exporting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      <span>Export</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowClearStatsConfirm(true)}
+                  disabled={isClearing || !statsExist}
+                  className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>Clear</span>
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportStats}
+                className="hidden"
               />
-            ))}
-          </div>
-          {/* About Tunetuna Section */}
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-3">About Tunetuna</h2>
-            <div className="flex gap-3">
-              <a
-                href="https://github.com/AlessioLaiso/tunetuna"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors text-center flex items-center justify-center gap-2"
-              >
-                <Github className="w-5 h-5" />
-                <span>GitHub</span>
-              </a>
-              <a
-                href="https://www.paypal.com/donate/?hosted_button_id=XBVKHU3JV9W8N"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 font-semibold rounded-full transition-colors text-center flex items-center justify-center gap-2"
-              >
-                <HeartHandshake className="w-5 h-5" />
-                <span>Donate</span>
-              </a>
+            </div>
+
+            <div className="p-3">
+              <label className="text-white font-medium block mb-1">Excluded Genres</label>
+              <p className="text-xs text-gray-400 mb-3">
+                Songs from these genres won't appear in shuffle all and mixes.
+              </p>
+
+              {excludedGenres.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {excludedGenres.map(genre => (
+                    <button
+                      key={genre}
+                      onClick={() => setExcludedGenres(excludedGenres.filter(g => g !== genre))}
+                      className="flex items-center gap-1 px-2 py-1 bg-zinc-700 text-white text-sm rounded-md hover:bg-zinc-600 transition-colors"
+                    >
+                      <span>{genre}</span>
+                      <X className="w-3 h-3" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="relative" ref={genreDropdownRef}>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={genreSearch}
+                    onChange={(e) => {
+                      setGenreSearch(e.target.value)
+                      setGenreDropdownOpen(true)
+                    }}
+                    onFocus={() => setGenreDropdownOpen(true)}
+                    placeholder="Search genres to exclude..."
+                    className="w-full bg-zinc-800 text-white rounded-lg pl-8 pr-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500 text-sm"
+                  />
+                </div>
+                {genreDropdownOpen && filteredGenres.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg">
+                    {filteredGenres.map(genre => {
+                      const isExcluded = excludedGenres.includes(genre)
+                      return (
+                        <button
+                          key={genre}
+                          onClick={() => {
+                            if (isExcluded) {
+                              setExcludedGenres(excludedGenres.filter(g => g !== genre))
+                            } else {
+                              setExcludedGenres([...excludedGenres, genre])
+                            }
+                            setGenreSearch('')
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-700 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                            isExcluded ? 'bg-[var(--accent-color)] border-[var(--accent-color)]' : 'border-zinc-500'
+                          }`}>
+                            {isExcluded && (
+                              <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={isExcluded ? 'text-[var(--accent-color)]' : 'text-white'}>{genre}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </section>
-
-        {/* Stats Section */}
-        <section>
-          <h2 className="text-lg font-semibold text-white mb-1">Stats</h2>
-
-          {/* Stats Info */}
-          <div className="text-xs text-gray-400 mb-4">
-            {pendingEvents.length > 0 && (
-              <button
-                onClick={handleSyncStats}
-                disabled={isSyncing}
-                className="hover:text-white transition-colors disabled:opacity-50"
-              >
-                {isSyncing
-                  ? 'Syncing...'
-                  : `${pendingEvents.length} event${pendingEvents.length !== 1 ? 's' : ''} pending sync`
-                }
-              </button>
-            )}
-            {lastSyncedAt && (
-              <p>Last synced: {new Date(lastSyncedAt).getFullYear()} {new Date(lastSyncedAt).toLocaleString('default', { month: 'short' })} {new Date(lastSyncedAt).getDate().toString().padStart(2, '0')} at {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-            )}
-          </div>
-
-          {/* Tracking Toggle */}
-          <div className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg mb-4">
-            <label className="text-white font-medium">Log Listening Stats</label>
-            <button
-              onClick={() => setStatsTrackingEnabled(!statsTrackingEnabled)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
-            >
-              <span
-                className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
-              />
-            </button>
-          </div>
-
-          {/* Stats Actions */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
-            >
-              {isImporting ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Importing...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-5 h-5" />
-                  <span>Import</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={handleExportStats}
-              disabled={isExporting || !statsExist}
-              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
-            >
-              {isExporting ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Exporting...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  <span>Export</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => setShowClearStatsConfirm(true)}
-              disabled={isClearing || !statsExist}
-              className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
-            >
-              <Trash2 className="w-5 h-5" />
-              <span>Clear</span>
-            </button>
-          </div>
-
-          {/* Hidden file input for import */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportStats}
-            className="hidden"
-          />
         </section>
 
         {/* Jellyfin Library Section */}
         <section>
-          <h2 className="text-lg font-semibold text-white mb-1">Jellyfin Library</h2>
-          <div className="mb-2">
-            <button
-              type="button"
-              onClick={handleCopyServerUrl}
-              disabled={!serverUrl}
-              className={`text-left text-xs break-all transition-colors flex items-center gap-1 ${serverUrl
-                ? 'text-gray-400 hover:text-gray-200 cursor-pointer'
-                : 'text-gray-600 cursor-not-allowed'
-                }`}
-            >
-              {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
-              {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
-            </button>
-          </div>
-          {syncState === 'idle' && lastSyncCompleted && (
-            <div className="text-xs text-gray-400 mb-4">
-              Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <div className="bg-zinc-900 rounded-lg">
+            <div className="p-3">
+              <h2 className="text-lg font-bold text-white">Jellyfin Library</h2>
+              <div className="text-xs text-gray-400 mt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyServerUrl}
+                  disabled={!serverUrl}
+                  className={`text-left break-all transition-colors flex items-center gap-1 ${serverUrl
+                    ? 'hover:text-[var(--accent-color)] cursor-pointer'
+                    : 'text-gray-600 cursor-not-allowed'
+                    }`}
+                >
+                  {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
+                  {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
+                </button>
+                {syncState === 'idle' && lastSyncCompleted && (
+                  <p>
+                    Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+                {localUrlLocked && lockedLocalUrl && (
+                  <span className="text-left break-all flex items-center gap-1">
+                    <Lock className="w-3 h-3 flex-shrink-0" />
+                    Local: {lockedLocalUrl}
+                  </span>
+                )}
+              </div>
             </div>
-          )}
-          {/* Local URL field — hidden when locked via Docker */}
-          {!localUrlLocked && (
-            <div className="mb-3">
-              <p className="text-xs text-gray-400 mb-1">
-                LAN address for faster access at home (e.g. http://192.168.1.10:8096)
-              </p>
-              <input
-                type="url"
-                value={localServerUrl}
-                onChange={(e) => setLocalServerUrl(e.target.value)}
-                placeholder="Local URL (optional)"
-                className="w-full bg-zinc-900 text-white text-sm rounded-lg px-3 py-2 border border-zinc-800 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
-              />
-            </div>
-          )}
-          {localUrlLocked && lockedLocalUrl && (
-            <div className="mb-2">
-              <span className="text-left text-xs break-all text-gray-400 flex items-center gap-1">
-                <Lock className="w-3 h-3 flex-shrink-0" />
-                Local: {lockedLocalUrl}
-              </span>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowSyncOptions(true)}
-              disabled={syncState === 'syncing'}
-              className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
-            >
-              {syncState === 'syncing' ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Syncing...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-5 h-5" />
-                  <span>Sync</span>
-                </>
-              )}
-            </button>
 
-            <button
-              onClick={handleLogout}
-              className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Log Out</span>
-            </button>
+            {/* Local URL field — hidden when locked via Docker */}
+            {!localUrlLocked && (
+              <div className="p-3 border-t border-zinc-800">
+                <label className="text-white font-medium block mb-1">LAN Address</label>
+                <p className="text-xs text-gray-400 mb-2">
+                  For faster access on your local network (e.g. http://192.168.1.10:8096)
+                </p>
+                <input
+                  type="url"
+                  value={localServerUrl}
+                  onChange={(e) => setLocalServerUrl(e.target.value)}
+                  placeholder="Local URL (optional)"
+                  className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                />
+              </div>
+            )}
+
+            <div className="p-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSyncOptions(true)}
+                  disabled={syncState === 'syncing'}
+                  className="flex-1 px-4 py-3 bg-transparent border border-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  {syncState === 'syncing' ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Syncing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-5 h-5" />
+                      <span>Sync</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 

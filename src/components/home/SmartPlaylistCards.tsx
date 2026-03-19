@@ -15,6 +15,7 @@ import {
   getAvailableLanguages,
   getLanguageSongs,
 } from '../../utils/smartPlaylists'
+import { filterExcludedGenres } from '../../utils/genreFilter'
 
 // ============================================================================
 // Card item types
@@ -92,10 +93,11 @@ function pickAlbumFromSubItems(
 // ============================================================================
 
 export default function SmartPlaylistCards() {
-  const songs = useMusicStore(s => s.songs)
+  const allSongs = useMusicStore(s => s.songs)
   const cachedMixCardIds = useMusicStore(s => s.cachedMixCardIds)
   const setCachedMixCardIds = useMusicStore(s => s.setCachedMixCardIds)
-  const { statsTrackingEnabled, showMoodCards } = useSettingsStore()
+  const { statsTrackingEnabled, showMoodCards, excludedGenres } = useSettingsStore()
+  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const [events, setEvents] = useState<PlayEvent[]>([])

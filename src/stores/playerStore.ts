@@ -8,6 +8,7 @@ import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 import { shuffleArray } from '../utils/array'
+import { filterExcludedGenres } from '../utils/genreFilter'
 import { isIOS } from '../utils/formatting'
 import { STORE_KEYS } from '../utils/constants'
 
@@ -981,7 +982,7 @@ export const usePlayerStore = create<PlayerState>()(
           instantSongs = musicStore.shufflePool.slice(0, availableFromPool)
           // Refresh the pool by removing used songs and adding new ones
           const remainingPool = musicStore.shufflePool.slice(availableFromPool)
-          const poolSongs = musicStore.songs
+          const poolSongs = filterExcludedGenres(musicStore.songs)
           const recentlyPlayedIds = new Set(musicStore.recentlyPlayed.slice(0, 10).map(s => s.Id))
           const availableForPool = poolSongs.filter(s => !recentlyPlayedIds.has(s.Id))
           const newPoolSongs = shuffleArray(availableForPool).slice(0, availableFromPool)
@@ -1011,7 +1012,8 @@ export const usePlayerStore = create<PlayerState>()(
             }
           }
 
-          // Use first 5 for instant start
+          // Filter excluded genres and use first 5 for instant start
+          allSongs = filterExcludedGenres(allSongs)
           instantSongs = shuffleArray(allSongs).slice(0, 5)
           remainingSongs = allSongs.filter(s => !instantSongs.some(inst => inst.Id === s.Id))
 
@@ -1082,12 +1084,12 @@ export const usePlayerStore = create<PlayerState>()(
               fullSongPool = result.Items || []
             }
 
-            // Combine with genre songs and deduplicate
+            // Combine with genre songs, deduplicate, and filter excluded genres
             const genreSongs = Object.values(musicStore.genreSongs).flat()
             const combinedPool = [...fullSongPool, ...genreSongs]
             const songMap = new Map()
             combinedPool.forEach(song => songMap.set(song.Id, song))
-            const deduplicatedPool = Array.from(songMap.values())
+            const deduplicatedPool = filterExcludedGenres(Array.from(songMap.values()))
 
             // Remove songs already in queue
             const currentSongIds = new Set(instantQueueSongs.map(s => s.Id))

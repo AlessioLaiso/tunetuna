@@ -24,6 +24,7 @@ import {
   getDecadeSongs,
   getLanguageSongs,
 } from '../../utils/smartPlaylists'
+import { filterExcludedGenres } from '../../utils/genreFilter'
 
 // Cassette animation constants (same as PlaylistDetailPage)
 const WHEEL_SIZE_PERCENT = (712 / 1233) * 100
@@ -42,8 +43,9 @@ function decadeLabel(decade: number): string {
 export default function SmartPlaylistDetailPage() {
   const { smartId } = useParams<{ smartId: string }>()
   const navigate = useNavigate()
-  const songs = useMusicStore(s => s.songs)
-  const { statsTrackingEnabled } = useSettingsStore()
+  const allSongs = useMusicStore(s => s.songs)
+  const { statsTrackingEnabled, excludedGenres } = useSettingsStore()
+  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const { shuffleArtist, isPlaying } = usePlayerStore()

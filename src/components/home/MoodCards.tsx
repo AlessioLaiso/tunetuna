@@ -4,6 +4,8 @@ import MoodCardItem from './MoodCardItem'
 import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
 import type { LightweightSong } from '../../api/types'
 import { capitalizeFirst } from '../../utils/formatting'
+import { filterExcludedGenres } from '../../utils/genreFilter'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { getCachedCoverArt, loadCachedCoverArt, fetchAndCacheCoverArt, cleanupCoverArtCache } from '../../utils/coverArtCache'
 import { jellyfinClient } from '../../api/jellyfin'
 
@@ -113,7 +115,9 @@ interface MoodWithAlbum {
  * - Desktop: horizontal scroll with chevrons
  */
 export default function MoodCards() {
-  const { songs, recentlyAccessedMoods } = useMusicStore()
+  const { songs: allSongs, recentlyAccessedMoods } = useMusicStore()
+  const { excludedGenres } = useSettingsStore()
+  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Get mood category from grouping categories

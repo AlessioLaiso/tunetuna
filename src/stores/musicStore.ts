@@ -6,6 +6,7 @@ import { createIndexedDBStorage } from '../utils/storage'
 import { capitalizeFirst, parseGroupingTag } from '../utils/formatting'
 import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 import { shuffleArray } from '../utils/array'
+import { filterExcludedGenres } from '../utils/genreFilter'
 import { buildFeaturedArtistMap, type FeaturedArtistResult } from '../utils/featuredArtists'
 
 const indexedDBStorage = createIndexedDBStorage<MusicState>(INDEXEDDB_NAMES.music)
@@ -272,10 +273,10 @@ export const useMusicStore = create<MusicState>()(
         const poolSize = 30
 
         // Use main songs if available, otherwise use genre songs
-        let availableSongs = state.songs
+        let availableSongs = filterExcludedGenres(state.songs)
         const totalGenreSongs = Object.values(state.genreSongs).flat().length
-        if (state.songs.length === 0 && totalGenreSongs > 0) {
-          availableSongs = Object.values(state.genreSongs).flat()
+        if (availableSongs.length === 0 && totalGenreSongs > 0) {
+          availableSongs = filterExcludedGenres(Object.values(state.genreSongs).flat())
         }
 
         if (availableSongs.length === 0) {
