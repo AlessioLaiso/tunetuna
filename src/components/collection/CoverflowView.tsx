@@ -60,6 +60,8 @@ const CoverflowItem = memo(function CoverflowItem({
   const info = release.basic_information
   const artistName = cleanDiscogsArtistName(info.artists[0]?.name || '')
   const { findAlbum } = useLibraryLookup()
+  const findAlbumRef = useRef(findAlbum)
+  findAlbumRef.current = findAlbum
   const [discImage, setDiscImage] = useState<DiscImageState>({ url: null, ready: false, attempted: false })
   const mediaType = getMediaType(release)
   const showDisc = mediaType === 'vinyl' || mediaType === 'cd'
@@ -87,7 +89,7 @@ const CoverflowItem = memo(function CoverflowItem({
     let cancelled = false
 
     const timer = setTimeout(() => {
-      const album = findAlbum(info.title, artistName)
+      const album = findAlbumRef.current(info.title, artistName)
       if (!album || cancelled) {
         if (!cancelled) setDiscImage({ url: null, ready: true, attempted: true })
         return
@@ -110,7 +112,7 @@ const CoverflowItem = memo(function CoverflowItem({
     }, 800)
 
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [isSnapped, showDisc, discImage.attempted, info.title, artistName, findAlbum])
+  }, [isSnapped, showDisc, discImage.attempted, info.title, artistName, discSlide])
 
   // Only slide out once the disc image is ready (loaded or confirmed absent)
   const discReady = discImage.ready
