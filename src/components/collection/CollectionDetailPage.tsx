@@ -488,17 +488,7 @@ export default function CollectionDetailPage() {
         style={{
           height: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)',
           top: 'var(--header-offset, 0px)',
-          background: `linear-gradient(to bottom,
-            #000000 0%,
-            #000000 calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
-            rgba(0, 0, 0, 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
-            rgba(0, 0, 0, 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
-            rgba(0, 0, 0, 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
-            rgba(0, 0, 0, 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
-            rgba(0, 0, 0, 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
-            rgba(0, 0, 0, 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
-            rgba(0, 0, 0, 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
-          )`
+          background: `linear-gradient(to bottom, #000000, transparent)`
         }}
       />
       {/* Header with back button */}

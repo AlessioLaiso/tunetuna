@@ -281,7 +281,7 @@ export default function CollectionPage() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0) 100%)',
+            background: 'linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0) 100%)',
           }}
         />
         <div className="max-w-[768px] mx-auto relative">
