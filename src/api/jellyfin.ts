@@ -576,25 +576,16 @@ class JellyfinClient {
     
     // Extract unique years from songs
     try {
+      const allSongs = await this.paginateItems(
+        (startIndex) => this.getSongs({ limit: API_PAGE_LIMIT, startIndex }),
+        { safetyLimit: 10000 }
+      )
       const uniqueYears = new Set<number>()
-      let startIndex = 0
-      let hasMore = true
-
-      while (hasMore) {
-        const songItems = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex })
-        const songs = songItems.Items || []
-
-        songs.forEach(song => {
-          if (song.ProductionYear && song.ProductionYear > 0) {
-            uniqueYears.add(song.ProductionYear)
-          }
-        })
-
-        hasMore = songs.length === API_PAGE_LIMIT
-        startIndex += API_PAGE_LIMIT
-
-        if (startIndex > 10000) break
-      }
+      allSongs.forEach(song => {
+        if (song.ProductionYear && song.ProductionYear > 0) {
+          uniqueYears.add(song.ProductionYear)
+        }
+      })
       
       const years = Array.from(uniqueYears).sort((a, b) => a - b)
       
@@ -644,41 +635,50 @@ class JellyfinClient {
   }
 
   /**
-   * Fetches all songs from the library and converts to lightweight format.
-   * Used by full sync and getGenreSongs to avoid redundant fetches.
+   * Paginates through a Jellyfin endpoint, accumulating all items.
+   * Handles startIndex incrementing, hasMore detection, safety limits, and optional progress reporting.
    */
-  private async fetchAllSongsLightweight(onProgress?: (progress: number) => void): Promise<LightweightSong[]> {
-    let allSongs: BaseItemDto[] = []
+  private async paginateItems(
+    fetchPage: (startIndex: number) => Promise<ItemsResult>,
+    options?: { safetyLimit?: number; onProgress?: (progress: number) => void }
+  ): Promise<BaseItemDto[]> {
+    const safetyLimit = options?.safetyLimit ?? SAFETY_FETCH_LIMIT
+    const onProgress = options?.onProgress
+    const allItems: BaseItemDto[] = []
     let startIndex = 0
     let hasMore = true
     let totalCount: number | null = null
 
     while (hasMore) {
-      const result = await this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true)
+      const result = await fetchPage(startIndex)
       const items = result.Items || []
-      allSongs.push(...items)
+      allItems.push(...items)
 
-      // Get total count from first response for progress calculation
       if (totalCount === null && result.TotalRecordCount) {
         totalCount = result.TotalRecordCount
       }
-
-      // Report progress if callback provided and we know the total
       if (onProgress && totalCount && totalCount > 0) {
-        const progress = Math.min(Math.round((allSongs.length / totalCount) * 100), 99)
-        onProgress(progress)
+        onProgress(Math.min(Math.round((allItems.length / totalCount) * 100), 99))
       }
 
       hasMore = items.length === API_PAGE_LIMIT
       startIndex += API_PAGE_LIMIT
-      // Safety limit to avoid infinite loops
-      if (startIndex > SAFETY_FETCH_LIMIT) break
+      if (startIndex > safetyLimit) break
     }
 
-    // Report 100% when done
-    if (onProgress) {
-      onProgress(100)
-    }
+    if (onProgress) onProgress(100)
+    return allItems
+  }
+
+  /**
+   * Fetches all songs from the library and converts to lightweight format.
+   * Used by full sync and getGenreSongs to avoid redundant fetches.
+   */
+  private async fetchAllSongsLightweight(onProgress?: (progress: number) => void): Promise<LightweightSong[]> {
+    const allSongs = await this.paginateItems(
+      (startIndex) => this.getSongs({ limit: API_PAGE_LIMIT, startIndex }, true),
+      { onProgress }
+    )
 
     // Convert to lightweight objects for efficient storage
     return allSongs.map(song => ({
@@ -707,28 +707,17 @@ class JellyfinClient {
       throw new Error('Not authenticated')
     }
 
-    const allSongs: BaseItemDto[] = []
-    let startIndex = 0
-    let hasMore = true
-
-    while (hasMore) {
+    return this.paginateItems((startIndex) => {
       const params = new URLSearchParams({
         IncludeItemTypes: 'Audio',
         Recursive: 'true',
         Limit: API_PAGE_LIMIT.toString(),
         StartIndex: startIndex.toString(),
-        UserId: this.userId,
+        UserId: this.userId!,
         Fields: 'Path,AlbumArtist,ArtistItems,Album,AlbumId',
       })
-      const result = await this.request<ItemsResult>(`/Items?${params}`)
-      const items = result.Items || []
-      allSongs.push(...items)
-      hasMore = items.length === API_PAGE_LIMIT
-      startIndex += API_PAGE_LIMIT
-      if (startIndex > SAFETY_FETCH_LIMIT) break
-    }
-
-    return allSongs
+      return this.request<ItemsResult>(`/Items?${params}`)
+    })
   }
 
   /**
@@ -797,25 +786,14 @@ class JellyfinClient {
 
       if (lastSync) {
         // Get songs modified since last sync
-        let startIndex = 0
-        let hasMore = true
-
-        while (hasMore) {
-          const result = await this.getSongs({
+        changedSongs = await this.paginateItems(
+          (startIndex) => this.getSongs({
             minDateLastSaved: new Date(lastSync),
             limit: API_PAGE_LIMIT,
             startIndex
-          }, true) // Cache bust to ensure fresh data
-
-          const items = result.Items || []
-          changedSongs.push(...items)
-
-          hasMore = items.length === API_PAGE_LIMIT
-          startIndex += API_PAGE_LIMIT
-
-          // Safety limit
-          if (startIndex > 10000) break
-        }
+          }, true),
+          { safetyLimit: 10000 }
+        )
       } else {
         // First sync - get recent songs to start the cache
         const result = await this.getSongs({

@@ -15,6 +15,8 @@ export default function Pagination({
   itemsPerPage,
   totalItems,
 }: PaginationProps) {
+  if (totalItems === 0) return null
+
   if (totalPages <= 1) {
     return (
       <div className="flex items-center py-4">
