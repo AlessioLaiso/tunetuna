@@ -12,7 +12,7 @@ import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
 import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1, ListVideo } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { isIOS } from '../../utils/formatting'
+import { isIOS, formatTime } from '../../utils/formatting'
 
 export default function PlayerBar() {
   const {
@@ -406,11 +406,6 @@ export default function PlayerBar() {
   }, [displayTrack?.Id])
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60)
-    const sec = Math.floor(s % 60)
-    return `${m}:${sec.toString().padStart(2, '0')}`
-  }
 
   // Check if there's a next song available
   const hasNext = songs.length > 0 && (

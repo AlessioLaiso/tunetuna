@@ -9,7 +9,7 @@ import type {
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
 import { useMusicStore } from '../stores/musicStore'
-import { normalizeQuotes } from '../utils/formatting'
+import { normalizeQuotes, extractGroupingFromTags } from '../utils/formatting'
 import { logger } from '../utils/logger'
 import {
   AUTH_TIMEOUT_MS,
@@ -121,7 +121,7 @@ class JellyfinClient {
     return requestPromise
   }
 
-  private async executeRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+  private async executeRequest<T>(url: string, options: RequestInit = {}, parseJson = true): Promise<T> {
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -148,7 +148,7 @@ class JellyfinClient {
           throw new Error(`API request failed: ${response.statusText}`)
         }
 
-        return response.json()
+        return parseJson ? response.json() : undefined as T
       } catch (error) {
         clearTimeout(timeoutId)
         lastError = error instanceof Error ? error : new Error(String(error))
@@ -170,48 +170,7 @@ class JellyfinClient {
 
   private async requestVoid(endpoint: string, options: RequestInit = {}): Promise<void> {
     const url = `${this.baseUrl}${endpoint}`
-    let lastError: Error | null = null
-
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal,
-          headers: {
-            ...this.getHeaders(),
-            ...options.headers,
-          },
-        })
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            clearPlaybackTrackingState()
-            this.onUnauthorized?.()
-            throw new Error('Unauthorized - please login again')
-          }
-          throw new Error(`API request failed: ${response.statusText}`)
-        }
-
-        return
-      } catch (error) {
-        clearTimeout(timeoutId)
-        lastError = error instanceof Error ? error : new Error(String(error))
-
-        if (lastError.message.includes('Unauthorized') || lastError.name === 'AbortError') {
-          break
-        }
-
-        if (attempt < MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)))
-        }
-      }
-    }
-
-    throw lastError || new Error('Request failed')
+    await this.executeRequest<void>(url, options, false)
   }
 
   async authenticate(serverUrl: string, username: string, password: string): Promise<JellyfinAuthResponse> {
@@ -721,15 +680,6 @@ class JellyfinClient {
       onProgress(100)
     }
 
-    // Helper function to extract grouping tags from Jellyfin Tags field
-    // MusicTags plugin stores grouping data as "grouping:mood_party", "grouping:language_eng" etc.
-    const extractGroupingFromTags = (tags: string[] | undefined): string[] => {
-      if (!tags || !Array.isArray(tags)) return []
-      return tags
-        .filter(tag => tag.startsWith('grouping:'))
-        .map(tag => tag.replace('grouping:', ''))
-    }
-
     // Convert to lightweight objects for efficient storage
     return allSongs.map(song => ({
       Id: song.Id,
@@ -874,14 +824,6 @@ class JellyfinClient {
           sortOrder: 'Descending'
         })
         changedSongs = result.Items || []
-      }
-
-      // Helper function to extract grouping tags from Jellyfin Tags field
-      const extractGroupingFromTags = (tags: string[] | undefined): string[] => {
-        if (!tags || !Array.isArray(tags)) return []
-        return tags
-          .filter(tag => tag.startsWith('grouping:'))
-          .map(tag => tag.replace('grouping:', ''))
       }
 
       // Convert to lightweight format
@@ -1103,9 +1045,7 @@ class JellyfinClient {
     // Parse Tags to Grouping for songs (so client-side grouping filters work)
     const songsWithGrouping = songs.map(song => ({
       ...song,
-      Grouping: (song.Tags || [])
-        .filter(tag => tag.startsWith('grouping:'))
-        .map(tag => tag.replace('grouping:', ''))
+      Grouping: extractGroupingFromTags(song.Tags)
     }))
 
     return {

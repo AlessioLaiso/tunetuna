@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import {
   fetchDiscogsIdentity,
   fetchDiscogsCollection,
@@ -9,6 +9,7 @@ import {
 } from '../api/discogs'
 import { useSettingsStore } from './settingsStore'
 import { logger } from '../utils/logger'
+import { STORE_KEYS } from '../utils/constants'
 
 export type CollectionSortMode = 'artist' | 'album' | 'year' | 'format'
 export type CollectionViewMode = 'grid' | 'coverflow'
@@ -31,7 +32,7 @@ interface CollectionState {
   setViewMode: (mode: CollectionViewMode) => void
 }
 
-export const useCollectionStore = create<CollectionState>()(persist((set, get) => ({
+export const useCollectionStore = create<CollectionState>()(devtools(persist((set, get) => ({
   releases: [],
   isLoading: false,
   error: null,
@@ -121,9 +122,9 @@ export const useCollectionStore = create<CollectionState>()(persist((set, get) =
   setSortMode: (mode) => set({ sortMode: mode }),
   setViewMode: (mode) => set({ viewMode: mode }),
 }), {
-  name: 'collection-store',
+  name: STORE_KEYS.collection,
   partialize: (state) => ({
     sortMode: state.sortMode,
     viewMode: state.viewMode,
   }),
-}))
+}), { name: 'collectionStore' }))

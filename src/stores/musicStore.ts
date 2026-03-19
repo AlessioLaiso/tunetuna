@@ -1,13 +1,14 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
 import { createIndexedDBStorage } from '../utils/storage'
 import { capitalizeFirst, parseGroupingTag } from '../utils/formatting'
+import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 import { shuffleArray } from '../utils/array'
 import { buildFeaturedArtistMap, type FeaturedArtistResult } from '../utils/featuredArtists'
 
-const indexedDBStorage = createIndexedDBStorage<MusicState>('tunetuna-storage')
+const indexedDBStorage = createIndexedDBStorage<MusicState>(INDEXEDDB_NAMES.music)
 
 // ============================================================================
 // Store Types
@@ -171,7 +172,7 @@ export function getFeaturedArtistData(
 // ============================================================================
 
 export const useMusicStore = create<MusicState>()(
-  persist(
+  devtools(persist(
     (set) => ({
       // Initial state
       artists: [],
@@ -317,7 +318,7 @@ export const useMusicStore = create<MusicState>()(
       setCachedMixCardIds: (cards) => set({ cachedMixCardIds: cards }),
     }),
     {
-      name: 'music-storage',
+      name: STORE_KEYS.music,
       storage: indexedDBStorage,
       /**
        * Selective persistence - only persist cache data, not transient UI state.
@@ -345,7 +346,7 @@ export const useMusicStore = create<MusicState>()(
         cachedMixCardIds: state.cachedMixCardIds,
       }),
     }
-  )
+  ), { name: 'musicStore' })
 )
 
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 type SyncSource = 'settings' | 'context-menu' | 'auto' | null
@@ -17,7 +18,7 @@ interface SyncStore {
   setProgress: (progress: number | null) => void
 }
 
-export const useSyncStore = create<SyncStore>((set, get) => ({
+export const useSyncStore = create<SyncStore>()(devtools((set, get) => ({
   state: 'idle',
   source: null,
   message: null,
@@ -78,7 +79,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   setProgress: (progress) => {
     set({ progress })
   }
-}))
+}), { name: 'syncStore' }))
 
 
 

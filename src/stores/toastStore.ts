@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
 export interface ToastAction {
   label: string
@@ -19,7 +20,7 @@ interface ToastState {
   removeToast: (id: string) => void
 }
 
-export const useToastStore = create<ToastState>((set) => ({
+export const useToastStore = create<ToastState>()(devtools((set) => ({
   toasts: [],
 
   addToast: (message, type = 'success', duration = 3000, action?) => {
@@ -45,4 +46,4 @@ export const useToastStore = create<ToastState>((set) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     }))
   },
-}))
+}), { name: 'toastStore' }))

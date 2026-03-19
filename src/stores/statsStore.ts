@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import type { BaseItemDto } from '../api/types'
 import { useAuthStore } from './authStore'
 import { useSettingsStore } from './settingsStore'
 import { useMusicStore } from './musicStore'
 import { createIndexedDBStorage } from '../utils/storage'
+import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 
 /**
  * Stats API endpoint - bundled with the app, served from same origin.
@@ -114,7 +115,7 @@ interface StatsState {
   logStream: (tracks: BaseItemDto[]) => void
 }
 
-const indexedDBStorage = createIndexedDBStorage<StatsState>('tunetuna-stats-storage')
+const indexedDBStorage = createIndexedDBStorage<StatsState>(INDEXEDDB_NAMES.stats)
 
 // ============================================================================
 // Helper Functions (internal to store module)
@@ -222,7 +223,7 @@ let syncInProgress = false
 // ============================================================================
 
 export const useStatsStore = create<StatsState>()(
-  persist(
+  devtools(persist(
     (set, get) => ({
       pendingEvents: [],
       lastSyncedAt: null,
@@ -945,7 +946,7 @@ export const useStatsStore = create<StatsState>()(
       },
     }),
     {
-      name: 'stats-storage',
+      name: STORE_KEYS.stats,
       storage: indexedDBStorage,
       partialize: (state) => ({
         pendingEvents: state.pendingEvents,
@@ -954,7 +955,7 @@ export const useStatsStore = create<StatsState>()(
         oldestEventTs: state.oldestEventTs,
       }),
     }
-  )
+  ), { name: 'statsStore' })
 )
 
 // Guard against duplicate listener registration (hot reload safety)

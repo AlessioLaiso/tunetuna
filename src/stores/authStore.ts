@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import { jellyfinClient } from '../api/jellyfin'
 import { clearPlaybackTrackingState } from './playerStore'
 import { clearArtistImageCache } from '../utils/artistImageCache'
 import { resolveServerUrl } from '../utils/serverUrl'
 import { useSettingsStore } from './settingsStore'
 import { getLockedLocalServerUrl } from '../utils/config'
+import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 
 interface AuthState {
   serverUrl: string
@@ -20,7 +21,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-  persist(
+  devtools(persist(
     (set) => ({
       serverUrl: '',
       serverId: '',
@@ -54,13 +55,10 @@ export const useAuthStore = create<AuthState>()(
         clearArtistImageCache()
 
         // Clear all persisted stores to prevent data leaking between users
-        // localStorage stores: player-storage, settings-storage
-        localStorage.removeItem('player-storage')
-        localStorage.removeItem('settings-storage')
-
-        // IndexedDB stores: tunetuna-storage (music), tunetuna-stats-storage (stats)
-        indexedDB.deleteDatabase('tunetuna-storage')
-        indexedDB.deleteDatabase('tunetuna-stats-storage')
+        localStorage.removeItem(STORE_KEYS.player)
+        localStorage.removeItem(STORE_KEYS.settings)
+        indexedDB.deleteDatabase(INDEXEDDB_NAMES.music)
+        indexedDB.deleteDatabase(INDEXEDDB_NAMES.stats)
 
         // Clear in-memory API client credentials
         jellyfinClient.setCredentials('', '', '')
@@ -74,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
           userId: '',
           isAuthenticated: false,
         })
-        localStorage.removeItem('auth-storage')
+        localStorage.removeItem(STORE_KEYS.auth)
       },
 
       setCredentials: (serverUrl: string, accessToken: string, userId: string) => {
@@ -88,7 +86,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage',
+      name: STORE_KEYS.auth,
       onRehydrateStorage: () => (state) => {
         if (state?.isAuthenticated && state.serverUrl && state.accessToken && state.userId) {
           // Set credentials immediately with the remote URL so the app is usable right away
@@ -106,6 +104,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
     }
-  )
+  ), { name: 'authStore' })
 )
 

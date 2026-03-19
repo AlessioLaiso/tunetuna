@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import type { BaseItemDto, LightweightSong } from '../api/types'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
@@ -9,6 +9,7 @@ import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 import { shuffleArray } from '../utils/array'
 import { isIOS } from '../utils/formatting'
+import { STORE_KEYS } from '../utils/constants'
 
 // Track which items have been reported to prevent duplicate API calls
 // Limit size to prevent unbounded memory growth during long sessions
@@ -163,7 +164,7 @@ interface PlayerState {
 }
 
 export const usePlayerStore = create<PlayerState>()(
-  persist(
+  devtools(persist(
     (set, get) => ({
       // Initial state
       songs: [],
@@ -1302,7 +1303,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
     }),
     {
-      name: 'player-storage',
+      name: STORE_KEYS.player,
       partialize: (state) => ({
         // Core queue state
         songs: state.songs,
@@ -1355,5 +1356,5 @@ export const usePlayerStore = create<PlayerState>()(
         }
       }
     }
-  )
+  ), { name: 'playerStore' })
 )

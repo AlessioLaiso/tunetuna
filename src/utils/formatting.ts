@@ -63,6 +63,17 @@ export function isIOS(): boolean {
  * - prefix_value format: "language_eng" -> { category: "language", value: "eng" }
  * - single word format: "instrumental" -> { category: "instrumental", value: null }
  */
+/**
+ * Extracts grouping tags from Jellyfin Tags field.
+ * MusicTags plugin stores grouping data as "grouping:mood_party", "grouping:language_eng" etc.
+ */
+export function extractGroupingFromTags(tags: string[] | undefined): string[] {
+  if (!tags || !Array.isArray(tags)) return []
+  return tags
+    .filter(tag => tag.startsWith('grouping:'))
+    .map(tag => tag.replace('grouping:', ''))
+}
+
 export function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
   if (!tag || tag.trim() === '') return null
   const trimmed = tag.trim().toLowerCase()

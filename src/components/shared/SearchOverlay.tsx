@@ -7,6 +7,7 @@ import SearchArtistItem from './SearchArtistItem'
 import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from './ContextMenu'
 import Image from './Image'
+import { formatDuration } from '../../utils/formatting'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import type { LucideIcon } from 'lucide-react'
@@ -82,13 +83,6 @@ interface SearchSongItemProps {
 
 function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMenuItemId, showImage = true }: SearchSongItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === song.Id
-
-  const formatDuration = (ticks: number): string => {
-    const seconds = Math.floor(ticks / 10000000)
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
     onContextMenu(item, 'song', mode, position)

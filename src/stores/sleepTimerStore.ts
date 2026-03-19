@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 import { usePlayerStore } from './playerStore'
 
 const FADE_DURATION = 20 // seconds
@@ -75,7 +76,7 @@ function fadeOutAndPause(fadeDuration: number) {
   }, stepInterval)
 }
 
-export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
+export const useSleepTimerStore = create<SleepTimerState>()(devtools((set, get) => ({
   mode: 'off',
   endsAt: null,
   remainingSeconds: null,
@@ -134,4 +135,4 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
     }
     set({ mode: 'off', endsAt: null, remainingSeconds: null })
   },
-}))
+}), { name: 'sleepTimerStore' }))

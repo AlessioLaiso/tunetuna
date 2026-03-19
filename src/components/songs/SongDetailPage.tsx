@@ -12,7 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
-import { capitalizeFirst, formatDuration } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration, extractGroupingFromTags } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 // Month helpers (same logic as StatsPage)
@@ -225,9 +225,7 @@ export default function SongDetailPage() {
     // or need to be extracted from Tags (where MusicTags plugin stores them as "grouping:mood_party")
     let groupingTags = song?.Grouping
     if ((!groupingTags || groupingTags.length === 0) && song?.Tags) {
-      groupingTags = song.Tags
-        .filter(tag => tag.startsWith('grouping:'))
-        .map(tag => tag.replace('grouping:', ''))
+      groupingTags = extractGroupingFromTags(song.Tags)
     }
     if (!groupingTags || groupingTags.length === 0) return []
     return parseGroupingTags(groupingTags)

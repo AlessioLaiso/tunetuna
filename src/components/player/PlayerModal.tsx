@@ -17,7 +17,7 @@ import SleepTimerPicker from './SleepTimerPicker'
 import QueueMenu from './QueueMenu'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { useNavigate } from 'react-router-dom'
-import { isIOS } from '../../utils/formatting'
+import { isIOS, formatTime } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 interface PlayerModalProps {
@@ -243,11 +243,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   // Get display name: use Name if available, otherwise extract filename from Path
   const getDisplayName = () => {

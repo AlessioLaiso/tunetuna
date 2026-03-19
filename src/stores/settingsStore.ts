@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
+import { STORE_KEYS } from '../utils/constants'
 
 interface PageVisibility {
   artists: boolean
@@ -52,7 +53,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>()(
-  persist(
+  devtools(persist(
     (set) => ({
       serverUrl: '',
       setServerUrl: (url) => set({ serverUrl: url }),
@@ -95,9 +96,9 @@ export const useSettingsStore = create<SettingsState>()(
       setDiscogsToken: (token) => set({ discogsToken: token }),
     }),
     {
-      name: 'settings-storage',
+      name: STORE_KEYS.settings,
     }
-  )
+  ), { name: 'settingsStore' })
 )
 
 

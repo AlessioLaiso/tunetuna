@@ -19,3 +19,18 @@ export const VPN_IP_REGEX = /^https?:\/\/100\.\d+\.\d+\.\d+/
 export const APP_CLIENT_NAME = 'Tunetuna'
 export const APP_DEVICE_TYPE = 'Web'
 export const APP_VERSION = '1.0.0'
+
+// Store persistence keys — referenced in store definitions and authStore.logout()
+export const STORE_KEYS = {
+  auth: 'auth-storage',
+  player: 'player-storage',
+  settings: 'settings-storage',
+  music: 'music-storage',         // IndexedDB name: tunetuna-storage
+  stats: 'stats-storage',         // IndexedDB name: tunetuna-stats-storage
+  collection: 'collection-store',
+} as const
+
+export const INDEXEDDB_NAMES = {
+  music: 'tunetuna-storage',
+  stats: 'tunetuna-stats-storage',
+} as const
