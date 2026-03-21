@@ -530,9 +530,9 @@ export default function SearchOverlay({
 
       {/* Desktop: positioning wrapper */}
       <div
-        className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-0 right-0 xl:left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
+        className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-0 right-0 lg:left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
       >
-        <div className="w-[768px] max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800 flex flex-col overflow-hidden">
+        <div className="w-full max-w-page max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800 flex flex-col overflow-hidden">
           {/* Desktop header - sticky */}
           <div className="sticky top-0 bg-zinc-900 z-10 px-4 pt-4 pb-4 border-b border-zinc-800 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
