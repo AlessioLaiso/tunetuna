@@ -913,11 +913,11 @@ export default function SettingsPage() {
         </ResponsiveModal>
 
         {/* Library Mismatch Modal */}
-        <ResponsiveModal isOpen={showMismatchModal} onClose={() => {}} zIndex={10001}>
+        <ResponsiveModal isOpen={showMismatchModal} onClose={() => setShowMismatchModal(false)} zIndex={10001}>
           <div className="pb-6">
             <div className="mb-6 pl-4 pr-4 flex items-start gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <div className="text-lg font-semibold text-white">
                   Library Mismatch Detected
                 </div>
@@ -925,6 +925,12 @@ export default function SettingsPage() {
                   {mismatchCount} of {mismatchTotal} events reference songs not in your current library.
                 </div>
               </div>
+              <button
+                onClick={() => setShowMismatchModal(false)}
+                className="text-gray-400 hover:text-white p-1 flex-shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Auto-matchable section */}
@@ -1015,12 +1021,11 @@ export default function SettingsPage() {
                               {searchQuery.length >= 2 && (
                                 <div className="mt-1 max-h-[150px] overflow-y-auto bg-zinc-800 rounded-lg border border-zinc-700">
                                   {(() => {
-                                    const query = searchQuery.toLowerCase()
-                                    const results = songs.filter(s =>
-                                      s.Name.toLowerCase().includes(query) ||
-                                      (s.AlbumArtist || '').toLowerCase().includes(query) ||
-                                      (s.ArtistItems?.[0]?.Name || '').toLowerCase().includes(query)
-                                    ).slice(0, 20)
+                                    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean)
+                                    const results = songs.filter(s => {
+                                      const haystack = [s.Name, s.AlbumArtist || '', ...(s.ArtistItems || []).map(a => a.Name || '')].join(' ').toLowerCase()
+                                      return terms.every(t => haystack.includes(t))
+                                    }).sort((a, b) => a.Name.localeCompare(b.Name)).slice(0, 20)
                                     if (results.length === 0) {
                                       return <div className="text-sm text-gray-500 p-2">No results</div>
                                     }
