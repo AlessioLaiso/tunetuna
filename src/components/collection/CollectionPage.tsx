@@ -284,7 +284,7 @@ export default function CollectionPage() {
             background: 'linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0) 100%)',
           }}
         />
-        <div className="max-w-[768px] mx-auto relative">
+        <div className="max-w-page mx-auto relative">
           <div className="p-4 min-[780px]:px-[0.66rem]">
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-white">Collection</h1>

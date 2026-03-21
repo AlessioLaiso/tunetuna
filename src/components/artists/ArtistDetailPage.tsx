@@ -658,7 +658,7 @@ export default function ArtistDetailPage() {
         className={`fixed top-0 left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] mx-auto">
+        <div className="max-w-page mx-auto">
           <div className="relative flex items-center justify-between gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
@@ -701,17 +701,17 @@ export default function ArtistDetailPage() {
             style={{ paddingTop: `env(safe-area-inset-top)` }}
           >
             {/* Mobile: primary artist image */}
-            <div className="w-full flex items-center justify-center md:hidden">
+            <div className="w-full flex items-center justify-center md:hidden min-[600px]:aspect-[4/3] min-[600px]:overflow-hidden">
               <Image
                 src={jellyfinClient.getArtistImageUrl(artist.Id)}
                 alt={artist.Name}
-                className="w-full h-auto object-contain"
+                className="w-full h-auto object-contain min-[600px]:h-full min-[600px]:object-cover"
                 onError={() => setHasImage(false)}
               />
             </div>
 
             {/* Desktop: backdrop image, edge-to-edge */}
-            <div className="hidden md:block w-full h-80">
+            <div className="hidden md:block w-full h-80 [@media((min-width:1500px)_and_(min-height:1000px))]:h-[440px]">
               <img
                 src={jellyfinClient.getArtistBackdropUrl(artist.Id, 1920)}
                 alt={artist.Name}
@@ -720,16 +720,16 @@ export default function ArtistDetailPage() {
               />
             </div>
 
-            <div className="absolute inset-x-0 top-0 bottom-[-1px] bg-gradient-to-b from-transparent via-black/60 to-black pointer-events-none" />
+            <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
           </div>
         )}
 
         {/* Artist info overlay */}
         <div className={`left-0 right-0 ${hasImage ? 'absolute' : 'relative'} ${hasImage ? 'pt-16' : 'pt-12'}`} style={hasImage ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
-          <div className="max-w-[768px] mx-auto px-4 flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
-            {/* Artist image (desktop/tablet only, sized like one album column) */}
+          <div className="max-w-page mx-auto px-4 flex items-end gap-4">
+            {/* Artist image (desktop/tablet only, fixed at 1/3 of 768px width) */}
             {hasImage && (
-              <div className="hidden md:block md:col-span-1">
+              <div className="hidden md:block flex-shrink-0 w-[calc((768px-2rem-2rem)/3)]">
                 <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
                   <Image
                     src={jellyfinClient.getArtistImageUrl(artist.Id)}
@@ -742,7 +742,7 @@ export default function ArtistDetailPage() {
               </div>
             )}
             {/* Artist name and controls */}
-            <div className={`flex-1 min-w-0 pb-2 ${hasImage ? 'md:col-span-2' : 'md:col-span-3'}`}>
+            <div className="flex-1 min-w-0 pb-2">
               <div className="mb-4 mt-4">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 break-words">{artist.Name}</h1>
                 <div className="flex items-center justify-between gap-4 mt-2">
@@ -840,7 +840,7 @@ export default function ArtistDetailPage() {
         {albums.length > 0 && (
           <div className="mb-10 px-4">
             <h2 className="text-2xl font-bold text-white mb-4">Albums ({albums.length})</h2>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-4 min-[1500px]:grid-cols-5 gap-4">
               {albums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (
@@ -867,7 +867,7 @@ export default function ArtistDetailPage() {
         {appearsOnAlbums.length > 0 && (
           <div className="mb-10 px-4">
             <h2 className="text-2xl font-bold text-white mb-4">Appears On ({appearsOnAlbums.length})</h2>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-4 min-[1500px]:grid-cols-5 gap-4">
               {appearsOnAlbums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (

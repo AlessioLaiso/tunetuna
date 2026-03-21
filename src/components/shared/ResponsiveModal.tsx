@@ -55,7 +55,7 @@ export default function ResponsiveModal({ isOpen, onClose, children, zIndex = 11
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pb-safe pt-4">
-          <div className="max-w-[768px] mx-auto w-full">
+          <div className="max-w-page mx-auto w-full">
             {children}
           </div>
         </div>

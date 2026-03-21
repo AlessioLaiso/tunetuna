@@ -496,7 +496,7 @@ export default function CollectionDetailPage() {
         className={`fixed top-0 left-0 right-0 z-20 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top))' }}
       >
-        <div className="max-w-[768px] mx-auto relative">
+        <div className="max-w-page mx-auto relative">
           <div className="flex items-center justify-between gap-4 py-4 pl-3 pr-4 relative z-10">
             <button
               onClick={() => navigate('/collection')}

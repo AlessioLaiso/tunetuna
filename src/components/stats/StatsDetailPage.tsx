@@ -157,7 +157,7 @@ export default function StatsDetailPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] mx-auto">
+        <div className="max-w-page mx-auto">
           <div className="flex items-center justify-between gap-3 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}

@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
 import TabBar from './TabBar'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
@@ -49,7 +48,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const location = useLocation()
+
   useRecommendations()
   useLibraryChanged()
   const { accentColor } = useSettingsStore()
@@ -255,8 +254,8 @@ export default function Layout({ children }: LayoutProps) {
           scrollbarGutter: 'stable'
         }}
       >
-        <div className={`w-full mx-auto lg:flex lg:justify-center ${location.pathname === '/' ? 'max-w-[768px] min-[1500px]:max-w-[968px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
-          <div className={`w-full ${location.pathname === '/' ? 'max-w-[768px] min-[1500px]:max-w-[968px] min-[1680px]:max-w-[1080px]' : 'max-w-[768px]'}`}>
+        <div className="w-full mx-auto lg:flex lg:justify-center max-w-page">
+          <div className="w-full max-w-page">
             {children}
           </div>
         </div>

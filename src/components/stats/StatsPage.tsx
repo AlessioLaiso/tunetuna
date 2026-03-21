@@ -751,7 +751,7 @@ export default function StatsPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] mx-auto">
+        <div className="max-w-page mx-auto">
           <div className="p-4 pb-0 sm:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
               <div className="flex items-center justify-between w-full sm:w-auto">

@@ -261,7 +261,7 @@ export default function SongDetailPage() {
         className={`fixed top-0 left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
-        <div className="max-w-[768px] mx-auto">
+        <div className="max-w-page mx-auto">
           <div className="relative flex items-center justify-between gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
@@ -336,7 +336,7 @@ export default function SongDetailPage() {
 
         {/* Song info overlay */}
         <div className={`left-0 right-0 ${hasBackdrop && artistId ? 'absolute' : 'relative'} ${hasBackdrop && artistId ? 'pt-16' : 'pt-12'}`} style={hasBackdrop && artistId ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
-          <div className="max-w-[768px] mx-auto px-4 flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
+          <div className="max-w-page mx-auto px-4 flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
             {/* Album art (desktop/tablet: on the left; mobile: hidden since backdrop is album art) */}
             {hasImage && song.AlbumId && (
               <div className="hidden md:block md:col-span-1">

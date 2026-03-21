@@ -241,7 +241,7 @@ export default function SongsPage() {
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
-          <div className="max-w-[768px] mx-auto">
+          <div className="max-w-page mx-auto">
             <div className="p-4 min-[780px]:px-[0.66rem]">
               {/* Header with title and search icon */}
               <div className="flex items-center justify-between mb-3">

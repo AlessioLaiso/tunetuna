@@ -580,7 +580,7 @@ export default function SearchOverlay({
 
         {/* Sticky search header with Cancel button */}
         <div className="sticky top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
-          <div className="max-w-[768px] mx-auto w-full">
+          <div className="max-w-page mx-auto w-full">
             <div className="flex items-center gap-3 pl-2 pr-4 pt-4 pb-4">
               <div className="flex-1">
                 <SearchInput
@@ -604,7 +604,7 @@ export default function SearchOverlay({
 
         {/* Scrollable content area */}
         <div className="overflow-y-auto flex-1">
-          <div className="max-w-[768px] mx-auto w-full">
+          <div className="max-w-page mx-auto w-full">
             {/* Filter icons - scrolls below header */}
             {hasFilters && (
               <div className="bg-black pt-3 pb-4">
