@@ -169,6 +169,16 @@ export default function StatsDetailPage() {
         </div>
       </div>
 
+      {/* Gradient overlay below top bar */}
+      <div
+        className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
+        style={{
+          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
+          height: '24px',
+          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+        }}
+      />
+
       {/* Spacer */}
       <div className="h-20" />
 
