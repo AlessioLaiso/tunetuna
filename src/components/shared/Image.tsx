@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 interface ImageProps {
@@ -19,7 +19,9 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
   const [error, setError] = useState(false)
   const [shouldHide, setShouldHide] = useState(false)
   const [showIcon, setShowIcon] = useState(false)
-
+  const [loaded, setLoaded] = useState(false)
+  const [needsFade, setNeedsFade] = useState(true)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   // Update imgSrc when src prop changes
   useEffect(() => {
@@ -27,7 +29,19 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
     setError(false)
     setShouldHide(false)
     setShowIcon(false)
+    setLoaded(false)
+    setNeedsFade(true)
   }, [src])
+
+  // If the image is already cached, skip fade
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true)
+      setNeedsFade(false)
+    }
+  }, [imgSrc])
+
+  const handleLoad = useCallback(() => setLoaded(true), [])
 
   const handleError = () => {
     if (!error && fallback) {
@@ -59,10 +73,12 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
   return (
     <div className="relative w-full h-full">
       <img
+        ref={imgRef}
         src={imgSrc}
         alt={alt}
-        className={`block ${className}`}
+        className={`block ${needsFade ? `transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}` : ''} ${className}`}
         onError={handleError}
+        onLoad={handleLoad}
         loading={loading}
         style={style}
       />
