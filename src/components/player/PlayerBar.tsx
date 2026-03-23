@@ -197,7 +197,10 @@ export default function PlayerBar() {
       // iOS PWA background playback fix: preemptively advance to next track
       // when ~1 second remains. iOS suspends JS when app is backgrounded,
       // so the 'ended' event handler may not fire.
+      // Only on iOS — other platforms fire the 'ended' event reliably, and
+      // the coarse timeupdate interval can cause this to cut off ~2s early.
       if (
+        isIOS() &&
         !preemptiveAdvanceRef.current &&
         audioElement.duration > 0 &&
         remaining <= 1 &&
