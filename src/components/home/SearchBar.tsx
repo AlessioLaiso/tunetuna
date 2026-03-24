@@ -31,7 +31,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
-  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | 'grouping' | null>(null)
+  const [activeFilterType, setActiveFilterType] = useState<'genre' | 'year' | 'grouping' | 'bpm' | null>(null)
   const [activeGroupingCategory, setActiveGroupingCategory] = useState<GroupingCategory | null>(null)
 
   // Filter values
@@ -58,6 +58,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     setSelectedGenres,
     yearRange,
     setYearRange,
+    bpmRange,
+    setBpmRange,
     selectedGroupings,
     setSelectedGroupings,
     groupingMatchModes,
@@ -174,7 +176,18 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     clearAll()
   }
 
-  const openFilterSheet = (type: 'genre' | 'year') => {
+  // Compute available BPM values from songs
+  const availableBpms = useMemo(() => {
+    const bpms = new Set<number>()
+    for (const song of songs) {
+      if (song.Bpm) bpms.add(song.Bpm)
+    }
+    return Array.from(bpms).sort((a, b) => a - b)
+  }, [songs])
+
+  const hasBpmData = availableBpms.length > 0
+
+  const openFilterSheet = (type: 'genre' | 'year' | 'bpm') => {
     setActiveFilterType(type)
     setIsFilterSheetOpen(true)
   }
@@ -185,6 +198,10 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
   const handleYearApply = (range: { min: number | null; max: number | null }) => {
     setYearRange(range)
+  }
+
+  const handleBpmApply = (range: { min: number | null; max: number | null }) => {
+    setBpmRange(range)
   }
 
   const openGroupingFilterSheet = (category: GroupingCategory) => {
@@ -328,8 +345,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         isLoading={isSearching}
         results={searchResults}
         sections={SEARCH_SECTIONS}
-        filterConfig={{ showGenreFilter: true, showYearFilter: true, showGroupingFilters: true }}
-        filterState={{ selectedGenres, yearRange, selectedGroupings }}
+        filterConfig={{ showGenreFilter: true, showYearFilter: true, showGroupingFilters: true, showBpmFilter: hasBpmData }}
+        filterState={{ selectedGenres, yearRange, bpmRange, selectedGroupings }}
         onOpenFilterSheet={openFilterSheet}
         groupingCategories={groupingCategories}
         onOpenGroupingFilterSheet={openGroupingFilterSheet}
@@ -364,6 +381,17 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
           availableYears={years}
           yearRange={yearRange}
           onApplyYear={handleYearApply}
+        />
+      )}
+
+      {activeFilterType === 'bpm' && (
+        <FilterBottomSheet
+          isOpen={isFilterSheetOpen}
+          onClose={() => setIsFilterSheetOpen(false)}
+          filterType="bpm"
+          availableBpms={availableBpms}
+          bpmRange={bpmRange}
+          onApplyBpm={handleBpmApply}
         />
       )}
 

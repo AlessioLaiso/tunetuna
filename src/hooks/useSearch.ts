@@ -38,6 +38,8 @@ export interface UseSearchReturn {
   setSelectedGenres: (genres: string[]) => void
   yearRange: { min: number | null; max: number | null }
   setYearRange: (range: { min: number | null; max: number | null }) => void
+  bpmRange: { min: number | null; max: number | null }
+  setBpmRange: (range: { min: number | null; max: number | null }) => void
   selectedGroupings: Record<string, string[]>
   setSelectedGroupings: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
   groupingMatchModes: Record<string, 'or' | 'and'>
@@ -68,15 +70,20 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     min: null,
     max: null,
   })
+  const [bpmRange, setBpmRange] = useState<{ min: number | null; max: number | null }>({
+    min: null,
+    max: null,
+  })
   const [selectedGroupings, setSelectedGroupings] = useState<Record<string, string[]>>({})
   const [groupingMatchModes, setGroupingMatchModes] = useState<Record<string, 'or' | 'and'>>({})
 
   // Check if any groupings are selected
   const hasGroupingFilters = Object.values(selectedGroupings).some(values => values.length > 0)
+  const hasBpmFilter = bpmRange.min !== null || bpmRange.max !== null
 
   const hasActiveFilters = includeYearFilter
-    ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null || hasGroupingFilters
-    : selectedGenres.length > 0 || hasGroupingFilters
+    ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null || hasGroupingFilters || hasBpmFilter
+    : selectedGenres.length > 0 || hasGroupingFilters || hasBpmFilter
 
   // Build server-side filter options from current filter state
   const buildServerFilters = useCallback((): SearchFilterOptions | undefined => {
@@ -139,7 +146,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       // When only grouping filters are active (no search query, no genre/year),
       // filter from the in-memory song cache instead of making a network request.
       // This is the same approach the mood page uses and is instant.
-      const onlyGroupingFilters = !hasQuery && hasGroupingFilters
+      const onlyGroupingFilters = !hasQuery && (hasGroupingFilters || hasBpmFilter)
         && selectedGenres.length === 0
         && !(includeYearFilter && (yearRange.min !== null || yearRange.max !== null))
 
@@ -217,7 +224,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRawSearchResults(null)
       setIsSearching(false)
     }
-  }, [searchQuery, selectedGenres, yearRange, selectedGroupings, hasActiveFilters, hasGroupingFilters, includeYearFilter, debounceMs, limit, buildServerFilters, cachedSongs])
+  }, [searchQuery, selectedGenres, yearRange, bpmRange, selectedGroupings, hasActiveFilters, hasGroupingFilters, hasBpmFilter, includeYearFilter, debounceMs, limit, buildServerFilters, cachedSongs])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -227,6 +234,16 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
     }
   }, [])
+
+  // Build a BPM lookup map from cached songs for filtering
+  const bpmMap = useMemo(() => {
+    if (!hasBpmFilter) return null
+    const map = new Map<string, number>()
+    for (const song of cachedSongs) {
+      if (song.Bpm) map.set(song.Id, song.Bpm)
+    }
+    return map
+  }, [cachedSongs, hasBpmFilter])
 
   // Apply filters to search results
   const searchResults = useMemo(() => {
@@ -239,6 +256,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
       // Artists don't have grouping tags, so filter them out when grouping filter is active
       if (hasGroupingFilters) {
+        return false
+      }
+      // Artists don't have BPM, so filter them out when BPM filter is active
+      if (hasBpmFilter) {
         return false
       }
       if (selectedGenres.length > 0) {
@@ -334,6 +355,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         }
       }
 
+      // Apply BPM range filter
+      if (hasBpmFilter && bpmMap) {
+        const itemBpm = bpmMap.get(item.Id)
+        if (!itemBpm) return false
+        if (bpmRange.min !== null && itemBpm < bpmRange.min) return false
+        if (bpmRange.max !== null && itemBpm > bpmRange.max) return false
+      }
+
       return true
     }
 
@@ -350,6 +379,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       if (hasGroupingFilters) {
         return false
       }
+      // Playlists don't have BPM
+      if (hasBpmFilter) {
+        return false
+      }
       return true
     }
 
@@ -359,7 +392,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
       songs: rawSearchResults.songs.filter(filterAlbumOrSong),
     }
-  }, [rawSearchResults, selectedGenres, yearRange, includeYearFilter, selectedGroupings, groupingMatchModes, hasGroupingFilters])
+  }, [rawSearchResults, selectedGenres, yearRange, bpmRange, includeYearFilter, selectedGroupings, groupingMatchModes, hasGroupingFilters, hasBpmFilter, bpmMap])
 
   const clearSearch = useCallback(() => {
     setSearchQuery('')
@@ -371,6 +404,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setRawSearchResults(null)
     setSelectedGenres([])
     setYearRange({ min: null, max: null })
+    setBpmRange({ min: null, max: null })
     setSelectedGroupings({})
     setGroupingMatchModes({})
   }, [])
@@ -385,6 +419,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setSelectedGenres,
     yearRange,
     setYearRange,
+    bpmRange,
+    setBpmRange,
     selectedGroupings,
     setSelectedGroupings,
     groupingMatchModes,

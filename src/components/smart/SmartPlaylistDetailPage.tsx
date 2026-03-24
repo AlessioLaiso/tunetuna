@@ -23,6 +23,8 @@ import {
   getYearThrowbackSongs,
   getDecadeSongs,
   getLanguageSongs,
+  getBpmBucketSongs,
+  bpmBucketLabel,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 
@@ -102,6 +104,17 @@ export default function SmartPlaylistDetailPage() {
         setTitle(`${capitalizeFirst(lang)}`)
         setSubtitle('')
         const result = getLanguageSongs(lang, songs)
+        setTracks(result.map(toBaseItemDto))
+        setLoading(false)
+        return
+      }
+
+      const bpmMatch = smartId.match(/^bpm-(\d+)$/)
+      if (bpmMatch) {
+        const bucket = parseInt(bpmMatch[1])
+        setTitle(bpmBucketLabel(bucket))
+        setSubtitle('')
+        const result = getBpmBucketSongs(bucket, songs)
         setTracks(result.map(toBaseItemDto))
         setLoading(false)
         return

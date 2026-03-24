@@ -94,6 +94,7 @@ export interface LightweightSong {
   RunTimeTicks?: number
   Genres?: string[]
   Grouping?: string[]
+  Bpm?: number
 }
 
 // Grouping category for filter UI (derived from song grouping tags)

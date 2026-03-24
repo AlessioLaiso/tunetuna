@@ -1,6 +1,6 @@
 import { jellyfinClient } from '../api/jellyfin'
 import type { BaseItemDto, LightweightSong } from '../api/types'
-import { normalizeForSearch, extractGroupingFromTags } from './formatting'
+import { normalizeForSearch, extractGroupingFromTags, extractBpmFromTags } from './formatting'
 
 export interface UnifiedSearchResults {
   artists: BaseItemDto[]
@@ -181,10 +181,11 @@ export async function fetchAllLibraryItems(
     jellyfinClient.getSongs({ limit: hasTagFilters ? 5000 : limit, ...serverFilters }),
   ])
 
-  // Parse Tags to Grouping for songs (so client-side grouping filters work)
+  // Parse Tags to Grouping and BPM for songs (so client-side filters work)
   const songsWithGrouping = (songsResult.Items || []).map(song => ({
     ...song,
-    Grouping: extractGroupingFromTags(song.Tags)
+    Grouping: extractGroupingFromTags(song.Tags),
+    Bpm: extractBpmFromTags(song.Tags)
   }))
 
   return {

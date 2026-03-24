@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { createPortal } from 'react-dom'
-import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag } from 'lucide-react'
+import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag, Metronome } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import AlbumCard from '../albums/AlbumCard'
@@ -31,11 +31,13 @@ export interface FilterConfig {
   showGenreFilter: boolean
   showYearFilter: boolean
   showGroupingFilters: boolean
+  showBpmFilter?: boolean
 }
 
 export interface FilterState {
   selectedGenres: string[]
   yearRange: { min: number | null; max: number | null }
+  bpmRange?: { min: number | null; max: number | null }
   selectedGroupings: Record<string, string[]>
 }
 
@@ -51,7 +53,7 @@ interface SearchOverlayProps {
   sections: SearchSectionConfig[]
   filterConfig: FilterConfig
   filterState: FilterState
-  onOpenFilterSheet: (type: 'genre' | 'year') => void
+  onOpenFilterSheet: (type: 'genre' | 'year' | 'bpm') => void
   // Grouping filter props
   groupingCategories?: GroupingCategory[]
   onOpenGroupingFilterSheet?: (category: GroupingCategory) => void
@@ -306,7 +308,7 @@ export default function SearchOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isOpen, onClose])
 
-  const hasFilters = filterConfig.showGenreFilter || filterConfig.showYearFilter || (filterConfig.showGroupingFilters && groupingCategories.length > 0)
+  const hasFilters = filterConfig.showGenreFilter || filterConfig.showYearFilter || filterConfig.showBpmFilter || (filterConfig.showGroupingFilters && groupingCategories.length > 0)
   const hasResults = results && (
     results.artists.length > 0 ||
     results.albums.length > 0 ||
@@ -465,6 +467,20 @@ export default function SearchOverlay({
           >
             <Calendar className="w-4 h-4" />
             <span className="text-sm font-medium">Year</span>
+          </button>
+        )}
+        {filterConfig.showBpmFilter && (
+          <button
+            onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('bpm') }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+              filterState.bpmRange?.min !== null || filterState.bpmRange?.max !== null
+                ? 'bg-[var(--accent-color)] text-white'
+                : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
+            aria-label="Filter by BPM"
+          >
+            <Metronome className="w-4 h-4" />
+            <span className="text-sm font-medium">BPM</span>
           </button>
         )}
         {filterConfig.showGroupingFilters && groupingCategories.map(category => {

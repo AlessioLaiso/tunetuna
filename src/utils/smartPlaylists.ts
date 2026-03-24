@@ -332,6 +332,40 @@ export function getLanguageSongs(language: string, songs: LightweightSong[]): Li
 }
 
 // ============================================================================
+// BPM Mixes
+// ============================================================================
+
+/**
+ * Get available BPM buckets (grouped by 5) from songs' BPM tags.
+ * Returns buckets sorted descending by BPM.
+ */
+export function getAvailableBpmBuckets(songs: LightweightSong[]): number[] {
+  const buckets = new Set<number>()
+  for (const song of songs) {
+    if (song.Bpm) {
+      buckets.add(Math.floor(song.Bpm / 5) * 5)
+    }
+  }
+  return Array.from(buckets).sort((a, b) => b - a)
+}
+
+/**
+ * Get all songs in a given BPM bucket (5-BPM range).
+ */
+export function getBpmBucketSongs(bucket: number, songs: LightweightSong[]): LightweightSong[] {
+  return songs.filter(s =>
+    s.Bpm && s.Bpm >= bucket && s.Bpm < bucket + 5
+  )
+}
+
+/**
+ * Format a BPM bucket as a label, e.g. "120–124 BPM"
+ */
+export function bpmBucketLabel(bucket: number): string {
+  return `${bucket}–${bucket + 4} BPM`
+}
+
+// ============================================================================
 // Availability checks
 // ============================================================================
 

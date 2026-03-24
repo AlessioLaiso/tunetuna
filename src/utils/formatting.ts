@@ -74,6 +74,14 @@ export function extractGroupingFromTags(tags: string[] | undefined): string[] {
     .map(tag => tag.replace('grouping:', ''))
 }
 
+export function extractBpmFromTags(tags: string[] | undefined): number | undefined {
+  if (!tags || !Array.isArray(tags)) return undefined
+  const bpmTag = tags.find(tag => tag.startsWith('BPM:'))
+  if (!bpmTag) return undefined
+  const value = parseInt(bpmTag.replace('BPM:', ''), 10)
+  return isNaN(value) ? undefined : value
+}
+
 export function parseGroupingTag(tag: string): { category: string; value: string | null } | null {
   if (!tag || tag.trim() === '') return null
   const trimmed = tag.trim().toLowerCase()

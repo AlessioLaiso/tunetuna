@@ -15,6 +15,9 @@ import {
   getYearThrowbackSongs,
   getAvailableLanguages,
   getLanguageSongs,
+  getAvailableBpmBuckets,
+  getBpmBucketSongs,
+  bpmBucketLabel,
 } from '../../utils/smartPlaylists'
 import type { LightweightSong } from '../../api/types'
 import { capitalizeFirst } from '../../utils/formatting'
@@ -96,6 +99,7 @@ export default function SmartPickerPage() {
       case 'year-throwback': return 'Year Throwback'
       case 'moods': return 'Mood Mixes'
       case 'languages': return 'Language Mixes'
+      case 'bpm': return 'BPM Mixes'
       default: return ''
     }
   }, [pickerId])
@@ -163,6 +167,21 @@ export default function SmartPickerPage() {
           id: `language-${lang}`,
           name: capitalizeFirst(lang),
           route: `/smart/language-${encodeURIComponent(lang)}`,
+          albumId,
+        }
+      })
+    }
+
+    if (pickerId === 'bpm') {
+      const buckets = getAvailableBpmBuckets(songs)
+      return buckets.map(bucket => {
+        const bucketSongs = getBpmBucketSongs(bucket, songs)
+        const albumId = pickAlbum(`bpm-${bucket}`, bucketSongs, usedAlbumIds)
+        if (albumId) usedAlbumIds.add(albumId)
+        return {
+          id: `bpm-${bucket}`,
+          name: bpmBucketLabel(bucket),
+          route: `/smart/bpm-${bucket}`,
           albumId,
         }
       })

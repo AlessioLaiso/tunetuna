@@ -14,6 +14,8 @@ import {
   getDecadeSongs,
   getAvailableLanguages,
   getLanguageSongs,
+  getAvailableBpmBuckets,
+  getBpmBucketSongs,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 
@@ -169,7 +171,25 @@ export default function SmartPlaylistCards() {
       })
     }
 
-    // 3. Language Mixes (available if language tags exist)
+    // 3. BPM Mixes (available if BPM tags exist)
+    const bpmBuckets = getAvailableBpmBuckets(songs)
+    if (bpmBuckets.length > 0) {
+      const bpmSubItems = bpmBuckets.map(bucket => ({
+        key: `bpm-${bucket}`,
+        songs: getBpmBucketSongs(bucket, songs),
+      }))
+      const bpmAlbumId = pickAlbumFromSubItems('bpm', bpmSubItems)
+      if (bpmAlbumId) usedAlbumIds.add(bpmAlbumId)
+      items.push({
+        id: 'bpm',
+        name: 'BPM Mixes',
+        description: 'Browse by tempo',
+        route: '/smart/picker/bpm',
+        albumId: bpmAlbumId,
+      })
+    }
+
+    // 4. Language Mixes (available if language tags exist)
     const languages = getAvailableLanguages(songs)
     if (languages.length > 0) {
       const langSubItems = languages.map(lang => ({

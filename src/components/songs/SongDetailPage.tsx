@@ -9,10 +9,10 @@ import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
-import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio, Metronome } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
-import { capitalizeFirst, formatDuration, extractGroupingFromTags } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration, extractGroupingFromTags, extractBpmFromTags } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 // Month helpers (same logic as StatsPage)
@@ -220,6 +220,11 @@ export default function SongDetailPage() {
 
   const isCurrentSongPlaying = currentTrack?.Id === song?.Id && isPlaying
 
+  const bpm = useMemo(() => {
+    if (!song?.Tags) return undefined
+    return extractBpmFromTags(song.Tags)
+  }, [song?.Tags])
+
   const groupingCategories = useMemo(() => {
     // Grouping tags may come from the Grouping field directly,
     // or need to be extracted from Tags (where MusicTags plugin stores them as "grouping:mood_party")
@@ -417,14 +422,6 @@ export default function SongDetailPage() {
             {song.RunTimeTicks != null && (
               <MetadataRow icon={Clock} label="Duration" value={formatDuration(song.RunTimeTicks)} />
             )}
-            {song.ProductionYear != null && (
-              <MetadataRow
-                icon={Calendar}
-                label="Year"
-                value={String(song.ProductionYear)}
-                onClick={() => navigate(`/songs?year=${song.ProductionYear}`)}
-              />
-            )}
             {song.Genres && song.Genres.length > 0 && (
               <>
                 <Guitar className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
@@ -448,6 +445,22 @@ export default function SongDetailPage() {
                   ))}
                 </div>
               </>
+            )}
+            {song.ProductionYear != null && (
+              <MetadataRow
+                icon={Calendar}
+                label="Year"
+                value={String(song.ProductionYear)}
+                onClick={() => navigate(`/songs?year=${song.ProductionYear}`)}
+              />
+            )}
+            {bpm != null && (
+              <MetadataRow
+                icon={Metronome}
+                label="BPM"
+                value={String(bpm)}
+                onClick={() => navigate(`/smart/bpm-${Math.floor(bpm / 5) * 5}`)}
+              />
             )}
             {/* Complex tags (Moods, Languages, etc) */}
             {groupingCategories

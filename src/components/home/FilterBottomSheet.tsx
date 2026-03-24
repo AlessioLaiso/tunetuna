@@ -6,7 +6,7 @@ import type { BaseItemDto, GroupingCategory } from '../../api/types'
 interface FilterBottomSheetProps {
   isOpen: boolean
   onClose: () => void
-  filterType: 'genre' | 'year' | 'grouping'
+  filterType: 'genre' | 'year' | 'grouping' | 'bpm'
   // For year
   availableYears?: number[]
   yearRange?: { min: number | null; max: number | null }
@@ -21,6 +21,10 @@ interface FilterBottomSheetProps {
   onApplyGrouping?: (categoryKey: string, selected: string[]) => void
   groupingMatchMode?: 'or' | 'and'
   onGroupingMatchModeChange?: (categoryKey: string, mode: 'or' | 'and') => void
+  // For BPM
+  availableBpms?: number[]
+  bpmRange?: { min: number | null; max: number | null }
+  onApplyBpm?: (range: { min: number | null; max: number | null }) => void
 }
 
 export default function FilterBottomSheet({
@@ -38,12 +42,18 @@ export default function FilterBottomSheet({
   onApplyGrouping,
   groupingMatchMode = 'or',
   onGroupingMatchModeChange,
+  availableBpms = [],
+  bpmRange = { min: null, max: null },
+  onApplyBpm,
 }: FilterBottomSheetProps) {
   const [localYearRange, setLocalYearRange] = useState<{ min: number | null; max: number | null }>(yearRange)
+  const [localBpmRange, setLocalBpmRange] = useState<{ min: number | null; max: number | null }>(bpmRange)
   const [localSelectedGenres, setLocalSelectedGenres] = useState<string[]>(selectedValues)
   const [localSelectedGroupings, setLocalSelectedGroupings] = useState<string[]>(selectedGroupingValues)
   const minYearRef = useRef<HTMLDivElement>(null)
   const maxYearRef = useRef<HTMLDivElement>(null)
+  const minBpmRef = useRef<HTMLDivElement>(null)
+  const maxBpmRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLocalYearRange(yearRange)
@@ -56,6 +66,10 @@ export default function FilterBottomSheet({
   useEffect(() => {
     setLocalSelectedGroupings(selectedGroupingValues)
   }, [selectedGroupingValues.join(',')])
+
+  useEffect(() => {
+    setLocalBpmRange(bpmRange)
+  }, [bpmRange.min, bpmRange.max])
 
   const handleToggle = (genreName: string) => {
     setLocalSelectedGenres(prev =>
@@ -80,6 +94,8 @@ export default function FilterBottomSheet({
       onApply(localSelectedGenres)
     } else if (filterType === 'grouping' && onApplyGrouping && groupingCategory) {
       onApplyGrouping(groupingCategory.key, localSelectedGroupings)
+    } else if (filterType === 'bpm' && onApplyBpm) {
+      onApplyBpm(localBpmRange)
     }
     onClose()
   }
@@ -96,6 +112,11 @@ export default function FilterBottomSheet({
       setLocalSelectedGroupings([])
       if (onApplyGrouping && groupingCategory) {
         onApplyGrouping(groupingCategory.key, [])
+      }
+    } else if (filterType === 'bpm') {
+      setLocalBpmRange({ min: null, max: null })
+      if (onApplyBpm) {
+        onApplyBpm({ min: null, max: null })
       }
     }
     onClose()
@@ -151,6 +172,66 @@ export default function FilterBottomSheet({
     }
   }, [isOpen])
   
+  // Scroll to selected BPM when picker opens or selection changes
+  useEffect(() => {
+    if (filterType === 'bpm' && isOpen && availableBpms.length > 0) {
+      const isInitial = justOpenedRef.current
+      justOpenedRef.current = false
+
+      const scrollToBpms = () => {
+        if (minBpmRef.current) {
+          const minIndex = localBpmRange.min !== null
+            ? availableBpms.indexOf(localBpmRange.min)
+            : 0
+          if (minIndex !== -1) {
+            const minElement = minBpmRef.current.querySelector(`[data-bpm-index="${minIndex}"]`)
+            if (minElement) {
+              minElement.scrollIntoView({ behavior: isInitial ? 'instant' : 'smooth', block: 'center' })
+            }
+          }
+        }
+        if (maxBpmRef.current) {
+          const maxIndex = localBpmRange.max !== null
+            ? availableBpms.indexOf(localBpmRange.max)
+            : availableBpms.length - 1
+          if (maxIndex !== -1) {
+            const maxElement = maxBpmRef.current.querySelector(`[data-bpm-index="${maxIndex}"]`)
+            if (maxElement) {
+              maxElement.scrollIntoView({ behavior: isInitial ? 'instant' : 'smooth', block: 'center' })
+            }
+          }
+        }
+      }
+      setTimeout(scrollToBpms, isInitial ? 350 : 50)
+    }
+  }, [filterType, isOpen, localBpmRange.min, localBpmRange.max, availableBpms])
+
+  const handleBpmSelect = (type: 'min' | 'max', bpm: number) => {
+    setLocalBpmRange((prev) => {
+      if (type === 'min') {
+        const newMin = prev.max !== null && bpm > prev.max ? prev.max : bpm
+        setTimeout(() => {
+          const index = availableBpms.indexOf(newMin)
+          if (index !== -1 && minBpmRef.current) {
+            const element = minBpmRef.current.querySelector(`[data-bpm-index="${index}"]`)
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 50)
+        return { ...prev, min: newMin }
+      } else {
+        const newMax = prev.min !== null && bpm < prev.min ? prev.min : bpm
+        setTimeout(() => {
+          const index = availableBpms.indexOf(newMax)
+          if (index !== -1 && maxBpmRef.current) {
+            const element = maxBpmRef.current.querySelector(`[data-bpm-index="${index}"]`)
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 50)
+        return { ...prev, max: newMax }
+      }
+    })
+  }
+
   const handleYearSelect = (type: 'min' | 'max', year: number) => {
     setLocalYearRange((prev) => {
       if (type === 'min') {
@@ -196,7 +277,7 @@ export default function FilterBottomSheet({
         {/* Header */}
         <div className="flex items-center justify-between mb-4 px-4 md:sticky md:top-0 md:bg-zinc-900 md:pb-2 md:z-10 md:-mt-4 md:pt-4">
           <div className="text-lg font-semibold text-white">
-            Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : groupingCategory?.name || 'Tag'}
+            Filter by {filterType === 'genre' ? 'Genre' : filterType === 'year' ? 'Year' : filterType === 'bpm' ? 'BPM' : groupingCategory?.name || 'Tag'}
           </div>
           <div className="flex items-center gap-2">
             {filterType === 'grouping' && groupingCategory && !groupingCategory.isSingleValue && (
@@ -239,7 +320,86 @@ export default function FilterBottomSheet({
 
         {/* Content */}
         <div className="px-4 max-h-[75vh] overflow-y-auto overscroll-none touch-pan-y md:max-h-none md:overflow-y-visible">
-          {filterType === 'year' ? (
+          {filterType === 'bpm' ? (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <div className="text-center text-sm text-gray-400 mb-2">From</div>
+                  <div
+                    ref={minBpmRef}
+                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
+                  >
+                    {availableBpms.length > 0 ? (
+                      availableBpms.map((bpm, index) => {
+                        const isSelected = localBpmRange.min === bpm
+                        const isDisabled = localBpmRange.max !== null && bpm > localBpmRange.max
+                        return (
+                          <button
+                            key={bpm}
+                            data-bpm-index={index}
+                            onClick={() => handleBpmSelect('min', bpm)}
+                            disabled={isDisabled}
+                            className={`w-full py-3 px-4 text-center snap-center transition-colors ${
+                              isSelected
+                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                : isDisabled
+                                ? 'text-gray-500 cursor-not-allowed'
+                                : 'text-white hover:bg-white/10'
+                            }`}
+                          >
+                            {bpm}
+                          </button>
+                        )
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="text-sm">No BPM data available</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute left-0 right-0 h-12 bg-gradient-to-b from-zinc-900 to-transparent pointer-events-none" style={{ top: '1.75rem' }} />
+                  <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
+                </div>
+                <div className="flex-1 relative">
+                  <div className="text-center text-sm text-gray-400 mb-2">To</div>
+                  <div
+                    ref={maxBpmRef}
+                    className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
+                  >
+                    {availableBpms.length > 0 ? (
+                      availableBpms.map((bpm, index) => {
+                        const isSelected = localBpmRange.max === bpm
+                        const isDisabled = localBpmRange.min !== null && bpm < localBpmRange.min
+                        return (
+                          <button
+                            key={bpm}
+                            data-bpm-index={index}
+                            onClick={() => handleBpmSelect('max', bpm)}
+                            disabled={isDisabled}
+                            className={`w-full py-3 px-4 text-center snap-center transition-colors ${
+                              isSelected
+                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                : isDisabled
+                                ? 'text-gray-500 cursor-not-allowed'
+                                : 'text-white hover:bg-white/10'
+                            }`}
+                          >
+                            {bpm}
+                          </button>
+                        )
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="text-sm">No BPM data available</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute left-0 right-0 h-14 bg-gradient-to-b from-zinc-900 via-zinc-900/80 to-transparent pointer-events-none" style={{ top: '1.75rem' }} />
+                  <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-zinc-900 via-zinc-900/80 to-transparent pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          ) : filterType === 'year' ? (
             <div className="space-y-6">
               {/* Two scrollable year pickers side by side */}
               <div className="flex items-center gap-4">
@@ -470,7 +630,7 @@ export default function FilterBottomSheet({
         <div className="flex gap-3 mt-6 px-4 md:sticky md:bottom-0 md:bg-zinc-900 md:pb-6 md:pt-2 md:-mb-6">
           <button
             onClick={handleClear}
-            disabled={filterType === 'year' && isDefaultRange}
+            disabled={(filterType === 'year' && isDefaultRange) || (filterType === 'bpm' && localBpmRange.min === null && localBpmRange.max === null && bpmRange.min === null && bpmRange.max === null)}
             className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
             Clear

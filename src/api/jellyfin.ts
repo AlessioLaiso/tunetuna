@@ -9,7 +9,7 @@ import type {
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
 import { useMusicStore } from '../stores/musicStore'
-import { normalizeQuotes, extractGroupingFromTags } from '../utils/formatting'
+import { normalizeQuotes, extractGroupingFromTags, extractBpmFromTags } from '../utils/formatting'
 import { logger } from '../utils/logger'
 import {
   AUTH_TIMEOUT_MS,
@@ -694,7 +694,8 @@ class JellyfinClient {
       DateCreated: song.DateCreated,
       RunTimeTicks: song.RunTimeTicks,
       Genres: song.Genres,
-      Grouping: extractGroupingFromTags(song.Tags)
+      Grouping: extractGroupingFromTags(song.Tags),
+      Bpm: extractBpmFromTags(song.Tags)
     }))
   }
 
@@ -818,7 +819,8 @@ class JellyfinClient {
         DateCreated: song.DateCreated,
         RunTimeTicks: song.RunTimeTicks,
         Genres: song.Genres,
-        Grouping: extractGroupingFromTags(song.Tags)
+        Grouping: extractGroupingFromTags(song.Tags),
+        Bpm: extractBpmFromTags(song.Tags)
       }))
 
       // Merge with existing cache: update modified songs in place, append new ones
@@ -1039,10 +1041,11 @@ class JellyfinClient {
       }
     }
 
-    // Parse Tags to Grouping for songs (so client-side grouping filters work)
+    // Parse Tags to Grouping and BPM for songs (so client-side filters work)
     const songsWithGrouping = songs.map(song => ({
       ...song,
-      Grouping: extractGroupingFromTags(song.Tags)
+      Grouping: extractGroupingFromTags(song.Tags),
+      Bpm: extractBpmFromTags(song.Tags)
     }))
 
     return {
