@@ -874,6 +874,25 @@ class JellyfinClient {
       })
 
       await Promise.all(genreUpdatePromises)
+
+      // Backfill: populate any empty genre caches from the full songs list.
+      // If a genre cache was never populated (e.g. recommendations tried it
+      // before the first full sync finished), incremental sync won't fill it
+      // because no *changed* songs triggered an update for that genre.
+      const allCachedSongs = store.songs
+      if (allCachedSongs.length > 0) {
+        for (const genre of genres) {
+          if (!genre.Name || !genre.Id) continue
+          if (store.genreSongs[genre.Id]?.length > 0) continue
+          const songs = allCachedSongs.filter(song =>
+            song.Genres?.some(g => g.toLowerCase() === genre.Name!.toLowerCase())
+          )
+          if (songs.length > 0) {
+            store.setGenreSongs(genre.Id, songs)
+          }
+        }
+      }
+
       return
     }
 

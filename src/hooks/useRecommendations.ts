@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useMusicStore } from '../stores/musicStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getRecommendedSongs } from '../utils/recommendations'
 import { logger } from '../utils/logger'
@@ -55,6 +56,7 @@ export function useRecommendations() {
   const songsLength = usePlayerStore(state => state.songs.length)
 
   const { showQueueRecommendations } = useSettingsStore()
+  const lastSyncCompleted = useMusicStore(state => state.lastSyncCompleted)
 
   const recentQueueRef = useRef<ReturnType<typeof usePlayerStore.getState>['songs']>([])
   const isRecommendingRef = useRef(false)
@@ -82,6 +84,16 @@ export function useRecommendations() {
     lastSuccessAttemptRef.current = 0
     retryCountRef.current = 0
   }, [showQueueRecommendations])
+
+  useEffect(() => {
+    // After a successful library sync, reset failure state so recommendations retry immediately
+    if (lastSyncCompleted) {
+      lastFailedAttemptRef.current = 0
+      lastSuccessAttemptRef.current = 0
+      retryCountRef.current = 0
+      useSettingsStore.getState().setRecommendationsQuality('good')
+    }
+  }, [lastSyncCompleted])
 
   useEffect(() => {
     // Get fresh songs from state to avoid stale closure issues
@@ -295,7 +307,8 @@ export function useRecommendations() {
     showQueueRecommendations,
     isFetchingRecommendations,
     setIsFetchingRecommendations,
-    repeat
+    repeat,
+    lastSyncCompleted
   ])
 
   // Automatically turn off recommendations when repeat is active
