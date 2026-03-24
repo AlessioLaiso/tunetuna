@@ -294,11 +294,9 @@ export default function SongDetailPage() {
 
       {/* Hero section with backdrop */}
       <div
-        className="relative z-30 w-screen"
+        className={`relative z-30 hero-breakout ${isQueueSidebarOpen ? 'hero-breakout-sidebar' : ''}`}
         style={{
           marginTop: `calc(-1 * env(safe-area-inset-top))`,
-          marginLeft: 'calc(50% - 50vw)',
-          marginRight: 'calc(50% - 50vw)',
         }}
       >
         {hasBackdrop && artistId && (
@@ -306,22 +304,22 @@ export default function SongDetailPage() {
             className="relative w-full min-h-64 md:min-h-80 bg-black"
             style={{ paddingTop: `env(safe-area-inset-top)` }}
           >
-            {/* Mobile: blurred album art as backdrop */}
-            <div className="w-full h-64 md:hidden">
+            {/* Mobile: album art as backdrop */}
+            <div className="w-full flex items-center justify-center md:hidden min-[600px]:aspect-[4/3] min-[600px]:overflow-hidden">
               {hasImage && song.AlbumId ? (
                 <img
                   src={jellyfinClient.getAlbumArtUrl(song.AlbumId)}
                   alt=""
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto object-contain min-[600px]:h-full min-[600px]:object-cover"
                   onError={() => setHasBackdrop(false)}
                 />
               ) : (
-                <div className="w-full h-full bg-zinc-900" />
+                <div className="w-full h-64 bg-zinc-900" />
               )}
             </div>
 
             {/* Desktop: artist backdrop image */}
-            <div className="hidden md:block w-full h-80">
+            <div className="hidden md:block w-full h-80 [@media((min-width:1500px)_and_(min-height:1000px))]:h-[440px]">
               <img
                 src={jellyfinClient.getArtistBackdropUrl(artistId, 1920)}
                 alt=""
@@ -330,16 +328,16 @@ export default function SongDetailPage() {
               />
             </div>
 
-            <div className="absolute inset-x-0 top-0 bottom-[-1px] bg-gradient-to-b from-transparent via-black/60 to-black pointer-events-none" />
+            <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
           </div>
         )}
 
         {/* Song info overlay */}
         <div className={`left-0 right-0 ${hasBackdrop && artistId ? 'absolute' : 'relative'} ${hasBackdrop && artistId ? 'pt-16' : 'pt-12'}`} style={hasBackdrop && artistId ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
-          <div className="max-w-page mx-auto px-4 flex items-end gap-6 md:grid md:grid-cols-3 md:gap-4">
+          <div className="max-w-page mx-auto px-4 flex items-end gap-4">
             {/* Album art (desktop/tablet: on the left; mobile: hidden since backdrop is album art) */}
             {hasImage && song.AlbumId && (
-              <div className="hidden md:block md:col-span-1">
+              <div className="hidden md:block flex-shrink-0 w-[calc((768px-2rem-2rem)/3)]">
                 <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
                   <Image
                     src={jellyfinClient.getAlbumArtUrl(song.AlbumId)}
@@ -353,7 +351,7 @@ export default function SongDetailPage() {
               </div>
             )}
             {/* Song title and play button */}
-            <div className={`flex-1 min-w-0 pb-2 ${hasImage ? 'md:col-span-2' : 'md:col-span-3'}`}>
+            <div className="flex-1 min-w-0 pb-2">
               <div className="mb-4 mt-4">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 break-words">{song.Name}</h1>
                 <div className="flex items-center justify-end gap-4 mt-2">
