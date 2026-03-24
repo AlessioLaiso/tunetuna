@@ -8,6 +8,27 @@ import type { BaseItemDto } from '../../api/types'
 import { logger } from '../../utils/logger'
 import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
 
+const ROWS = 2
+
+function useRecentlyAddedCount() {
+  const getCount = () => {
+    const width = window.innerWidth
+    // small: 3 cols × 2 rows × 3 pages = 18
+    // medium: 4 cols × 2 rows × 2 pages = 16
+    // large: 5 cols × 2 rows × 2 pages = 20
+    if (width >= 1500) return 5 * ROWS * 2
+    if (width >= 768) return 4 * ROWS * 2
+    return 3 * ROWS * 3
+  }
+  const [count, setCount] = useState(getCount)
+  useEffect(() => {
+    const onResize = () => setCount(getCount())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return count
+}
+
 /**
  * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
  */
@@ -74,12 +95,13 @@ export default function RecentlyAdded() {
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
+  const count = useRecentlyAddedCount()
 
   useEffect(() => {
     const loadRecentlyAdded = async () => {
       setLoading('recentlyAdded', true)
       try {
-        const result = await jellyfinClient.getRecentlyAdded(18)
+        const result = await jellyfinClient.getRecentlyAdded(count)
         setRecentlyAdded(result.Items || [])
       } catch (error) {
         logger.error('Failed to load recently added:', error)
@@ -89,7 +111,7 @@ export default function RecentlyAdded() {
     }
 
     loadRecentlyAdded()
-  }, [setRecentlyAdded, setLoading])
+  }, [count, setRecentlyAdded, setLoading])
 
   // Show skeleton while loading, null if loaded with no data
   if (!recentlyAdded || recentlyAdded.length === 0) {
