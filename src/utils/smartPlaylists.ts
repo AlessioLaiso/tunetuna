@@ -1,6 +1,7 @@
 import type { LightweightSong } from '../api/types'
 import type { PlayEvent } from '../stores/statsStore'
 import { buildFeaturedArtistMap } from './featuredArtists'
+import { useMusicStore } from '../stores/musicStore'
 
 const MIN_SONGS = 30
 
@@ -66,10 +67,21 @@ function getForgottenFavorites(songs: LightweightSong[], events: PlayEvent[]): L
 
 /**
  * Fresh Finds — 50 most recently added songs to library.
- * Uses DateCreated (when added to Jellyfin server), falls back to PremiereDate.
+ * Uses the album's DateCreated to determine when songs were truly added,
+ * since song DateCreated gets updated when metadata is edited.
  */
 function getFreshFinds(songs: LightweightSong[]): LightweightSong[] {
-  const getDate = (s: LightweightSong) => s.DateCreated || s.PremiereDate
+  const albums = useMusicStore.getState().albums
+  const albumDateMap = new Map<string, string>()
+  for (const album of albums) {
+    if (album.Id && album.DateCreated) {
+      albumDateMap.set(album.Id, album.DateCreated)
+    }
+  }
+
+  const getDate = (s: LightweightSong) =>
+    (s.AlbumId && albumDateMap.get(s.AlbumId)) || s.PremiereDate
+
   return [...songs]
     .filter(s => getDate(s))
     .sort((a, b) => new Date(getDate(b)!).getTime() - new Date(getDate(a)!).getTime())
@@ -158,7 +170,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'on-repeat',
     name: 'On Repeat',
     description: 'Your most played songs this month',
-    subtitle: 'Your most played songs in the last 30 days.',
+    subtitle: 'Your most played songs in the last 30 days',
     getSongs: getOnRepeat,
     requiresStats: true,
   },
@@ -166,7 +178,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'forgotten-favorites',
     name: 'Forgotten Favorites',
     description: 'Old favorites you haven\'t played lately',
-    subtitle: 'Songs you used to love but haven\'t listened in months.',
+    subtitle: 'Songs you used to love but haven\'t listened in months',
     getSongs: getForgottenFavorites,
     requiresStats: true,
   },
@@ -174,7 +186,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'fresh-finds',
     name: 'Fresh Finds',
     description: 'Recently added to your library',
-    subtitle: 'The latest additions to your library.',
+    subtitle: 'The latest additions to your library',
     getSongs: getFreshFinds,
     requiresStats: false,
   },
@@ -182,7 +194,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'collab-central',
     name: 'Collab Central',
     description: 'Songs with featured artists',
-    subtitle: 'Collaborations in your library.',
+    subtitle: 'Collaborations in your library',
     getSongs: getCollabCentral,
     requiresStats: false,
   },
@@ -190,7 +202,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'one-hit-wonders',
     name: 'One-Hit Wonders',
     description: 'Artists with only 1 song in your library',
-    subtitle: 'Artists with only one song in your library.',
+    subtitle: 'Artists with only one song in your library',
     getSongs: getOneHitWonders,
     requiresStats: false,
   },
@@ -198,7 +210,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
     id: 'longest-unplayed',
     name: 'Longest Unplayed',
     description: 'In your library the longest, never played',
-    subtitle: 'Songs that have been waiting the longest for their moment.',
+    subtitle: 'Songs that have been waiting the longest for their moment',
     getSongs: getLongestUnplayed,
     requiresStats: true,
   },
