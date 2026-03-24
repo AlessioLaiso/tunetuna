@@ -31,15 +31,20 @@ function useRecentlyAddedCount() {
 
 /**
  * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
+ * Reorders per page so the most recent items fill page 1 completely before page 2.
  */
-function reorderForRowFlow<T>(items: T[], rows: number): T[] {
-  const cols = Math.ceil(items.length / rows)
+function reorderForRowFlow<T>(items: T[], rows: number, cols: number): T[] {
+  const pageSize = rows * cols
   const result: T[] = []
-  for (let col = 0; col < cols; col++) {
-    for (let row = 0; row < rows; row++) {
-      const srcIndex = row * cols + col
-      if (srcIndex < items.length) {
-        result.push(items[srcIndex])
+  for (let offset = 0; offset < items.length; offset += pageSize) {
+    const page = items.slice(offset, offset + pageSize)
+    const pageCols = Math.ceil(page.length / rows)
+    for (let col = 0; col < pageCols; col++) {
+      for (let row = 0; row < rows; row++) {
+        const srcIndex = row * pageCols + col
+        if (srcIndex < page.length) {
+          result.push(page[srcIndex])
+        }
       }
     }
   }
@@ -143,7 +148,7 @@ export default function RecentlyAdded() {
       <div className="md:hidden">
         <HorizontalScrollContainer gap={12}>
           <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 24px) / 3)' }}>
-            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
+            {reorderForRowFlow(recentlyAdded, 2, 3).map(renderAlbum)}
           </div>
         </HorizontalScrollContainer>
       </div>
@@ -152,7 +157,7 @@ export default function RecentlyAdded() {
       <div className="hidden md:block min-[1500px]:hidden">
         <HorizontalScrollContainer gap={12}>
           <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 36px) / 4)' }}>
-            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
+            {reorderForRowFlow(recentlyAdded, 2, 4).map(renderAlbum)}
           </div>
         </HorizontalScrollContainer>
       </div>
@@ -161,7 +166,7 @@ export default function RecentlyAdded() {
       <div className="hidden min-[1500px]:block">
         <HorizontalScrollContainer gap={12}>
           <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 48px) / 5)' }}>
-            {reorderForRowFlow(recentlyAdded, 2).map(renderAlbum)}
+            {reorderForRowFlow(recentlyAdded, 2, 5).map(renderAlbum)}
           </div>
         </HorizontalScrollContainer>
       </div>
