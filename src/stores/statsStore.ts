@@ -673,6 +673,13 @@ export const useStatsStore = create<StatsState>()(
         const newEvents = validEvents.filter(e => !existingKeys.has(`${e.ts}-${e.songId}`))
 
         if (newEvents.length === 0) {
+          // Even though no new events were imported, update oldestEventTs
+          // in case the file contains events older than what we're tracking
+          const fileOldest = Math.min(...validEvents.map(e => e.ts))
+          const { oldestEventTs } = get()
+          if (oldestEventTs === null || fileOldest < oldestEventTs) {
+            set({ oldestEventTs: fileOldest })
+          }
           return { imported: 0, skipped: validEvents.length }
         }
 
@@ -690,8 +697,13 @@ export const useStatsStore = create<StatsState>()(
           throw new Error('Failed to upload events')
         }
 
-        // Invalidate cache
-        set({ cacheRange: null })
+        // Invalidate cache and update oldestEventTs in case imported events are older
+        const importedOldest = Math.min(...newEvents.map(e => e.ts))
+        const { oldestEventTs } = get()
+        set({
+          cacheRange: null,
+          oldestEventTs: oldestEventTs === null ? importedOldest : Math.min(oldestEventTs, importedOldest),
+        })
 
         return { imported: newEvents.length, skipped: validEvents.length - newEvents.length }
       },
@@ -884,15 +896,13 @@ export const useStatsStore = create<StatsState>()(
           }
         })
 
-        // Replace all server events: delete then re-upload
-        await get().clearAllStats()
-
+        // Atomically replace all server events in a single PUT request
         await get().updateStatsKey()
         const { cachedStatsKey, cachedStatsToken } = get()
         if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
 
         const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Stats-Token': cachedStatsToken,
@@ -902,7 +912,7 @@ export const useStatsStore = create<StatsState>()(
 
         if (!response.ok) throw new Error('Failed to upload remapped events')
 
-        set({ cacheRange: null })
+        set({ cacheRange: null, pendingEvents: [] })
         return { remapped, unmatched }
       },
 
@@ -921,27 +931,23 @@ export const useStatsStore = create<StatsState>()(
 
         if (removed === 0) return { removed: 0, kept: matched.length }
 
-        // Replace all server events: delete then re-upload only matched
-        await get().clearAllStats()
+        // Atomically replace all server events in a single PUT request
+        await get().updateStatsKey()
+        const { cachedStatsKey, cachedStatsToken } = get()
+        if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
 
-        if (matched.length > 0) {
-          await get().updateStatsKey()
-          const { cachedStatsKey, cachedStatsToken } = get()
-          if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
+        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Stats-Token': cachedStatsToken,
+          },
+          body: JSON.stringify(matched),
+        })
 
-          const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Stats-Token': cachedStatsToken,
-            },
-            body: JSON.stringify(matched),
-          })
+        if (!response.ok) throw new Error('Failed to upload filtered events')
 
-          if (!response.ok) throw new Error('Failed to upload filtered events')
-        }
-
-        set({ cacheRange: null })
+        set({ cacheRange: null, pendingEvents: [] })
         return { removed, kept: matched.length }
       },
     }),

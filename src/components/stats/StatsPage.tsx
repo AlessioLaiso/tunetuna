@@ -643,12 +643,11 @@ export default function StatsPage() {
   const [toMonth, setToMonth] = useState<string>('')
   const [showCannedModal, setShowCannedModal] = useState(false)
 
-  // Initialize oldest timestamp on mount if not already set
+  // Always refresh oldest timestamp on mount to pick up any imports or server-side changes
   useEffect(() => {
-    if (oldestEventTs === null) {
-      initializeOldestTs()
-    }
-  }, [oldestEventTs, initializeOldestTs])
+    initializeOldestTs()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Compute effective oldest timestamp (from store or pending events)
   const effectiveOldestTs = useMemo(() => {

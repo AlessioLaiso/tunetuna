@@ -90,6 +90,26 @@ const insertMany = db.transaction((userKey, events) => {
   }
 })
 
+const replaceAll = db.transaction((userKey, events) => {
+  db.prepare('DELETE FROM events WHERE user_key = ?').run(userKey)
+  for (const e of events) {
+    insertEvent.run(
+      userKey,
+      e.ts,
+      e.songId,
+      e.songName,
+      JSON.stringify(e.artistIds),
+      JSON.stringify(e.artistNames),
+      e.albumId,
+      e.albumName,
+      JSON.stringify(e.genres),
+      e.year,
+      e.durationMs ?? e.fullDurationMs,
+      e.fullDurationMs
+    )
+  }
+})
+
 // Create Fastify server
 const fastify = Fastify({
   logger: true,
@@ -126,7 +146,7 @@ await fastify.register(cors, {
     // Reject unknown origins
     cb(new Error('Not allowed by CORS'), false)
   },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'X-Stats-Token'],
 })
 
@@ -249,6 +269,33 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
   } catch (error) {
     fastify.log.error(error)
     return reply.status(500).send({ error: 'Failed to fetch events' })
+  }
+})
+
+// PUT /api/stats/:key/events - Atomically replace all events for a user
+fastify.put('/api/stats/:key/events', async (request, reply) => {
+  const { key } = request.params
+  const body = request.body || {}
+  const token = request.headers['x-stats-token'] || body._token
+  const events = body._token ? body.events : body
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  if (!Array.isArray(events)) {
+    return reply.status(400).send({ error: 'Events array required' })
+  }
+
+  const validEvents = events.filter(validateEvent)
+
+  try {
+    replaceAll(key, validEvents)
+    return { success: true, count: validEvents.length }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to replace events' })
   }
 })
 
