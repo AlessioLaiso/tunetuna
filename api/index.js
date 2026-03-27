@@ -90,24 +90,42 @@ const insertMany = db.transaction((userKey, events) => {
   }
 })
 
-const replaceAll = db.transaction((userKey, events) => {
-  db.prepare('DELETE FROM events WHERE user_key = ?').run(userKey)
-  for (const e of events) {
-    insertEvent.run(
-      userKey,
-      e.ts,
-      e.songId,
-      e.songName,
-      JSON.stringify(e.artistIds),
-      JSON.stringify(e.artistNames),
-      e.albumId,
-      e.albumName,
-      JSON.stringify(e.genres),
-      e.year,
-      e.durationMs ?? e.fullDurationMs,
-      e.fullDurationMs
+// Remap events: update metadata for events matching old song IDs
+const remapBySongId = db.prepare(`
+  UPDATE events
+  SET song_id = ?, song_name = ?, artist_ids = ?, artist_names = ?,
+      album_id = ?, album_name = ?, genres = ?, year = ?
+  WHERE user_key = ? AND song_id = ?
+`)
+
+const remapMany = db.transaction((userKey, mappings) => {
+  let updated = 0
+  for (const m of mappings) {
+    const result = remapBySongId.run(
+      m.newSongId, m.songName,
+      JSON.stringify(m.artistIds), JSON.stringify(m.artistNames),
+      m.albumId, m.albumName,
+      JSON.stringify(m.genres), m.year ?? null,
+      userKey, m.oldSongId
     )
+    updated += result.changes
   }
+  return updated
+})
+
+// Delete events by specific song IDs (batched to stay within SQLite variable limits)
+const deleteBySongIds = db.transaction((userKey, songIds) => {
+  let deleted = 0
+  const BATCH_SIZE = 500
+  for (let i = 0; i < songIds.length; i += BATCH_SIZE) {
+    const batch = songIds.slice(i, i + BATCH_SIZE)
+    const placeholders = batch.map(() => '?').join(',')
+    const stmt = db.prepare(
+      `DELETE FROM events WHERE user_key = ? AND song_id IN (${placeholders})`
+    )
+    deleted += stmt.run(userKey, ...batch).changes
+  }
+  return deleted
 })
 
 // Create Fastify server
@@ -272,30 +290,58 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
   }
 })
 
-// PUT /api/stats/:key/events - Atomically replace all events for a user
-fastify.put('/api/stats/:key/events', async (request, reply) => {
+// PUT /api/stats/:key/events/remap - Remap events from old song IDs to new metadata
+fastify.put('/api/stats/:key/events/remap', async (request, reply) => {
   const { key } = request.params
-  const body = request.body || {}
-  const token = request.headers['x-stats-token'] || body._token
-  const events = body._token ? body.events : body
+  const token = request.headers['x-stats-token']
+  const { mappings } = request.body || {}
 
   const auth = validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
 
-  if (!Array.isArray(events)) {
-    return reply.status(400).send({ error: 'Events array required' })
+  if (!Array.isArray(mappings) || mappings.length === 0) {
+    return reply.status(400).send({ error: 'Mappings array required' })
   }
 
-  const validEvents = events.filter(validateEvent)
+  // Validate each mapping
+  for (const m of mappings) {
+    if (!m.oldSongId || !m.newSongId || !m.songName || !Array.isArray(m.artistIds) || !Array.isArray(m.artistNames)) {
+      return reply.status(400).send({ error: 'Invalid mapping: requires oldSongId, newSongId, songName, artistIds, artistNames' })
+    }
+  }
 
   try {
-    replaceAll(key, validEvents)
-    return { success: true, count: validEvents.length }
+    const updated = remapMany(key, mappings)
+    return { success: true, updated }
   } catch (error) {
     fastify.log.error(error)
-    return reply.status(500).send({ error: 'Failed to replace events' })
+    return reply.status(500).send({ error: 'Failed to remap events' })
+  }
+})
+
+// DELETE /api/stats/:key/events/by-song-ids - Delete events matching specific song IDs
+fastify.delete('/api/stats/:key/events/by-song-ids', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+  const { songIds } = request.body || {}
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  if (!Array.isArray(songIds) || songIds.length === 0) {
+    return reply.status(400).send({ error: 'songIds array required' })
+  }
+
+  try {
+    const deleted = deleteBySongIds(key, songIds)
+    return { success: true, deleted }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to delete events' })
   }
 })
 

@@ -866,54 +866,61 @@ export const useStatsStore = create<StatsState>()(
           }
         }
 
-        let remapped = 0
+        // Build mappings: one entry per distinct unmatched songId that found a match
+        // Multiple events with the same old songId get the same new metadata
+        const mappingsByOldId = new Map<string, { oldSongId: string; newSongId: string; songName: string; artistIds: string[]; artistNames: string[]; albumId: string; albumName: string; genres: string[]; year: number | null }>()
         let unmatched = 0
+        const unmatchedSongIds = new Set<string>()
 
-        const updatedEvents = allEvents.map(event => {
-          // Already matched — keep as-is
-          if (knownSongIds.has(event.songId)) return event
+        for (const event of allEvents) {
+          if (knownSongIds.has(event.songId)) continue
+          if (mappingsByOldId.has(event.songId) || unmatchedSongIds.has(event.songId)) continue
 
           const firstArtist = event.artistNames[0] || ''
           const autoKey = `${normalizeName(event.songName)}::${normalizeName(firstArtist)}`
           const manualKey = `${event.songName}::${firstArtist}`
 
-          // Try auto-match first, then manual mapping
           const match = songLookup.get(autoKey) || manualLookup.get(manualKey)
 
           if (match) {
-            remapped++
-            return {
-              ...event,
-              songId: match.Id,
-              albumId: match.AlbumId || event.albumId,
-              albumName: match.Album || event.albumName,
+            mappingsByOldId.set(event.songId, {
+              oldSongId: event.songId,
+              newSongId: match.Id,
+              songName: match.Name,
               artistIds: match.ArtistItems?.map(a => a.Id) || event.artistIds,
               artistNames: match.ArtistItems?.map(a => a.Name || 'Unknown') || event.artistNames,
-            }
+              albumId: match.AlbumId || event.albumId,
+              albumName: match.Album || event.albumName,
+              genres: event.genres,
+              year: event.year,
+            })
           } else {
+            unmatchedSongIds.add(event.songId)
             unmatched++
-            return event
           }
-        })
+        }
 
-        // Atomically replace all server events in a single PUT request
+        const mappings = Array.from(mappingsByOldId.values())
+        if (mappings.length === 0) return { remapped: 0, unmatched }
+
+        // Send only the mappings to the server — server updates in-place with a transaction
         await get().updateStatsKey()
         const { cachedStatsKey, cachedStatsToken } = get()
         if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
 
-        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
+        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events/remap`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Stats-Token': cachedStatsToken,
           },
-          body: JSON.stringify(updatedEvents),
+          body: JSON.stringify({ mappings }),
         })
 
-        if (!response.ok) throw new Error('Failed to upload remapped events')
+        if (!response.ok) throw new Error('Failed to remap events')
 
         set({ cacheRange: null, pendingEvents: [] })
-        return { remapped, unmatched }
+        return { remapped: mappings.length, unmatched }
       },
 
       removeMismatchedEvents: async () => {
@@ -926,29 +933,38 @@ export const useStatsStore = create<StatsState>()(
         const { songs } = useMusicStore.getState()
         const knownSongIds = new Set(songs.map(s => s.Id))
 
-        const matched = allEvents.filter(e => knownSongIds.has(e.songId))
-        const removed = allEvents.length - matched.length
+        // Collect distinct unmatched song IDs to delete
+        const unmatchedSongIds = new Set<string>()
+        let kept = 0
+        for (const e of allEvents) {
+          if (knownSongIds.has(e.songId)) {
+            kept++
+          } else {
+            unmatchedSongIds.add(e.songId)
+          }
+        }
 
-        if (removed === 0) return { removed: 0, kept: matched.length }
+        if (unmatchedSongIds.size === 0) return { removed: 0, kept }
 
-        // Atomically replace all server events in a single PUT request
+        // Send only the unmatched song IDs — server deletes matching rows in a transaction
         await get().updateStatsKey()
         const { cachedStatsKey, cachedStatsToken } = get()
         if (!cachedStatsKey || !cachedStatsToken) throw new Error('Failed to initialize stats authentication')
 
-        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events`, {
-          method: 'PUT',
+        const response = await fetch(`${STATS_API_BASE}/${cachedStatsKey}/events/by-song-ids`, {
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             'X-Stats-Token': cachedStatsToken,
           },
-          body: JSON.stringify(matched),
+          body: JSON.stringify({ songIds: Array.from(unmatchedSongIds) }),
         })
 
-        if (!response.ok) throw new Error('Failed to upload filtered events')
+        if (!response.ok) throw new Error('Failed to delete mismatched events')
 
+        const result = await response.json()
         set({ cacheRange: null, pendingEvents: [] })
-        return { removed, kept: matched.length }
+        return { removed: result.deleted, kept }
       },
     }),
     {
