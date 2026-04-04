@@ -368,33 +368,33 @@ export default function SmartPlaylistCards() {
       {/* Narrow screens (<620px): 2-col, 2-row with arrow navigation */}
       <div className="min-[620px]:hidden">
         <HorizontalScrollContainer gap={8}>
-          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 8px) / 2)' }}>
-            {reorderForRowFlow(filledCards(displayCards, 2, 2), 2, 2).map((card) => (
-              <MixCardItem key={card.id} card={card} />
-            ))}
-          </div>
+          {chunkArray(filledCards(displayCards, 2, 2), 2 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-2 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
+              {page.map((card) => <MixCardItem key={card.id} card={card} />)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
 
       {/* Medium screens (620px–1500px): 3-col, 2-row with arrow navigation */}
       <div className="hidden min-[620px]:block min-[1500px]:hidden">
         <HorizontalScrollContainer gap={8}>
-          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 16px) / 3)' }}>
-            {reorderForRowFlow(filledCards(displayCards, 3, 2), 2, 3).map((card) => (
-              <MixCardItem key={card.id} card={card} />
-            ))}
-          </div>
+          {chunkArray(filledCards(displayCards, 3, 2), 3 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-3 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
+              {page.map((card) => <MixCardItem key={card.id} card={card} />)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
 
       {/* Large screens (>=1500px): 4-col, 2-row with arrow navigation */}
       <div className="hidden min-[1500px]:block">
         <HorizontalScrollContainer gap={8}>
-          <div className="grid grid-rows-2 grid-flow-col gap-2" style={{ gridAutoColumns: 'calc((100% - 24px) / 4)' }}>
-            {reorderForRowFlow(filledCards(displayCards, 4, 2), 2, 4).map((card) => (
-              <MixCardItem key={card.id} card={card} />
-            ))}
-          </div>
+          {chunkArray(filledCards(displayCards, 4, 2), 4 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-4 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
+              {page.map((card) => <MixCardItem key={card.id} card={card} />)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
     </div>
@@ -405,29 +405,13 @@ export default function SmartPlaylistCards() {
 // Helpers
 // ============================================================================
 
-/**
- * CSS grid-flow-col fills columns first; this reorders so visual reading order
- * is left-to-right, top-to-bottom within each visible page of `visibleCols` columns.
- *
- * Without page-aware reordering, items 1-8 with 2 visible cols and 2 rows would
- * show [1,5,2,6] on the first page instead of [1,2,3,4].
- */
-function reorderForRowFlow<T>(items: T[], rows: number, visibleCols: number): T[] {
-  const pageSize = visibleCols * rows
-  const result: T[] = []
-  for (let pageStart = 0; pageStart < items.length; pageStart += pageSize) {
-    const pageItems = items.slice(pageStart, pageStart + pageSize)
-    const cols = Math.ceil(pageItems.length / rows)
-    for (let col = 0; col < cols; col++) {
-      for (let row = 0; row < rows; row++) {
-        const srcIndex = row * cols + col
-        if (srcIndex < pageItems.length) {
-          result.push(pageItems[srcIndex])
-        }
-      }
-    }
+/** Split an array into chunks of the given size. */
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
   }
-  return result
+  return chunks
 }
 
 // ============================================================================

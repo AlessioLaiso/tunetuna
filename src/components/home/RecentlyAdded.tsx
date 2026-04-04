@@ -29,26 +29,13 @@ function useRecentlyAddedCount() {
   return count
 }
 
-/**
- * CSS grid-flow-col fills columns first; this reorders so visual reading order is left-to-right, top-to-bottom.
- * Reorders per page so the most recent items fill page 1 completely before page 2.
- */
-function reorderForRowFlow<T>(items: T[], rows: number, cols: number): T[] {
-  const pageSize = rows * cols
-  const result: T[] = []
-  for (let offset = 0; offset < items.length; offset += pageSize) {
-    const page = items.slice(offset, offset + pageSize)
-    const pageCols = Math.ceil(page.length / rows)
-    for (let col = 0; col < pageCols; col++) {
-      for (let row = 0; row < rows; row++) {
-        const srcIndex = row * pageCols + col
-        if (srcIndex < page.length) {
-          result.push(page[srcIndex])
-        }
-      }
-    }
+/** Split an array into chunks of the given size. */
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
   }
-  return result
+  return chunks
 }
 
 function SkeletonAlbumItem() {
@@ -147,27 +134,33 @@ export default function RecentlyAdded() {
       {/* Small screens (<768px): 3-col, 2-row with arrow navigation */}
       <div className="md:hidden">
         <HorizontalScrollContainer gap={12}>
-          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 24px) / 3)' }}>
-            {reorderForRowFlow(recentlyAdded, 2, 3).map(renderAlbum)}
-          </div>
+          {chunkArray(recentlyAdded, 3 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-3 grid-rows-2 gap-3" style={{ scrollSnapAlign: 'start' }}>
+              {page.map(renderAlbum)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
 
       {/* Medium screens (768px–1500px): 4-col, 2-row with arrow navigation */}
       <div className="hidden md:block min-[1500px]:hidden">
         <HorizontalScrollContainer gap={12}>
-          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 36px) / 4)' }}>
-            {reorderForRowFlow(recentlyAdded, 2, 4).map(renderAlbum)}
-          </div>
+          {chunkArray(recentlyAdded, 4 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-4 grid-rows-2 gap-3" style={{ scrollSnapAlign: 'start' }}>
+              {page.map(renderAlbum)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
 
       {/* Large screens (>=1500px): 5-col, 2-row with arrow navigation */}
       <div className="hidden min-[1500px]:block">
         <HorizontalScrollContainer gap={12}>
-          <div className="grid grid-rows-2 grid-flow-col gap-3" style={{ gridAutoColumns: 'calc((100% - 48px) / 5)' }}>
-            {reorderForRowFlow(recentlyAdded, 2, 5).map(renderAlbum)}
-          </div>
+          {chunkArray(recentlyAdded, 5 * 2).map((page, i) => (
+            <div key={i} className="flex-shrink-0 w-full grid grid-cols-5 grid-rows-2 gap-3" style={{ scrollSnapAlign: 'start' }}>
+              {page.map(renderAlbum)}
+            </div>
+          ))}
         </HorizontalScrollContainer>
       </div>
       <ContextMenu

@@ -4,13 +4,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 interface HorizontalScrollContainerProps {
   children: ReactNode
   className?: string
-  /** Gap between items in pixels (for scroll calculation) */
+  /** Gap between pages in pixels */
   gap?: number
 }
 
 /**
- * Horizontal scroll container with chevron navigation for desktop.
- * Chevrons appear on hover and hide when at start/end of scroll.
+ * Horizontal scroll container with page-snap and chevron navigation.
+ * Children should be page-sized elements — each snaps into view on swipe.
  */
 export default function HorizontalScrollContainer({
   children,
@@ -46,7 +46,6 @@ export default function HorizontalScrollContainer({
   const scroll = (direction: 'left' | 'right') => {
     if (!containerRef.current) return
     const container = containerRef.current
-    // Scroll by container width + gap so pages align cleanly to column boundaries
     const scrollAmount = container.clientWidth + gap
     container.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
@@ -62,10 +61,12 @@ export default function HorizontalScrollContainer({
     >
       <div
         ref={containerRef}
-        className={`overflow-x-auto scrollbar-hide ${className}`}
+        className={`overflow-x-auto scrollbar-hide flex ${className}`}
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
+          scrollSnapType: 'x mandatory',
+          gap: `${gap}px`,
         }}
       >
         {children}
