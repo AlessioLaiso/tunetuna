@@ -251,7 +251,8 @@ export default function Layout({ children }: LayoutProps) {
           overflowX: 'hidden',
           maxWidth: '100vw',
           width: '100%',
-          scrollbarGutter: 'stable'
+          scrollbarGutter: 'stable',
+          overscrollBehaviorY: 'none',
         }}
       >
         <div className="w-full mx-auto lg:flex lg:justify-center max-w-page">
