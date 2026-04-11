@@ -1,7 +1,6 @@
 import type { LightweightSong } from '../api/types'
 import type { PlayEvent } from '../stores/statsStore'
 import { buildFeaturedArtistMap } from './featuredArtists'
-import { useMusicStore } from '../stores/musicStore'
 
 const MIN_SONGS = 30
 
@@ -67,20 +66,10 @@ function getForgottenFavorites(songs: LightweightSong[], events: PlayEvent[]): L
 
 /**
  * Fresh Finds — 50 most recently added songs to library.
- * Uses the album's DateCreated to determine when songs were truly added,
- * since song DateCreated gets updated when metadata is edited.
+ * Uses song DateCreated (when it was scanned into the library), falling back to PremiereDate.
  */
 function getFreshFinds(songs: LightweightSong[]): LightweightSong[] {
-  const albums = useMusicStore.getState().albums
-  const albumDateMap = new Map<string, string>()
-  for (const album of albums) {
-    if (album.Id && album.DateCreated) {
-      albumDateMap.set(album.Id, album.DateCreated)
-    }
-  }
-
-  const getDate = (s: LightweightSong) =>
-    (s.AlbumId && albumDateMap.get(s.AlbumId)) || s.PremiereDate
+  const getDate = (s: LightweightSong) => s.DateCreated || s.PremiereDate
 
   return [...songs]
     .filter(s => getDate(s))
