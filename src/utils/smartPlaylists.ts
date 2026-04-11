@@ -4,6 +4,39 @@ import { buildFeaturedArtistMap } from './featuredArtists'
 
 const MIN_SONGS = 30
 
+// ============================================================================
+// Daily-seeded album art picking (shared by smart playlist components)
+// ============================================================================
+
+function hashCode(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hash
+}
+
+export function getDailySeed(key: string): number {
+  const dateStr = new Date().toISOString().split('T')[0]
+  return hashCode(`${dateStr}-${key}`)
+}
+
+/** Pick a daily-stable album ID from a song list, avoiding already-used albums. */
+export function pickAlbumForCard(
+  key: string,
+  songs: LightweightSong[],
+  usedAlbumIds: Set<string>,
+): string | null {
+  const withAlbum = songs.filter(s => s.AlbumId)
+  if (withAlbum.length === 0) return null
+  let candidates = withAlbum.filter(s => !usedAlbumIds.has(s.AlbumId!))
+  if (candidates.length === 0) candidates = withAlbum
+  const seed = getDailySeed(key)
+  return candidates[Math.abs(seed) % candidates.length].AlbumId!
+}
+
 export interface SmartPlaylist {
   id: string
   name: string

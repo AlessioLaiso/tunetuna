@@ -16,6 +16,8 @@ import {
   getLanguageSongs,
   getAvailableBpmBuckets,
   getBpmBucketSongs,
+  getDailySeed,
+  pickAlbumForCard,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 import { chunkArray, seededShuffle } from '../../utils/array'
@@ -32,41 +34,6 @@ interface CardItem {
   albumId: string | null
   /** When set, this card is an artist filler — use artist image instead of album art */
   artistFiller?: { artistId: string }
-}
-
-// ============================================================================
-// Album art picking (reuse mood pattern — daily seed rotation)
-// ============================================================================
-
-function hashCode(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return hash
-}
-
-function getDailySeed(key: string): number {
-  const dateStr = new Date().toISOString().split('T')[0]
-  return hashCode(`${dateStr}-${key}`)
-}
-
-function pickAlbumForCard(
-  cardId: string,
-  songs: LightweightSong[],
-  usedAlbumIds: Set<string>
-): string | null {
-  const songsWithAlbum = songs.filter(s => s.AlbumId)
-  if (songsWithAlbum.length === 0) return null
-
-  let candidates = songsWithAlbum.filter(s => !usedAlbumIds.has(s.AlbumId!))
-  if (candidates.length === 0) candidates = songsWithAlbum
-
-  const seed = getDailySeed(cardId)
-  const index = Math.abs(seed) % candidates.length
-  return candidates[index].AlbumId!
 }
 
 /**

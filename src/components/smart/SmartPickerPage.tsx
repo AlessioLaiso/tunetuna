@@ -18,38 +18,14 @@ import {
   getAvailableBpmBuckets,
   getBpmBucketSongs,
   bpmBucketLabel,
+  pickAlbumForCard,
 } from '../../utils/smartPlaylists'
-import type { LightweightSong } from '../../api/types'
 import { capitalizeFirst } from '../../utils/formatting'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function hashCode(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return hash
-}
-
-function getDailySeed(key: string): number {
-  const dateStr = new Date().toISOString().split('T')[0]
-  return hashCode(`${dateStr}-${key}`)
-}
-
-function pickAlbum(key: string, songs: LightweightSong[], usedAlbumIds: Set<string>): string | null {
-  const withAlbum = songs.filter(s => s.AlbumId)
-  if (withAlbum.length === 0) return null
-  let candidates = withAlbum.filter(s => !usedAlbumIds.has(s.AlbumId!))
-  if (candidates.length === 0) candidates = withAlbum
-  const seed = getDailySeed(key)
-  return candidates[Math.abs(seed) % candidates.length].AlbumId!
-}
 
 function decadeLabel(decade: number): string {
   if (decade < 2000) return `${decade - 1900}s`
@@ -112,7 +88,7 @@ export default function SmartPickerPage() {
       const decades = getAvailableDecades(songs)
       return decades.map(decade => {
         const decadeSongs = getDecadeSongs(decade, songs)
-        const albumId = pickAlbum(`decade-${decade}`, decadeSongs, usedAlbumIds)
+        const albumId = pickAlbumForCard(`decade-${decade}`, decadeSongs, usedAlbumIds)
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `decade-${decade}`,
@@ -127,7 +103,7 @@ export default function SmartPickerPage() {
       const years = getAvailableThrowbackYears(events)
       return years.map(year => {
         const yearSongs = getYearThrowbackSongs(year, songs, events)
-        const albumId = pickAlbum(`year-${year}`, yearSongs, usedAlbumIds)
+        const albumId = pickAlbumForCard(`year-${year}`, yearSongs, usedAlbumIds)
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `year-${year}`,
@@ -146,7 +122,7 @@ export default function SmartPickerPage() {
         const moodSongs = songs.filter(s =>
           s.Grouping?.some(g => g.toLowerCase() === `mood_${value.toLowerCase()}`)
         )
-        const albumId = pickAlbum(`mood-${value}`, moodSongs, usedAlbumIds)
+        const albumId = pickAlbumForCard(`mood-${value}`, moodSongs, usedAlbumIds)
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `mood-${value}`,
@@ -161,7 +137,7 @@ export default function SmartPickerPage() {
       const languages = getAvailableLanguages(songs)
       return languages.map(lang => {
         const langSongs = getLanguageSongs(lang, songs)
-        const albumId = pickAlbum(`language-${lang}`, langSongs, usedAlbumIds)
+        const albumId = pickAlbumForCard(`language-${lang}`, langSongs, usedAlbumIds)
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `language-${lang}`,
@@ -176,7 +152,7 @@ export default function SmartPickerPage() {
       const buckets = getAvailableBpmBuckets(songs)
       return buckets.map(bucket => {
         const bucketSongs = getBpmBucketSongs(bucket, songs)
-        const albumId = pickAlbum(`bpm-${bucket}`, bucketSongs, usedAlbumIds)
+        const albumId = pickAlbumForCard(`bpm-${bucket}`, bucketSongs, usedAlbumIds)
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `bpm-${bucket}`,
