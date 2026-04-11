@@ -9,17 +9,20 @@ import { getArtistFallbackArt, getCachedArtistFallbackArt } from '../../utils/ar
 
 interface ArtistCardProps {
   artist: BaseItemDto
+  showImage?: boolean
   onContextMenu?: (item: BaseItemDto, type: 'artist', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId?: string | null
 }
 
-export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }: ArtistCardProps) {
+export default function ArtistCard({ artist, showImage = true, onContextMenu, contextMenuItemId }: ArtistCardProps) {
   const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
   const isThisItemMenuOpen = contextMenuItemId === artist.Id
 
   useEffect(() => {
+    if (!showImage) return
+
     if (artist.ImageTags?.Primary) {
       setFallbackAlbumArtUrl(null)
       return
@@ -41,7 +44,7 @@ export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }:
     return () => {
       isCancelled = true
     }
-  }, [artist.Id, artist.ImageTags])
+  }, [artist.Id, artist.ImageTags, showImage])
 
   const externalHandler = useCallback((item: BaseItemDto, mode: 'mobile' | 'desktop', position?: { x: number; y: number }) => {
     onContextMenu?.(item, 'artist', mode, position)
@@ -68,7 +71,9 @@ export default function ArtistCard({ artist, onContextMenu, contextMenuItemId }:
         className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       >
         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
-          {imageError ? (
+          {!showImage ? (
+            <div className="w-full h-full bg-zinc-900" />
+          ) : imageError ? (
             <User className="w-6 h-6 text-gray-500" />
           ) : artist.ImageTags?.Primary || fallbackAlbumArtUrl ? (
             <img

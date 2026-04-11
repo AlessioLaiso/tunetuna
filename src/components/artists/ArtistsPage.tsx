@@ -15,6 +15,7 @@ import { useSearchFocus } from '../../hooks/useSearchFocus'
 import { usePageContextMenu } from '../../hooks/usePageContextMenu'
 import { useSearchHandlers } from '../../hooks/useSearchHandlers'
 import { useSortChangeLoading } from '../../hooks/useSortChangeLoading'
+import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 
 // Section configuration for ArtistsPage: Artists (all), Albums (12), Playlists, Songs
@@ -84,7 +85,6 @@ export default function ArtistsPage() {
   }
 
   const loadArtists = async () => {
-    const loadStartTime = Date.now()
     setLoading('artists', true)
     try {
       const options: Parameters<typeof jellyfinClient.getArtists>[0] = {
@@ -110,17 +110,13 @@ export default function ArtistsPage() {
         })
       }
 
-      const artistsToSet = result.Items || []
       setTotalCount(result.TotalRecordCount || 0)
-      const totalLoadTime = Date.now() - loadStartTime
-      setArtists(artistsToSet)
+      setArtists(result.Items || [])
     } catch (error) {
       logger.error('Failed to load artists:', error)
       setArtists([])
       setTotalCount(0)
     } finally {
-      const loadingEndTime = Date.now()
-      const totalTime = loadingEndTime - loadStartTime
       setLoading('artists', false)
       clearSortLoading()
     }
@@ -137,22 +133,14 @@ export default function ArtistsPage() {
     setVisibleArtistsCount(INITIAL_VISIBLE_ARTISTS)
   }, [currentPage, artists.length])
 
-  // Incrementally reveal more artists as the user scrolls near the bottom
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleArtistsCount((prev) => Math.min(prev + VISIBLE_INCREMENT, artists.length))
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [artists.length])
+  // Incrementally reveal more artist images as the user scrolls
+  useScrollLazyLoad({
+    totalCount: artists.length,
+    visibleCount: visibleArtistsCount,
+    increment: VISIBLE_INCREMENT,
+    setVisibleCount: setVisibleArtistsCount,
+    threshold: 1.5,
+  })
 
   useEffect(() => {
     if (!searchQuery.trim() && !isSearchOpen) {
@@ -235,18 +223,15 @@ export default function ArtistsPage() {
             {artists.length > 0 && (
               <>
                 <div className="space-y-0">
-                  {artists
-                    .slice(0, visibleArtistsCount)
-                    .map((artist) => {
-                      return (
-                        <ArtistCard
-                          key={artist.Id}
-                          artist={artist}
-                          onContextMenu={openContextMenu}
-                          contextMenuItemId={contextMenuItem?.Id || null}
-                        />
-                      )
-                    })}
+                  {artists.map((artist, index) => (
+                    <ArtistCard
+                      key={artist.Id}
+                      artist={artist}
+                      showImage={index < visibleArtistsCount}
+                      onContextMenu={openContextMenu}
+                      contextMenuItemId={contextMenuItem?.Id || null}
+                    />
+                  ))}
                 </div>
                 <div className="px-4">
                   <Pagination
