@@ -18,6 +18,7 @@ import { usePageContextMenu } from '../../hooks/usePageContextMenu'
 import { useYears } from '../../hooks/useYears'
 import { useSearchHandlers } from '../../hooks/useSearchHandlers'
 import { useSortChangeLoading } from '../../hooks/useSortChangeLoading'
+import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 
 // Section configuration for SongsPage: Songs first (no limit), then Artists (5), Albums (12), Playlists
@@ -191,28 +192,14 @@ export default function SongsPage() {
     setVisibleSongsCount(INITIAL_VISIBLE_SONGS)
   }, [currentPage, pageSongs.length])
 
-  // Incrementally reveal more songs as the user scrolls near the bottom
-  useEffect(() => {
-    // The layout uses a .main-scrollable container with overflow-y: auto
-    const container = document.querySelector('.main-scrollable')
-    if (!container) return
-
-    const handleScroll = () => {
-      const scrollTop = container.scrollTop
-      const viewportHeight = container.clientHeight
-      const fullHeight = container.scrollHeight
-
-      // When the user is within ~1.5 viewports of the bottom, load more rows
-      if (scrollTop + viewportHeight * 1.5 >= fullHeight) {
-        setVisibleSongsCount((prev) =>
-          Math.min(prev + VISIBLE_SONGS_INCREMENT, pageSongs.length)
-        )
-      }
-    }
-
-    container.addEventListener('scroll', handleScroll, { passive: true })
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [pageSongs.length, visibleSongsCount])
+  // Incrementally reveal more song images as the user scrolls
+  useScrollLazyLoad({
+    totalCount: pageSongs.length,
+    visibleCount: visibleSongsCount,
+    increment: VISIBLE_SONGS_INCREMENT,
+    setVisibleCount: setVisibleSongsCount,
+    threshold: 1.5,
+  })
 
   useEffect(() => {
     if (!searchQuery.trim()) {
