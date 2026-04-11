@@ -243,8 +243,9 @@ export default function Layout({ children }: LayoutProps) {
         style={{ width: '4rem' }}
       />
       <div
-        className={`main-scrollable h-screen bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
+        className={`main-scrollable bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
         style={{
+          height: '100dvh',
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
           paddingTop: topOffset,
           overflowY: 'auto',

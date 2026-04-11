@@ -104,6 +104,7 @@ body {
   margin: 0;
   min-width: 320px;
   height: 100vh;
+  height: 100dvh;
   touch-action: manipulation;
   -ms-touch-action: manipulation;
   overflow: hidden;
@@ -114,6 +115,7 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   touch-action: manipulation;
   -ms-touch-action: manipulation;
   overflow-x: hidden;
