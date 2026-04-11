@@ -52,8 +52,6 @@ interface MusicState {
   lastSyncCompleted: number | null
   /** Recently added items for home screen */
   recentlyAdded: BaseItemDto[]
-  /** Recently played tracks for continuity */
-  recentlyPlayed: BaseItemDto[]
   /** Pre-shuffled songs for instant shuffle playback */
   shufflePool: LightweightSong[]
   /** Timestamp when shuffle pool was last generated */
@@ -65,7 +63,6 @@ interface MusicState {
     songs: boolean
     genres: boolean
     recentlyAdded: boolean
-    recentlyPlayed: boolean
     feed: boolean
   }
   /** Top songs from Apple Music RSS */
@@ -95,8 +92,6 @@ interface MusicState {
   clearGenreSongsForGenre: (genreId: string) => void
   setYears: (years: number[]) => void
   setRecentlyAdded: (items: BaseItemDto[]) => void
-  setRecentlyPlayed: (items: BaseItemDto[]) => void
-  addToRecentlyPlayed: (track: BaseItemDto) => void
   setLoading: (key: keyof MusicState['loading'], value: boolean) => void
   setSortPreference: (type: 'artists' | 'albums' | 'songs' | 'playlists', order: SortOrder) => void
   setSongs: (songs: LightweightSong[]) => void
@@ -188,7 +183,6 @@ export const useMusicStore = create<MusicState>()(
       yearsLastChecked: null,
       lastSyncCompleted: null,
       recentlyAdded: [],
-      recentlyPlayed: [],
       shufflePool: [],
       lastPoolUpdate: null,
       loading: {
@@ -197,7 +191,6 @@ export const useMusicStore = create<MusicState>()(
         songs: false,
         genres: false,
         recentlyAdded: false,
-        recentlyPlayed: false,
         feed: false,
       },
       feedTopSongs: [],
@@ -234,17 +227,6 @@ export const useMusicStore = create<MusicState>()(
 
       setYears: (years) => set({ years }),
       setRecentlyAdded: (items) => set({ recentlyAdded: items }),
-      setRecentlyPlayed: (items) => set({ recentlyPlayed: items }),
-
-      /**
-       * Adds a track to recently played list.
-       * Deduplicates and keeps only the 10 most recent.
-       */
-      addToRecentlyPlayed: (track) => set((state) => {
-        const filtered = state.recentlyPlayed.filter(item => item.Id !== track.Id)
-        const updated = [track, ...filtered].slice(0, 10)
-        return { recentlyPlayed: updated }
-      }),
 
       setLoading: (key, value) =>
         set((state) => ({
@@ -283,20 +265,7 @@ export const useMusicStore = create<MusicState>()(
           return { shufflePool: [] }
         }
 
-        // Exclude recently played songs (last 10) to avoid repetition
-        const recentlyPlayedIds = new Set(state.recentlyPlayed.slice(0, 10).map(song => song.Id))
-        availableSongs = availableSongs.filter(song => !recentlyPlayedIds.has(song.Id))
-
-        // If we don't have enough songs after exclusion, include some recent ones
-        let poolSongs = availableSongs
-        if (poolSongs.length < poolSize) {
-          const recentToInclude = state.recentlyPlayed.slice(0, poolSize - poolSongs.length)
-          poolSongs = [...poolSongs, ...recentToInclude.map(rp =>
-            state.songs.find(s => s.Id === rp.Id)
-          ).filter(Boolean)]
-        }
-
-        const newPool = shuffleArray(poolSongs).slice(0, poolSize)
+        const newPool = shuffleArray(availableSongs).slice(0, poolSize)
 
         return {
           shufflePool: newPool,
@@ -338,7 +307,6 @@ export const useMusicStore = create<MusicState>()(
         yearsLastUpdated: state.yearsLastUpdated,
         yearsLastChecked: state.yearsLastChecked,
         lastSyncCompleted: state.lastSyncCompleted,
-        recentlyPlayed: state.recentlyPlayed,
         recentlyAccessedMoods: state.recentlyAccessedMoods,
         feedTopSongs: state.feedTopSongs,
         feedNewReleases: state.feedNewReleases,

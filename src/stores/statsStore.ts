@@ -4,6 +4,7 @@ import type { BaseItemDto } from '../api/types'
 import { useAuthStore } from './authStore'
 import { useSettingsStore } from './settingsStore'
 import { useMusicStore } from './musicStore'
+import { jellyfinClient } from '../api/jellyfin'
 import { createIndexedDBStorage } from '../utils/storage'
 import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 
@@ -254,11 +255,6 @@ export const useStatsStore = create<StatsState>()(
        * Respects statsTrackingEnabled setting.
        */
       recordPlay: (track, actualDurationMs) => {
-        // Check if tracking is enabled
-        if (!useSettingsStore.getState().statsTrackingEnabled) return
-
-        const { pendingEvents } = get()
-
         // Get the song's full duration
         const fullDurationMs = track.RunTimeTicks ? track.RunTimeTicks / 10000 : 0
         const isShortSong = fullDurationMs > 0 && fullDurationMs < 60000
@@ -267,6 +263,19 @@ export const useStatsStore = create<StatsState>()(
         const listenedEnough = actualDurationMs >= 60000 || (isShortSong && actualDurationMs >= fullDurationMs * 0.8)
         if (!listenedEnough) return
 
+        // Always report to Jellyfin server (regardless of stats setting) so
+        // "recently played" stays consistent across devices
+        jellyfinClient.markItemAsPlayed(track.Id).then(() => {
+          // Notify UI to refresh recently played from server
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: track.Id } }))
+          }, 2000)
+        }).catch(() => {})
+
+        // Only record stats event if tracking is enabled
+        if (!useSettingsStore.getState().statsTrackingEnabled) return
+
+        const { pendingEvents } = get()
         const event = createPlayEvent(track)
         const newPendingEvents = [...pendingEvents, event]
 

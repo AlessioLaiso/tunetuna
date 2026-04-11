@@ -58,7 +58,6 @@ export default function PlayerBar() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const nextAudioRef = useRef<HTMLAudioElement | null>(null)
   const closeModalRef = useRef<(() => void) | null>(null)
-  const trackPlayedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const preemptiveAdvanceRef = useRef<boolean>(false) // Track if we already advanced preemptively (iOS background fix)
   const location = useLocation()
   const touchStartX = useRef<number | null>(null)
@@ -226,19 +225,6 @@ export default function PlayerBar() {
           return
         }
 
-        // Report playback before advancing
-        if (track) {
-          jellyfinClient.markItemAsPlayed(track.Id).catch(() => { })
-          if (trackPlayedTimeoutRef.current) {
-            clearTimeout(trackPlayedTimeoutRef.current)
-          }
-          const trackId = track.Id
-          trackPlayedTimeoutRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
-            trackPlayedTimeoutRef.current = null
-          }, 4000)
-        }
-
         next()
       }
     }
@@ -259,27 +245,10 @@ export default function PlayerBar() {
         return
       }
 
-      // Report playback when track ends
       const state = usePlayerStore.getState()
       const track = state.currentIndex >= 0 && state.currentIndex < state.songs.length
         ? state.songs[state.currentIndex]
         : null
-
-      if (track) {
-        try {
-          await jellyfinClient.markItemAsPlayed(track.Id)
-          if (trackPlayedTimeoutRef.current) {
-            clearTimeout(trackPlayedTimeoutRef.current)
-          }
-          const trackId = track.Id
-          trackPlayedTimeoutRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
-            trackPlayedTimeoutRef.current = null
-          }, 4000)
-        } catch (error) {
-          // Error already logged in markItemAsPlayed
-        }
-      }
 
       // Handle repeat mode 'one'
       const currentRepeat = state.repeat
@@ -329,10 +298,6 @@ export default function PlayerBar() {
       audioElement.removeEventListener('ended', handleEnded)
       audioElement.removeEventListener('play', handlePlay)
       audioElement.removeEventListener('pause', handlePause)
-      if (trackPlayedTimeoutRef.current) {
-        clearTimeout(trackPlayedTimeoutRef.current)
-        trackPlayedTimeoutRef.current = null
-      }
     }
   }, [audioElement, setCurrentTime, setDuration, next, preBufferNextTrack])
 

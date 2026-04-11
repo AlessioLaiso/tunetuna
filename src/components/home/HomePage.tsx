@@ -9,7 +9,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 
 export default function HomePage() {
   const [isSearchActive, setIsSearchActive] = useState(false)
-  const { recentlyAdded, recentlyPlayed, loading } = useMusicStore()
+  const { recentlyAdded, loading } = useMusicStore()
   const { showTop10, showNewReleases, showRecentlyPlayed, muspyRssUrl } = useSettingsStore()
   const hasAttemptedLoad = useRef(false)
 
@@ -17,23 +17,21 @@ export default function HomePage() {
 
   // Track if components have attempted to load
   useEffect(() => {
-    if (loading.recentlyAdded || loading.recentlyPlayed) {
+    if (loading.recentlyAdded) {
       hasAttemptedLoad.current = true
     }
-  }, [loading.recentlyAdded, loading.recentlyPlayed])
+  }, [loading.recentlyAdded])
 
   // Count active feed sections (new releases only counts if URL is configured)
   const newReleasesActive = showNewReleases && !!muspyRssUrl
   const activeFeedSections = [showTop10, newReleasesActive, showRecentlyPlayed].filter(Boolean).length
 
   // Always render components so they can load data via useEffect
-  // Only show empty state if both have finished loading AND both are empty AND we've attempted to load
+  // Only show empty state if recently added has finished loading AND is empty AND we've attempted to load
   const showEmptyState =
     hasAttemptedLoad.current &&
     !loading.recentlyAdded &&
-    !loading.recentlyPlayed &&
-    recentlyAdded.length === 0 &&
-    recentlyPlayed.length === 0
+    recentlyAdded.length === 0
 
   return (
     <div className="pb-4">

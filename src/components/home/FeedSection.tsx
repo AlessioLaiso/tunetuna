@@ -727,33 +727,40 @@ export function NewReleasesSection() {
 // Recently Played Section Component
 export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boolean }) {
   const navigate = useNavigate()
-  const { recentlyPlayed, loading, setRecentlyPlayed, setLoading } = useMusicStore()
   const { showRecentlyPlayed } = useSettingsStore()
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
 
+  const [recentlyPlayed, setRecentlyPlayed] = useState<BaseItemDto[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
 
-  useEffect(() => {
-    const loadRecentlyPlayed = async () => {
-      setLoading('recentlyPlayed', true)
-      try {
-        const result = await jellyfinClient.getRecentlyPlayed(10)
-        setRecentlyPlayed(result.Items || [])
-      } catch (error) {
-        console.error(error)
-      } finally {
-        setLoading('recentlyPlayed', false)
-      }
+  const fetchRecentlyPlayed = useCallback(async () => {
+    try {
+      const result = await jellyfinClient.getRecentlyPlayed(10)
+      setRecentlyPlayed(result.Items || [])
+    } catch (error) {
+      console.error(error)
     }
+  }, [])
 
+  // Fetch on mount
+  useEffect(() => {
     if (showRecentlyPlayed) {
-      loadRecentlyPlayed()
+      setIsLoading(true)
+      fetchRecentlyPlayed().finally(() => setIsLoading(false))
     }
-  }, [showRecentlyPlayed, setRecentlyPlayed, setLoading])
+  }, [showRecentlyPlayed, fetchRecentlyPlayed])
+
+  // Refresh when a track is marked as played (fired from statsStore)
+  useEffect(() => {
+    const handleTrackPlayed = () => { fetchRecentlyPlayed() }
+    window.addEventListener('trackPlayed', handleTrackPlayed)
+    return () => window.removeEventListener('trackPlayed', handleTrackPlayed)
+  }, [fetchRecentlyPlayed])
 
   const handleSongClick = (song: BaseItemDto) => {
     playTrack(song, recentlyPlayed)
@@ -782,7 +789,6 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
   }
 
   const hasRecentlyPlayed = recentlyPlayed && recentlyPlayed.length > 0
-  const isLoading = loading.recentlyPlayed
   const showSkeleton = isLoading && !hasRecentlyPlayed
 
   return (

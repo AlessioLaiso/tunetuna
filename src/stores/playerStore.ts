@@ -12,65 +12,14 @@ import { filterExcludedGenres } from '../utils/genreFilter'
 import { isIOS } from '../utils/formatting'
 import { STORE_KEYS } from '../utils/constants'
 
-// Track which items have been reported to prevent duplicate API calls
-// Limit size to prevent unbounded memory growth during long sessions
-const MAX_REPORTED_ITEMS = 100
-const reportedItems = new Set<string>()
-const reportingTimeouts = new Map<string, NodeJS.Timeout>()
-const refreshTimeouts = new Set<NodeJS.Timeout>() // Track nested refresh timeouts
 let shuffleExpansionTimeout: NodeJS.Timeout | null = null // Track shuffle expansion timeout
-
-// Trim reportedItems if it grows too large
-function trimReportedItems() {
-  if (reportedItems.size > MAX_REPORTED_ITEMS) {
-    const items = Array.from(reportedItems)
-    const toRemove = items.slice(0, items.length - MAX_REPORTED_ITEMS)
-    toRemove.forEach(id => reportedItems.delete(id))
-  }
-}
 
 // Clear playback tracking state (call on logout to prevent memory leaks)
 export function clearPlaybackTrackingState() {
-  reportedItems.clear()
-  for (const timeout of reportingTimeouts.values()) {
-    clearTimeout(timeout)
-  }
-  reportingTimeouts.clear()
-  for (const timeout of refreshTimeouts) {
-    clearTimeout(timeout)
-  }
-  refreshTimeouts.clear()
   if (shuffleExpansionTimeout) {
     clearTimeout(shuffleExpansionTimeout)
     shuffleExpansionTimeout = null
   }
-}
-
-// Helper function to report playback after a delay
-function reportPlaybackWithDelay(trackId: string, getCurrentTrack: () => BaseItemDto | null, delayMs: number = 5000) {
-  const timeoutId = setTimeout(async () => {
-    // Check if we're still playing the same track
-    const currentTrack = getCurrentTrack()
-
-    if (currentTrack?.Id === trackId) {
-      try {
-        await jellyfinClient.markItemAsPlayed(trackId)
-        reportedItems.add(trackId)
-        trimReportedItems()
-        // Trigger event to refresh RecentlyPlayed after server updates
-        const refreshTimeout = setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId } }))
-          refreshTimeouts.delete(refreshTimeout)
-        }, 4000)
-        refreshTimeouts.add(refreshTimeout)
-      } catch (error) {
-        // Error already logged in markItemAsPlayed
-      }
-    }
-    reportingTimeouts.delete(trackId)
-  }, delayMs)
-
-  reportingTimeouts.set(trackId, timeoutId)
 }
 
 export interface QueueSong extends BaseItemDto {
@@ -297,8 +246,6 @@ export const usePlayerStore = create<PlayerState>()(
           audioElement.src = audioUrl
           audioElement.load()
           audioElement.play().then(() => {
-            reportPlaybackWithDelay(nextTrack.Id, () => get().songs[get().currentIndex] || null)
-            useMusicStore.getState().addToRecentlyPlayed(nextTrack)
             useStatsStore.getState().startPlay(nextTrack)
           }).catch((error) => {
             logger.error('[iOS Gapless] Playback error:', error)
@@ -337,8 +284,6 @@ export const usePlayerStore = create<PlayerState>()(
         })
 
         nextAudioElement.play().then(() => {
-          reportPlaybackWithDelay(nextTrack.Id, () => get().songs[get().currentIndex] || null)
-          useMusicStore.getState().addToRecentlyPlayed(nextTrack)
           useStatsStore.getState().startPlay(nextTrack)
         }).catch((error) => {
           logger.error('[Gapless] Playback error on swapped element:', error)
@@ -658,10 +603,6 @@ export const usePlayerStore = create<PlayerState>()(
 
           audioElement.play().then(() => {
             set({ isPlaying: true, hasRecordedCurrentTrackStats: false })
-            reportPlaybackWithDelay(track.Id, () => get().songs[get().currentIndex] || null)
-            // Track locally played songs for recently played list
-            useMusicStore.getState().addToRecentlyPlayed(track)
-            // Start tracking for stats
             useStatsStore.getState().startPlay(track)
           }).catch((error) => {
             logger.error('Playback error:', error)
@@ -983,8 +924,8 @@ export const usePlayerStore = create<PlayerState>()(
           // Refresh the pool by removing used songs and adding new ones
           const remainingPool = musicStore.shufflePool.slice(availableFromPool)
           const poolSongs = filterExcludedGenres(musicStore.songs)
-          const recentlyPlayedIds = new Set(musicStore.recentlyPlayed.slice(0, 10).map(s => s.Id))
-          const availableForPool = poolSongs.filter(s => !recentlyPlayedIds.has(s.Id))
+          const usedIds = new Set(instantSongs.map(s => s.Id))
+          const availableForPool = poolSongs.filter(s => !usedIds.has(s.Id))
           const newPoolSongs = shuffleArray(availableForPool).slice(0, availableFromPool)
           const refreshedPool = [...remainingPool, ...newPoolSongs]
 
