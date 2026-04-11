@@ -12,7 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio, Metronome } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
-import { capitalizeFirst, formatDuration, extractGroupingFromTags, extractBpmFromTags } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration, extractGroupingFromTags, extractBpmFromTags, parseGroupingTag } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 // Month helpers (same logic as StatsPage)
@@ -68,24 +68,16 @@ function formatMonthYear(monthStr: string): string {
 function parseGroupingTags(tags: string[]): { key: string; category: string; values: { display: string; raw: string }[] }[] {
   const categoryMap = new Map<string, { display: string; raw: string }[]>()
 
-  tags.forEach(tag => {
-    const trimmed = tag.trim().toLowerCase()
-    if (!trimmed) return
-    const underscoreIndex = trimmed.indexOf('_')
-    if (underscoreIndex === -1) {
-      // Single-value tag like "instrumental"
-      if (!categoryMap.has(trimmed)) {
-        categoryMap.set(trimmed, [])
-      }
-    } else {
-      const category = trimmed.substring(0, underscoreIndex)
-      const value = trimmed.substring(underscoreIndex + 1)
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, [])
-      }
-      categoryMap.get(category)!.push({ display: capitalizeFirst(value), raw: value })
+  for (const tag of tags) {
+    const parsed = parseGroupingTag(tag)
+    if (!parsed) continue
+    if (!categoryMap.has(parsed.category)) {
+      categoryMap.set(parsed.category, [])
     }
-  })
+    if (parsed.value) {
+      categoryMap.get(parsed.category)!.push({ display: capitalizeFirst(parsed.value), raw: parsed.value })
+    }
+  }
 
   return Array.from(categoryMap.entries()).map(([key, values]) => ({
     key,
