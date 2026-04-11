@@ -18,6 +18,7 @@ import {
   getBpmBucketSongs,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
+import { chunkArray, seededShuffle } from '../../utils/array'
 
 // ============================================================================
 // Card item types
@@ -91,6 +92,38 @@ function pickAlbumFromSubItems(
 }
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Pad cards with artist fillers to complete the current row or last page.
+ * - If cards don't fill a single row, pad to complete the row.
+ * - Otherwise, pad to complete the last page (visibleCols × rows).
+ */
+function fillCards(cards: CardItem[], artistFillers: CardItem[], visibleCols: number, rows: number): CardItem[] {
+  if (artistFillers.length === 0 || cards.length === 0) return cards
+
+  const pageSize = visibleCols * rows
+  let target: number
+  if (cards.length <= visibleCols) {
+    const remainder = cards.length % visibleCols
+    if (remainder === 0) return cards
+    target = cards.length + (visibleCols - remainder)
+  } else {
+    const remainder = cards.length % pageSize
+    if (remainder === 0) return cards
+    target = cards.length + (pageSize - remainder)
+  }
+
+  const needed = target - cards.length
+  const usedIds = new Set(cards.map(c => c.id))
+  const available = artistFillers.filter(f => !usedIds.has(f.id))
+  if (available.length === 0) return cards
+
+  return [...cards, ...available.slice(0, needed)]
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -121,11 +154,7 @@ export default function SmartPlaylistCards() {
     load()
   }, [statsTrackingEnabled, fetchEvents, oldestEventTs])
 
-  // Check for mood category
-  const hasMoods = useMemo(() => {
-    const categories = getGroupingCategories(songs)
-    return categories.some(c => c.key === 'mood' && c.values.length > 0)
-  }, [songs])
+  const groupingCategories = useMemo(() => getGroupingCategories(songs), [songs])
 
   // Build available cards
   const cards: CardItem[] = useMemo(() => {
@@ -135,10 +164,9 @@ export default function SmartPlaylistCards() {
     const usedAlbumIds = new Set<string>()
 
     // 1. Moods (links to mood picker page)
-    if (hasMoods) {
-      const categories = getGroupingCategories(songs)
-      const moodCategory = categories.find(c => c.key === 'mood')
-      const moodSubItems = (moodCategory?.values || []).map(value => ({
+    const moodCategory = groupingCategories.find(c => c.key === 'mood')
+    if (moodCategory && moodCategory.values.length > 0) {
+      const moodSubItems = moodCategory.values.map(value => ({
         key: `mood-${value}`,
         songs: songs.filter(s => s.Grouping?.some(g => g.toLowerCase() === `mood_${value.toLowerCase()}`)),
       }))
@@ -207,7 +235,7 @@ export default function SmartPlaylistCards() {
       })
     }
 
-    // 4. Smart playlists (conditional on stats + min songs)
+    // 5. Smart playlists (conditional on stats + min songs)
     if (eventsLoaded) {
       const available = getAvailableSmartPlaylists(songs, events, statsTrackingEnabled)
       for (const sp of available) {
@@ -224,7 +252,7 @@ export default function SmartPlaylistCards() {
       }
     }
 
-    // 4. Year Throwback (only if stats enabled and years available)
+    // 6. Year Throwback (only if stats enabled and years available)
     if (eventsLoaded && statsTrackingEnabled) {
       const years = getAvailableThrowbackYears(events)
       if (years.length > 0) {
@@ -241,7 +269,7 @@ export default function SmartPlaylistCards() {
     }
 
     return items
-  }, [songs, events, eventsLoaded, statsTrackingEnabled, hasMoods])
+  }, [songs, events, eventsLoaded, statsTrackingEnabled, groupingCategories])
 
   // Persist card layout when fully loaded so next session can show it instantly
   const fullyLoaded = eventsLoaded && songs.length > 0
@@ -286,6 +314,7 @@ export default function SmartPlaylistCards() {
 
     let pickedIds: string[]
 
+    const seed = getDailySeed('artist-fillers')
     if (statsTrackingEnabled && events.length > 0) {
       // Pick randomly from top 10 most listened artists, shuffled daily
       const playCounts = new Map<string, number>()
@@ -299,22 +328,10 @@ export default function SmartPlaylistCards() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
         .map(([id]) => id)
-      const seed = getDailySeed('artist-fillers')
-      for (let i = top10.length - 1; i > 0; i--) {
-        const j = Math.abs((seed * (i + 1)) % (i + 1))
-        ;[top10[i], top10[j]] = [top10[j], top10[i]]
-      }
-      pickedIds = top10
+      pickedIds = seededShuffle(top10, seed)
     } else {
       // Random selection seeded by date for consistency within a day
-      const allIds = Array.from(artistMap.keys())
-      const seed = getDailySeed('artist-fillers')
-      const shuffled = [...allIds]
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.abs((seed * (i + 1)) % (i + 1))
-        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-      }
-      pickedIds = shuffled.slice(0, 10)
+      pickedIds = seededShuffle(Array.from(artistMap.keys()), seed).slice(0, 10)
     }
 
     return pickedIds.map(id => ({
@@ -326,35 +343,6 @@ export default function SmartPlaylistCards() {
       artistFiller: { artistId: id },
     }))
   }, [songs, events, statsTrackingEnabled])
-
-  // Pad cards with artist fillers:
-  // - If cards don't fill a single row, pad to complete the row
-  // - Otherwise, pad to complete the last page (visibleCols × rows)
-  const filledCards = (cards: CardItem[], visibleCols: number, rows: number): CardItem[] => {
-    if (artistFillers.length === 0 || cards.length === 0) return cards
-
-    const pageSize = visibleCols * rows
-    let target: number
-    if (cards.length <= visibleCols) {
-      // Less than or equal to one row — just fill the row
-      const remainder = cards.length % visibleCols
-      if (remainder === 0) return cards
-      target = cards.length + (visibleCols - remainder)
-    } else {
-      // More than one row — fill to complete the last page
-      const remainder = cards.length % pageSize
-      if (remainder === 0) return cards
-      target = cards.length + (pageSize - remainder)
-    }
-
-    const needed = target - cards.length
-    const usedIds = new Set(cards.map(c => c.id))
-    const available = artistFillers.filter(f => !usedIds.has(f.id))
-    if (available.length === 0) return cards
-
-    const fillers = available.slice(0, needed)
-    return [...cards, ...fillers]
-  }
 
   // The showMoodCards setting controls the entire mix cards section
   if (!showMoodCards) return null
@@ -368,7 +356,7 @@ export default function SmartPlaylistCards() {
       {/* Narrow screens (<620px): 2-col, 2-row with arrow navigation */}
       <div className="min-[620px]:hidden">
         <HorizontalScrollContainer gap={8}>
-          {chunkArray(filledCards(displayCards, 2, 2), 2 * 2).map((page, i) => (
+          {chunkArray(fillCards(displayCards, artistFillers, 2, 2), 2 * 2).map((page, i) => (
             <div key={i} className="flex-shrink-0 w-full grid grid-cols-2 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
               {page.map((card) => <MixCardItem key={card.id} card={card} />)}
             </div>
@@ -379,7 +367,7 @@ export default function SmartPlaylistCards() {
       {/* Medium screens (620px–1500px): 3-col, 2-row with arrow navigation */}
       <div className="hidden min-[620px]:block min-[1500px]:hidden">
         <HorizontalScrollContainer gap={8}>
-          {chunkArray(filledCards(displayCards, 3, 2), 3 * 2).map((page, i) => (
+          {chunkArray(fillCards(displayCards, artistFillers, 3, 2), 3 * 2).map((page, i) => (
             <div key={i} className="flex-shrink-0 w-full grid grid-cols-3 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
               {page.map((card) => <MixCardItem key={card.id} card={card} />)}
             </div>
@@ -390,7 +378,7 @@ export default function SmartPlaylistCards() {
       {/* Large screens (>=1500px): 4-col, 2-row with arrow navigation */}
       <div className="hidden min-[1500px]:block">
         <HorizontalScrollContainer gap={8}>
-          {chunkArray(filledCards(displayCards, 4, 2), 4 * 2).map((page, i) => (
+          {chunkArray(fillCards(displayCards, artistFillers, 4, 2), 4 * 2).map((page, i) => (
             <div key={i} className="flex-shrink-0 w-full grid grid-cols-4 grid-rows-2 gap-2" style={{ scrollSnapAlign: 'start' }}>
               {page.map((card) => <MixCardItem key={card.id} card={card} />)}
             </div>
@@ -399,19 +387,6 @@ export default function SmartPlaylistCards() {
       </div>
     </div>
   )
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Split an array into chunks of the given size. */
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-  return chunks
 }
 
 // ============================================================================

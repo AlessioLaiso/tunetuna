@@ -7,6 +7,7 @@ import ContextMenu from '../shared/ContextMenu'
 import type { BaseItemDto } from '../../api/types'
 import { logger } from '../../utils/logger'
 import HorizontalScrollContainer from '../shared/HorizontalScrollContainer'
+import { chunkArray } from '../../utils/array'
 
 const ROWS = 2
 
@@ -27,15 +28,6 @@ function useRecentlyAddedCount() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
   return count
-}
-
-/** Split an array into chunks of the given size. */
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-  return chunks
 }
 
 function SkeletonAlbumItem() {
