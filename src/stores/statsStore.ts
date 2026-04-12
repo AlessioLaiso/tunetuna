@@ -266,10 +266,7 @@ export const useStatsStore = create<StatsState>()(
         // Always report to Jellyfin server (regardless of stats setting) so
         // "recently played" stays consistent across devices
         jellyfinClient.markItemAsPlayed(track.Id).then(() => {
-          // Notify UI to refresh recently played from server
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: track.Id } }))
-          }, 2000)
+          window.dispatchEvent(new CustomEvent('trackPlayed', { detail: { trackId: track.Id } }))
         }).catch(() => {})
 
         // Only record stats event if tracking is enabled
