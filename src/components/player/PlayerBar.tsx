@@ -39,6 +39,7 @@ export default function PlayerBar() {
     toggleQueueSidebar,
     setNextAudioElement,
     preBufferNextTrack,
+    overlapSwap,
   } = usePlayerStore()
 
   const currentTrack = useCurrentTrack()
@@ -180,6 +181,48 @@ export default function PlayerBar() {
     // and the new track's preemptive advance would never trigger.
     preemptiveAdvanceRef.current = false
 
+    // Non-iOS gapless overlap handoff: rAF-driven watch that fires overlapSwap when
+    // ~100ms remain. We can't use 'timeupdate' for this — it fires every ~250ms and
+    // would miss the window. rAF gives us ~16ms resolution. The loop is only armed
+    // when we're in the final 2s of the track, so it's cheap.
+    let overlapRafId: number | null = null
+    const overlapTick = () => {
+      overlapRafId = null
+      if (!isActive) return
+      if (preemptiveAdvanceRef.current) return
+      if (isIOS()) return
+
+      const remaining = audioElement.duration - audioElement.currentTime
+      if (!audioElement.duration || audioElement.paused) {
+        // Not playing or duration unknown — stop polling; timeupdate will rearm
+        return
+      }
+
+      // Fire the overlap near the end. 100ms gives the browser's audio graph time to
+      // actually start the new element's output before the old one's tail ends.
+      if (remaining > 0 && remaining <= 0.1) {
+        const state = usePlayerStore.getState()
+        const expectedNextTrack = state.currentIndex >= 0 && state.currentIndex + 1 < state.songs.length
+          ? state.songs[state.currentIndex + 1]
+          : (state.repeat === 'all' && state.songs.length > 0 ? state.songs[0] : null)
+
+        if (state.nextTrackId && expectedNextTrack && state.nextTrackId === expectedNextTrack.Id) {
+          logger.debug('[PlayerBar] Overlap handoff triggered', { remaining })
+          preemptiveAdvanceRef.current = true
+          const fired = overlapSwap()
+          if (!fired) {
+            // overlapSwap declined (e.g. overlap already in progress) — fall back to 'ended'
+            preemptiveAdvanceRef.current = false
+          }
+          return
+        }
+        // No valid pre-buffer — let 'ended' handle it
+        return
+      }
+
+      overlapRafId = requestAnimationFrame(overlapTick)
+    }
+
     const handleTimeUpdate = () => {
       if (!isActive) return
       setCurrentTime(audioElement.currentTime)
@@ -191,6 +234,19 @@ export default function PlayerBar() {
         // Log once when entering the window
         if (remaining > 14.5) logger.debug('[PlayerBar] Pre-buffer window reached', { remaining })
         preBufferNextTrack()
+      }
+
+      // Arm the rAF-driven overlap watcher when we enter the final 2s (non-iOS only).
+      // The loop self-terminates after firing or if playback stops.
+      if (
+        !isIOS() &&
+        !preemptiveAdvanceRef.current &&
+        overlapRafId === null &&
+        audioElement.duration > 0 &&
+        remaining <= 2 &&
+        remaining > 0
+      ) {
+        overlapRafId = requestAnimationFrame(overlapTick)
       }
 
       // iOS PWA background playback fix: preemptively advance to next track
@@ -260,7 +316,9 @@ export default function PlayerBar() {
         }
         usePlayerStore.setState({ hasRecordedCurrentTrackStats: false })
         audioElement.currentTime = 0
-        audioElement.play()
+        audioElement.play().catch((err) => {
+          logger.warn('[PlayerBar] repeat-one play() failed', err)
+        })
         return
       }
 
@@ -281,6 +339,12 @@ export default function PlayerBar() {
     const handlePause = () => {
       if (!isActive) return
       if (usePlayerStore.getState().audioElement !== audioElement) return
+      // If the element is actually still playing (e.g. a play() raced in after
+      // a pause-fade completed), ignore this stale pause event.
+      if (!audioElement.paused) {
+        logger.debug('[PlayerBar] handlePause ignored — element not paused')
+        return
+      }
       usePlayerStore.setState({ isPlaying: false })
       logger.debug('[PlayerBar] handlePause', { paused: audioElement.paused })
     }
@@ -293,13 +357,14 @@ export default function PlayerBar() {
 
     return () => {
       isActive = false
+      if (overlapRafId !== null) cancelAnimationFrame(overlapRafId)
       audioElement.removeEventListener('timeupdate', handleTimeUpdate)
       audioElement.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audioElement.removeEventListener('ended', handleEnded)
       audioElement.removeEventListener('play', handlePlay)
       audioElement.removeEventListener('pause', handlePause)
     }
-  }, [audioElement, setCurrentTime, setDuration, next, preBufferNextTrack])
+  }, [audioElement, setCurrentTime, setDuration, next, preBufferNextTrack, overlapSwap])
 
   // Set up Media Session metadata and action handlers (iOS PWA fix)
   // This runs in PlayerBar which is always mounted, ensuring Media Session works

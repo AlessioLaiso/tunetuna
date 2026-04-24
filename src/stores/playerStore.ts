@@ -14,12 +14,68 @@ import { STORE_KEYS } from '../utils/constants'
 
 let shuffleExpansionTimeout: NodeJS.Timeout | null = null // Track shuffle expansion timeout
 
+const PAUSE_FADE_DURATION_MS = 400
+let pauseFadeRafId: number | null = null
+let pauseFadeElement: HTMLAudioElement | null = null
+let pauseFadeTargetVolume = 1
+
+function cancelPauseFade(restoreVolume: boolean) {
+  if (pauseFadeRafId !== null) {
+    cancelAnimationFrame(pauseFadeRafId)
+    pauseFadeRafId = null
+  }
+  if (pauseFadeElement && restoreVolume) {
+    pauseFadeElement.volume = pauseFadeTargetVolume
+  }
+  pauseFadeElement = null
+}
+
+function startPauseFade(element: HTMLAudioElement, targetVolume: number, onDone: () => void) {
+  cancelPauseFade(true)
+
+  // Tab hidden / backgrounded — rAF won't fire, so snap to paused state.
+  if (typeof document !== 'undefined' && document.hidden) {
+    element.pause()
+    element.volume = targetVolume
+    onDone()
+    return
+  }
+
+  pauseFadeElement = element
+  pauseFadeTargetVolume = targetVolume
+  // Clamp to [0, 1] — the element may carry a slightly out-of-range volume from
+  // a prior floating-point drift, and setting volume > 1 throws IndexSizeError.
+  const startVolume = Math.min(1, Math.max(0, element.volume))
+  const startTime = performance.now()
+
+  const step = (now: number) => {
+    if (pauseFadeElement !== element) return // cancelled / replaced
+    // rAF timestamps can occasionally be slightly earlier than the performance.now()
+    // captured right before scheduling, which would push progress negative and the
+    // computed volume above startVolume. Clamp to [0, 1] on both ends.
+    const progress = Math.min(1, Math.max(0, (now - startTime) / PAUSE_FADE_DURATION_MS))
+    const nextVolume = Math.min(1, Math.max(0, startVolume * (1 - progress)))
+    element.volume = nextVolume
+    if (progress < 1) {
+      pauseFadeRafId = requestAnimationFrame(step)
+    } else {
+      element.pause()
+      element.volume = targetVolume
+      pauseFadeRafId = null
+      pauseFadeElement = null
+      onDone()
+    }
+  }
+  pauseFadeRafId = requestAnimationFrame(step)
+}
+
 // Clear playback tracking state (call on logout to prevent memory leaks)
 export function clearPlaybackTrackingState() {
   if (shuffleExpansionTimeout) {
     clearTimeout(shuffleExpansionTimeout)
     shuffleExpansionTimeout = null
   }
+  cancelPauseFade(true)
 }
 
 export interface QueueSong extends BaseItemDto {
@@ -52,6 +108,7 @@ interface PlayerState {
   audioElement: HTMLAudioElement | null
   nextAudioElement: HTMLAudioElement | null  // Pre-buffered element for gapless playback
   nextTrackId: string | null  // ID of track loaded into nextAudioElement
+  previousAudioElement: HTMLAudioElement | null  // Previously-active element still playing its tail during overlap handoff (non-iOS gapless)
 
   // UI state
   isFetchingRecommendations: boolean
@@ -68,6 +125,8 @@ interface PlayerState {
   setNextAudioElement: (element: HTMLAudioElement | null) => void
   preBufferNextTrack: () => void
   swapToPreBuffered: () => void
+  overlapSwap: () => boolean  // Non-iOS gapless: start next element playing without pausing old. Returns true if overlap was initiated.
+  finalizeOverlapSwap: () => void  // Tear down the old element still playing its tail after an overlap swap
   cancelPreBuffer: () => void
   setIsFetchingRecommendations: (isFetching: boolean) => void
   setIsLoadingMoreSongs: (isLoading: boolean) => void
@@ -85,6 +144,7 @@ interface PlayerState {
   // Playback control
   play: () => void
   pause: () => void
+  pauseWithFade: () => void
   togglePlayPause: () => void
   next: () => void
   previous: () => void
@@ -131,6 +191,7 @@ export const usePlayerStore = create<PlayerState>()(
       audioElement: null,
       nextAudioElement: null,
       nextTrackId: null,
+      previousAudioElement: null,
       isFetchingRecommendations: false,
       isLoadingMoreSongs: false,
       shuffleHasMoreSongs: false,
@@ -289,6 +350,119 @@ export const usePlayerStore = create<PlayerState>()(
           logger.error('[Gapless] Playback error on swapped element:', error)
           set({ isPlaying: false })
         })
+      },
+
+      overlapSwap: () => {
+        // Non-iOS gapless handoff: start the pre-buffered element playing while the
+        // old element continues its tail. Zero audible gap because two elements overlap
+        // for the handoff window (~100ms). The old element will be finalized when it
+        // naturally fires 'ended'.
+        if (isIOS()) return false
+
+        const { audioElement, nextAudioElement, nextTrackId, currentIndex, songs, repeat, previousAudioElement } = get()
+        if (!nextAudioElement || !nextTrackId || !audioElement) return false
+        if (previousAudioElement) return false // An overlap is already in progress
+
+        let nextIndex = currentIndex + 1
+        if (nextIndex >= songs.length) {
+          if (repeat === 'all') {
+            nextIndex = 0
+          } else {
+            return false
+          }
+        }
+
+        const nextTrack = songs[nextIndex]
+        if (!nextTrack || nextTrack.Id !== nextTrackId) {
+          get().cancelPreBuffer()
+          return false
+        }
+
+        // Record stats for the finishing track (it's about to finish its tail)
+        const state = get()
+        if (!state.hasRecordedCurrentTrackStats && state.currentIndex >= 0 && state.currentIndex < state.songs.length) {
+          const finishedTrack = state.songs[state.currentIndex]
+          useStatsStore.getState().recordPlay(finishedTrack, state.currentTime * 1000)
+        }
+
+        const currentTrack = currentIndex >= 0 ? songs[currentIndex] : null
+
+        const nextDuration = nextAudioElement.duration && !isNaN(nextAudioElement.duration)
+          ? nextAudioElement.duration : 0
+
+        // Atomically flip store state so the rest of the app treats nextAudioElement as active.
+        // The old audioElement keeps playing its tail — we move it to previousAudioElement
+        // so its 'ended' event can find it. nextAudioElement becomes the new audioElement.
+        // We need a fresh element for future pre-buffering, so null out nextAudioElement;
+        // PlayerBar's mount effect won't recreate it, so we'll swap in the old one once
+        // its tail finishes (in finalizeOverlapSwap).
+        set({
+          audioElement: nextAudioElement,
+          nextAudioElement: null,
+          previousAudioElement: audioElement,
+          nextTrackId: null,
+          previousIndex: currentIndex,
+          currentIndex: nextIndex,
+          lastPlayedTrack: currentTrack,
+          hasRecordedCurrentTrackStats: false,
+          currentTime: 0,
+          duration: nextDuration,
+          isPlaying: true,
+        })
+
+        logger.debug('[Gapless] overlapSwap: starting next element', { nextTrackId: nextTrack.Id, nextIndex })
+
+        // Attach a one-shot 'ended' listener on the OLD element so its natural tail
+        // completion triggers finalization. { once: true } auto-removes it.
+        const oldElement = audioElement
+        const handleOldEnded = () => {
+          logger.debug('[Gapless] old element tail finished — finalizing')
+          get().finalizeOverlapSwap()
+        }
+        oldElement.addEventListener('ended', handleOldEnded, { once: true })
+
+        // Safety timer: if 'ended' somehow doesn't fire within a reasonable window,
+        // force finalize. The overlap window is ~100ms, and most track tails are silent,
+        // so 3s is plenty of slack without risking audible overlap into the next chorus.
+        const safetyTimer = window.setTimeout(() => {
+          oldElement.removeEventListener('ended', handleOldEnded)
+          if (get().previousAudioElement === oldElement) {
+            logger.warn('[Gapless] safety timer fired — old element ended event missed')
+            get().finalizeOverlapSwap()
+          }
+        }, 3000)
+        // Clear the safety timer if 'ended' fires first
+        oldElement.addEventListener('ended', () => window.clearTimeout(safetyTimer), { once: true })
+
+        nextAudioElement.play().then(() => {
+          useStatsStore.getState().startPlay(nextTrack)
+        }).catch((error) => {
+          logger.error('[Gapless] overlapSwap play() failed:', error)
+          set({ isPlaying: false })
+        })
+
+        return true
+      },
+
+      finalizeOverlapSwap: () => {
+        // Called after the old element (still playing its tail) finishes naturally,
+        // or when a user action (next/previous/seek) forces us to abort the overlap.
+        const { previousAudioElement, nextAudioElement } = get()
+        if (!previousAudioElement) return
+
+        previousAudioElement.pause()
+        previousAudioElement.removeAttribute('src')
+        previousAudioElement.load()
+
+        // Reuse the old element as the new pre-buffer slot if we don't have one.
+        // This keeps both <audio> elements alive across the app's lifetime.
+        if (!nextAudioElement) {
+          set({ nextAudioElement: previousAudioElement, previousAudioElement: null })
+        } else {
+          set({ previousAudioElement: null })
+        }
+
+        logger.debug('[Gapless] finalizeOverlapSwap: old element cleaned up')
       },
 
       cancelPreBuffer: () => {
@@ -578,6 +752,10 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       play: () => {
+        // Any explicit play() starts fresh playback of the current index — kill any overlap tail.
+        get().finalizeOverlapSwap()
+        // Cancel any in-flight pause fade and restore volume on the audio element.
+        cancelPauseFade(true)
         const { audioElement, currentIndex, songs, currentTime } = get()
         logger.debug('[PlayerStore] play() called', { currentIndex, hasAudio: !!audioElement })
         if (audioElement && currentIndex >= 0 && currentIndex < songs.length) {
@@ -612,25 +790,44 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       pause: () => {
+        cancelPauseFade(true)
         const audio = get().audioElement
         if (audio) {
           audio.pause()
           set({ isPlaying: false })
           logger.debug('[PlayerStore] pause() called')
         }
+        // If an overlap handoff is in progress, silence the old tail too
+        get().finalizeOverlapSwap()
+      },
+
+      pauseWithFade: () => {
+        // Silence the overlap tail immediately — fading only the main element
+        // while the tail keeps playing at full volume would be audibly jarring.
+        get().finalizeOverlapSwap()
+        const audio = get().audioElement
+        if (!audio) return
+        const targetVolume = get().volume
+        logger.debug('[PlayerStore] pauseWithFade() called')
+        set({ isPlaying: false })
+        startPauseFade(audio, targetVolume, () => {})
       },
 
       togglePlayPause: () => {
-        const { isPlaying, play, pause } = get()
+        const { isPlaying, play, pauseWithFade } = get()
         logger.debug('[PlayerStore] togglePlayPause() called', { isPlaying })
         if (isPlaying) {
-          pause()
+          pauseWithFade()
         } else {
           play()
         }
       },
 
       next: () => {
+        // If an overlap handoff is in progress, kill the old tail first — otherwise
+        // the previous track's last ~100ms will keep audibly bleeding into the new one.
+        get().finalizeOverlapSwap()
+
         const state = get()
         logger.debug('[PlayerStore] next() called', { currentIndex: state.currentIndex, queueLength: state.songs.length })
 
@@ -686,6 +883,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       previous: () => {
+        get().finalizeOverlapSwap()
         get().cancelPreBuffer()
         set((state) => {
           if (state.songs.length === 0) return state
@@ -716,6 +914,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       seek: (time) => {
+        // Seeking the active element while the old tail is still audible would be jarring
+        get().finalizeOverlapSwap()
         const audio = get().audioElement
         if (audio) {
           audio.currentTime = time
@@ -1292,6 +1492,7 @@ export const usePlayerStore = create<PlayerState>()(
           state.audioElement = null
           state.nextAudioElement = null
           state.nextTrackId = null
+          state.previousAudioElement = null
           state.isFetchingRecommendations = false
           // Keep lastPlayedTrack as persisted
           state.isShuffleAllActive = false

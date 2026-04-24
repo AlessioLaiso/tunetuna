@@ -7,6 +7,7 @@ import { resolveServerUrl } from '../utils/serverUrl'
 import { useSettingsStore } from './settingsStore'
 import { getLockedLocalServerUrl } from '../utils/config'
 import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
+import { logger } from '../utils/logger'
 
 interface AuthState {
   serverUrl: string
@@ -95,11 +96,15 @@ export const useAuthStore = create<AuthState>()(
           // Then probe local URL in the background and switch if reachable
           const localUrl = getLockedLocalServerUrl() || useSettingsStore.getState().localServerUrl
           if (localUrl) {
-            resolveServerUrl(state.serverUrl, localUrl).then((resolved) => {
-              if (resolved !== state.serverUrl) {
-                jellyfinClient.setCredentials(resolved, state.accessToken, state.userId)
-              }
-            })
+            resolveServerUrl(state.serverUrl, localUrl)
+              .then((resolved) => {
+                if (resolved !== state.serverUrl) {
+                  jellyfinClient.setCredentials(resolved, state.accessToken, state.userId)
+                }
+              })
+              .catch((err) => {
+                logger.warn('[authStore] resolveServerUrl failed during rehydrate', err)
+              })
           }
         }
       },

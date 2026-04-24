@@ -250,7 +250,7 @@ export default function SmartPlaylistDetailPage() {
                 {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}{subtitle && ` • ${subtitle}`}
               </div>
               <button
-                onClick={isListPlaying ? () => usePlayerStore.getState().pause() : handleShuffleAll}
+                onClick={isListPlaying ? () => usePlayerStore.getState().pauseWithFade() : handleShuffleAll}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
               >
                 {isListPlaying ? (

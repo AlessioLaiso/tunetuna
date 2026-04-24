@@ -675,7 +675,7 @@ export default function PlaylistDetailPage() {
                   {sortedTracks.length} {sortedTracks.length === 1 ? 'song' : 'songs'}
                 </div>
                 <button
-                  onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pause() : isMoodRoute ? handleShuffleAll : handlePlayAll}
+                  onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pauseWithFade() : isMoodRoute ? handleShuffleAll : handlePlayAll}
                   className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
                 >
                   {isPlaylistPlaying() && isPlaying ? (
