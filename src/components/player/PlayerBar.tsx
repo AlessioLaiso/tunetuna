@@ -11,7 +11,7 @@ import PlayerModal from './PlayerModal'
 import VolumeControl from '../layout/VolumeControl'
 import { useState } from 'react'
 import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1, ListVideo } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { isIOS, formatTime } from '../../utils/formatting'
 
 export default function PlayerBar() {
@@ -61,6 +61,7 @@ export default function PlayerBar() {
   const closeModalRef = useRef<(() => void) | null>(null)
   const preemptiveAdvanceRef = useRef<boolean>(false) // Track if we already advanced preemptively (iOS background fix)
   const location = useLocation()
+  const navigate = useNavigate()
   const touchStartX = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
   const playerBarRef = useRef<HTMLDivElement>(null)
@@ -661,7 +662,20 @@ export default function PlayerBar() {
                 {(currentTrack || displayTrack).Name}
               </div>
               <div className="text-xs text-gray-400 truncate flex items-center gap-1.5 min-w-0">
-                <span className="truncate">{(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}</span>
+                {(currentTrack || displayTrack).ArtistItems?.[0]?.Id ? (
+                  <span
+                    className="clickable-text truncate"
+                    onClick={(e) => {
+                      if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+                      e.stopPropagation()
+                      navigate(`/artist/${(currentTrack || displayTrack).ArtistItems![0].Id}`)
+                    }}
+                  >
+                    {(currentTrack || displayTrack).ArtistItems![0].Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+                  </span>
+                ) : (
+                  <span className="truncate">{(currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}</span>
+                )}
                 <span className="flex-shrink-0">•</span>
                 <span className="tabular-nums flex-shrink-0">{formatTime(currentTime)}/{formatTime(duration)}</span>
               </div>
