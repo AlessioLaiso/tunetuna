@@ -792,6 +792,11 @@ export default function SettingsPage() {
                   placeholder="Local URL (optional)"
                   className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
                 />
+                {localServerUrl && window.location.protocol === 'https:' && localServerUrl.startsWith('http://') && (
+                  <p className="text-xs text-amber-400 mt-2">
+                    This app is loaded over HTTPS, so a http:// LAN address will be blocked by the browser (Mixed Content). It will be ignored.
+                  </p>
+                )}
               </div>
             )}
 

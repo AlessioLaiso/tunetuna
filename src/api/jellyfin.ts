@@ -47,9 +47,34 @@ class JellyfinClient {
   private pendingRequests = new Map<string, Promise<unknown>>()
   // Callback for 401 handling — set from app layer to avoid circular imports
   private onUnauthorized: (() => void) | null = null
+  // Callback to trigger a LAN/remote re-probe on network failure — set from app layer
+  private onNetworkError: (() => Promise<void>) | null = null
+  // Debounce state for re-probe: at most one probe in flight; suppress for a window after one completes
+  private reprobeInFlight: Promise<void> | null = null
+  private lastReprobeAt = 0
 
   setOnUnauthorized(callback: () => void) {
     this.onUnauthorized = callback
+  }
+
+  setOnNetworkError(callback: () => Promise<void>) {
+    this.onNetworkError = callback
+  }
+
+  private async triggerReprobe(): Promise<void> {
+    if (!this.onNetworkError) return
+    // Coalesce concurrent triggers
+    if (this.reprobeInFlight) return this.reprobeInFlight
+    // Suppress repeated probes within 10s of the last one finishing
+    if (Date.now() - this.lastReprobeAt < 10_000) return
+
+    this.reprobeInFlight = this.onNetworkError()
+      .catch((err) => logger.warn('[jellyfinClient] re-probe failed', err))
+      .finally(() => {
+        this.lastReprobeAt = Date.now()
+        this.reprobeInFlight = null
+      })
+    return this.reprobeInFlight
   }
 
   get serverBaseUrl(): string {
@@ -96,19 +121,19 @@ class JellyfinClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
     const method = options.method || 'GET'
 
-    // Only deduplicate GET requests (mutations should always execute)
+    // Only deduplicate GET requests (mutations should always execute).
+    // Key by endpoint (not full URL) so re-probe URL swaps don't break dedup.
     const shouldDedupe = method === 'GET'
-    const cacheKey = shouldDedupe ? url : ''
+    const cacheKey = shouldDedupe ? endpoint : ''
 
     // Return existing in-flight request if available
     if (shouldDedupe && this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey) as Promise<T>
     }
 
-    const requestPromise = this.executeRequest<T>(url, options)
+    const requestPromise = this.executeRequest<T>(endpoint, options)
 
     if (shouldDedupe) {
       this.pendingRequests.set(cacheKey, requestPromise)
@@ -121,10 +146,23 @@ class JellyfinClient {
     return requestPromise
   }
 
-  private async executeRequest<T>(url: string, options: RequestInit = {}, parseJson = true): Promise<T> {
+  private isNetworkError(err: Error): boolean {
+    if (err.name === 'AbortError') return true
+    const msg = err.message.toLowerCase()
+    return (
+      msg.includes('failed to fetch') ||
+      msg.includes('networkerror') ||
+      msg.includes('network request failed') ||
+      msg.includes('load failed')
+    )
+  }
+
+  private async executeRequest<T>(endpoint: string, options: RequestInit = {}, parseJson = true): Promise<T> {
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // Rebuild URL each attempt — baseUrl may change via re-probe between retries
+      const url = `${this.baseUrl}${endpoint}`
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -153,9 +191,14 @@ class JellyfinClient {
         clearTimeout(timeoutId)
         lastError = error instanceof Error ? error : new Error(String(error))
 
-        // Don't retry on auth errors or abort
-        if (lastError.message.includes('Unauthorized') || lastError.name === 'AbortError') {
+        // Don't retry on auth errors
+        if (lastError.message.includes('Unauthorized')) {
           break
+        }
+
+        // On network failure, trigger a re-probe so the next attempt may use a different server URL
+        if (this.isNetworkError(lastError) && attempt < MAX_RETRIES) {
+          await this.triggerReprobe()
         }
 
         // Wait before retry (exponential backoff)
@@ -169,8 +212,7 @@ class JellyfinClient {
   }
 
   private async requestVoid(endpoint: string, options: RequestInit = {}): Promise<void> {
-    const url = `${this.baseUrl}${endpoint}`
-    await this.executeRequest<void>(url, options, false)
+    await this.executeRequest<void>(endpoint, options, false)
   }
 
   async authenticate(serverUrl: string, username: string, password: string): Promise<JellyfinAuthResponse> {

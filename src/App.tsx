@@ -10,6 +10,7 @@ import ComponentErrorBoundary from './components/shared/ComponentErrorBoundary'
 import { useServerUrlResolver } from './hooks/useServerUrlResolver'
 import { jellyfinClient } from './api/jellyfin'
 import { useToastStore } from './stores/toastStore'
+import { probeAndUpdateServerUrl } from './utils/serverUrl'
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
@@ -62,6 +63,11 @@ function App() {
       logout()
     })
   }, [logout])
+
+  // On network failure, re-probe LAN/remote so the next retry may swap server URL
+  useEffect(() => {
+    jellyfinClient.setOnNetworkError(() => probeAndUpdateServerUrl())
+  }, [])
 
   // Handle logout via URL parameter (e.g. ?logout=true)
   // Must be called before any conditional returns to ensure consistent hook order

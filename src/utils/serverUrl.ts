@@ -4,6 +4,22 @@ import { getLockedLocalServerUrl } from './config'
 const PROBE_TIMEOUT_MS = 2000
 
 /**
+ * Whether `url` would be blocked as Mixed Content from the current page.
+ * Browsers refuse http:// subresources from an https:// origin, and won't
+ * upgrade http://<ip-address> URLs. If the page is http (dev, local) anything
+ * is allowed.
+ */
+function isMixedContentBlocked(url: string): boolean {
+  if (typeof window === 'undefined') return false
+  if (window.location.protocol !== 'https:') return false
+  try {
+    return new URL(url).protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+/**
  * Probe whether a Jellyfin server is reachable at the given URL.
  * Uses mode: 'no-cors' to avoid being blocked by Chrome's Private Network
  * Access policy, which sends a CORS preflight when fetching local IPs from
@@ -34,6 +50,11 @@ async function probeServer(url: string): Promise<boolean> {
  */
 export async function resolveServerUrl(remoteUrl: string, localUrl?: string): Promise<string> {
   if (!localUrl) return remoteUrl
+
+  if (isMixedContentBlocked(localUrl)) {
+    logger.log(`[serverUrl] Local URL ${localUrl} would be blocked as Mixed Content from HTTPS origin, skipping`)
+    return remoteUrl
+  }
 
   const reachable = await probeServer(localUrl)
   if (reachable) {
