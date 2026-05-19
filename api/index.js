@@ -132,6 +132,7 @@ const deleteBySongIds = db.transaction((userKey, songIds) => {
 const fastify = Fastify({
   logger: true,
   disableRequestLogging: true,
+  bodyLimit: 100 * 1024 * 1024,
 })
 
 // Log requests, but skip health checks
