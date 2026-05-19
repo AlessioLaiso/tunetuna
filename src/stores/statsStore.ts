@@ -133,10 +133,14 @@ const indexedDBStorage = createIndexedDBStorage<StatsState>(INDEXEDDB_NAMES.stat
  */
 async function generateStatsKey(serverUrl: string, userId: string): Promise<string> {
   const data = `${serverUrl}::${userId}`
-  const encoder = new TextEncoder()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data))
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  if (crypto?.subtle?.digest) {
+    const encoder = new TextEncoder()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data))
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+  const { sha256 } = await import('js-sha256')
+  return sha256(data)
 }
 
 /**
