@@ -487,6 +487,11 @@ const deleteAllSnapshots = db.prepare(`
   DELETE FROM library_snapshots WHERE user_key = ?
 `)
 
+const deleteSnapshotsInRange = db.prepare(`
+  DELETE FROM library_snapshots
+  WHERE user_key = ? AND ts >= ? AND ts < ? AND is_baseline = 0
+`)
+
 function validateSnapshot(s) {
   if (!s || typeof s !== 'object') return false
   if (typeof s.ts !== 'number' || s.ts <= 0) return false
@@ -572,6 +577,31 @@ fastify.get('/api/stats/:key/library-snapshots', async (request, reply) => {
   } catch (error) {
     fastify.log.error(error)
     return reply.status(500).send({ error: 'Failed to fetch snapshots' })
+  }
+})
+
+// DELETE /api/stats/:key/library-snapshots/month?fromTs=&toTs= - Delete non-baseline snapshots in [fromTs, toTs)
+fastify.delete('/api/stats/:key/library-snapshots/month', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+  const fromTs = Number(request.query?.fromTs)
+  const toTs = Number(request.query?.toTs)
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  if (!Number.isFinite(fromTs) || !Number.isFinite(toTs) || fromTs <= 0 || toTs <= fromTs) {
+    return reply.status(400).send({ error: 'fromTs and toTs (with toTs > fromTs) required' })
+  }
+
+  try {
+    const result = deleteSnapshotsInRange.run(key, fromTs, toTs)
+    return { success: true, deleted: result.changes }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to delete snapshots' })
   }
 })
 

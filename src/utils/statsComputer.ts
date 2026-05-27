@@ -418,18 +418,24 @@ export function computeStats(
       plays: stat.plays,
     }))
 
-  // Top genres
-  const genreStats = new Map<string, number>()
+  // Top genres (case-insensitive grouping; first-seen casing wins for display)
+  const genreStats = new Map<string, { ms: number; displayName: string }>()
   filteredEvents.forEach(e => {
     e.genres.forEach(genre => {
-      genreStats.set(genre, (genreStats.get(genre) || 0) + e.fullDurationMs / e.genres.length)
+      const key = genre.toLowerCase()
+      const current = genreStats.get(key)
+      if (current) {
+        current.ms += e.fullDurationMs / e.genres.length
+      } else {
+        genreStats.set(key, { ms: e.fullDurationMs / e.genres.length, displayName: genre })
+      }
     })
   })
 
-  const topGenres = [...genreStats.entries()]
-    .sort((a, b) => b[1] - a[1])
+  const topGenres = [...genreStats.values()]
+    .sort((a, b) => b.ms - a.ms)
     .slice(0, topGenreLimit)
-    .map(([genre, ms]) => ({ genre, hours: msToHours(ms) }))
+    .map(({ displayName, ms }) => ({ genre: displayName, hours: msToHours(ms) }))
 
   // Decades
   const decadeStats = new Map<string, number>()
@@ -444,13 +450,13 @@ export function computeStats(
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([decade, ms]) => ({ decade, hours: msToHours(ms) }))
 
-  // Top genre × decade combos
+  // Top genre × decade combos (case-insensitive grouping on genre)
   const genreDecadeStats = new Map<string, { genre: string; decade: string; ms: number }>()
   filteredEvents.forEach(e => {
     if (e.year && e.genres.length > 0) {
       const decade = `${Math.floor(e.year / 10) * 10}s`
       e.genres.forEach(genre => {
-        const key = `${genre}|${decade}`
+        const key = `${genre.toLowerCase()}|${decade}`
         const current = genreDecadeStats.get(key) || { genre, decade, ms: 0 }
         current.ms += e.fullDurationMs / e.genres.length
         genreDecadeStats.set(key, current)

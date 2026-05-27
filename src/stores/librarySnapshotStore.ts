@@ -67,8 +67,9 @@ function computeSnapshotFromLibrary(songs: LightweightSong[], ts: number, isBase
     if (song.Genres) {
       for (const g of song.Genres) {
         if (!g) continue
-        genreNames.add(g)
-        genreCounts[g] = (genreCounts[g] || 0) + 1
+        const key = g.toLowerCase()
+        genreNames.add(key)
+        genreCounts[key] = (genreCounts[key] || 0) + 1
       }
     }
 
@@ -109,6 +110,31 @@ function computeSnapshotFromLibrary(songs: LightweightSong[], ts: number, isBase
 function startOfMonth(ts: number): number {
   const d = new Date(ts)
   return new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+}
+
+function endOfMonth(ts: number): number {
+  const d = new Date(ts)
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
+}
+
+async function deleteSnapshotsInMonth(ts: number): Promise<void> {
+  const { serverUrl, userId } = useAuthStore.getState()
+  if (!serverUrl || !userId) return
+
+  await useStatsStore.getState().updateStatsKey()
+  const { cachedStatsKey, cachedStatsToken } = useStatsStore.getState()
+  if (!cachedStatsKey || !cachedStatsToken) return
+
+  const fromTs = startOfMonth(ts)
+  const toTs = endOfMonth(ts)
+  try {
+    await fetch(
+      `${STATS_API_BASE}/${cachedStatsKey}/library-snapshots/month?fromTs=${fromTs}&toTs=${toTs}`,
+      { method: 'DELETE', headers: { 'X-Stats-Token': cachedStatsToken } },
+    )
+  } catch {
+    // best-effort
+  }
 }
 
 async function postSnapshots(snapshots: LibrarySnapshot[]): Promise<boolean> {
@@ -206,6 +232,18 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
           isBaseline,
           ts,
         })
+        // On forced non-baseline captures, replace any existing snapshot in the
+        // same calendar month so stale genre casings don't linger.
+        if (force && !isBaseline) {
+          await deleteSnapshotsInMonth(ts)
+          const monthStart = startOfMonth(ts)
+          const monthEnd = endOfMonth(ts)
+          set(state => ({
+            snapshots: state.snapshots.filter(
+              s => s.isBaseline || s.ts < monthStart || s.ts >= monthEnd,
+            ),
+          }))
+        }
         const ok = await postSnapshots([snapshot])
         console.log('[librarySnapshot] Post result:', ok)
         if (ok) {

@@ -127,10 +127,11 @@ export function computeLibraryStats(
     }
     for (const g of e.genres) {
       if (!g) continue
-      playedGenreNames.add(g)
-      if (!playedSongCountByGenre.has(g)) playedSongCountByGenre.set(g, new Set())
-      playedSongCountByGenre.get(g)!.add(e.songId)
-      playedHoursByGenre.set(g, (playedHoursByGenre.get(g) || 0) + songDuration)
+      const gk = g.toLowerCase()
+      playedGenreNames.add(gk)
+      if (!playedSongCountByGenre.has(gk)) playedSongCountByGenre.set(gk, new Set())
+      playedSongCountByGenre.get(gk)!.add(e.songId)
+      playedHoursByGenre.set(gk, (playedHoursByGenre.get(gk) || 0) + songDuration)
     }
     if (e.year) {
       const decade = `${Math.floor(e.year / 10) * 10}s`
@@ -169,6 +170,9 @@ export function computeLibraryStats(
   const hoursOwnedByGenre = new Map<string, number>()
   const hoursOwnedByDecade = new Map<string, number>()
   const hoursOwnedByGenreDecade = new Map<string, number>()
+  // Canonical display name per lowercased genre key, sourced from the current
+  // library so labels match Jellyfin's current casing.
+  const displayNameByGenreKey = new Map<string, string>()
   let totalHoursOwned = 0
 
   for (const song of songs) {
@@ -195,9 +199,11 @@ export function computeLibraryStats(
     if (song.Genres) {
       for (const g of song.Genres) {
         if (!g) continue
-        hoursOwnedByGenre.set(g, (hoursOwnedByGenre.get(g) || 0) + hrs)
+        const gk = g.toLowerCase()
+        if (!displayNameByGenreKey.has(gk)) displayNameByGenreKey.set(gk, g)
+        hoursOwnedByGenre.set(gk, (hoursOwnedByGenre.get(gk) || 0) + hrs)
         if (decade) {
-          const key = `${g}|${decade}`
+          const key = `${gk}|${decade}`
           hoursOwnedByGenreDecade.set(key, (hoursOwnedByGenreDecade.get(key) || 0) + hrs)
         }
       }
@@ -215,13 +221,28 @@ export function computeLibraryStats(
       playedHours: playedHoursByArtist.get(id) || 0,
     }))
 
-  const genres = Object.entries(snapshot.genres)
-    .map(([genre, owned]) => ({
-      genre,
+  // Merge snapshot.genres by lowercased key so old mixed-case snapshots don't
+  // produce duplicate rows. Prefer current-library casing for the display name.
+  const mergedSnapshotGenres = new Map<string, { displayName: string; owned: number }>()
+  for (const [genre, owned] of Object.entries(snapshot.genres)) {
+    const gk = genre.toLowerCase()
+    const current = mergedSnapshotGenres.get(gk)
+    if (current) {
+      current.owned += owned
+    } else {
+      mergedSnapshotGenres.set(gk, {
+        displayName: displayNameByGenreKey.get(gk) ?? genre,
+        owned,
+      })
+    }
+  }
+  const genres = [...mergedSnapshotGenres.entries()]
+    .map(([gk, { displayName, owned }]) => ({
+      genre: displayName,
       owned,
-      played: playedSongCountByGenre.get(genre)?.size ?? 0,
-      hoursOwned: hoursOwnedByGenre.get(genre) || 0,
-      playedHours: playedHoursByGenre.get(genre) || 0,
+      played: playedSongCountByGenre.get(gk)?.size ?? 0,
+      hoursOwned: hoursOwnedByGenre.get(gk) || 0,
+      playedHours: playedHoursByGenre.get(gk) || 0,
     }))
     .sort((a, b) => b.owned - a.owned)
 
@@ -235,7 +256,7 @@ export function computeLibraryStats(
     }))
     .sort((a, b) => a.decade.localeCompare(b.decade))
 
-  // Compute top genre × decades
+  // Compute top genre × decades (keyed by lowercased genre)
   const genreDecadeStats = new Map<string, { played: number; playedHours: number }>()
   for (const event of inRange) {
     const songDuration = songDurationMap.get(event.songId) || 0
@@ -244,7 +265,7 @@ export function computeLibraryStats(
       const decade = `${Math.floor(event.year / 10) * 10}s`
       for (const genre of event.genres) {
         if (!genre) continue
-        const key = `${genre}|${decade}`
+        const key = `${genre.toLowerCase()}|${decade}`
         const current = genreDecadeStats.get(key) || { played: 0, playedHours: 0 }
         genreDecadeStats.set(key, {
           played: current.played + 1,
@@ -256,7 +277,8 @@ export function computeLibraryStats(
 
   const topGenreDecades = [...genreDecadeStats.entries()]
     .map(([key, stats]) => {
-      const [genre, decade] = key.split('|')
+      const [gk, decade] = key.split('|')
+      const genre = displayNameByGenreKey.get(gk) ?? gk
       return { genre, decade, ...stats, hoursOwned: hoursOwnedByGenreDecade.get(key) || 0 }
     })
     .sort((a, b) => b.playedHours - a.playedHours)
@@ -269,7 +291,7 @@ export function computeLibraryStats(
     playedAlbums: playedAlbumIds.size,
     totalArtists: snapshot.totalArtists,
     playedArtists: playedArtistIds.size,
-    totalGenres: snapshot.totalGenres,
+    totalGenres: mergedSnapshotGenres.size,
     playedGenres: playedGenreNames.size,
     totalHoursOwned,
     playedHours: totalPlayedHours,
