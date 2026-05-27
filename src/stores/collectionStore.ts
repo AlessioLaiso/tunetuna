@@ -4,6 +4,7 @@ import {
   fetchDiscogsIdentity,
   fetchDiscogsCollection,
   fetchDiscogsReleaseDetail,
+  DiscogsAuthError,
   type DiscogsRelease,
   type DiscogsReleaseDetail,
 } from '../api/discogs'
@@ -52,38 +53,52 @@ export const useCollectionStore = create<CollectionState>()(devtools(persist((se
 
     set({ isLoading: true, error: null, loadingProgress: null })
 
-    try {
-      // Derive username from token if we don't have it yet
-      let { username } = get()
-      if (!username) {
-        username = await fetchDiscogsIdentity(discogsToken)
-        set({ username })
-      }
+    const MAX_ATTEMPTS = 3
+    let lastError: unknown = null
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        // Derive username from token if we don't have it yet
+        let { username } = get()
+        if (!username) {
+          username = await fetchDiscogsIdentity(discogsToken)
+          set({ username })
+        }
 
-      const releases = await fetchDiscogsCollection(discogsToken, username, (page, totalPages) => {
-        set({ loadingProgress: { page, totalPages } })
-      })
+        const releases = await fetchDiscogsCollection(discogsToken, username, (page, totalPages) => {
+          set({ loadingProgress: { page, totalPages } })
+        })
 
-      // Derive unique format names
-      const formatSet = new Set<string>()
-      for (const release of releases) {
-        for (const format of release.basic_information.formats) {
-          formatSet.add(format.name)
+        // Derive unique format names
+        const formatSet = new Set<string>()
+        for (const release of releases) {
+          for (const format of release.basic_information.formats) {
+            formatSet.add(format.name)
+          }
+        }
+
+        set({
+          releases,
+          formats: Array.from(formatSet).sort(),
+          isLoading: false,
+          loadingProgress: null,
+        })
+        logger.log(`[Collection] Loaded ${releases.length} releases`)
+        return
+      } catch (err) {
+        lastError = err
+        // Don't retry on auth errors — token won't get better with retries
+        if (err instanceof DiscogsAuthError) break
+        if (attempt < MAX_ATTEMPTS) {
+          const delay = 1000 * attempt
+          logger.warn(`[Collection] Attempt ${attempt} failed, retrying in ${delay}ms:`, err)
+          await new Promise((r) => setTimeout(r, delay))
         }
       }
-
-      set({
-        releases,
-        formats: Array.from(formatSet).sort(),
-        isLoading: false,
-        loadingProgress: null,
-      })
-      logger.log(`[Collection] Loaded ${releases.length} releases`)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch collection'
-      set({ error: message, isLoading: false, loadingProgress: null })
-      logger.error(`[Collection] Error:`, message)
     }
+
+    const message = lastError instanceof Error ? lastError.message : 'Failed to fetch collection'
+    set({ error: message, isLoading: false, loadingProgress: null })
+    logger.error(`[Collection] Error after retries:`, message)
   },
 
   fetchReleaseDetail: async (releaseId) => {

@@ -9,6 +9,7 @@ import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -118,6 +119,8 @@ export default function Layout({ children }: LayoutProps) {
         )
         useMusicStore.getState().setGenres(sorted)
         useMusicStore.getState().setLastSyncCompleted(Date.now())
+        // Capture fresh library snapshot + backfill historical months after sync.
+        await useLibrarySnapshotStore.getState().refreshAfterSync(useMusicStore.getState().songs)
         completeSync(true, 'Library synced successfully')
       } catch (error) {
         // Don't show error if user cancelled
@@ -129,6 +132,25 @@ export default function Layout({ children }: LayoutProps) {
 
     return () => clearTimeout(timeout)
   }, [startSync, completeSync])
+
+  // Ensure library snapshot exists for users who already synced their library
+  // before this feature shipped, and capture a fresh monthly snapshot.
+  const snapshotCheckTriggered = useRef(false)
+  useEffect(() => {
+    if (snapshotCheckTriggered.current) return
+    if (songs.length === 0) return
+    snapshotCheckTriggered.current = true
+
+    const timeout = setTimeout(async () => {
+      try {
+        await useLibrarySnapshotStore.getState().captureSnapshot({ songs })
+      } catch {
+        // Snapshot failures shouldn't break the app
+      }
+    }, 2000)
+
+    return () => clearTimeout(timeout)
+  }, [songs.length, songs])
 
   // Minimal preload for instant shuffle start
   useEffect(() => {

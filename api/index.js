@@ -38,6 +38,23 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_events_user_ts ON events(user_key, ts);
+
+  CREATE TABLE IF NOT EXISTS library_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_key TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    total_songs INTEGER NOT NULL,
+    total_albums INTEGER NOT NULL,
+    total_artists INTEGER NOT NULL,
+    total_genres INTEGER NOT NULL,
+    genres TEXT NOT NULL,
+    decades TEXT NOT NULL,
+    top_artists TEXT NOT NULL,
+    is_baseline INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_snapshots_user_ts ON library_snapshots(user_key, ts);
 `)
 
 // Prepared statements
@@ -447,6 +464,133 @@ fastify.patch('/api/stats/:key/events/metadata', async (request, reply) => {
   } catch (error) {
     fastify.log.error(error)
     return reply.status(500).send({ error: 'Failed to update metadata' })
+  }
+})
+
+// ============================================================================
+// Library Snapshots
+// ============================================================================
+
+const insertSnapshot = db.prepare(`
+  INSERT INTO library_snapshots (user_key, ts, total_songs, total_albums, total_artists, total_genres, genres, decades, top_artists, is_baseline)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`)
+
+const selectSnapshots = db.prepare(`
+  SELECT ts, total_songs, total_albums, total_artists, total_genres, genres, decades, top_artists, is_baseline
+  FROM library_snapshots
+  WHERE user_key = ?
+  ORDER BY ts ASC
+`)
+
+const deleteAllSnapshots = db.prepare(`
+  DELETE FROM library_snapshots WHERE user_key = ?
+`)
+
+function validateSnapshot(s) {
+  if (!s || typeof s !== 'object') return false
+  if (typeof s.ts !== 'number' || s.ts <= 0) return false
+  if (typeof s.totalSongs !== 'number') return false
+  if (typeof s.totalAlbums !== 'number') return false
+  if (typeof s.totalArtists !== 'number') return false
+  if (typeof s.totalGenres !== 'number') return false
+  if (!s.genres || typeof s.genres !== 'object') return false
+  if (!s.decades || typeof s.decades !== 'object') return false
+  if (!Array.isArray(s.topArtists)) return false
+  return true
+}
+
+// POST /api/stats/:key/library-snapshots - Store one or more snapshots
+fastify.post('/api/stats/:key/library-snapshots', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+  const { snapshots } = request.body || {}
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  if (!Array.isArray(snapshots) || snapshots.length === 0) {
+    return reply.status(400).send({ error: 'snapshots array required' })
+  }
+
+  const valid = snapshots.filter(validateSnapshot)
+  if (valid.length === 0) {
+    return reply.status(400).send({ error: 'No valid snapshots in request' })
+  }
+
+  try {
+    const insertAll = db.transaction((items) => {
+      for (const s of items) {
+        insertSnapshot.run(
+          key,
+          s.ts,
+          s.totalSongs,
+          s.totalAlbums,
+          s.totalArtists,
+          s.totalGenres,
+          JSON.stringify(s.genres),
+          JSON.stringify(s.decades),
+          JSON.stringify(s.topArtists),
+          s.isBaseline ? 1 : 0
+        )
+      }
+    })
+    insertAll(valid)
+    return { success: true, count: valid.length }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to store snapshots' })
+  }
+})
+
+// GET /api/stats/:key/library-snapshots - Fetch all snapshots
+fastify.get('/api/stats/:key/library-snapshots', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  try {
+    const rows = selectSnapshots.all(key)
+    const snapshots = rows.map(r => ({
+      ts: r.ts,
+      totalSongs: r.total_songs,
+      totalAlbums: r.total_albums,
+      totalArtists: r.total_artists,
+      totalGenres: r.total_genres,
+      genres: safeJsonParse(r.genres, {}),
+      decades: safeJsonParse(r.decades, {}),
+      topArtists: safeJsonParse(r.top_artists, []),
+      isBaseline: r.is_baseline === 1,
+    }))
+    return { snapshots }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to fetch snapshots' })
+  }
+})
+
+// DELETE /api/stats/:key/library-snapshots - Delete all snapshots for user
+fastify.delete('/api/stats/:key/library-snapshots', async (request, reply) => {
+  const { key } = request.params
+  const token = request.headers['x-stats-token']
+
+  const auth = validateAuth(key, token)
+  if (!auth.valid) {
+    return reply.status(401).send({ error: auth.error })
+  }
+
+  try {
+    const result = deleteAllSnapshots.run(key)
+    return { success: true, deleted: result.changes }
+  } catch (error) {
+    fastify.log.error(error)
+    return reply.status(500).send({ error: 'Failed to delete snapshots' })
   }
 })
 

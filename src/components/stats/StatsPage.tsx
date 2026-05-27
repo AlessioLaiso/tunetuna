@@ -16,13 +16,16 @@ import {
   X,
   CirclePlay,
 } from 'lucide-react'
+import { Clock3 } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { computeStats, type ComputedStats } from '../../utils/statsComputer'
 import type { BaseItemDto } from '../../api/types'
 import StatsCannedImage from './StatsCannedImage'
+import LibraryTab from './LibraryTab'
 import html2canvas from 'html2canvas'
 import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
@@ -155,7 +158,7 @@ function SectionHeader({ icon: Icon, title, onClick }: { icon: typeof Music; tit
     )
   }
   return (
-    <div className="flex items-center gap-2 mb-4 mt-8">
+    <div className="flex items-center gap-2 mb-4 mt-12">
       <Icon className="w-5 h-5 text-zinc-400" />
       <h2 className="text-lg font-semibold text-zinc-300">{title}</h2>
     </div>
@@ -627,6 +630,8 @@ export default function StatsPage() {
   const { genres } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const playTrack = usePlayerStore(state => state.playTrack)
+  const libraryStatsTimeMode = useSettingsStore(s => s.libraryStatsTimeMode)
+  const setLibraryStatsTimeMode = useSettingsStore(s => s.setLibraryStatsTimeMode)
 
   // Handler to play a song by ID
   const handlePlaySong = async (songId: string) => {
@@ -642,6 +647,7 @@ export default function StatsPage() {
   const [fromMonth, setFromMonth] = useState<string>('')
   const [toMonth, setToMonth] = useState<string>('')
   const [showCannedModal, setShowCannedModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'canned' | 'library'>('canned')
 
   // Always refresh oldest timestamp on mount to pick up any imports or server-side changes
   useEffect(() => {
@@ -732,16 +738,8 @@ export default function StatsPage() {
     fetchAlbumArtists()
   }, [stats?.topAlbums])
 
-  if (loading) {
-    return <LoadingState />
-  }
-
-  if (!stats || events.length === 0) {
-    return <EmptyState />
-  }
-
-  const maxGenreHours = Math.max(...stats.topGenres.map(g => g.hours))
-  const maxDecadeHours = Math.max(...stats.decades.map(d => d.hours))
+  const maxGenreHours = stats ? Math.max(...stats.topGenres.map(g => g.hours)) : 0
+  const maxDecadeHours = stats ? Math.max(...stats.decades.map(d => d.hours)) : 0
 
   return (
     <div className="pb-32 lg:pb-20">
@@ -754,16 +752,50 @@ export default function StatsPage() {
           <div className="p-4 pb-0 sm:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
               <div className="flex items-center justify-between w-full sm:w-auto">
-                <h1 className="text-2xl font-bold text-white">Tunetuna Canned</h1>
-                <button
-                  onClick={() => setShowCannedModal(true)}
-                  className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-                  aria-label="Generate shareable stats image"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </button>
+                <div className="flex items-baseline gap-4">
+                  <button
+                    onClick={() => setActiveTab('canned')}
+                    className={`text-2xl font-bold transition-colors ${activeTab === 'canned' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  >
+                    Tunetuna Canned
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('library')}
+                    className={`text-2xl font-bold transition-colors ${activeTab === 'library' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  >
+                    Library
+                  </button>
+                </div>
+                {activeTab === 'canned' && (
+                  <button
+                    onClick={() => setShowCannedModal(true)}
+                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    aria-label="Generate shareable stats image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                )}
               </div>
               <div className="flex gap-2 items-center">
+                {activeTab === 'library' && (
+                  <button
+                    onClick={() => setLibraryStatsTimeMode(!libraryStatsTimeMode)}
+                    className="hidden sm:flex items-center gap-2 text-sm text-[var(--accent-color)] hover:text-white transition-colors mr-1"
+                    aria-label={libraryStatsTimeMode ? 'Switch to songs' : 'Switch to total time'}
+                  >
+                    {libraryStatsTimeMode ? (
+                      <>
+                        <Clock3 className="w-4 h-4" />
+                        <span>Total time</span>
+                      </>
+                    ) : (
+                      <>
+                        <Music className="w-4 h-4" />
+                        <span>Songs</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <MonthPicker
                   value={fromMonth}
                   options={monthOptions}
@@ -775,13 +807,24 @@ export default function StatsPage() {
                   options={monthOptions}
                   onChange={setToMonth}
                 />
-                <button
-                  onClick={() => setShowCannedModal(true)}
-                  className="hidden sm:flex w-8 h-8 items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
-                  aria-label="Generate shareable stats image"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </button>
+                {activeTab === 'library' && (
+                  <button
+                    onClick={() => setLibraryStatsTimeMode(!libraryStatsTimeMode)}
+                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:text-zinc-300 transition-colors"
+                    aria-label={libraryStatsTimeMode ? 'Switch to songs' : 'Switch to total time'}
+                  >
+                    {libraryStatsTimeMode ? <Clock3 className="w-5 h-5" /> : <Music className="w-5 h-5" />}
+                  </button>
+                )}
+                {activeTab === 'canned' && (
+                  <button
+                    onClick={() => setShowCannedModal(true)}
+                    className="hidden sm:flex w-8 h-8 items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    aria-label="Generate shareable stats image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -800,6 +843,14 @@ export default function StatsPage() {
       {/* Spacer for fixed header */}
       <div className="h-28 sm:h-16" />
 
+      {activeTab === 'library' && (
+        <LibraryTab events={events} fromMonth={fromMonth} toMonth={toMonth} />
+      )}
+
+      {activeTab === 'canned' && loading && <LoadingState />}
+      {activeTab === 'canned' && !loading && (!stats || events.length === 0) && <EmptyState />}
+
+      {activeTab === 'canned' && !loading && stats && events.length > 0 && (
       <div className="px-4">
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
@@ -888,7 +939,7 @@ export default function StatsPage() {
 
         {/* Top Songs */}
         {stats.topSongs.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-12">
             <SectionHeader icon={Music} title="Top Songs" onClick={() => navigate(`/stats/songs?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topSongs.map((song, i) => (
@@ -911,7 +962,7 @@ export default function StatsPage() {
 
         {/* Top Artists */}
         {stats.topArtists.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-12">
             <SectionHeader icon={User} title="Top Artists" onClick={() => navigate(`/stats/artists?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topArtists.map((artist, i) => (
@@ -930,7 +981,7 @@ export default function StatsPage() {
 
         {/* Top Albums */}
         {stats.topAlbums.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-12">
             <SectionHeader icon={Disc} title="Top Albums" onClick={() => navigate(`/stats/albums?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topAlbums.map((album, i) => (
@@ -951,7 +1002,7 @@ export default function StatsPage() {
 
         {/* Top Genres */}
         {stats.topGenres.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-12">
             <SectionHeader icon={Guitar} title="Top Genres" onClick={() => navigate(`/stats/genres?from=${fromMonth}&to=${toMonth}`)} />
             <div>
               {stats.topGenres.map((genre) => {
@@ -1042,9 +1093,10 @@ export default function StatsPage() {
           </>
         )}
       </div>
+      )}
 
       {/* Canned Image Modal */}
-      {showCannedModal && (
+      {showCannedModal && stats && (
         <StatsImageModal
           stats={stats}
           fromMonth={fromMonth}

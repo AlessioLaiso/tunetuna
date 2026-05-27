@@ -586,6 +586,14 @@ export const useStatsStore = create<StatsState>()(
           lastSyncedAt: null,
         })
 
+        // Also clear library snapshots (lazy import to avoid circular dep)
+        try {
+          const { useLibrarySnapshotStore } = await import('./librarySnapshotStore')
+          await useLibrarySnapshotStore.getState().clearAll()
+        } catch {
+          // Silently fail
+        }
+
         // Try to clear server data if authenticated
         if (serverUrl && userId) {
           // Ensure we have a key and token

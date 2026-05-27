@@ -159,6 +159,11 @@ export default function SettingsPage() {
       )
       setGenres(sorted)
       setLastSyncCompleted(Date.now())
+
+      // Capture fresh library snapshot + backfill historical months after sync.
+      const { useLibrarySnapshotStore } = await import('../../stores/librarySnapshotStore')
+      await useLibrarySnapshotStore.getState().refreshAfterSync(useMusicStore.getState().songs)
+
       completeSync(true, 'Library synced successfully')
     } catch (error) {
       completeSync(false, error instanceof Error ? error.message : 'Failed to sync library')

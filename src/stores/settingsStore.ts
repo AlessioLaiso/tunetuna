@@ -53,6 +53,9 @@ interface SettingsState {
   /** Genres to exclude from shuffle all, smart mixes, and mood cards */
   excludedGenres: string[]
   setExcludedGenres: (genres: string[]) => void
+  /** Library stats view mode: true = total time, false = songs */
+  libraryStatsTimeMode: boolean
+  setLibraryStatsTimeMode: (enabled: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -99,6 +102,8 @@ export const useSettingsStore = create<SettingsState>()(
       setDiscogsToken: (token) => set({ discogsToken: token }),
       excludedGenres: [],
       setExcludedGenres: (genres) => set({ excludedGenres: genres }),
+      libraryStatsTimeMode: true,
+      setLibraryStatsTimeMode: (enabled) => set({ libraryStatsTimeMode: enabled }),
     }),
     {
       name: STORE_KEYS.settings,

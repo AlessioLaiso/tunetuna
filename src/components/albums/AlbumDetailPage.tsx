@@ -244,6 +244,18 @@ export default function AlbumDetailPage() {
     }
   }
 
+  const getAlbumDuration = (): string | null => {
+    const totalTicks = tracks.reduce((sum, t) => sum + (t.RunTimeTicks || 0), 0)
+    if (totalTicks <= 0) return null
+    const totalSeconds = Math.floor(totalTicks / 10000000)
+    const totalMinutes = Math.round(totalSeconds / 60)
+    const h = Math.floor(totalMinutes / 60)
+    const m = totalMinutes % 60
+    if (h === 0) return `${m} min`
+    if (m === 0) return `${h}h`
+    return `${h}h ${m}m`
+  }
+
   const getAlbumYear = (): string | null => {
     if (tracks.length > 0) {
       const firstTrack = tracks[0]
@@ -404,7 +416,7 @@ export default function AlbumDetailPage() {
                     >
                       {getArtistName()}
                     </button>
-                    {getAlbumYear() && <span>•</span>}
+                    {(getAlbumYear() || getAlbumDuration()) && <span>•</span>}
                   </>
                 )}
                 {getAlbumYear() && (
@@ -414,6 +426,12 @@ export default function AlbumDetailPage() {
                   >
                     {getAlbumYear()}
                   </button>
+                )}
+                {getAlbumDuration() && (
+                  <>
+                    {getAlbumYear() && <span>•</span>}
+                    <span>{getAlbumDuration()}</span>
+                  </>
                 )}
               </div>
               <button

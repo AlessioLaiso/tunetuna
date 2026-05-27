@@ -106,11 +106,23 @@ export function cleanDiscogsArtistName(name: string): string {
 // API Functions
 // ============================================================================
 
+export class DiscogsAuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DiscogsAuthError'
+  }
+}
+
 /** Derive Discogs username from personal access token */
 export async function fetchDiscogsIdentity(token: string): Promise<string> {
   const response = await rateLimitedFetch(`${DISCOGS_BASE_URL}/oauth/identity`, {
     headers: discogsHeaders(token),
   })
+  if (response.status === 401 || response.status === 403) {
+    const body = await response.text().catch(() => '')
+    logger.error('[Discogs] auth failed', response.status, body)
+    throw new DiscogsAuthError(`Discogs auth rejected (${response.status}) — check your token`)
+  }
   if (!response.ok) {
     throw new Error(`Discogs identity failed: ${response.status}`)
   }
@@ -133,6 +145,9 @@ export async function fetchDiscogsCollection(
     const response = await rateLimitedFetch(url, {
       headers: discogsHeaders(token),
     })
+    if (response.status === 401 || response.status === 403) {
+      throw new DiscogsAuthError(`Discogs auth rejected (${response.status}) — check your token`)
+    }
     if (!response.ok) {
       throw new Error(`Discogs collection failed: ${response.status}`)
     }

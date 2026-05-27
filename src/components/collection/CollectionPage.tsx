@@ -46,10 +46,10 @@ export default function CollectionPage() {
   const { findSongWithAlbumHint } = useLibraryLookup()
 
   useEffect(() => {
-    if (discogsToken && releases.length === 0 && !isLoading) {
+    if (discogsToken && releases.length === 0 && !isLoading && !error) {
       fetchCollection()
     }
-  }, [discogsToken, releases.length, isLoading, fetchCollection])
+  }, [discogsToken, releases.length, isLoading, error, fetchCollection])
 
   // Reset grid page when sort/filter changes
   useEffect(() => { setGridPage(0) }, [sortMode, formatFilter])

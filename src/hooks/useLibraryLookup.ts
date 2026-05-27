@@ -135,19 +135,27 @@ export function useLibraryLookup() {
     const normalizedTitle = normalizeForMatch(cleanTitle(songName))
     if (!normalizedTitle) return null
 
-    // Collect matches in priority order: exact > near-substring (≤5 char diff)
+    // Collect matches in priority order: exact > near-substring.
+    // Substring fallback requires the shorter side to be long enough that a
+    // small char difference is a meaningful fraction of the title.
     const exactMatches: LightweightSong[] = []
     const substringMatches: LightweightSong[] = []
     for (const song of artistSongs) {
       if (excludeIds?.has(song.Id)) continue
       const libTitle = normalizeForMatch(cleanTitle(song.Name || ''))
+      if (!libTitle) continue
       if (libTitle === normalizedTitle) {
         exactMatches.push(song)
-      } else if (
-        (libTitle.includes(normalizedTitle) || normalizedTitle.includes(libTitle)) &&
-        Math.abs(libTitle.length - normalizedTitle.length) <= 5
-      ) {
-        substringMatches.push(song)
+      } else {
+        const shorter = Math.min(libTitle.length, normalizedTitle.length)
+        const diff = Math.abs(libTitle.length - normalizedTitle.length)
+        if (
+          shorter >= 8 &&
+          diff <= 2 &&
+          (libTitle.includes(normalizedTitle) || normalizedTitle.includes(libTitle))
+        ) {
+          substringMatches.push(song)
+        }
       }
     }
 
@@ -201,11 +209,17 @@ export function useLibraryLookup() {
     for (const song of artistSongs) {
       if (!song.AlbumId || !song.Album) continue
       const libAlbum = normalizeForMatch(cleanTitle(song.Album))
+      if (!libAlbum) continue
       if (libAlbum === normalizedAlbum) {
         return { albumId: song.AlbumId, albumName: song.Album }
       }
-      if (libAlbum.includes(normalizedAlbum) || normalizedAlbum.includes(libAlbum)) {
-        const diff = Math.abs(libAlbum.length - normalizedAlbum.length)
+      const shorter = Math.min(libAlbum.length, normalizedAlbum.length)
+      const diff = Math.abs(libAlbum.length - normalizedAlbum.length)
+      if (
+        shorter >= 8 &&
+        diff <= 2 &&
+        (libAlbum.includes(normalizedAlbum) || normalizedAlbum.includes(libAlbum))
+      ) {
         if (diff < bestDiff) {
           bestDiff = diff
           bestMatch = { albumId: song.AlbumId, albumName: song.Album }
