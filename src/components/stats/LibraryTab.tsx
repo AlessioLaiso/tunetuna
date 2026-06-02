@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Music, User, Disc, Guitar, Clock, CirclePlay, Clock3, Repeat2, Loader2 } from 'lucide-react'
+import { Music, User, Disc, Guitar, Clock, Clock3, Repeat2, Loader2 } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
@@ -370,16 +370,8 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
 
   return (
     <div className="px-4">
-      {/* Summary section title */}
-      <div className="sm:mt-12 mb-6">
-        <div className="flex items-center gap-2">
-          <CirclePlay className="w-5 h-5 text-zinc-400" />
-          <h2 className="text-lg font-semibold text-zinc-300">Streamed from your library</h2>
-        </div>
-      </div>
-
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
         <SummaryCard
           icon={showTime ? Clock3 : Music}
           label={showTime ? 'Total time' : 'Songs'}
