@@ -26,7 +26,7 @@ import { computeStats, type ComputedStats } from '../../utils/statsComputer'
 import type { BaseItemDto } from '../../api/types'
 import StatsCannedImage from './StatsCannedImage'
 import LibraryTab from './LibraryTab'
-import html2canvas from 'html2canvas'
+import { domToJpeg } from 'modern-screenshot'
 import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
 import Image from '../shared/Image'
@@ -1117,60 +1117,17 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose }: { stats: Comput
     if (!element) return
 
     try {
-      const canvas = await html2canvas(element, {
-        scale: 2, // Use 2x scale for higher quality export
+      const dataUrl = await domToJpeg(element, {
+        scale: 2,
         backgroundColor: '#0a0a0a',
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        // Add window width/height to ensure proper rendering
-        windowWidth: 1015,
-        windowHeight: 1350,
-        onclone: (clonedDocument) => {
-          // Fix text rendering in clone by adjusting line-height and overflow for export only
-          const clonedElement = clonedDocument.getElementById('stats-canned-image-export') as HTMLElement
-          if (clonedElement) {
-            clonedElement.style.position = 'static'
-            // Allow overflow so text isn't clipped at container edges
-            clonedElement.style.overflow = 'visible'
-
-            // Ensure canvas background renders
-            const canvases = clonedElement.querySelectorAll('canvas')
-            canvases.forEach(canvas => {
-              (canvas as HTMLCanvasElement).style.display = 'block'
-            })
-
-            // Apply line-height to text elements to prevent cropping
-            const textElements = clonedElement.querySelectorAll('p, h1, h2, h3, span')
-            textElements.forEach(el => {
-              const htmlEl = el as HTMLElement
-              const computedStyle = window.getComputedStyle(htmlEl)
-              const fontSize = parseFloat(computedStyle.fontSize)
-
-              if (fontSize > 20) {
-                htmlEl.style.lineHeight = '1.4'
-              } else if (fontSize > 16) {
-                htmlEl.style.lineHeight = '1.3'
-              } else {
-                htmlEl.style.lineHeight = '1.25'
-              }
-            })
-
-            // Remove overflow: hidden from all nested elements to allow text to render fully
-            const allElements = clonedElement.querySelectorAll('*')
-            allElements.forEach(el => {
-              const htmlEl = el as HTMLElement
-              if (htmlEl.style.overflow === 'hidden') {
-                htmlEl.style.overflow = 'visible'
-              }
-            })
-          }
-        }
+        width: 1015,
+        height: 1350,
+        quality: 0.92,
       })
 
       const link = document.createElement('a')
-      link.download = `tunetuna-canned-${fromMonth}-${toMonth}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.download = `tunetuna-canned-${fromMonth}-${toMonth}.jpg`
+      link.href = dataUrl
       link.click()
     } catch (error) {
       logger.error('Error generating image:', error)
@@ -1223,7 +1180,7 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose }: { stats: Comput
       >
         <button
           onClick={handleDownloadClick}
-          className="flex items-center gap-2 px-3 h-10 text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors hidden"
+          className="flex items-center gap-2 px-3 h-10 mr-2 text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors"
           aria-label="Download image"
         >
           <Download className="w-5 h-5" />

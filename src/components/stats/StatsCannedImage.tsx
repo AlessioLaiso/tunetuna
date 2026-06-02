@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Music, User, Disc, Clock, CirclePlay, Flame } from 'lucide-react'
+import * as StackBlur from 'stackblur-canvas'
 import { jellyfinClient } from '../../api/jellyfin'
 
 interface StatsCannedImageProps {
@@ -124,11 +125,6 @@ export default function StatsCannedImage({
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      // Draw blurred background using canvas
-      // Apply blur by drawing with reduced quality and scaling
-      ctx.filter = 'blur(80px)'
-
-      // Scale up to show blurred effect
       const scale = 1.25
       const scaledWidth = canvas.width * scale
       const scaledHeight = canvas.height * scale
@@ -137,7 +133,9 @@ export default function StatsCannedImage({
 
       ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
 
-      // Draw overlay
+      // ctx.filter blur is disabled on iOS WebKit, so we blur pixels directly.
+      StackBlur.canvasRGB(canvas, 0, 0, canvas.width, canvas.height, 80)
+
       ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
