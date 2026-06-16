@@ -232,7 +232,29 @@ export default function SettingsPage() {
 
   const checkForMismatches = async () => {
     try {
-      const { mismatched, total, autoMatchable: auto, unmatched } = await detectMismatchedEvents()
+      let { mismatched, total, autoMatchable: auto, unmatched } = await detectMismatchedEvents()
+
+      // The first detection runs against whatever is in the local song cache,
+      // which can be stale on this device (e.g. songs played on another device
+      // since the last sync here). Those produce false-positive "mismatches".
+      // If we find any, run an incremental sync to pull in new/updated songs,
+      // then re-check so only genuinely orphaned events remain.
+      // Skip when never synced (incremental would only fetch a recent batch,
+      // not necessarily the mismatched songs — same guard as the auto-sync hook)
+      // or when a sync is already in flight.
+      const canReconcile =
+        useMusicStore.getState().lastSyncCompleted !== null &&
+        useSyncStore.getState().state !== 'syncing'
+      if (mismatched > 0 && canReconcile) {
+        try {
+          await jellyfinClient.syncLibrary({ scope: 'incremental' })
+          ;({ mismatched, total, autoMatchable: auto, unmatched } = await detectMismatchedEvents())
+        } catch {
+          // Sync is best-effort — if it fails (e.g. offline), fall back to the
+          // mismatch result we already have against the current cache.
+        }
+      }
+
       if (mismatched > 0) {
         setMismatchCount(mismatched)
         setMismatchTotal(total)
