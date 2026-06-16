@@ -21,5 +21,5 @@ export function useSearchFocus(
         }
       }, 50)
     }
-  }, [isSearchOpen])
+  }, [isSearchOpen, searchInputRef, desktopSearchInputRef])
 }

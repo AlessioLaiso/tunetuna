@@ -119,7 +119,7 @@ export default function SongsPage() {
       setIsSearchOpen(true)
       setSearchParams({}, { replace: true })
     }
-  }, [searchParams, setSearchParams, setYearRange, setSelectedGroupings])
+  }, [searchParams, setSearchParams, setYearRange, setSelectedGroupings, setIsSearchOpen])
 
   useSearchFocus(isSearchOpen, searchInputRef, desktopSearchInputRef)
 
