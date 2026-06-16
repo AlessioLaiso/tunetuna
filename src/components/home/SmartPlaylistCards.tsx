@@ -43,7 +43,10 @@ interface CardItem {
 function pickAlbumFromSubItems(
   cardId: string,
   subItems: { key: string; songs: LightweightSong[] }[],
+  usedAlbumIds: Set<string>,
 ): string | null {
+  // Compute per-sub-item album IDs with a category-scoped set, mirroring the
+  // picker page exactly (which dedupes only within its own category).
   const subItemUsed = new Set<string>()
   const subItemAlbumIds: string[] = []
   for (const item of subItems) {
@@ -54,8 +57,11 @@ function pickAlbumFromSubItems(
     }
   }
   if (subItemAlbumIds.length === 0) return null
+  // Prefer an album not already used by another card; fall back if all are taken.
+  const fresh = subItemAlbumIds.filter(id => !usedAlbumIds.has(id))
+  const pool = fresh.length > 0 ? fresh : subItemAlbumIds
   const seed = getDailySeed(cardId)
-  return subItemAlbumIds[Math.abs(seed) % subItemAlbumIds.length]
+  return pool[Math.abs(seed) % pool.length]
 }
 
 // ============================================================================
@@ -137,7 +143,7 @@ export default function SmartPlaylistCards() {
         key: `mood-${value}`,
         songs: songs.filter(s => s.Grouping?.some(g => g.toLowerCase() === `mood_${value.toLowerCase()}`)),
       }))
-      const moodAlbumId = pickAlbumFromSubItems('moods', moodSubItems)
+      const moodAlbumId = pickAlbumFromSubItems('moods', moodSubItems, usedAlbumIds)
       if (moodAlbumId) usedAlbumIds.add(moodAlbumId)
       items.push({
         id: 'moods',
@@ -155,7 +161,7 @@ export default function SmartPlaylistCards() {
         key: `decade-${decade}`,
         songs: getDecadeSongs(decade, songs),
       }))
-      const decadeAlbumId = pickAlbumFromSubItems('decades', decadeSubItems)
+      const decadeAlbumId = pickAlbumFromSubItems('decades', decadeSubItems, usedAlbumIds)
       if (decadeAlbumId) usedAlbumIds.add(decadeAlbumId)
       items.push({
         id: 'decades',
@@ -173,7 +179,7 @@ export default function SmartPlaylistCards() {
         key: `bpm-${bucket}`,
         songs: getBpmBucketSongs(bucket, songs),
       }))
-      const bpmAlbumId = pickAlbumFromSubItems('bpm', bpmSubItems)
+      const bpmAlbumId = pickAlbumFromSubItems('bpm', bpmSubItems, usedAlbumIds)
       if (bpmAlbumId) usedAlbumIds.add(bpmAlbumId)
       items.push({
         id: 'bpm',
@@ -191,7 +197,7 @@ export default function SmartPlaylistCards() {
         key: `language-${lang}`,
         songs: getLanguageSongs(lang, songs),
       }))
-      const langAlbumId = pickAlbumFromSubItems('languages', langSubItems)
+      const langAlbumId = pickAlbumFromSubItems('languages', langSubItems, usedAlbumIds)
       if (langAlbumId) usedAlbumIds.add(langAlbumId)
       items.push({
         id: 'languages',
