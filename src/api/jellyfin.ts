@@ -8,6 +8,7 @@ import type {
 } from './types'
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
+import { mergeLightweightSongs } from '../utils/syncMerge'
 import { useMusicStore } from '../stores/musicStore'
 import { normalizeQuotes, extractGroupingFromTags, extractBpmFromTags } from '../utils/formatting'
 import { logger } from '../utils/logger'
@@ -867,11 +868,9 @@ class JellyfinClient {
 
       // Merge with existing cache: update modified songs in place, append new ones
       const existingSongs = store.songs
-      const changedSongsMap = new Map(lightweightChangedSongs.map(s => [s.Id, s]))
-      const mergedSongs = existingSongs.map(s => changedSongsMap.get(s.Id) ?? s)
+      const mergedSongs = mergeLightweightSongs(existingSongs, lightweightChangedSongs)
       const existingIds = new Set(existingSongs.map(s => s.Id))
       const newSongs = lightweightChangedSongs.filter(s => !existingIds.has(s.Id))
-      mergedSongs.push(...newSongs)
 
       // Update the cache with error handling
       try {
