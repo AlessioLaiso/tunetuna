@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { saveScrollPosition } from '../../ScrollToTop'
+import { saveScrollPosition } from '../../utils/scrollPosition'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto } from '../../api/types'

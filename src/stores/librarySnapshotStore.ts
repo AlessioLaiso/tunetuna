@@ -325,7 +325,7 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
         const startDate = new Date(oldestEventTs)
         const now = new Date()
 
-        let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+        const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
         let monthsProcessed = 0
         while (current <= now) {
           const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`

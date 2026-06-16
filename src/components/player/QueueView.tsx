@@ -7,7 +7,7 @@ interface QueueViewProps {
   onNavigateFromContextMenu?: () => void
 }
 
-export default function QueueView({ onClose, onNavigateFromContextMenu }: QueueViewProps) {
+export default function QueueView({ onNavigateFromContextMenu }: QueueViewProps) {
   const {
     songs,
     currentIndex,

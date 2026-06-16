@@ -509,7 +509,7 @@ export const useStatsStore = create<StatsState>()(
         const { pendingEvents } = get()
         const { serverUrl, userId } = useAuthStore.getState()
 
-        let allEvents: PlayEvent[] = [...pendingEvents]
+        const allEvents: PlayEvent[] = [...pendingEvents]
 
         // Fetch all events from server if authenticated
         if (serverUrl && userId) {

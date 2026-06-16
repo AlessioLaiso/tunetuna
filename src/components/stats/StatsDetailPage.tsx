@@ -148,8 +148,6 @@ export default function StatsDetailPage() {
     )
   }
 
-  const Icon = config?.icon || Music
-
   return (
     <div className="pb-32 lg:pb-20">
       {/* Fixed header */}

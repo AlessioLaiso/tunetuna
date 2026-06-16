@@ -3,7 +3,7 @@ import { Home, User, Disc, Music, Guitar, ListMusic, LibraryBig, BarChart3 } fro
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSyncStore } from '../../stores/syncStore'
 import VolumeControl from './VolumeControl'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { isIOS } from '../../utils/formatting'
 
 const allTabs = [

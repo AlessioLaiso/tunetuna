@@ -366,7 +366,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return true
     }
 
-    const filterPlaylist = (item: BaseItemDto): boolean => {
+    const filterPlaylist = (_item: BaseItemDto): boolean => {
       // Playlists don't have years, so filter them out when year filter is active
       if (includeYearFilter && (yearRange.min !== null || yearRange.max !== null)) {
         return false

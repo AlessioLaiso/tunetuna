@@ -57,7 +57,6 @@ export default function ArtistsPage() {
     searchResults,
     selectedGenres,
     setSelectedGenres,
-    hasActiveFilters,
     clearSearch,
     clearAll,
   } = useSearch({ includeYearFilter: false })

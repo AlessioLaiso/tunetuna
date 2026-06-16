@@ -32,20 +32,16 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: async (serverUrl: string, username: string, password: string) => {
-        try {
-          const response = await jellyfinClient.authenticate(serverUrl, username, password)
-          set({
-            serverUrl,
-            serverId: response.ServerId ?? '',
-            username,
-            accessToken: response.AccessToken,
-            userId: response.User.Id,
-            isAuthenticated: true,
-          })
-          jellyfinClient.setCredentials(serverUrl, response.AccessToken, response.User.Id)
-        } catch (error) {
-          throw error
-        }
+        const response = await jellyfinClient.authenticate(serverUrl, username, password)
+        set({
+          serverUrl,
+          serverId: response.ServerId ?? '',
+          username,
+          accessToken: response.AccessToken,
+          userId: response.User.Id,
+          isAuthenticated: true,
+        })
+        jellyfinClient.setCredentials(serverUrl, response.AccessToken, response.User.Id)
       },
 
       logout: () => {

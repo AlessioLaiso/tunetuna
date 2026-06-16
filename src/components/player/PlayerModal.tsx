@@ -1,7 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, useRef } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
-import { useSettingsStore } from '../../stores/settingsStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -40,7 +38,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     next,
     previous,
     seek,
-    setVolume,
     toggleShuffle,
     toggleRepeat,
     playTrack,
@@ -66,6 +63,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   const [showVolumePopover, setShowVolumePopover] = useState(false)
   const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ top: number; left: number } | null>(null)
   const [volumePopoverDirection, setVolumePopoverDirection] = useState<'up' | 'down'>('up')
+  // Setter currently unwired (no onRef target); value stays null as the
+  // fallback branch in the volume popover positioning below.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
   const [volumeHeaderButtonElement, setVolumeHeaderButtonElement] = useState<HTMLElement | null>(null)
   const [hasLyrics, setHasLyrics] = useState(false)
@@ -237,10 +237,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     img.src = newUrl
   }, [displayTrack?.Id, displayTrack?.AlbumId])
 
-  if (!displayTrack) {
-    return null
-  }
-
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
 
 
@@ -264,7 +260,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   }
 
   // Check if album exists
-  const hasAlbum = displayTrack.AlbumId && displayTrack.Album && displayTrack.Album.trim()
+  const hasAlbum = displayTrack?.AlbumId && displayTrack?.Album && displayTrack.Album.trim()
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current || !duration || isDragging.current) return
@@ -390,6 +386,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       }
     }
   }, [closeRef])
+
+  // All hooks must run before this guard to keep hook order stable across renders.
+  if (!displayTrack) {
+    return null
+  }
 
   // Swipe down gesture handlers
   const handleTouchStart = (e: React.TouchEvent) => {

@@ -82,7 +82,6 @@ export default function SongsPage() {
     setSelectedGroupings,
     groupingMatchModes,
     setGroupingMatchModes,
-    hasActiveFilters,
     clearSearch,
     clearAll,
   } = useSearch()

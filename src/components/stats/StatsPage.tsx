@@ -47,7 +47,7 @@ function generateMonthOptions(oldestTs: number | null): MonthOption[] {
   const now = new Date()
   const start = oldestTs ? new Date(oldestTs) : new Date(now.getFullYear(), 0, 1)
 
-  let current = new Date(start.getFullYear(), start.getMonth(), 1)
+  const current = new Date(start.getFullYear(), start.getMonth(), 1)
 
   while (current <= now) {
     const value = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
@@ -263,7 +263,6 @@ function TopSongItem({
   const navigate = useNavigate()
   const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
   const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
-  const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
   const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 
@@ -549,7 +548,6 @@ function TopAlbumItem({
   const navigate = useNavigate()
   const imageSize = rank === 1 ? 240 : rank === 2 ? 160 : 96
   const sizeClass = rank === 1 ? 'w-12 h-12 md:w-[120px] md:h-[120px]' : rank === 2 ? 'w-12 h-12 md:w-[80px] md:h-[80px]' : 'w-12 h-12'
-  const iconSize = rank === 1 ? 'w-5 h-5 md:w-10 md:h-10' : rank === 2 ? 'w-5 h-5 md:w-8 md:h-8' : 'w-5 h-5'
   const leftPadding = rank === 1 ? 'md:pl-0' : rank === 2 ? 'md:pl-10' : 'pl-0 md:pl-[72px]'
   const imageUrl = jellyfinClient.getAlbumArtUrl(albumId, imageSize)
 

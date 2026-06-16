@@ -48,8 +48,10 @@ export default function PlaylistsPage() {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
-  const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
+  // Setters unused since the context menu always opens in the default
+  // mobile mode at the default position on this page.
+  const [contextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [contextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
 
@@ -214,14 +216,6 @@ export default function PlaylistsPage() {
 
   // No-op since PlaylistsPage doesn't have filters, but needed for SearchOverlay interface
   const openFilterSheet = (_type: 'genre' | 'year') => { }
-
-  const openContextMenu = (item: BaseItemDto, type: 'album' | 'song' | 'artist' | 'playlist', mode: 'mobile' | 'desktop' = 'mobile', position?: { x: number, y: number }) => {
-    setContextMenuItem(item)
-    setContextMenuItemType(type)
-    setContextMenuMode(mode)
-    setContextMenuPosition(position || null)
-    setContextMenuOpen(true)
-  }
 
   // Order results: playlists first, then artists, albums, songs
   const searchResults = useMemo(() => {

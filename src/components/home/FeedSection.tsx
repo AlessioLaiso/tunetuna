@@ -61,7 +61,6 @@ export function HomeListItem({
   fallbackArtworkUrl,
   secondFallbackUrl,
   rank,
-  isCurrentTrack,
   isInLibrary,
   isMenuOpen,
   subtitleIcon,

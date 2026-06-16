@@ -142,7 +142,7 @@ export async function getRecommendedSongs({
   logger.log('[Recommendations] Sample available songs:', availableSongs.slice(0, 3).map(s => `${s.Name} (${s.ProductionYear}) [${s.Genres?.join(', ')}]`))
 
   // Generate recommendations from available songs
-  let recommendations: BaseItemDto[] = []
+  const recommendations: BaseItemDto[] = []
 
   // Track recommendation quality
   let genreMatchSuccess = false

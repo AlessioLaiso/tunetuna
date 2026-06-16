@@ -12,7 +12,7 @@ export function normalizeName(name: string): string {
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/'/g, '')
-    .replace(/[_\*\-\.]/g, '')
+    .replace(/[_*\-.]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }

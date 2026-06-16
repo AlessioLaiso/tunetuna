@@ -7,7 +7,6 @@ import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { computeLibraryStats } from '../../utils/libraryStatsComputer'
-import { getAccentColorRgba } from '../../utils/badgeTooltipUtils'
 import { BadgeWithTooltip } from './BadgeWithTooltip'
 
 interface Props {

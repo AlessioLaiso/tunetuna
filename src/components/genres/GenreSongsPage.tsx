@@ -4,11 +4,10 @@ import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSyncStore } from '../../stores/syncStore'
-import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import SongItem from '../songs/SongItem'
 import AlbumCard from '../albums/AlbumCard'
-import { ArrowLeft, Shuffle, Pause, ArrowUpDown, Play, ListEnd } from 'lucide-react'
+import { ArrowLeft, Shuffle, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import Spinner from '../shared/Spinner'
 import ContextMenu from '../shared/ContextMenu'
 import Pagination from '../shared/Pagination'
@@ -27,8 +26,7 @@ export default function GenreSongsPage() {
   const { id: rawId } = useParams<{ id: string }>()
   const id = rawId ? decodeURIComponent(rawId) : undefined
   const navigate = useNavigate()
-  const { playAlbum, toggleShuffle, isPlaying, pause, shuffleGenreSongs, addToQueue } = usePlayerStore()
-  const currentTrack = useCurrentTrack()
+  const { playAlbum, shuffleGenreSongs, addToQueue } = usePlayerStore()
   const { genres, genreSongs, setGenreSongs } = useMusicStore()
   const { state: syncState } = useSyncStore()
   const [genre, setGenre] = useState<BaseItemDto | null>(null)
@@ -153,7 +151,7 @@ export default function GenreSongsPage() {
 
       // Prevent concurrent shuffle operations
       const state = usePlayerStore.getState()
-      const { isShuffleAllActive, isShuffleGenreActive, shuffle } = state
+      const { isShuffleAllActive, isShuffleGenreActive } = state
 
       if (isShuffleAllActive || isShuffleGenreActive) {
         return // Another shuffle is active, ignore click
@@ -161,23 +159,13 @@ export default function GenreSongsPage() {
 
       setIsShufflingGenre(true)
 
-
       try {
         await shuffleGenreSongs(genre.Id, genre.Name)
-
-
       } catch (error) {
-
-
         logger.error('Failed to shuffle genre:', error)
       } finally {
         setIsShufflingGenre(false)
-
-
       }
-    } else {
-
-
     }
   }
 
@@ -230,68 +218,6 @@ export default function GenreSongsPage() {
   }, [albums, currentPage, usePaginationForAlbums])
 
   // Group songs by artist, then album by date, then track number
-  const groupedSongs = useMemo(() => {
-    // Group by artist
-    const artistMap = new Map<string, Map<string, BaseItemDto[]>>()
-
-    songs.forEach(song => {
-      const artistName = song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'
-      const albumId = song.AlbumId || 'no-album'
-
-      if (!artistMap.has(artistName)) {
-        artistMap.set(artistName, new Map())
-      }
-
-      const albumMap = artistMap.get(artistName)!
-      if (!albumMap.has(albumId)) {
-        albumMap.set(albumId, [])
-      }
-
-      albumMap.get(albumId)!.push(song)
-    })
-
-    // Sort within each group
-    const result: Array<{ artist: string; albums: Array<{ albumId: string; albumName: string; songs: BaseItemDto[] }> }> = []
-
-    artistMap.forEach((albumMap, artistName) => {
-      const albums: Array<{ albumId: string; albumName: string; songs: BaseItemDto[] }> = []
-
-      albumMap.forEach((songs, albumId) => {
-        // Sort songs by track number
-        const sortedSongs = [...songs].sort((a, b) => {
-          const trackA = a.IndexNumber || 0
-          const trackB = b.IndexNumber || 0
-          return trackA - trackB
-        })
-
-        const albumName = sortedSongs[0]?.Album || 'Unknown Album'
-        albums.push({ albumId, albumName, songs: sortedSongs })
-      })
-
-      // Sort albums by date (newest first), then by name
-      albums.sort((a, b) => {
-        const songA = a.songs[0]
-        const songB = b.songs[0]
-
-        const yearA = songA?.ProductionYear || (songA?.PremiereDate ? new Date(songA.PremiereDate).getFullYear() : 0)
-        const yearB = songB?.ProductionYear || (songB?.PremiereDate ? new Date(songB.PremiereDate).getFullYear() : 0)
-
-        if (yearA !== yearB) {
-          return yearB - yearA
-        }
-
-        return a.albumName.localeCompare(b.albumName)
-      })
-
-      result.push({ artist: artistName, albums })
-    })
-
-    // Sort artists alphabetically
-    result.sort((a, b) => a.artist.localeCompare(b.artist))
-
-    return result
-  }, [songs])
-
   // Helper function to get album date for a song
   const getSongAlbumDate = (song: LightweightSong, albums: BaseItemDto[]): number => {
     const album = albums.find(a => a.Id === song.AlbumId)

@@ -30,7 +30,7 @@ function generateMonthOptions(oldestTs: number | null): MonthOption[] {
   const now = new Date()
   const start = oldestTs ? new Date(oldestTs) : new Date(now.getFullYear(), 0, 1)
 
-  let current = new Date(start.getFullYear(), start.getMonth(), 1)
+  const current = new Date(start.getFullYear(), start.getMonth(), 1)
 
   while (current <= now) {
     const value = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`

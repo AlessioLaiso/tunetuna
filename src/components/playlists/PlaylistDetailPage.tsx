@@ -206,6 +206,8 @@ export default function PlaylistDetailPage() {
 
   // Drag-to-reorder state (only active when PlaylistOrder)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // State drives re-renders during drag; draggingIndexRef holds the live value.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const draggingIndexRef = useRef<number | null>(null)
 

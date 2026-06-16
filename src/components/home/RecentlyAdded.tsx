@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import AlbumCard from '../albums/AlbumCard'
@@ -74,7 +73,6 @@ function RecentlyAddedSkeleton() {
 
 export default function RecentlyAdded() {
   const { recentlyAdded, setRecentlyAdded, setLoading, loading } = useMusicStore()
-  const navigate = useNavigate()
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)

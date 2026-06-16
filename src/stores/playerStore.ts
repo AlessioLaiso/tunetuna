@@ -654,8 +654,8 @@ export const usePlayerStore = create<PlayerState>()(
           const newSongs = state.songs.filter((_, i) => i !== index)
 
           // Update order arrays
-          let newStandardOrder = state.standardOrder.filter(id => id !== songToRemove.Id)
-          let newShuffleOrder = state.shuffleOrder.filter(id => id !== songToRemove.Id)
+          const newStandardOrder = state.standardOrder.filter(id => id !== songToRemove.Id)
+          const newShuffleOrder = state.shuffleOrder.filter(id => id !== songToRemove.Id)
 
           // Update indices
           let newCurrentIndex = state.currentIndex
@@ -889,7 +889,7 @@ export const usePlayerStore = create<PlayerState>()(
           if (state.songs.length === 0) return state
 
           let newCurrentIndex = state.currentIndex
-          let newPreviousIndex = state.currentIndex // Remember where we came from
+          const newPreviousIndex = state.currentIndex // Remember where we came from
 
           if (state.currentIndex > 0) {
             // Go to previous song in queue
@@ -1115,7 +1115,6 @@ export const usePlayerStore = create<PlayerState>()(
 
 
         let instantSongs: LightweightSong[] = []
-        let remainingSongs: LightweightSong[] = []
 
         if (musicStore.shufflePool.length >= 1) {
           // Use available songs from shuffle pool for instant playback (up to 5)
@@ -1156,8 +1155,6 @@ export const usePlayerStore = create<PlayerState>()(
           // Filter excluded genres and use first 5 for instant start
           allSongs = filterExcludedGenres(allSongs)
           instantSongs = shuffleArray(allSongs).slice(0, 5)
-          remainingSongs = allSongs.filter(s => !instantSongs.some(inst => inst.Id === s.Id))
-
 
           // Initialize shuffle pool for future use
           useMusicStore.setState({

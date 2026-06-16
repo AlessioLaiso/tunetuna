@@ -106,7 +106,7 @@ export function useLongPress({
     onTouchStart: start,
     onTouchMove: handleTouchMove,
     onMouseUp: clear,
-    onMouseLeave: (e: React.MouseEvent) => {
+    onMouseLeave: () => {
       // Only clear timeout on mouseleave, don't trigger onClick
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)

@@ -10,7 +10,6 @@ import FilterBottomSheet from '../home/FilterBottomSheet'
 import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
-import type { BaseItemDto } from '../../api/types'
 import { useSearch } from '../../hooks/useSearch'
 import { useSearchOpen } from '../../hooks/useSearchOpen'
 import { useSearchFocus } from '../../hooks/useSearchFocus'
@@ -66,12 +65,10 @@ export default function AlbumsPage() {
     setSearchQuery,
     isSearching,
     searchResults,
-    rawSearchResults,
     selectedGenres,
     setSelectedGenres,
     yearRange,
     setYearRange,
-    hasActiveFilters,
     clearSearch,
     clearAll,
   } = useSearch()
@@ -129,7 +126,7 @@ export default function AlbumsPage() {
   }
 
   useEffect(() => {
-    const handleGlobalContextMenu = (e: MouseEvent) => {
+    const handleGlobalContextMenu = (_e: MouseEvent) => {
     };
 
     document.addEventListener('contextmenu', handleGlobalContextMenu, true); // Use capture phase
@@ -274,12 +271,12 @@ export default function AlbumsPage() {
 
         <div
           style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}
-          onContextMenu={(e) => {
+          onContextMenu={() => {
           }}
         >
           <div
             className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}
-            onContextMenu={(e) => {
+            onContextMenu={() => {
             }}
           >
             {albums.length === 0 && !loading.albums ? (
@@ -291,7 +288,7 @@ export default function AlbumsPage() {
                 <div className="p-4">
                   <div
                     className="grid grid-cols-3 md:grid-cols-4 gap-3"
-                    onContextMenu={(e) => {
+                    onContextMenu={() => {
                     }}
                   >
                     {albums

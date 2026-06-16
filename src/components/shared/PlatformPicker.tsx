@@ -97,10 +97,6 @@ export default function PlatformPicker({
 
   const base = serverUrl?.replace(/\/$/, '') ?? ''
   const hasJellyfinLink = !!(jellyfinItemId && base)
-  const jellyfinUrl =
-    hasJellyfinLink && serverId
-      ? `${base}/web/#/details?id=${jellyfinItemId}&serverId=${serverId}`
-      : null
 
   const availablePlatforms = odesliData
     ? STREAMING_PLATFORMS.filter(platform => odesliData.linksByPlatform[platform.id])

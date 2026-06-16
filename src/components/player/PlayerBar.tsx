@@ -46,6 +46,8 @@ export default function PlayerBar() {
   const lastPlayedTrack = useLastPlayedTrack()
 
   const [showModal, setShowModal] = useState(false)
+  // Write-only: setter drives modal close animation timing via effects below.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isModalClosing, setIsModalClosing] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showVolumePopover, setShowVolumePopover] = useState(false)

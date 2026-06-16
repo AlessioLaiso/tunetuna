@@ -1317,8 +1317,6 @@ class JellyfinClient {
         `/Audio/${itemId}/Lyrics`,
       ]
 
-      let lastError: string | null = null
-
       for (const endpoint of endpoints) {
         const query = new URLSearchParams({
           UserId: this.userId,
@@ -1353,15 +1351,11 @@ class JellyfinClient {
               }
             }
           } else if (response.status === 404) {
-            lastError = `404 for ${endpoint}`
             continue // Try next endpoint
           } else {
-            const errorText = await response.text().catch(() => '')
-            lastError = `${response.status}: ${errorText}`
             continue // Try next endpoint
           }
-        } catch (fetchError) {
-          lastError = fetchError instanceof Error ? fetchError.message : String(fetchError)
+        } catch {
           continue // Try next endpoint
         }
       }

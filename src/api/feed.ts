@@ -404,9 +404,6 @@ export async function fetchMuspyReleases(
     // Atom uses <updated> or <published> instead of <pubDate>
     const updated = item.querySelector('updated')?.textContent || item.querySelector('published')?.textContent || ''
 
-    // Get the entry ID which in Muspy is the MusicBrainz release group URL
-    const entryId = item.querySelector('id')?.textContent || ''
-
     // Extract release group ID - look for UUID pattern in the ENTIRE entry content
     // This handles any variation of where Muspy might put the link/ID
     const uuidPattern = /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/i

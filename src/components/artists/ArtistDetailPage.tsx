@@ -5,7 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import Image from '../shared/Image'
-import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, Disc, ArrowUpDown, Play, ListEnd } from 'lucide-react'
+import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, Play, ListEnd } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from '../shared/ContextMenu'
@@ -15,7 +15,7 @@ import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
-import { getSavedScrollPosition } from '../../ScrollToTop'
+import { getSavedScrollPosition } from '../../utils/scrollPosition'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -144,6 +144,8 @@ export default function ArtistDetailPage() {
   const [songs, setSongs] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [bioExpanded, setBioExpanded] = useState(false)
+  // Measured below to drive bio expand/collapse; value currently only written.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isBioExpandable, setIsBioExpandable] = useState(true)
   const [hasImage, setHasImage] = useState(true)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -258,7 +260,7 @@ export default function ArtistDetailPage() {
   const normalizeArtistName = (name: string): string => {
     return name
       .toLowerCase()
-      .replace(/[_\*\-\.]/g, '') // Remove underscore, asterisk, dash, period
+      .replace(/[_*\-.]/g, '') // Remove underscore, asterisk, dash, period
       .trim()
   }
 

@@ -394,7 +394,7 @@ export default function SearchOverlay({
               </div>
             </div>
             <div className={`space-y-0 ${marginClass}`}>
-              {results.songs.map((song, index) => (
+              {results.songs.map((song) => (
                 <SearchSongItem
                   key={song.Id}
                   song={song}

@@ -195,12 +195,14 @@ interface QueueListProps {
     contentPaddingBottom?: string
 }
 
-export default function QueueList({ onNavigateFromContextMenu, header, contentPaddingBottom = '8rem' }: QueueListProps) {
+export default function QueueList({ onNavigateFromContextMenu, header }: QueueListProps) {
     const [contextMenuOpen, setContextMenuOpen] = useState(false)
     const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
     const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
     const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+    // State drives re-renders during drag; draggingIndexRef holds the live value.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
     const [visibleSongsCount, setVisibleSongsCount] = useState(INITIAL_VISIBLE_SONGS)
     const [showPrevious, setShowPrevious] = useState(false)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Music, User, Disc, Clock, CirclePlay, Flame } from 'lucide-react'
+import { Music, User, Disc, Clock } from 'lucide-react'
 import * as StackBlur from 'stackblur-canvas'
 import { jellyfinClient } from '../../api/jellyfin'
 

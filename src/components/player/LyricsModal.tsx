@@ -103,7 +103,6 @@ export default function LyricsModal() {
     if (!lineEl || !container) return
 
     const containerRect = container.getBoundingClientRect()
-    const lineRect = lineEl.getBoundingClientRect()
 
     // Scroll so the active line is slightly above center
     const targetScrollTop =

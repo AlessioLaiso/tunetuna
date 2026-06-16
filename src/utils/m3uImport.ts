@@ -124,7 +124,7 @@ function matchEntry(entry: M3UEntry, songsByFilename: Map<string, BaseItemDto[]>
   const entryAlbumFolder = entryParts.length >= 2 ? normalizeStr(entryParts[entryParts.length - 2]) : ''
   const entryArtistFolder = entryParts.length >= 3 ? normalizeStr(entryParts[entryParts.length - 3]) : ''
 
-  let filtered = candidates.filter(song => {
+  const filtered = candidates.filter(song => {
     const songParts = (song.Path || '').replace(/\\/g, '/').split('/')
     const songAlbumFolder = songParts.length >= 2 ? normalizeStr(songParts[songParts.length - 2]) : ''
     return songAlbumFolder === entryAlbumFolder
