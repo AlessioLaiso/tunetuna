@@ -9,6 +9,7 @@ import type {
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
 import { mergeLightweightSongs } from '../utils/syncMerge'
+import { buildItemsQueryString } from './jellyfinTransforms'
 import { useMusicStore } from '../stores/musicStore'
 import { normalizeQuotes, extractGroupingFromTags, extractBpmFromTags } from '../utils/formatting'
 import { logger } from '../utils/logger'
@@ -316,67 +317,7 @@ class JellyfinClient {
   }
 
   private buildQueryString(options: GetItemsOptions, cacheBust = false): string {
-    const params = new URLSearchParams()
-    
-    if (options.sortBy) {
-      options.sortBy.forEach(sort => params.append('SortBy', sort))
-    }
-    if (options.sortOrder) {
-      if (Array.isArray(options.sortOrder)) {
-        options.sortOrder.forEach(order => params.append('SortOrder', order))
-      } else {
-        params.append('SortOrder', options.sortOrder)
-      }
-    }
-    if (options.limit) {
-      params.append('Limit', options.limit.toString())
-    }
-    if (options.startIndex) {
-      params.append('StartIndex', options.startIndex.toString())
-    }
-    if (options.includeItemTypes) {
-      options.includeItemTypes.forEach(type => params.append('IncludeItemTypes', type))
-    }
-    if (options.recursive !== undefined) {
-      params.append('Recursive', options.recursive.toString())
-    }
-    if (options.parentId) {
-      params.append('ParentId', options.parentId)
-    }
-    if (options.searchTerm && options.searchTerm.trim().length > 0) {
-      params.append('SearchTerm', options.searchTerm.trim())
-    }
-    if (options.genreIds) {
-      options.genreIds.forEach(id => params.append('GenreIds', id))
-    }
-    if (options.genres) {
-      options.genres.forEach(genre => params.append('Genres', genre))
-    }
-    if (options.artistIds) {
-      options.artistIds.forEach(id => params.append('ArtistIds', id))
-    }
-    if (options.albumIds) {
-      options.albumIds.forEach(id => params.append('AlbumIds', id))
-    }
-    if (options.years) {
-      options.years.forEach(year => params.append('Years', year.toString()))
-    }
-    if (options.tags) {
-      options.tags.forEach(tag => params.append('Tags', tag))
-    }
-    if (options.minDateLastSaved) {
-      params.append('MinDateLastSaved', options.minDateLastSaved.toISOString())
-    }
-
-    params.append('UserId', this.userId)
-    params.append('Fields', 'PrimaryImageAspectRatio,BasicSyncInfo,CanDelete,MediaSourceCount,Genres,Tags,ProductionYear,DateCreated,DateModified,DateLastSaved,AlbumArtist,ArtistItems,Album,AlbumId,ChildCount')
-    
-    // Add cache-busting timestamp to force fresh data from server
-    if (cacheBust) {
-      params.append('_t', Date.now().toString())
-    }
-    
-    return params.toString()
+    return buildItemsQueryString(options, this.userId, cacheBust)
   }
 
   async getArtistById(artistId: string): Promise<BaseItemDto | null> {

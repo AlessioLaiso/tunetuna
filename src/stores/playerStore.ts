@@ -8,6 +8,8 @@ import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 import { shuffleArray } from '../utils/array'
+import { computeAddToQueue, computeRemoveFromQueue, computeReorderQueue } from './queueOps'
+import type { QueueSong } from './queueOps'
 import { filterExcludedGenres } from '../utils/genreFilter'
 import { isIOS } from '../utils/formatting'
 import { STORE_KEYS } from '../utils/constants'
@@ -78,9 +80,7 @@ export function clearPlaybackTrackingState() {
   cancelPauseFade(true)
 }
 
-export interface QueueSong extends BaseItemDto {
-  source: 'user' | 'recommendation'  // 'user' for manually added, 'recommendation' for auto-added
-}
+export type { QueueSong }
 
 interface PlayerState {
   // Core queue data
@@ -538,100 +538,12 @@ export const usePlayerStore = create<PlayerState>()(
         get().cancelPreBuffer()
         set((state) => {
           const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
-
-          const newSongs = tracks.map(track => ({ ...track, source: source as 'user' | 'recommendation' }))
-
-          let finalSongs: QueueSong[]
-          const songsToInsert = newSongs
-
-          if (playNext) {
-            // Add as play next - insert after current song in the overall queue
-            const songsToInsertShuffled = state.shuffle ? shuffleArray([...newSongs]) : newSongs
-
-            // Insert after current song position
-            const insertPosition = state.currentIndex + 1
-            const songsBeforeInsert = state.songs.slice(0, insertPosition)
-            const songsAfterInsert = state.songs.slice(insertPosition)
-
-            // Rebuild the queue with new songs inserted
-            finalSongs = [
-              ...songsBeforeInsert,
-              ...songsToInsertShuffled,
-              ...songsAfterInsert
-            ]
-          } else {
-            // Different logic for user tracks vs recommendations
-            if (source === 'recommendation') {
-              // Recommendations: always append to the end of the queue
-              // This prevents shifting currently playing recommendations
-              finalSongs = [...state.songs, ...songsToInsert]
-            } else {
-              // User tracks: insert after current position, before upcoming recommendations
-              // Find first recommendation AFTER current position
-              const firstUpcomingRecoIdx = state.songs.findIndex((song, idx) =>
-                idx > state.currentIndex && song.source === 'recommendation'
-              )
-
-              if (firstUpcomingRecoIdx !== -1) {
-                // Insert before first upcoming recommendation (after current position)
-                finalSongs = [
-                  ...state.songs.slice(0, firstUpcomingRecoIdx),
-                  ...songsToInsert,
-                  ...state.songs.slice(firstUpcomingRecoIdx)
-                ]
-              } else {
-                // No upcoming recommendations, just append to the end
-                finalSongs = [...state.songs, ...songsToInsert]
-              }
-            }
+          const result = computeAddToQueue(state, tracks, playNext, source)
+          if (currentSong && result.currentIndex === state.currentIndex &&
+              !result.songs.some(s => s.Id === currentSong.Id)) {
+            logger.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
           }
-
-          // Update current index if current song moved (only when inserting user tracks before it)
-          let newCurrentIndex = state.currentIndex
-          if (state.currentIndex >= 0 && currentSong) {
-            // Find current song in the new queue by ID
-            const foundIndex = finalSongs.findIndex(s => s.Id === currentSong.Id)
-            if (foundIndex !== -1) {
-              newCurrentIndex = foundIndex
-            } else {
-              logger.error(`[addToQueue] CRITICAL: Could not find current song in new queue!`)
-            }
-          }
-
-          // Enforce max queue size (1000 songs total)
-          let trimmedSongs = finalSongs
-          if (finalSongs.length > 1000) {
-            const songsBeforeCurrent = finalSongs.slice(0, newCurrentIndex)
-            const songsAfterCurrent = finalSongs.slice(newCurrentIndex + 1)
-
-            const keepPrevious = songsBeforeCurrent.slice(-5)
-            const keepAfter = songsAfterCurrent
-
-            const remainingSlots = 1000 - keepPrevious.length - (currentSong ? 1 : 0) - keepAfter.length
-            const keepBefore = songsBeforeCurrent.slice(-Math.max(0, remainingSlots))
-
-            trimmedSongs = [
-              ...keepBefore,
-              ...(currentSong ? [currentSong] : []),
-              ...keepAfter
-            ]
-
-            newCurrentIndex = currentSong ? keepBefore.length : -1
-          }
-
-          // CRITICAL: Always rebuild order arrays from actual user songs in the final queue
-          // This ensures order arrays are always in sync with the queue
-          const userSongsInOrder = trimmedSongs.filter(s => s.source === 'user')
-          const newOrderArray = userSongsInOrder.map(s => s.Id)
-
-          return {
-            songs: trimmedSongs,
-            currentIndex: newCurrentIndex,
-            // Both arrays now reflect the actual order of user songs in the queue
-            standardOrder: newOrderArray,
-            shuffleOrder: newOrderArray,
-            manuallyCleared: false,
-          }
+          return result
         })
       },
 
@@ -647,108 +559,12 @@ export const usePlayerStore = create<PlayerState>()(
 
       removeFromQueue: (index) => {
         get().cancelPreBuffer()
-        set((state) => {
-          if (index < 0 || index >= state.songs.length) return state
-
-          const songToRemove = state.songs[index]
-          const newSongs = state.songs.filter((_, i) => i !== index)
-
-          // Update order arrays
-          const newStandardOrder = state.standardOrder.filter(id => id !== songToRemove.Id)
-          const newShuffleOrder = state.shuffleOrder.filter(id => id !== songToRemove.Id)
-
-          // Update indices
-          let newCurrentIndex = state.currentIndex
-          let newPreviousIndex = state.previousIndex
-
-          if (index < state.currentIndex) {
-            newCurrentIndex = state.currentIndex - 1
-          } else if (index === state.currentIndex) {
-            // Current song removed - stop playback but keep the song as lastPlayedTrack
-            newCurrentIndex = -1
-            // Don't clear lastPlayedTrack here, let it persist
-          }
-
-          if (index < state.previousIndex) {
-            newPreviousIndex = state.previousIndex - 1
-          } else if (index === state.previousIndex) {
-            newPreviousIndex = -1 // Previous song removed
-          }
-
-          return {
-            songs: newSongs,
-            currentIndex: newCurrentIndex,
-            previousIndex: newPreviousIndex,
-            standardOrder: newStandardOrder,
-            shuffleOrder: newShuffleOrder,
-          }
-        })
+        set((state) => computeRemoveFromQueue(state, index) ?? state)
       },
 
       reorderQueue: (fromIndex, toIndex) => {
         get().cancelPreBuffer()
-        set((state) => {
-          if (fromIndex < 0 || toIndex < 0 ||
-            fromIndex >= state.songs.length || toIndex >= state.songs.length ||
-            fromIndex === toIndex) {
-            return state
-          }
-
-          const fromSong = state.songs[fromIndex]
-          const toSong = state.songs[toIndex]
-
-          // Don't allow dragging between user songs and recommendations
-          if (fromSong.source !== toSong.source) {
-            return state
-          }
-
-          const newSongs = [...state.songs]
-          const [removed] = newSongs.splice(fromIndex, 1)
-          newSongs.splice(toIndex, 0, removed)
-
-          // Update order arrays for user songs
-          if (fromSong.source === 'user') {
-            const orderArray = state.shuffle ? 'shuffleOrder' : 'standardOrder'
-            const currentOrder = state[orderArray] as string[]
-
-            // Remove and reinsert in the order array
-            const orderIndex = currentOrder.indexOf(fromSong.Id)
-            if (orderIndex >= 0) {
-              const newOrder = [...currentOrder]
-              newOrder.splice(orderIndex, 1)
-
-              // Find where to insert in the user songs section
-              const userSongsBeforeTo = newSongs.slice(0, toIndex + 1).filter(s => s.source === 'user')
-              const insertIndex = userSongsBeforeTo.length - 1
-
-              newOrder.splice(insertIndex, 0, fromSong.Id)
-
-              const newCurrentIndex = toIndex === state.currentIndex ? toIndex :
-                fromIndex === state.currentIndex ? toIndex :
-                  state.currentIndex
-              return {
-                songs: newSongs,
-                [orderArray]: newOrder,
-                currentIndex: newCurrentIndex,
-                previousIndex: toIndex === state.previousIndex ? toIndex :
-                  fromIndex === state.previousIndex ? toIndex :
-                    state.previousIndex,
-              }
-            }
-          }
-
-          // For recommendations, just update indices
-          const newCurrentIndex2 = toIndex === state.currentIndex ? toIndex :
-            fromIndex === state.currentIndex ? toIndex :
-              state.currentIndex
-          return {
-            songs: newSongs,
-            currentIndex: newCurrentIndex2,
-            previousIndex: toIndex === state.previousIndex ? toIndex :
-              fromIndex === state.previousIndex ? toIndex :
-                state.previousIndex,
-          }
-        })
+        set((state) => computeReorderQueue(state, fromIndex, toIndex) ?? state)
       },
 
       play: () => {
