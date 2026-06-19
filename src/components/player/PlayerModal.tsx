@@ -615,13 +615,17 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }
                   setShowLyricsModal(!showLyricsModal)
                 }}
-                aria-label={showLyricsModal ? 'Hide lyrics' : 'Show lyrics'}
+                aria-label={showLyricsModal ? 'Show album art' : 'Show lyrics'}
                 className={`transition-colors p-2 rounded-full ${hasLyrics || showLyricsModal
-                  ? `hover:bg-white/10 ${showLyricsModal ? 'text-[var(--accent-color)]' : 'text-white'}`
+                  ? 'hover:bg-white/10 text-white'
                   : 'hidden'
                   }`}
               >
-                <MicVocal className="w-6 h-6" />
+                {showLyricsModal ? (
+                  <SquarePlay className="w-6 h-6" />
+                ) : (
+                  <MicVocal className="w-6 h-6" />
+                )}
               </button>
               {/* Queue/Player toggle button - below xl */}
               <button
