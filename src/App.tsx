@@ -28,6 +28,7 @@ const CollectionPage = lazy(() => import('./components/collection/CollectionPage
 const CollectionDetailPage = lazy(() => import('./components/collection/CollectionDetailPage'))
 const StatsPage = lazy(() => import('./components/stats/StatsPage'))
 const StatsDetailPage = lazy(() => import('./components/stats/StatsDetailPage'))
+const ArtistTopSongsDetailPage = lazy(() => import('./components/stats/ArtistTopSongsDetailPage'))
 const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
 const SmartPlaylistDetailPage = lazy(() => import('./components/smart/SmartPlaylistDetailPage'))
 const SmartPickerPage = lazy(() => import('./components/smart/SmartPickerPage'))
@@ -136,6 +137,7 @@ function App() {
               {pageVisibility.stats && (
                 <>
                   <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
+                  <Route path="/stats/artist/songs" element={withErrorBoundary(<ArtistTopSongsDetailPage />, 'Artist Top Songs')} />
                   <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats Detail')} />
                 </>
               )}

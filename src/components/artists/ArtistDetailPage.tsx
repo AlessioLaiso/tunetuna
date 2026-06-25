@@ -16,6 +16,8 @@ import { formatDuration } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
 import { getSavedScrollPosition } from '../../utils/scrollPosition'
+import { useArtistTopSongs } from '../../hooks/useArtistTopSongs'
+import type { ArtistTopSong } from '../../utils/statsComputer'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
@@ -34,6 +36,104 @@ interface ArtistSongItemProps {
   onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
   showImage?: boolean
+}
+
+function ArtistTopSongItem({
+  song,
+  onClick,
+  onContextMenu,
+  contextMenuItemId,
+}: {
+  song: ArtistTopSong
+  onClick: (song: ArtistTopSong) => void
+  onContextMenu: (song: ArtistTopSong, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
+  contextMenuItemId: string | null
+}) {
+  const navigate = useNavigate()
+  const isThisItemMenuOpen = contextMenuItemId === song.songId
+  const currentTrack = useCurrentTrack()
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault()
+      onContextMenu(song, 'mobile')
+    },
+    onClick: () => onClick(song),
+  })
+  return (
+    <button
+      onClick={() => onClick(song)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onContextMenu(song, 'desktop', { x: e.clientX, y: e.clientY })
+      }}
+      {...longPressHandlers}
+      className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
+    >
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+        <Image
+          src={jellyfinClient.getAlbumArtUrl(song.albumId || song.songId, 96)}
+          alt={song.songName}
+          className="w-full h-full object-cover"
+          showOutline={true}
+          rounded="rounded-sm"
+        />
+      </div>
+      <div className="flex-1 min-w-0 text-left">
+        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.songId
+          ? 'text-[var(--accent-color)]'
+          : 'text-white group-hover:text-[var(--accent-color)]'
+          }`}>
+          {song.songName}
+        </div>
+        <div className="text-xs text-gray-400 flex items-center gap-1 min-w-0">
+          {song.primaryArtistName && (
+            song.primaryArtistId ? (
+              <span
+                className="clickable-text truncate flex-shrink-0"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/artist/${song.primaryArtistId}`)
+                }}
+              >
+                {song.primaryArtistName}
+              </span>
+            ) : (
+              <span className="truncate flex-shrink-0">{song.primaryArtistName}</span>
+            )
+          )}
+          {song.primaryArtistName && song.albumName && (
+            <span className="flex-shrink-0">•</span>
+          )}
+          {song.albumName && (
+            song.albumId ? (
+              <span
+                className="clickable-text truncate"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/album/${song.albumId}`)
+                }}
+              >
+                {song.albumName}
+              </span>
+            ) : (
+              <span className="truncate">{song.albumName}</span>
+            )
+          )}
+          {song.albumName && song.year && (
+            <span className="flex-shrink-0">•</span>
+          )}
+          {song.year && (
+            <span className="flex-shrink-0">{song.year}</span>
+          )}
+        </div>
+      </div>
+      <div className="text-sm text-zinc-400 flex-shrink-0 text-right whitespace-nowrap tabular-nums">
+        {song.plays} {song.plays === 1 ? 'stream' : 'streams'}
+      </div>
+    </button>
+  )
 }
 
 function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
@@ -167,6 +267,13 @@ export default function ArtistDetailPage() {
   const featuredData = useMemo(
     () => getFeaturedArtistData(storeSongs),
     [storeSongs]
+  )
+
+  // Top 5 most-streamed songs by this artist in the last 6 months (rolling).
+  // Used to render the "Top songs" section between the bio and the albums.
+  const { topSongs: artistTopSongs, playedSongCount: artistPlayedSongCount } = useArtistTopSongs(
+    id,
+    artist?.Name,
   )
 
   // Collect featured songs for this artist, resolving duplicate artist IDs by name
@@ -633,6 +740,18 @@ export default function ArtistDetailPage() {
     })
   }
 
+  // Play a song from the "Top songs" section, seeding the queue with the full
+  // ranked top-5 so that the songs after the clicked one show up in "Coming up".
+  const handlePlayTopSong = async (song: ArtistTopSong) => {
+    const [clicked, ...rest] = await Promise.all(
+      artistTopSongs.map((s) => jellyfinClient.getSongById(s.songId)),
+    )
+    const queue = [clicked, ...rest].filter((s): s is BaseItemDto => s !== null)
+    if (!queue.length) return
+    const clickedTrack = queue.find(s => s.Id === song.songId) || queue[0]
+    playTrack(clickedTrack, queue)
+  }
+
   if (loading) {
     return (
       <div className="pb-20">
@@ -834,6 +953,48 @@ export default function ArtistDetailPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Top songs section - top 5 most-streamed songs by this artist in the last 6 months */}
+        {mergedSongs.length >= 10 && artistPlayedSongCount >= 5 && artistTopSongs.length > 0 && (
+          <div className="mb-10">
+            <div className="px-4 mb-4">
+              <button
+                onClick={() => navigate(`/stats/artist/songs?artist=${encodeURIComponent(id || '')}&artistName=${encodeURIComponent(artist.Name || '')}`)}
+                title="Your most streamed tracks by this artist in the last 6 months"
+                className="block group"
+              >
+                <h2 className="text-2xl font-bold text-white group-hover:text-[var(--accent-color)] transition-colors text-left">
+                  Top songs
+                </h2>
+              </button>
+            </div>
+            <div className="space-y-0">
+              {artistTopSongs.map((song) => (
+                <ArtistTopSongItem
+                  key={song.songId}
+                  song={song}
+                  onClick={handlePlayTopSong}
+                  onContextMenu={(song, mode, position) => {
+                    setContextMenuItem({
+                      Id: song.songId,
+                      Name: song.songName,
+                      AlbumId: song.albumId,
+                      Album: song.albumName || undefined,
+                      ArtistItems: song.primaryArtistId ? [{ Id: song.primaryArtistId, Name: song.primaryArtistName || 'Unknown' }] : undefined,
+                      AlbumArtist: song.primaryArtistName || undefined,
+                      Type: 'Audio',
+                    } as BaseItemDto)
+                    setContextMenuItemType('song')
+                    setContextMenuMode(mode || 'mobile')
+                    setContextMenuPosition(position || null)
+                    setContextMenuOpen(true)
+                  }}
+                  contextMenuItemId={contextMenuOpen ? contextMenuItem?.Id || null : null}
+                />
+              ))}
             </div>
           </div>
         )}

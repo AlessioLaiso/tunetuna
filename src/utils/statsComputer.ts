@@ -1,4 +1,5 @@
 import type { PlayEvent } from '../stores/statsStore'
+import { normalizeName, extractFeaturedArtists } from './featuredArtists'
 
 export interface ComputedStats {
   // Summary
@@ -73,6 +74,46 @@ export interface ComputedStats {
 }
 
 const msToHours = (ms: number) => ms / 1000 / 60 / 60
+
+const SHORT_MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+]
+
+function formatMonthYear(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number)
+  return `${SHORT_MONTH_NAMES[month - 1]} ${year}`
+}
+
+/**
+ * Rolling 6-month range ending at the current month (inclusive).
+ *
+ * The window always ends at the last moment of the current month so that the
+ * range is stable within a given month — "last 6 months including the current
+ * one" means [currentMonth - 5, currentMonth].
+ */
+export function getRollingSixMonthRange(now: Date = new Date()): { fromMonth: string, toMonth: string, fromDate: Date, toDate: Date } {
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const fromMonthStart = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const fromMonth = fmt(fromMonthStart)
+  // toDate: last moment of current month
+  const toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  return {
+    fromMonth,
+    toMonth: fmt(currentMonthStart),
+    fromDate: fromMonthStart,
+    toDate,
+  }
+}
+
+export function formatRangeSubtitle(fromMonth: string, toMonth: string): string {
+  if (!fromMonth || !toMonth) return ''
+  if (fromMonth === toMonth) return formatMonthYear(fromMonth)
+  return `${formatMonthYear(fromMonth)} - ${formatMonthYear(toMonth)}`
+}
 
 function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
   return arr.reduce((acc, item) => {
@@ -490,4 +531,204 @@ export function computeStats(
     decades,
     topGenreDecades,
   }
+}
+
+export interface ArtistTopSong {
+  songId: string
+  songName: string
+  albumId: string
+  albumName: string
+  year: number | null
+  plays: number
+  /**
+   * Primary artist to display in the secondary line when this artist is a featured
+   * appearance (e.g. the song is "Someone Else (feat. This Artist)").
+   * For songs where this artist is a credited artist, this is null and the row
+   * shows only album + year, matching the main Songs section.
+   */
+  primaryArtistName: string | null
+  primaryArtistId: string | null
+}
+
+interface ArtistTopSongStat {
+  name: string
+  albumId: string
+  albumName: string
+  year: number | null
+  plays: number
+  /** Best-known primary artist name for the song (from the library, if found) */
+  primaryArtistName: string | null
+  primaryArtistId: string | null
+  /** Whether the matched artist is a credited artist on this song's play events */
+  creditedMatch: boolean
+}
+
+/**
+ * Lookup of library songs, keyed by song ID, used to resolve row display
+ * metadata (primary artist, album name, year) for the artist's Top songs.
+ */
+export type SongLookup = Map<string, {
+  Name: string
+  AlbumArtist?: string
+  ArtistItems?: Array<{ Id?: string, Name?: string }>
+  Album?: string
+  AlbumId?: string
+  ProductionYear?: number
+  PremiereDate?: string
+}>
+
+/**
+ * Top songs by a specific artist over a given time range, ranked by play count.
+ *
+ * An event matches the artist when **either**:
+ *  - the artist's ID (any alias) appears anywhere in the event's `artistIds`
+ *    (credited artist — includes tracks where they're a credited collaborator); OR
+ *  - the artist's name appears in the song title via a `(feat. X)` / `(ft. X)`
+ *    / `(featuring X)` / `(with X)` clause, matched by normalized name.
+ *
+ * The title-match path is what brings in "Appears On" songs — tracks where the
+ * artist is only named in the title and may not be present in `ArtistItems`,
+ * so their play events wouldn't carry the artist's ID.
+ *
+ * Row display metadata (album, year, primary artist) is sourced from the
+ * library via `songLookup` so the rows render the same secondary line as the
+ * main Songs section on the artist page: primary artist (when featured) • album • year.
+ *
+ * Events are expected to already be filtered to the desired range; this only
+ * slices by artist and ranks songs.
+ */
+export function computeArtistTopSongs(
+  events: PlayEvent[],
+  artistIds: string[],
+  artistName: string | null | undefined,
+  songLookup: SongLookup,
+  limit = 5,
+): ArtistTopSong[] {
+  const idSet = new Set(artistIds.filter(Boolean))
+  if ((idSet.size === 0 && !artistName) || events.length === 0) return []
+
+  const normalizedArtistNames = new Set<string>()
+  if (artistName) {
+    normalizedArtistNames.add(normalizeName(artistName))
+    // Also accept the names recorded against the alias IDs in the play events,
+    // since Jellyfin's stored name casing may differ from the library.
+  }
+
+  const matchesEvent = (e: PlayEvent): 'credited' | 'title' | null => {
+    if (idSet.size > 0 && e.artistIds.some(id => idSet.has(id))) {
+      return 'credited'
+    }
+    // Title-featured match: artist named in a (feat./ft./featuring/with X) clause
+    if (artistName && titleFeaturesArtist(e.songName, normalizedArtistNames)) {
+      return 'title'
+    }
+    return null
+  }
+
+  const songStats = new Map<string, ArtistTopSongStat>()
+
+  for (const e of events) {
+    const match = matchesEvent(e)
+    if (!match) continue
+
+    if (!songStats.has(e.songId)) {
+      const libSong = songLookup.get(e.songId)
+      // Primary artist = first credited artist from the library, else the
+      // event's first artist name, else album artist.
+      const primaryArtistItem = libSong?.ArtistItems?.[0]
+      const primaryArtistName =
+        primaryArtistItem?.Name || e.artistNames[0] || libSong?.AlbumArtist || null
+      const primaryArtistId = primaryArtistItem?.Id || e.artistIds[0] || null
+      songStats.set(e.songId, {
+        name: e.songName,
+        albumId: libSong?.AlbumId || e.albumId,
+        albumName: libSong?.Album || e.albumName,
+        year: libSong?.ProductionYear ?? e.year ?? null,
+        plays: 0,
+        primaryArtistName,
+        primaryArtistId,
+        creditedMatch: match === 'credited',
+      })
+    }
+    songStats.get(e.songId)!.plays++
+    // If we've seen both a credited and a title match across plays, prefer credited.
+    if (match === 'credited') {
+      songStats.get(e.songId)!.creditedMatch = true
+    }
+  }
+
+  return [...songStats.entries()]
+    .sort((a, b) => b[1].plays - a[1].plays || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([songId, stat]) => {
+      // Show the primary artist only when this artist is a featured appearance
+      // (matched via title, never credited) — matches the main Songs section,
+      // which shows the main artist for "appears on" tracks and omits it for own tracks.
+      const isFeaturedAppearance = !stat.creditedMatch
+      return {
+        songId,
+        songName: stat.name,
+        albumId: stat.albumId,
+        albumName: stat.albumName,
+        year: stat.year,
+        plays: stat.plays,
+        primaryArtistName: isFeaturedAppearance ? stat.primaryArtistName : null,
+        primaryArtistId: isFeaturedAppearance ? stat.primaryArtistId : null,
+      }
+    })
+}
+
+/**
+ * Count of distinct songs by an artist that have been played in the given events.
+ * Used to gate the Top songs section on the artist detail page (≥ N played songs).
+ * Matches on the same credited-or-title rule as `computeArtistTopSongs`.
+ */
+export function countPlayedSongsForArtist(
+  events: PlayEvent[],
+  artistIds: string[],
+  artistName: string | null | undefined = null,
+): number {
+  const idSet = new Set(artistIds.filter(Boolean))
+  if (idSet.size === 0 && !artistName) return 0
+  const normalizedArtistNames = new Set<string>()
+  if (artistName) normalizedArtistNames.add(normalizeName(artistName))
+
+  const songIds = new Set<string>()
+  for (const e of events) {
+    if (idSet.size > 0 && e.artistIds.some(id => idSet.has(id))) {
+      songIds.add(e.songId)
+      continue
+    }
+    if (artistName && titleFeaturesArtist(e.songName, normalizedArtistNames)) {
+      songIds.add(e.songId)
+    }
+  }
+  return songIds.size
+}
+
+/**
+ * Returns true if `songTitle` names one of `normalizedArtistNames` in a
+ * `(feat. X)` / `(ft. X)` / `(featuring X)` / `(with X)` clause.
+ *
+ * "..." handles "&"-delimited collaborator names (e.g. "feat. Simon & Garfunkel"
+ * matches both "Simon & Garfunkel" and "Simon" individually) the same way the
+ * library "Appears On" detection does.
+ */
+function titleFeaturesArtist(songTitle: string, normalizedArtistNames: Set<string>): boolean {
+  const rawNames = extractFeaturedArtists(songTitle)
+  if (rawNames.length === 0) return false
+
+  for (const rawName of rawNames) {
+    const normalizedFull = normalizeName(rawName)
+    if (normalizedArtistNames.has(normalizedFull)) return true
+
+    // Fall back to splitting on "&" if no full-name match (matches buildFeaturedArtistMap)
+    if (rawName.includes('&')) {
+      const subNames = rawName.split('&').map(s => s.trim()).filter(Boolean)
+      for (const sub of subNames) {
+        if (normalizedArtistNames.has(normalizeName(sub))) return true
+      }
+    }
+  }
+  return false
 }
