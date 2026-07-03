@@ -34,14 +34,22 @@ export function normalizeQuotes(text: string): string {
 }
 
 /**
- * Normalizes text for search matching by removing apostrophes and other punctuation.
- * This allows searching "dont" to match "don't", "cant" to match "can't", etc.
- * First normalizes quotes, then removes apostrophes for flexible matching.
+ * Normalizes text for search matching by stripping diacritics and removing
+ * apostrophes. This allows searching "scattero" to match "scatterò", "dont"
+ * to match "don't", "cant" to match "can't", etc.
+ * First normalizes quotes, then strips accents (so precomposed and decomposed
+ * Unicode forms compare equal), then removes apostrophes for flexible matching.
  */
 export function normalizeForSearch(text: string): string {
   if (!text) return text
 
   return normalizeQuotes(text)
+    // Strip diacritics/accents: decompose to base char + combining mark, then
+    // drop the combining marks (U+0300–U+036F). Handles ò à è ì ù ñ ü ç etc.
+    // so that a query typed with or without accents matches text stored either
+    // way, and precomposed vs decomposed Unicode forms compare equal.
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     // Remove apostrophes for search matching
     .replace(/'/g, '')
 }
