@@ -333,6 +333,10 @@ export function Top10Section() {
                       setContextMenuPosition({ x: e.clientX, y: e.clientY })
                       setContextMenuOpen(true)
                     }
+                  } else {
+                    // No library match: show the same external/platform picker menu
+                    // that the row click and three-dot icon open.
+                    await handleExternalClick(song, e)
                   }
                 }}
                 onLongPress={async () => {
@@ -664,6 +668,10 @@ export function NewReleasesSection() {
                       setContextMenuPosition({ x: e.clientX, y: e.clientY })
                       setContextMenuOpen(true)
                     }
+                  } else {
+                    // No library match: show the same external/platform picker menu
+                    // that the row click and three-dot icon open.
+                    await handleExternalClick(release, e)
                   }
                 }}
                 onLongPress={async () => {
