@@ -701,6 +701,19 @@ export const usePlayerStore = create<PlayerState>()(
       previous: () => {
         get().finalizeOverlapSwap()
         get().cancelPreBuffer()
+
+        const { songs, currentIndex, currentTime } = get()
+
+        // After the first 3 seconds, "previous" restarts the current song from 0
+        // (matches common player behavior). During the first 3 seconds it jumps to
+        // the actual previous track. seek(0) resets the stats latch so re-crossing
+        // the 1-minute mark counts a fresh stream.
+        if (songs.length > 0 && currentIndex >= 0 && currentIndex < songs.length && currentTime > 3) {
+          get().seek(0)
+          get().play()
+          return
+        }
+
         set((state) => {
           if (state.songs.length === 0) return state
 
@@ -736,6 +749,11 @@ export const usePlayerStore = create<PlayerState>()(
         if (audio) {
           audio.currentTime = time
           set({ currentTime: time })
+        }
+        // Scrubbing back to the start lets the track earn a fresh stream count once
+        // it crosses the 1-minute mark again — matches restart-from-0 semantics.
+        if (time === 0) {
+          set({ hasRecordedCurrentTrackStats: false })
         }
         // Dispatch event so PlayerBar can reset preemptive advance flag
         window.dispatchEvent(new CustomEvent('playerSeek'))
