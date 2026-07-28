@@ -4,6 +4,7 @@ import { Disc, Ellipsis, Music } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useRecentlyPlayedStore } from '../../stores/recentlyPlayedStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import { logger } from '../../utils/logger'
@@ -737,37 +738,15 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
   const { showRecentlyPlayed } = useSettingsStore()
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
+  const entries = useRecentlyPlayedStore((s) => s.entries)
 
-  const [recentlyPlayed, setRecentlyPlayed] = useState<BaseItemDto[]>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
 
-  const fetchRecentlyPlayed = useCallback(async () => {
-    try {
-      const result = await jellyfinClient.getRecentlyPlayed(10)
-      setRecentlyPlayed(result.Items || [])
-    } catch (error) {
-      console.error(error)
-    }
-  }, [])
-
-  // Fetch on mount
-  useEffect(() => {
-    if (showRecentlyPlayed) {
-      setIsLoading(true)
-      fetchRecentlyPlayed().finally(() => setIsLoading(false))
-    }
-  }, [showRecentlyPlayed, fetchRecentlyPlayed])
-
-  // Refresh when a track is marked as played (fired from statsStore)
-  useEffect(() => {
-    const handleTrackPlayed = () => { fetchRecentlyPlayed() }
-    window.addEventListener('trackPlayed', handleTrackPlayed)
-    return () => window.removeEventListener('trackPlayed', handleTrackPlayed)
-  }, [fetchRecentlyPlayed])
+  // Most-recent-first, top 10 for the Home view
+  const recentlyPlayed = entries.slice(0, 10)
 
   const handleSongClick = (song: BaseItemDto) => {
     playTrack(song, recentlyPlayed)
@@ -796,14 +775,11 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
   }
 
   const hasRecentlyPlayed = recentlyPlayed && recentlyPlayed.length > 0
-  const showSkeleton = isLoading && !hasRecentlyPlayed
 
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold mb-2">Recently Played</h2>
-      {showSkeleton ? (
-        <FeedSkeleton />
-      ) : hasRecentlyPlayed ? (
+      {hasRecentlyPlayed ? (
         <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1500px]:block' : ''}>
           {twoColumns ? (
             <>

@@ -1054,24 +1054,6 @@ class JellyfinClient {
     return result
   }
 
-  async getRecentlyPlayed(limit: number = 20): Promise<ItemsResult> {
-    if (!this.userId || !this.baseUrl) {
-      throw new Error('Not authenticated')
-    }
-    const query = new URLSearchParams({
-      Limit: limit.toString(),
-      IncludeItemTypes: 'Audio',
-      Recursive: 'true',
-      SortBy: 'DatePlayed',
-      SortOrder: 'Descending',
-      Filters: 'IsPlayed',
-      UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,Genres,Grouping', // Include Genres and Grouping for recommendations/filtering
-    })
-    const result = await this.request<ItemsResult>(`/Items?${query}`)
-    return result
-  }
-
   async getAlbumTracks(albumId: string): Promise<BaseItemDto[]> {
     // Ensure we request Genres and Grouping fields so recommendations/filtering can work
     const query = new URLSearchParams({

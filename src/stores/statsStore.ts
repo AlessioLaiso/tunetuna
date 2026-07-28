@@ -242,6 +242,8 @@ export const useStatsStore = create<StatsState>()(
 
       /**
        * Marks a track as currently playing for duration calculation.
+       * Also records it in the recently played list the moment playback starts,
+       * independent of the stats duration threshold (which only fires at ≥1min).
        */
       startPlay: (track) => {
         set({
@@ -249,6 +251,10 @@ export const useStatsStore = create<StatsState>()(
             track,
             startedAt: Date.now(),
           },
+        })
+        // Lazy import to avoid any circular-dep risk
+        import('./recentlyPlayedStore').then(({ useRecentlyPlayedStore }) => {
+          useRecentlyPlayedStore.getState().recordPlay(track)
         })
       },
 

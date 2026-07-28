@@ -25,12 +25,14 @@ export const STORE_KEYS = {
   auth: 'auth-storage',
   player: 'player-storage',
   settings: 'settings-storage',
-  music: 'music-storage',         // IndexedDB name: tunetuna-storage
-  stats: 'stats-storage',         // IndexedDB name: tunetuna-stats-storage
+  music: 'music-storage',             // IndexedDB name: tunetuna-storage
+  stats: 'stats-storage',             // IndexedDB name: tunetuna-stats-storage
+  recentlyPlayed: 'recentlyplayed-storage', // IndexedDB name: tunetuna-recentlyplayed-storage
   collection: 'collection-store',
 } as const
 
 export const INDEXEDDB_NAMES = {
   music: 'tunetuna-storage',
   stats: 'tunetuna-stats-storage',
+  recentlyPlayed: 'tunetuna-recentlyplayed-storage',
 } as const
