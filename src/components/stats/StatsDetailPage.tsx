@@ -7,8 +7,12 @@ import {
   Disc,
   Guitar,
   GalleryHorizontalEnd,
+  Play,
+  ListEnd,
+  Loader2,
 } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
+import type { BaseItemDto } from '../../api/types'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
@@ -57,6 +61,8 @@ export default function StatsDetailPage() {
   const navigate = useNavigate()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const playTrack = usePlayerStore(state => state.playTrack)
+  const playAlbum = usePlayerStore(state => state.playAlbum)
+  const addToQueue = usePlayerStore(state => state.addToQueue)
   const { fetchEvents, pendingEvents, metadataVersion } = useStatsStore()
   const { genres } = useMusicStore()
 
@@ -104,6 +110,48 @@ export default function StatsDetailPage() {
     const song = await jellyfinClient.getSongById(songId)
     if (song) {
       playTrack(song, [song])
+    }
+  }
+
+  // Resolve the (up to 50) songs shown on the current page to full BaseItemDto
+  // objects, preserving the order shown on the page.
+  const resolvePageSongs = async (): Promise<BaseItemDto[]> => {
+    const songs = pageItems as typeof stats.topSongs
+    const resolved = await Promise.all(
+      songs.map(song => jellyfinClient.getSongById(song.songId))
+    )
+    return resolved.filter((song): song is BaseItemDto => song !== null)
+  }
+
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const handlePlayPageSongs = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (actionLoading) return
+    setActionLoading(true)
+    try {
+      const tracks = await resolvePageSongs()
+      if (tracks.length > 0) {
+        playAlbum(tracks)
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleAddPageSongsToQueue = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (actionLoading) return
+    setActionLoading(true)
+    try {
+      const tracks = await resolvePageSongs()
+      if (tracks.length > 0) {
+        addToQueue(tracks)
+      }
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -163,6 +211,32 @@ export default function StatsDetailPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
+            {cat === 'songs' && pageItems.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePlayPageSongs}
+                  disabled={actionLoading}
+                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Play all songs on page"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Play className="w-5 h-5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddPageSongsToQueue}
+                  disabled={actionLoading}
+                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Add all songs on page to queue"
+                >
+                  <ListEnd className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
