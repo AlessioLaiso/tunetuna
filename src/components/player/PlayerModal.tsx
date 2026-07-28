@@ -118,7 +118,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     currentIndex < songs.length - 1 ||
     repeat !== 'off'
   )
-  const hasPrevious = currentIndex > 0 || (repeat === 'all' && songs.length > 0)
+  // Also active past 3s so restart-from-0 works even on the first track.
+  const hasPrevious =
+    currentIndex > 0 ||
+    (repeat === 'all' && songs.length > 0) ||
+    (songs.length > 0 && currentIndex >= 0 && currentTime > 3)
 
 
 

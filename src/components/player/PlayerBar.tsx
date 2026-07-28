@@ -450,8 +450,13 @@ export default function PlayerBar() {
     repeat !== 'off' // Repeat is enabled
   )
 
-  // Previous should be active if there are songs before current index or repeat uses wrap-around
-  const hasPrevious = currentIndex > 0 || (repeat === 'all' && songs.length > 0)
+  // Previous should be active if there are songs before current index, repeat
+  // uses wrap-around, or the current track is past 3s (restart-from-0 behavior,
+  // which applies even on the first track in the queue).
+  const hasPrevious =
+    currentIndex > 0 ||
+    (repeat === 'all' && songs.length > 0) ||
+    (songs.length > 0 && currentIndex >= 0 && currentTime > 3)
 
   // Handle volume popover opening
   const handleOpenVolumePopover = () => {
