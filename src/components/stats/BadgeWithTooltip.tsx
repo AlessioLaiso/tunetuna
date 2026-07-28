@@ -19,7 +19,7 @@ export function BadgeWithTooltip({ badge, opacity, tooltip, className = '' }: Ba
       >
         {badge}
       </div>
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-950 text-zinc-100 text-xs rounded whitespace-nowrap opacity-0 peer-hover:opacity-100 transition-opacity pointer-events-none z-10">
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-950 text-zinc-100 text-xs rounded whitespace-nowrap opacity-0 peer-hover:opacity-100 transition-opacity pointer-events-none z-50">
         {tooltip}
       </div>
     </div>
