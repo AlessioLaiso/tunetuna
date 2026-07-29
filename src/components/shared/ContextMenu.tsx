@@ -94,7 +94,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [duplicateSongIds, setDuplicateSongIds] = useState<string[]>([])
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null)
   const [duplicateHasImage, setDuplicateHasImage] = useState(false)
-  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs } = usePlayerStore()
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
   const genres = useMusicStore(s => s.genres)
@@ -172,6 +172,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       }
       if (currentItemType === 'album' || currentItemType === 'song') {
         secondaryActions.push({ id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus })
+        secondaryActions.push({ id: 'playThenShuffleAll', label: 'Play This Then Shuffle All', icon: Shuffle })
       }
       if (currentItemType !== 'artist') {
         secondaryActions.push({ id: 'sync', label: 'Sync', icon: RefreshCw })
@@ -222,6 +223,30 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           setLoading(false)
           setLoadingAction(null)
         }
+      }
+      return
+    }
+
+    // Handle "Play This Then Shuffle All" — play the selected song/album first,
+    // then continue with the full shuffled-all-songs queue (same as the home
+    // shuffle-all button). Reuse shuffleAllSongs by passing the item as a prefix.
+    if (action === 'playThenShuffleAll') {
+      setLoading(true)
+      setLoadingAction(action)
+      try {
+        let prepend: (BaseItemDto | LightweightSong)[] = []
+        if (currentItemType === 'song') {
+          prepend = [currentItem]
+        } else if (currentItemType === 'album') {
+          prepend = await jellyfinClient.getAlbumTracks(currentItem.Id)
+        }
+        onClose()
+        await shuffleAllSongs(prepend)
+      } catch (error) {
+        logger.error('Failed to play then shuffle all:', error)
+      } finally {
+        setLoading(false)
+        setLoadingAction(null)
       }
       return
     }
@@ -585,7 +610,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setLoading(false)
       setLoadingAction(null)
     }
-  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, startSync, completeSync, logStream, providedTracks])
+  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs, startSync, completeSync, logStream, providedTracks])
 
   const handleMoreAction = useCallback((actionId: string) => {
     setMoreActionsOpen(false)

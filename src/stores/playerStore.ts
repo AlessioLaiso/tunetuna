@@ -159,7 +159,7 @@ interface PlayerState {
   playAlbum: (tracks: (BaseItemDto | LightweightSong)[], startIndex?: number) => void
   playNext: (tracks: BaseItemDto[]) => void
   shuffleArtist: (songs: BaseItemDto[]) => void
-  shuffleAllSongs: () => Promise<void>
+  shuffleAllSongs: (prependTracks?: (BaseItemDto | LightweightSong)[]) => Promise<void>
   shuffleGenreSongs: (genreId: string, genreName: string) => Promise<void>
 
   // Queue navigation
@@ -930,7 +930,7 @@ export const usePlayerStore = create<PlayerState>()(
         get().play()
       },
 
-      shuffleAllSongs: async () => {
+      shuffleAllSongs: async (prependTracks) => {
 
         // Clear the queue first
         get().clearQueue()
@@ -1000,7 +1000,11 @@ export const usePlayerStore = create<PlayerState>()(
 
         // PHASE 1: Start with available songs for instant playback
         const instantQueueSongs = instantSongs.map(t => ({ ...t, source: 'user' as const }))
-        const initialSongCount = instantSongs.length
+
+        // Optional prefix of hand-picked songs (e.g. "Play This Then Shuffle All"):
+        // these play first in their given order, then the shuffled pool follows.
+        const prependQueueSongs = (prependTracks ?? []).map(t => ({ ...t, source: 'user' as const }))
+        const initialQueueSongs = [...prependQueueSongs, ...instantQueueSongs]
 
         // Check if there are more songs available
         const totalAvailableSongs = musicStore.songs.length + Object.values(musicStore.genreSongs).flat().length
@@ -1008,9 +1012,9 @@ export const usePlayerStore = create<PlayerState>()(
 
 
         set({
-          songs: instantQueueSongs,
-          standardOrder: instantQueueSongs.map(s => s.Id),
-          shuffleOrder: instantQueueSongs.map(s => s.Id),
+          songs: initialQueueSongs,
+          standardOrder: initialQueueSongs.map(s => s.Id),
+          shuffleOrder: initialQueueSongs.map(s => s.Id),
           currentIndex: 0,
           previousIndex: -1,
           shuffle: true,
@@ -1027,7 +1031,7 @@ export const usePlayerStore = create<PlayerState>()(
         get().play()
 
 
-        // PHASE 2: Background load remaining songs (up to maxSongs - initialSongCount)
+        // PHASE 2: Background load remaining songs (up to maxSongs - initialQueueSongs.length)
         // Clear any previous shuffle expansion timeout
         if (shuffleExpansionTimeout) {
           clearTimeout(shuffleExpansionTimeout)
@@ -1039,7 +1043,7 @@ export const usePlayerStore = create<PlayerState>()(
             const currentState = get()
 
             // Safety check - ensure we're still in shuffle mode and have expected initial count
-            if (!currentState.shuffle || currentState.songs.length !== initialSongCount) {
+            if (!currentState.shuffle || currentState.songs.length !== initialQueueSongs.length) {
               return // State changed, abort expansion
             }
 
@@ -1064,34 +1068,34 @@ export const usePlayerStore = create<PlayerState>()(
             const deduplicatedPool = filterExcludedGenres(Array.from(songMap.values()))
 
             // Remove songs already in queue
-            const currentSongIds = new Set(instantQueueSongs.map(s => s.Id))
+            const currentSongIds = new Set(initialQueueSongs.map(s => s.Id))
             const availablePool = deduplicatedPool.filter(s => !currentSongIds.has(s.Id))
 
 
             if (availablePool.length > 0) {
-              // Take up to maxSongs - initialSongCount more songs
-              const additionalNeeded = Math.min(maxSongs - initialSongCount, availablePool.length)
+              // Take up to maxSongs - initialQueueSongs more songs
+              const additionalNeeded = Math.min(maxSongs - initialQueueSongs.length, availablePool.length)
               const additionalSongs = shuffleArray(availablePool).slice(0, additionalNeeded)
               const additionalQueueSongs = additionalSongs.map(t => ({ ...t, source: 'user' as const }))
 
               // Use functional set to safely merge with any user-added songs during expansion
               set((state) => {
                 // Find songs added by user during the background expansion
-                const instantSongIds = new Set(instantQueueSongs.map(s => s.Id))
+                const initialSongIds = new Set(initialQueueSongs.map(s => s.Id))
                 const userAddedDuringExpansion = state.songs.filter(
-                  s => !instantSongIds.has(s.Id) && s.source === 'user'
+                  s => !initialSongIds.has(s.Id) && s.source === 'user'
                 )
 
-                // Merge: instant songs + user-added + expansion songs
+                // Merge: initial songs + user-added + expansion songs
                 const newQueueSongs = [
-                  ...instantQueueSongs,
+                  ...initialQueueSongs,
                   ...userAddedDuringExpansion,
                   ...additionalQueueSongs
                 ]
 
                 // Recalculate current index if user songs were added
                 let newCurrentIndex = state.currentIndex
-                if (userAddedDuringExpansion.length > 0 && state.currentIndex >= instantQueueSongs.length) {
+                if (userAddedDuringExpansion.length > 0 && state.currentIndex >= initialQueueSongs.length) {
                   // Adjust index to account for reordering
                   const currentSong = state.songs[state.currentIndex]
                   if (currentSong) {
