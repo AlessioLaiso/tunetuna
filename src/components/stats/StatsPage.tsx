@@ -703,7 +703,9 @@ export default function StatsPage() {
     const [toYear, toM] = toMonth.split('-').map(Number)
 
     const fromDate = new Date(fromYear, fromM - 1, 1)
-    const toDate = new Date(toYear, toM, 0)
+    // Last moment of the to-month — must match the fetch range's toTs, otherwise
+    // plays on the final day of the range are filtered out of the stats.
+    const toDate = new Date(toYear, toM, 0, 23, 59, 59, 999)
 
     return computeStats(events, fromDate, toDate)
   }, [events, fromMonth, toMonth])

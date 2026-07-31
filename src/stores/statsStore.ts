@@ -70,6 +70,8 @@ interface StatsState {
   cachedEvents: PlayEvent[]
   /** Time range of cached events for cache hit detection */
   cacheRange: { from: number; to: number } | null
+  /** Timestamp (ms) when cachedEvents was populated; used for cache freshness */
+  cacheFetchedAt: number | null
   /** Currently playing track for duration calculation */
   currentPlay: CurrentPlay | null
   /** SHA-256 hash of serverUrl::userId for API calls */
@@ -234,6 +236,7 @@ export const useStatsStore = create<StatsState>()(
       lastSyncedAt: null,
       cachedEvents: [],
       cacheRange: null,
+      cacheFetchedAt: null,
       currentPlay: null,
       cachedStatsKey: null,
       cachedStatsToken: null,
@@ -289,6 +292,8 @@ export const useStatsStore = create<StatsState>()(
         set({
           pendingEvents: newPendingEvents,
           currentPlay: null,
+          // Invalidate the fetchEvents cache — it no longer reflects server state
+          cacheRange: null,
         })
 
         // Always attempt to sync - if server is down, events stay pending for retry
@@ -300,7 +305,8 @@ export const useStatsStore = create<StatsState>()(
 
         const { pendingEvents } = get()
         const newEvents = tracks.map(track => createPlayEvent(track))
-        set({ pendingEvents: [...pendingEvents, ...newEvents] })
+        // Invalidate the fetchEvents cache — it no longer reflects server state
+        set({ pendingEvents: [...pendingEvents, ...newEvents], cacheRange: null })
         get().syncToServer()
       },
 
@@ -387,14 +393,20 @@ export const useStatsStore = create<StatsState>()(
        * Uses cache if available, merges with pending events.
        */
       fetchEvents: async (from, to) => {
-        const { cacheRange, cachedEvents, pendingEvents } = get()
+        const { cacheRange, cachedEvents, cacheFetchedAt, pendingEvents } = get()
 
         const { serverUrl, userId } = useAuthStore.getState()
         if (!serverUrl || !userId) return []
 
-        // Check if we have cached data that covers this range
-        if (cacheRange && cacheRange.from <= from && cacheRange.to >= to) {
-          // Filter cached events to the requested range and merge with pending
+        // Use the cache only when it fully covers the requested range AND was
+        // fetched at or after the range's end. A cache whose `to` predates the
+        // request's `to` is stale: new events may have been recorded in
+        // (from, to] since the snapshot was taken, and the server would not
+        // have known about them. Requiring cacheFetchedAt >= to guarantees the
+        // snapshot is at least as fresh as the end of the requested window.
+        const cacheCovers = cacheRange && cacheRange.from <= from && cacheRange.to >= to
+        const cacheFresh = cacheFetchedAt !== null && cacheFetchedAt >= to
+        if (cacheCovers && cacheFresh) {
           const filtered = cachedEvents.filter(e => e.ts >= from && e.ts <= to)
           const pendingInRange = pendingEvents.filter(e => e.ts >= from && e.ts <= to)
           return [...filtered, ...pendingInRange].sort((a, b) => a.ts - b.ts)
@@ -423,6 +435,7 @@ export const useStatsStore = create<StatsState>()(
           set({
             cachedEvents: events,
             cacheRange: { from, to },
+            cacheFetchedAt: Date.now(),
           })
 
           // Merge with pending events in range
@@ -441,6 +454,7 @@ export const useStatsStore = create<StatsState>()(
         set({
           cachedEvents: [],
           cacheRange: null,
+          cacheFetchedAt: null,
         })
       },
 
