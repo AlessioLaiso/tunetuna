@@ -16,6 +16,7 @@ import type { BaseItemDto } from '../../api/types'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { computeStats } from '../../utils/statsComputer'
 import Pagination from '../shared/Pagination'
 import Image from '../shared/Image'
@@ -60,7 +61,6 @@ export default function StatsDetailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const playTrack = usePlayerStore(state => state.playTrack)
   const playAlbum = usePlayerStore(state => state.playAlbum)
   const addToQueue = usePlayerStore(state => state.addToQueue)
   const { fetchEvents, pendingEvents, metadataVersion } = useStatsStore()
@@ -74,6 +74,7 @@ export default function StatsDetailPage() {
   const [page, setPage] = useState(0)
   const cat = (category || 'songs') as Category
   const config = CATEGORY_CONFIG[cat]
+  const playSongWithQueue = usePlaySongWithQueue()
 
   // Fetch events
   useEffect(() => {
@@ -109,10 +110,12 @@ export default function StatsDetailPage() {
   }, [events, fromMonth, toMonth])
 
   const handlePlaySong = async (songId: string) => {
-    const song = await jellyfinClient.getSongById(songId)
-    if (song) {
-      playTrack(song, [song])
-    }
+    // Play the clicked song with the full ranking as its queue, like the album
+    // page: earlier songs land under "previous", later ones show as "coming up".
+    await playSongWithQueue(
+      (stats?.topSongs ?? []).map(s => s.songId),
+      songId,
+    )
   }
 
   // Resolve the (up to 50) songs shown on the current page to full BaseItemDto

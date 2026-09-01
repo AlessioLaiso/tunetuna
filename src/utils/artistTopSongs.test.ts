@@ -146,6 +146,95 @@ describe('computeArtistTopSongs', () => {
     })
   })
 
+  describe('unplayed songs', () => {
+    it('appends zero-play songs after played ones', () => {
+      const events = [
+        ev({ ts: 1, songId: 's1' }),
+        ev({ ts: 2, songId: 's1' }),
+        ev({ ts: 3, songId: 's2' }),
+      ]
+      const unplayed = [
+        { Id: 's9', Name: 'Never played', AlbumId: 'al1', Album: 'Album 1', ProductionYear: 2020 },
+        { Id: 's8', Name: 'Also never played', AlbumId: 'al1', Album: 'Album 1', ProductionYear: 2020, IndexNumber: 1 },
+      ]
+      const result = computeArtistTopSongs(events, ['a1'], 'Artist 1', EMPTY_LOOKUP, Infinity, unplayed)
+      // s9 has no track number (treated as 0) so it precedes s8 (track 1) in the same album
+      expect(result.map(s => s.songId)).toEqual(['s1', 's2', 's9', 's8'])
+      expect(result[2].plays).toBe(0)
+      expect(result[3].plays).toBe(0)
+    })
+
+    it('does not duplicate songs that already have play events', () => {
+      const events = [ev({ ts: 1, songId: 's1' })]
+      const unplayed = [
+        { Id: 's1', Name: 'Played song', AlbumId: 'al1', Album: 'Album 1', ProductionYear: 2020 },
+      ]
+      const result = computeArtistTopSongs(events, ['a1'], 'Artist 1', EMPTY_LOOKUP, Infinity, unplayed)
+      expect(result.map(s => s.songId)).toEqual(['s1'])
+      expect(result[0].plays).toBe(1)
+    })
+
+    it('breaks ties by album date newest first, then track order', () => {
+      const events = [
+        ev({ ts: 1, songId: 's1' }),
+        ev({ ts: 2, songId: 's2' }),
+      ]
+      const unplayed = [
+        { Id: 'old', Name: 'Old song', AlbumId: 'al-old', Album: 'Old Album', ProductionYear: 1995, IndexNumber: 1 },
+        { Id: 'new', Name: 'New song', AlbumId: 'al-new', Album: 'New Album', ProductionYear: 2024, IndexNumber: 1 },
+        { Id: 'new2', Name: 'New song 2', AlbumId: 'al-new', Album: 'New Album', ProductionYear: 2024, IndexNumber: 2 },
+      ]
+      const result = computeArtistTopSongs(events, ['a1'], 'Artist 1', EMPTY_LOOKUP, Infinity, unplayed)
+      // s1 and s2 both have 1 play — newer year wins between them via event year
+      // (both 1995 in the ev() default, so track falls to songId compare), then
+      // unplayed newest-first, same-album track order.
+      expect(result.map(s => s.songId)).toEqual(['s1', 's2', 'new', 'new2', 'old'])
+    })
+
+    it('resolves metadata from the library song for unplayed rows', () => {
+      const events = [ev({ ts: 1, songId: 's1' })]
+      const unplayed = [
+        {
+          Id: 's9',
+          Name: 'Never played',
+          AlbumArtist: 'Artist 1',
+          ArtistItems: [{ Id: 'a1', Name: 'Artist 1' }],
+          AlbumId: 'al9',
+          Album: 'Album 9',
+          ProductionYear: 2023,
+        },
+      ]
+      const result = computeArtistTopSongs(events, ['a1'], 'Artist 1', EMPTY_LOOKUP, Infinity, unplayed)
+      const row = result.find(s => s.songId === 's9')!
+      expect(row.albumName).toBe('Album 9')
+      expect(row.year).toBe(2023)
+      expect(row.plays).toBe(0)
+      // Credited on the library song: no primary artist shown in the secondary line
+      expect(row.primaryArtistName).toBeNull()
+    })
+
+    it('shows the primary artist for an unplayed title-featured ("appears on") song', () => {
+      const events = [ev({ ts: 1, songId: 's1', artistIds: ['a1'] })]
+      const unplayed = [
+        {
+          Id: 's9',
+          Name: 'Someone Else (feat. Artist 1)',
+          AlbumArtist: 'Someone Else',
+          ArtistItems: [{ Id: 'a-other', Name: 'Someone Else' }],
+          AlbumId: 'al9',
+          Album: 'Album 9',
+          ProductionYear: 2023,
+        },
+      ]
+      // No alias ID on the song — only the title names this artist
+      const result = computeArtistTopSongs(events, ['a1'], 'Artist 1', EMPTY_LOOKUP, Infinity, unplayed)
+      const row = result.find(s => s.songId === 's9')!
+      expect(row.plays).toBe(0)
+      expect(row.primaryArtistName).toBe('Someone Else')
+      expect(row.primaryArtistId).toBe('a-other')
+    })
+  })
+
   describe('secondary-line metadata', () => {
     it('shows the primary artist only for title-featured ("appears on") songs', () => {
       const lookup: SongLookup = new Map([

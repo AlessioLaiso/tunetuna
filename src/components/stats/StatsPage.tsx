@@ -22,6 +22,7 @@ import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { computeStats, type ComputedStats } from '../../utils/statsComputer'
 import type { BaseItemDto } from '../../api/types'
 import StatsCannedImage from './StatsCannedImage'
@@ -627,16 +628,17 @@ export default function StatsPage() {
   const { fetchEvents, oldestEventTs, initializeOldestTs, pendingEvents, metadataVersion } = useStatsStore()
   const { genres } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const playTrack = usePlayerStore(state => state.playTrack)
   const libraryStatsTimeMode = useSettingsStore(s => s.libraryStatsTimeMode)
   const setLibraryStatsTimeMode = useSettingsStore(s => s.setLibraryStatsTimeMode)
+  const playSongWithQueue = usePlaySongWithQueue()
 
-  // Handler to play a song by ID
+  // Handler to play a song by ID, with the top-5 ranking as its queue
+  // (album-page behavior: earlier songs go to "previous", later ones "coming up")
   const handlePlaySong = async (songId: string) => {
-    const song = await jellyfinClient.getSongById(songId)
-    if (song) {
-      playTrack(song, [song])
-    }
+    await playSongWithQueue(
+      (stats?.topSongs ?? []).map(s => s.songId),
+      songId,
+    )
   }
 
 

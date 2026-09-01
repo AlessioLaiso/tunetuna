@@ -5,11 +5,14 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import {
   getRollingSixMonthRange,
   formatRangeSubtitle,
   computeArtistTopSongs,
+  titleFeaturesArtist,
   type ArtistTopSong,
+  type UnplayedSong,
 } from '../../utils/statsComputer'
 import { getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
@@ -123,9 +126,9 @@ export default function ArtistTopSongsDetailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
-  const playTrack = usePlayerStore(state => state.playTrack)
   const { fetchEvents, pendingEvents, metadataVersion } = useStatsStore()
   const storeSongs = useMusicStore(state => state.songs)
+  const playSongWithQueue = usePlaySongWithQueue()
 
   const artistIdParam = searchParams.get('artist') || ''
   const artistNameParam = searchParams.get('artistName') || ''
@@ -185,6 +188,26 @@ export default function ArtistTopSongsDetailPage() {
     return map
   }, [storeSongs])
 
+  // Library songs credited to this artist (any alias) or featuring them in the
+  // title, minus the ones already ranked from play events — these get appended
+  // at the end of the list as 0-stream rows.
+  const unplayedSongs = useMemo<UnplayedSong[]>(() => {
+    if (loading || events.length === 0 || (aliasIds.length === 0 && !artistNameParam)) return []
+    const playedIds = new Set(events.map(e => e.songId))
+    const normalized = artistNameParam ? normalizeName(artistNameParam) : null
+
+    const result: UnplayedSong[] = []
+    for (const song of storeSongs) {
+      if (playedIds.has(song.Id)) continue
+      const isCredited = aliasIds.length > 0 && song.ArtistItems?.some(a => a.Id && aliasIds.includes(a.Id))
+      const isTitleFeatured = normalized !== null && titleFeaturesArtist(song.Name, new Set([normalized]))
+      if (isCredited || isTitleFeatured) {
+        result.push(song)
+      }
+    }
+    return result
+  }, [storeSongs, events, aliasIds, artistNameParam, loading])
+
   useEffect(() => {
     let mounted = true
     const load = async () => {
@@ -200,14 +223,15 @@ export default function ArtistTopSongsDetailPage() {
     return () => { mounted = false }
   }, [fromTs, toTs, fetchEvents, pendingEvents.length, metadataVersion])
 
-  // All streamed songs by this artist in the last 6 months, ranked by streams
+  // All streamed songs by this artist in the last 6 months, ranked by streams,
+  // with unplayed catalog songs appended at the end
   useEffect(() => {
     if (loading || events.length === 0 || (aliasIds.length === 0 && !artistNameParam)) {
       setAllTopSongs([])
       return
     }
-    setAllTopSongs(computeArtistTopSongs(events, aliasIds, artistNameParam, songLookup, Infinity))
-  }, [events, aliasIds, artistNameParam, songLookup, loading])
+    setAllTopSongs(computeArtistTopSongs(events, aliasIds, artistNameParam, songLookup, Infinity, unplayedSongs))
+  }, [events, aliasIds, artistNameParam, songLookup, loading, unplayedSongs])
 
   const totalPages = Math.ceil(allTopSongs.length / ITEMS_PER_PAGE)
   const pageItems = allTopSongs.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
@@ -219,13 +243,9 @@ export default function ArtistTopSongsDetailPage() {
   const title = `Top Songs by ${artistNameParam || 'this artist'}`
 
   const handlePlaySong = async (songId: string) => {
-    // Play the clicked song with the rest of the artist's top songs (ranked)
-    // as the queue, matching the inline Top songs section behavior.
-    const songs = await Promise.all(allTopSongs.map(s => jellyfinClient.getSongById(s.songId)))
-    const queue = songs.filter((s): s is BaseItemDto => s !== null)
-    if (!queue.length) return
-    const clicked = queue.find(s => s.Id === songId) || queue[0]
-    playTrack(clicked, queue)
+    // Play the clicked song with the rest of the artist's ranked songs as the
+    // queue, matching the album page behavior.
+    await playSongWithQueue(allTopSongs.map(s => s.songId), songId)
   }
 
   const openContextMenu = (song: ArtistTopSong, mode: 'mobile' | 'desktop', position?: { x: number, y: number }) => {

@@ -550,6 +550,22 @@ export interface ArtistTopSong {
   primaryArtistId: string | null
 }
 
+/**
+ * A library song by this artist that has no play events in the range — appended
+ * after the played songs in the top-songs detail list.
+ */
+export interface UnplayedSong {
+  Id: string
+  Name: string
+  AlbumArtist?: string
+  ArtistItems?: Array<{ Id?: string, Name?: string }>
+  Album?: string
+  AlbumId?: string
+  IndexNumber?: number
+  ProductionYear?: number
+  PremiereDate?: string
+}
+
 interface ArtistTopSongStat {
   name: string
   albumId: string
@@ -561,6 +577,8 @@ interface ArtistTopSongStat {
   primaryArtistId: string | null
   /** Whether the matched artist is a credited artist on this song's play events */
   creditedMatch: boolean
+  /** Track number within the album, used to keep same-album songs in order */
+  indexNumber: number | null
 }
 
 /**
@@ -575,6 +593,7 @@ export type SongLookup = Map<string, {
   AlbumId?: string
   ProductionYear?: number
   PremiereDate?: string
+  IndexNumber?: number
 }>
 
 /**
@@ -596,6 +615,11 @@ export type SongLookup = Map<string, {
  *
  * Events are expected to already be filtered to the desired range; this only
  * slices by artist and ranks songs.
+ *
+ * When `unplayedSongs` is given, songs by this artist with zero plays in the
+ * range are appended after the played ones (newest album first, then track
+ * order), so the full detail list also shows what wasn't streamed. Used only
+ * by the paginated top-songs detail page, not the artist page's top-5 preview.
  */
 export function computeArtistTopSongs(
   events: PlayEvent[],
@@ -603,6 +627,7 @@ export function computeArtistTopSongs(
   artistName: string | null | undefined,
   songLookup: SongLookup,
   limit = 5,
+  unplayedSongs: UnplayedSong[] = [],
 ): ArtistTopSong[] {
   const idSet = new Set(artistIds.filter(Boolean))
   if ((idSet.size === 0 && !artistName) || events.length === 0) return []
@@ -648,6 +673,7 @@ export function computeArtistTopSongs(
         primaryArtistName,
         primaryArtistId,
         creditedMatch: match === 'credited',
+        indexNumber: libSong?.IndexNumber ?? null,
       })
     }
     songStats.get(e.songId)!.plays++
@@ -657,8 +683,38 @@ export function computeArtistTopSongs(
     }
   }
 
+  // Append zero-play songs after the played ones. Same stream count ties are
+  // broken by album date (newest first), like the artist page's song list.
+  for (const song of unplayedSongs) {
+    if (songStats.has(song.Id)) continue
+    const primaryArtistItem = song.ArtistItems?.[0]
+    // A song matched only via its (feat. X) title is a featured appearance and
+    // shows the primary artist in its secondary line, same as played songs.
+    const isCredited = idSet.size > 0 && (song.ArtistItems?.some(a => a.Id && idSet.has(a.Id)) ?? false)
+    songStats.set(song.Id, {
+      name: song.Name,
+      albumId: song.AlbumId || '',
+      albumName: song.Album || '',
+      year: song.ProductionYear ?? (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : null),
+      plays: 0,
+      primaryArtistName: primaryArtistItem?.Name || song.AlbumArtist || null,
+      primaryArtistId: primaryArtistItem?.Id || null,
+      creditedMatch: isCredited,
+      indexNumber: song.IndexNumber ?? null,
+    })
+  }
+
+  const songDate = (stat: ArtistTopSongStat): number =>
+    stat.year || 0
+
   return [...songStats.entries()]
-    .sort((a, b) => b[1].plays - a[1].plays || a[0].localeCompare(b[0]))
+    .sort((a, b) =>
+      b[1].plays - a[1].plays ||
+      songDate(b[1]) - songDate(a[1]) ||
+      a[1].albumId.localeCompare(b[1].albumId) ||
+      (a[1].indexNumber || 0) - (b[1].indexNumber || 0) ||
+      a[0].localeCompare(b[0]),
+    )
     .slice(0, limit)
     .map(([songId, stat]) => {
       // Show the primary artist only when this artist is a featured appearance
@@ -714,7 +770,7 @@ export function countPlayedSongsForArtist(
  * matches both "Simon & Garfunkel" and "Simon" individually) the same way the
  * library "Appears On" detection does.
  */
-function titleFeaturesArtist(songTitle: string, normalizedArtistNames: Set<string>): boolean {
+export function titleFeaturesArtist(songTitle: string, normalizedArtistNames: Set<string>): boolean {
   const rawNames = extractFeaturedArtists(songTitle)
   if (rawNames.length === 0) return false
 
