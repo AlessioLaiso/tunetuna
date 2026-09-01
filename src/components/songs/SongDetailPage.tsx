@@ -12,7 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio, Metronome } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
-import { capitalizeFirst, formatDuration, extractGroupingFromTags, extractBpmFromTags, parseGroupingTag } from '../../utils/formatting'
+import { capitalizeFirst, formatDuration, extractGroupingFromTags, extractBpmFromTags, parseGroupingTag, RELEASE_GROUPING_CATEGORY } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 // Month helpers (same logic as StatsPage)
@@ -70,7 +70,7 @@ function parseGroupingTags(tags: string[]): { key: string; category: string; val
 
   for (const tag of tags) {
     const parsed = parseGroupingTag(tag)
-    if (!parsed) continue
+    if (!parsed || parsed.category === RELEASE_GROUPING_CATEGORY) continue
     if (!categoryMap.has(parsed.category)) {
       categoryMap.set(parsed.category, [])
     }

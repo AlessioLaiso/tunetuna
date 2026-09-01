@@ -440,7 +440,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Some mixes require logging listening stats and the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>, set to extract 'grouping,GRP1,TIT1,BPM'. For moods, set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'. For languages, set grouping as 'language_value1'.
+                Some mixes require logging listening stats and the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>, set to extract 'grouping,GRP1,TIT1,BPM'. For moods, set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'. For languages, set grouping as 'language_value1'. You can also set tags like 'release_ep' to differentiate release types in the artist detail page.
               </p>
             </div>
 

@@ -1074,7 +1074,7 @@ class JellyfinClient {
       IncludeItemTypes: 'MusicAlbum,Audio',
       Recursive: 'true',
       UserId: this.userId,
-      Fields: 'PrimaryImageAspectRatio,Genres,Grouping,AlbumArtists',
+      Fields: 'PrimaryImageAspectRatio,Genres,Grouping,Tags,AlbumArtists',
     })
     const result = await this.request<ItemsResult>(`/Items?${query}`)
     

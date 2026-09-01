@@ -3,7 +3,7 @@ import { devtools, persist } from 'zustand/middleware'
 import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
 import { createIndexedDBStorage } from '../utils/storage'
-import { capitalizeFirst, parseGroupingTag } from '../utils/formatting'
+import { capitalizeFirst, parseGroupingTag, RELEASE_GROUPING_CATEGORY } from '../utils/formatting'
 import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 import { shuffleArray } from '../utils/array'
 import { filterExcludedGenres } from '../utils/genreFilter'
@@ -126,7 +126,7 @@ export function getGroupingCategories(songs: LightweightSong[]): GroupingCategor
     if (!song.Grouping) return
     song.Grouping.forEach(tag => {
       const parsed = parseGroupingTag(tag)
-      if (!parsed) return
+      if (!parsed || parsed.category === RELEASE_GROUPING_CATEGORY) return
 
       if (!categoryMap.has(parsed.category)) {
         categoryMap.set(parsed.category, new Set())

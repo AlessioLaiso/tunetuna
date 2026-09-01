@@ -103,4 +103,49 @@ export function parseGroupingTag(tag: string): { category: string; value: string
   }
 }
 
+/**
+ * Release grouping category. Tagged on songs (e.g. "release_ep",
+ * "release_single", "release_live-album") to classify the release an album
+ * belongs to. Used only by the artist detail page for sectioning; hidden
+ * from filters, smart playlists, and search everywhere else.
+ */
+export const RELEASE_GROUPING_CATEGORY = 'release'
+
+/**
+ * Parses a release grouping tag ("release_live-album") into its value
+ * ("live-album"). Returns null for non-release tags.
+ */
+export function parseReleaseTag(tag: string): string | null {
+  const parsed = parseGroupingTag(tag)
+  if (!parsed || parsed.category !== RELEASE_GROUPING_CATEGORY) return null
+  return parsed.value
+}
+
+/**
+ * Extracts the release type from a song's grouping tags.
+ * Accepts both parsed Grouping entries ("release_ep") and raw Tags entries
+ * ("grouping:release_ep", as stored by the MusicTags plugin).
+ * If multiple release tags exist on one song, the first wins.
+ * Returns null for untagged songs (treated as regular albums).
+ */
+export function getSongReleaseType(tags: string[] | undefined): string | null {
+  if (!tags || !Array.isArray(tags)) return null
+  for (const tag of tags) {
+    const value = parseReleaseTag(tag.replace(/^grouping:/, ''))
+    if (value) return value
+  }
+  return null
+}
+
+/**
+ * Formats a release type value for display: "live-album" -> "Live Albums".
+ * The value is capitalized and hyphens become spaces; plural "s" is appended
+ * unless the value already ends in "s".
+ */
+export function formatReleaseTypeLabel(value: string): string {
+  const words = value.replace(/-/g, ' ').split(' ')
+  const label = words.map(w => capitalizeFirst(w)).join(' ')
+  return /s$/i.test(label) ? label : `${label}s`
+}
+
 

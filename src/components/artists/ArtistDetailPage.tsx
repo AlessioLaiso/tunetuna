@@ -12,7 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
-import { formatDuration } from '../../utils/formatting'
+import { formatDuration, getSongReleaseType, formatReleaseTypeLabel } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
 import { getSavedScrollPosition } from '../../utils/scrollPosition'
@@ -239,7 +239,7 @@ export default function ArtistDetailPage() {
   const { playAlbum, playTrack, isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
-  const [albums, setAlbums] = useState<BaseItemDto[]>([])
+  const [allOwnAlbums, setAllOwnAlbums] = useState<BaseItemDto[]>([])
   const [serverAppearsOn, setServerAppearsOn] = useState<BaseItemDto[]>([])
   const [songs, setSongs] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -341,7 +341,7 @@ export default function ArtistDetailPage() {
     }
 
     // Add albums from featured songs that aren't already included
-    const ownAlbumIds = new Set(albums.map(a => a.Id))
+    const ownAlbumIds = new Set(allOwnAlbums.map(a => a.Id))
     for (const song of featuredSongsForArtist) {
       if (song.AlbumId && !ownAlbumIds.has(song.AlbumId) && !seenAlbumIds.has(song.AlbumId)) {
         seenAlbumIds.add(song.AlbumId)
@@ -361,7 +361,93 @@ export default function ArtistDetailPage() {
       const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
       return yearB - yearA
     })
-  }, [serverAppearsOn, featuredSongsForArtist, albums])
+  }, [serverAppearsOn, featuredSongsForArtist, allOwnAlbums])
+
+  // Classify own albums into sections by release type, derived from each
+  // album's songs' "release_*" grouping tags. An album with no tagged songs
+  // (the common case) stays a regular album. The majority release tag among
+  // the album's tagged songs wins; ties go to the first tag encountered.
+  const releaseTypeByAlbumId = useMemo(() => {
+    const countsByAlbum = new Map<string, Map<string, number>>()
+    for (const song of songs) {
+      const releaseType = getSongReleaseType(song.Grouping) || getSongReleaseType(song.Tags)
+      if (!releaseType || !song.AlbumId) continue
+      let counts = countsByAlbum.get(song.AlbumId)
+      if (!counts) {
+        counts = new Map()
+        countsByAlbum.set(song.AlbumId, counts)
+      }
+      counts.set(releaseType, (counts.get(releaseType) || 0) + 1)
+    }
+
+    const releaseTypeByAlbumId = new Map<string, string>()
+    for (const [albumId, counts] of countsByAlbum) {
+      let best: string | null = null
+      let bestCount = 0
+      for (const [type, count] of counts) {
+        if (count > bestCount) {
+          best = type
+          bestCount = count
+        }
+      }
+      if (best) releaseTypeByAlbumId.set(albumId, best)
+    }
+    return releaseTypeByAlbumId
+  }, [songs])
+
+  // Sectioned own albums: "Albums" (untagged), "Singles & EPs" (release_ep +
+  // release_single), then one section per custom release type (alphabetical),
+  // matching the order: Albums, Singles & EPs, custom sections, Appears On.
+  interface AlbumSection {
+    key: string
+    title: string
+    albums: BaseItemDto[]
+  }
+
+  const albumSections = useMemo<AlbumSection[]>(() => {
+    const sections = new Map<string, AlbumSection>()
+    const customKeys = new Set<string>()
+
+    // First pass: custom release types present in this artist's albums
+    for (const album of allOwnAlbums) {
+      const releaseType = releaseTypeByAlbumId.get(album.Id)
+      if (releaseType && releaseType !== 'ep' && releaseType !== 'single') {
+        customKeys.add(releaseType)
+      }
+    }
+
+    for (const album of allOwnAlbums) {
+      const releaseType = releaseTypeByAlbumId.get(album.Id)
+      let section: AlbumSection
+      if (!releaseType) {
+        section = sections.get('albums') || { key: 'albums', title: 'Albums', albums: [] }
+        sections.set('albums', section)
+      } else if (releaseType === 'ep' || releaseType === 'single') {
+        section = sections.get('singles-eps') || { key: 'singles-eps', title: 'Singles & EPs', albums: [] }
+        sections.set('singles-eps', section)
+      } else {
+        let entry = sections.get(`release-${releaseType}`)
+        if (!entry) {
+          entry = { key: `release-${releaseType}`, title: formatReleaseTypeLabel(releaseType), albums: [] }
+          sections.set(entry.key, entry)
+        }
+        section = entry
+      }
+      section.albums.push(album)
+    }
+
+    const result: AlbumSection[] = []
+    if (sections.has('albums')) result.push(sections.get('albums')!)
+    if (sections.has('singles-eps')) result.push(sections.get('singles-eps')!)
+
+    const customSorted = Array.from(customKeys).sort((a, b) => a.localeCompare(b))
+    for (const releaseType of customSorted) {
+      const entry = sections.get(`release-${releaseType}`)
+      if (entry) result.push(entry)
+    }
+
+    return result
+  }, [allOwnAlbums, releaseTypeByAlbumId])
 
   // Normalize artist name by removing special characters for comparison
   const normalizeArtistName = (name: string): string => {
@@ -451,7 +537,7 @@ export default function ArtistDetailPage() {
           const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
           return yearB - yearA
         }
-        setAlbums(ownAlbums.sort(sortByYear))
+        setAllOwnAlbums(ownAlbums.sort(sortByYear))
         setServerAppearsOn(appearsOn.sort(sortByYear))
         setSongs(result.songs)
       } catch (error) {
@@ -593,7 +679,7 @@ export default function ArtistDetailPage() {
   // Reset visible albums window when albums change
   useEffect(() => {
     setVisibleAlbumsCount(INITIAL_VISIBLE_ALBUMS)
-  }, [albums.length])
+  }, [allOwnAlbums.length])
 
   // Albums use pagination buttons instead of scroll loading
 
@@ -613,7 +699,7 @@ export default function ArtistDetailPage() {
   })
 
   useScrollLazyLoad({
-    totalCount: albums.length,
+    totalCount: allOwnAlbums.length + appearsOnAlbums.length,
     visibleCount: visibleAlbumsCount,
     increment: VISIBLE_ALBUMS_INCREMENT,
     setVisibleCount: setVisibleAlbumsCount,
@@ -642,7 +728,7 @@ export default function ArtistDetailPage() {
 
     // Try to find the album in own albums or appears-on albums to get year
     if (song.AlbumId) {
-      const albumData = albums.find(a => a.Id === song.AlbumId) || appearsOnAlbums.find(a => a.Id === song.AlbumId)
+      const albumData = allOwnAlbums.find(a => a.Id === song.AlbumId) || appearsOnAlbums.find(a => a.Id === song.AlbumId)
       if (albumData) {
         year = getAlbumYear(albumData)
       }
@@ -664,7 +750,7 @@ export default function ArtistDetailPage() {
   const getSongAlbumDate = (song: BaseItemDto): number => {
     // Find the album for this song
     if (song.AlbumId) {
-      const albumData = albums.find(a => a.Id === song.AlbumId)
+      const albumData = allOwnAlbums.find(a => a.Id === song.AlbumId)
       if (albumData) {
         // Use the same logic as album sorting
         return albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
@@ -714,7 +800,7 @@ export default function ArtistDetailPage() {
 
     const newestFirst = songSortOrder === 'Newest'
     return [...mergedSongs].sort((a, b) => compareByDate(a, b, newestFirst))
-  }, [mergedSongs, songSortOrder, albums])
+  }, [mergedSongs, songSortOrder, allOwnAlbums])
 
   const handlePlayAllSongsFromArtist = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -868,7 +954,7 @@ export default function ArtistDetailPage() {
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 break-words">{artist.Name}</h1>
                 <div className="flex items-center justify-between gap-4 mt-2">
                   <p className="text-sm text-gray-300">
-                    {albums.length} {albums.length === 1 ? 'album' : 'albums'} • {sortedSongs.length} {sortedSongs.length === 1 ? 'song' : 'songs'}
+                    {allOwnAlbums.length} {allOwnAlbums.length === 1 ? 'album' : 'albums'} • {sortedSongs.length} {sortedSongs.length === 1 ? 'song' : 'songs'}
                   </p>
                   <button
                     onClick={() => {
@@ -999,12 +1085,12 @@ export default function ArtistDetailPage() {
           </div>
         )}
 
-        {/* Albums section */}
-        {albums.length > 0 && (
-          <div className="mb-10 px-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Albums ({albums.length})</h2>
+        {/* Album sections: Albums, Singles & EPs, then custom release types */}
+        {albumSections.map(section => (
+          <div key={section.key} className="mb-10 px-4">
+            <h2 className="text-2xl font-bold text-white mb-4">{section.title} ({section.albums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 min-[1500px]:grid-cols-5 gap-4">
-              {albums.map((album, index) => {
+              {section.albums.map((album, index) => {
                 const year = getAlbumYear(album)
                 return (
                   <AlbumCard
@@ -1024,7 +1110,7 @@ export default function ArtistDetailPage() {
               })}
             </div>
           </div>
-        )}
+        ))}
 
         {/* Appears On section - albums where artist is featured */}
         {appearsOnAlbums.length > 0 && (
