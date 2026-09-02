@@ -5,7 +5,7 @@ import {
   KeyboardMusic, Leaf, Church, CandyCane, Sparkles, Mic,
   MessageCircle, CupSoda, Disc3, Pyramid, Zap, Heart,
   BoomBox, Sun, Guitar, Drum, Popcorn, AudioWaveform, MoonStar,
-  PartyPopper,
+  PartyPopper, TreePalm,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -23,7 +23,15 @@ const genreIconMap: Record<string, LucideIcon> = {
   'disco': Turntable,
   'reggaeton': Flame,
   'dancehall & reggaeton': Flame,
-  'latin': Flame,
+  'latin': TreePalm,
+  'latin music': TreePalm,
+  'latin pop': TreePalm,
+  'latin pop & crossover': TreePalm,
+  'tropical': TreePalm,
+  'salsa': TreePalm,
+  'merengue': TreePalm,
+  'bachata': TreePalm,
+  'cumbia': TreePalm,
   'electronic': KeyboardMusic,
   'electronic (instrumental)': KeyboardMusic,
   'folk': Leaf,
