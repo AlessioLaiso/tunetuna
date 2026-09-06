@@ -15,6 +15,7 @@ import { logger } from '../../utils/logger'
 import { formatDuration, getSongReleaseType, formatReleaseTypeLabel } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
 import { normalizeName } from '../../utils/featuredArtists'
+import { splitArtistAlbums } from '../../utils/artistAlbums'
 import { getSavedScrollPosition } from '../../utils/scrollPosition'
 import { useArtistTopSongs } from '../../hooks/useArtistTopSongs'
 import type { ArtistTopSong } from '../../utils/statsComputer'
@@ -488,22 +489,18 @@ export default function ArtistDetailPage() {
         setArtist(currentArtist)
         setHasImage(true) // Reset image state when artist changes
 
-        // Get artist items
-        const result = await jellyfinClient.getArtistItems(id)
+        // Get artist items. The album-artist query runs alongside it because
+        // ArtistIds also matches track-artist credits, which would otherwise
+        // list other artists' albums as this artist's own.
+        const [result, albumArtistAlbumIds] = await Promise.all([
+          jellyfinClient.getArtistItems(id),
+          jellyfinClient.getArtistAlbumIdsAsAlbumArtist(id).catch(() => null)
+        ])
 
         if (!isMounted) return
 
         // Split albums: own albums (artist is album artist) vs appears on
-        const ownAlbums: BaseItemDto[] = []
-        const appearsOn: BaseItemDto[] = []
-        for (const album of result.albums) {
-          const isAlbumArtist = album.AlbumArtists?.some(a => a.Id === id)
-          if (isAlbumArtist || !album.AlbumArtists?.length) {
-            ownAlbums.push(album)
-          } else {
-            appearsOn.push(album)
-          }
-        }
+        const { ownAlbums, appearsOnAlbums: appearsOn } = splitArtistAlbums(result.albums, albumArtistAlbumIds, id)
 
         // If no own albums, try to find a similar artist that has own albums
         // (handles Jellyfin duplicate artist entries — redirect to the canonical one)
@@ -519,9 +516,7 @@ export default function ArtistDetailPage() {
               const similarResult = await jellyfinClient.getArtistItems(similarArtist.Id)
 
               // Check if the similar artist has own albums (not just appears-on)
-              const similarOwnAlbums = similarResult.albums.filter(album =>
-                album.AlbumArtists?.some(a => a.Id === similarArtist.Id) || !album.AlbumArtists?.length
-              )
+              const similarOwnAlbums = splitArtistAlbums(similarResult.albums, null, similarArtist.Id).ownAlbums
               if (similarOwnAlbums.length > 0) {
                 navigate(`/artist/${similarArtist.Id}`, { replace: true })
                 return

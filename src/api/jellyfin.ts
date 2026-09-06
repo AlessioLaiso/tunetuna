@@ -1092,6 +1092,23 @@ class JellyfinClient {
     return { albums, songs }
   }
 
+  /**
+   * Ids of the albums where the artist is credited as the album artist.
+   * getArtistItems filters by ArtistIds, which also matches track artists, so
+   * this is needed to tell "albums by" from "appears on".
+   */
+  async getArtistAlbumIdsAsAlbumArtist(artistId: string): Promise<Set<string>> {
+    const query = new URLSearchParams({
+      AlbumArtistIds: artistId,
+      IncludeItemTypes: 'MusicAlbum',
+      Recursive: 'true',
+      UserId: this.userId,
+      Fields: 'PrimaryImageAspectRatio',
+    })
+    const result = await this.request<ItemsResult>(`/Items?${query}`)
+    return new Set(result.Items.map(album => album.Id))
+  }
+
   async getPlaylists(options: GetItemsOptions = {}): Promise<ItemsResult> {
     const query = this.buildQueryString({
       ...options,
