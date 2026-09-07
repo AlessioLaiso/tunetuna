@@ -1118,7 +1118,7 @@ export default function ArtistDetailPage() {
                   <AlbumCard
                     key={album.Id}
                     album={album}
-                    subtitle={year}
+                    subtitleSuffix={year}
                     onContextMenu={(item, _type, mode, position) => {
                       setContextMenuItem(item)
                       setContextMenuItemType('album')

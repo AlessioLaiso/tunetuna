@@ -13,11 +13,13 @@ interface AlbumCardProps {
   contextMenuItemId?: string | null
   showImage?: boolean
   subtitle?: string | null
+  /** Bullet-appended to the built-in artist line; ignored when `subtitle` is set. */
+  subtitleSuffix?: string | null
   onNavigate?: (id: string) => void
   onArtistClick?: (id: string) => void
 }
 
-export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true, subtitle, onNavigate, onArtistClick }: AlbumCardProps) {
+export default function AlbumCard({ album, onContextMenu, contextMenuItemId, showImage = true, subtitle, subtitleSuffix, onNavigate, onArtistClick }: AlbumCardProps) {
   const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === album.Id
 
@@ -87,6 +89,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
             ) : (
               album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
             )}
+            {subtitleSuffix && <span> • {subtitleSuffix}</span>}
           </div>
         )}
       </button>
