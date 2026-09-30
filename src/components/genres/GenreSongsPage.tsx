@@ -516,7 +516,7 @@ export default function GenreSongsPage() {
             <div className="space-y-0">
               {sortedSongs.map((song, index) => {
                 const shouldShowImage = index < visibleSongsCount
-                return <SongItem key={song.Id} song={song} showImage={shouldShowImage} />
+                return <SongItem key={song.Id} song={song} showImage={shouldShowImage} playQueue={sortedSongs} />
               })}
             </div>
           </div>

@@ -5,7 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import Image from '../shared/Image'
-import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, Play, ListEnd } from 'lucide-react'
+import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, ListEnd } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from '../shared/ContextMenu'
@@ -18,6 +18,7 @@ import { normalizeName } from '../../utils/featuredArtists'
 import { splitArtistAlbums } from '../../utils/artistAlbums'
 import { getSavedScrollPosition } from '../../utils/scrollPosition'
 import { useArtistTopSongs } from '../../hooks/useArtistTopSongs'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import type { ArtistTopSong } from '../../utils/statsComputer'
 
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
@@ -237,7 +238,8 @@ export default function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const navigationType = useNavigationType()
-  const { playAlbum, playTrack, isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
+  const { isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
   const [allOwnAlbums, setAllOwnAlbums] = useState<BaseItemDto[]>([])
@@ -797,14 +799,6 @@ export default function ArtistDetailPage() {
     return [...mergedSongs].sort((a, b) => compareByDate(a, b, newestFirst))
   }, [mergedSongs, songSortOrder, allOwnAlbums])
 
-  const handlePlayAllSongsFromArtist = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (sortedSongs.length > 0) {
-      playAlbum(sortedSongs)
-    }
-  }
-
   const handleAddAllSongsFromArtistToQueue = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -821,16 +815,9 @@ export default function ArtistDetailPage() {
     })
   }
 
-  // Play a song from the "Top songs" section, seeding the queue with the full
-  // ranked top-5 so that the songs after the clicked one show up in "Coming up".
-  const handlePlayTopSong = async (song: ArtistTopSong) => {
-    const [clicked, ...rest] = await Promise.all(
-      artistTopSongs.map((s) => jellyfinClient.getSongById(s.songId)),
-    )
-    const queue = [clicked, ...rest].filter((s): s is BaseItemDto => s !== null)
-    if (!queue.length) return
-    const clickedTrack = queue.find(s => s.Id === song.songId) || queue[0]
-    playTrack(clickedTrack, queue)
+  // Play a song from the "Top songs" section, queueing the whole ranked list.
+  const handlePlayTopSong = (song: ArtistTopSong) => {
+    playSongWithQueue(artistTopSongs.map((s) => s.songId), song.songId)
   }
 
   if (loading) {
@@ -1143,14 +1130,6 @@ export default function ArtistDetailPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handlePlayAllSongsFromArtist}
-                    className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
-                    aria-label="Play all songs"
-                  >
-                    <Play className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
                     onClick={handleAddAllSongsFromArtistToQueue}
                     className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors"
                     aria-label="Add all songs to queue"
@@ -1187,7 +1166,7 @@ export default function ArtistDetailPage() {
                     year={year}
                     artistName={artistName}
                     artistId={artistId}
-                    onClick={playTrack}
+                    onClick={(song) => playSongWithQueue(sortedSongs, song.Id)}
                     onContextMenu={(song, mode, position) => {
                       setContextMenuItem(song)
                       setContextMenuItemType('song')

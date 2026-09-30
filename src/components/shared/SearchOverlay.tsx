@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { createPortal } from 'react-dom'
-import { Guitar, Calendar, Play, ListEnd, Globe, Smile, Piano, Tag, Metronome } from 'lucide-react'
+import { Guitar, Calendar, ListEnd, Globe, Smile, Piano, Tag, Metronome } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import AlbumCard from '../albums/AlbumCard'
@@ -59,9 +59,9 @@ interface SearchOverlayProps {
   onOpenGroupingFilterSheet?: (category: GroupingCategory) => void
   onArtistClick: (id: string) => void
   onAlbumClick: (id: string) => void
-  onSongClick: (song: BaseItemDto) => void
+  /** `songList` is the full list of song results, so a row can queue them all. */
+  onSongClick: (song: BaseItemDto, songList: BaseItemDto[]) => void
   onPlaylistClick: (id: string) => void
-  onPlayAllSongs: () => void
   onAddSongsToQueue: () => void
   isQueueSidebarOpen?: boolean
   // Desktop search input ref for auto-focus
@@ -227,7 +227,6 @@ export default function SearchOverlay({
   onAlbumClick,
   onSongClick,
   onPlaylistClick,
-  onPlayAllSongs,
   onAddSongsToQueue,
   isQueueSidebarOpen = false,
   desktopSearchInputRef,
@@ -377,14 +376,6 @@ export default function SearchOverlay({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={onPlayAllSongs}
-                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
-                  aria-label="Play all songs"
-                >
-                  <Play className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
                   onClick={onAddSongsToQueue}
                   className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors"
                   aria-label="Add all songs to queue"
@@ -398,7 +389,7 @@ export default function SearchOverlay({
                 <SearchSongItem
                   key={song.Id}
                   song={song}
-                  onClick={onSongClick}
+                  onClick={(clicked) => onSongClick(clicked, results.songs)}
                   onArtistClick={onArtistClick}
                   onContextMenu={openContextMenu}
                   contextMenuItemId={contextMenuItem?.Id || null}

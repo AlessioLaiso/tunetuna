@@ -92,7 +92,7 @@ export default function AlbumsPage() {
   const {
     handleSearch, handleClearSearch, handleCancelSearch,
     handleArtistClick, handleAlbumClick, handleSongClick,
-    handlePlayAllSongs, handleAddSongsToQueue, handlePlaylistClick,
+    handleAddSongsToQueue, handlePlaylistClick,
   } = useSearchHandlers({
     setSearchQuery, isSearchOpen, setIsSearchOpen, openSearch,
     clearSearch, clearAll, searchResults,
@@ -335,7 +335,6 @@ export default function AlbumsPage() {
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
         onPlaylistClick={handlePlaylistClick}
-        onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
 
         isQueueSidebarOpen={isQueueSidebarOpen}

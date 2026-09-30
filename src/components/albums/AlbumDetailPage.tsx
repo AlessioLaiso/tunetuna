@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useVinylAnimation } from '../../hooks/useVinylAnimation'
 import Spinner from '../shared/Spinner'
@@ -93,7 +94,8 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, isPlaying, play, pause } = usePlayerStore()
+  const { playAlbum, isPlaying, play, pause } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const currentTrack = useCurrentTrack()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
@@ -242,6 +244,10 @@ export default function AlbumDetailPage() {
     if (tracks.length > 0) {
       playAlbum(tracks)
     }
+  }
+
+  const handlePlayTrack = async (track: BaseItemDto) => {
+    await playSongWithQueue(tracks, track.Id)
   }
 
   const getAlbumDuration = (): string | null => {
@@ -543,7 +549,7 @@ export default function AlbumDetailPage() {
                         trackNumber={track.IndexNumber ?? null}
                         tracks={tracks}
                         albumArtist={getArtistName()}
-                        onClick={(track) => playTrack(track, tracks)}
+                        onClick={(track) => handlePlayTrack(track)}
                         onContextMenu={(track, mode, position) => {
                           setContextMenuItem(track)
                           setContextMenuMode(mode || 'mobile')

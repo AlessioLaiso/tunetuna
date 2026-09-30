@@ -8,8 +8,8 @@ import { useToastStore } from './toastStore'
 import { useStatsStore } from './statsStore'
 import { logger } from '../utils/logger'
 import { shuffleArray } from '../utils/array'
-import { computeAddToQueue, computeRemoveFromQueue, computeReorderQueue } from './queueOps'
-import type { QueueSong } from './queueOps'
+import { computeAddToQueue, computeRemoveFromQueue, computeReorderQueue, computeListPlaybackOrder } from './queueOps'
+import type { QueueSong, ListPlaybackOrder } from './queueOps'
 import { filterExcludedGenres } from '../utils/genreFilter'
 import { isIOS } from '../utils/formatting'
 import { STORE_KEYS } from '../utils/constants'
@@ -155,7 +155,7 @@ interface PlayerState {
   toggleRepeat: () => void
 
   // Playback initiation
-  playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[]) => void
+  playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[], options?: { shuffle?: boolean }) => void
   playAlbum: (tracks: (BaseItemDto | LightweightSong)[], startIndex?: number) => void
   playNext: (tracks: BaseItemDto[]) => void
   shuffleArtist: (songs: BaseItemDto[]) => void
@@ -836,35 +836,32 @@ export const usePlayerStore = create<PlayerState>()(
         })
       },
 
-      playTrack: (track, queue) => {
+      playTrack: (track, queue, options) => {
         get().cancelPreBuffer()
-        // If queue is provided, maintain the original order and set currentIndex to the selected track
-        let tracks: (BaseItemDto | LightweightSong)[]
-        let currentIndex: number
 
-        if (queue) {
-          // Keep the original order from queue, but put the selected track at the right position
-          tracks = queue
-          currentIndex = queue.findIndex(t => t.Id === track.Id)
-          if (currentIndex === -1) {
-            // Fallback if track not found in queue
-            tracks = [track, ...queue.filter(t => t.Id !== track.Id)]
-            currentIndex = 0
-          }
+        const shuffleRequested = options?.shuffle === true && !!queue?.length
+        let ordered: ListPlaybackOrder<BaseItemDto | LightweightSong>
+
+        if (queue?.length) {
+          const clickedIndex = queue.findIndex(t => t.Id === track.Id)
+          // Fallback if track not found in queue
+          const list = clickedIndex === -1
+            ? [track, ...queue.filter(t => t.Id !== track.Id)]
+            : queue
+          ordered = computeListPlaybackOrder(list, clickedIndex === -1 ? 0 : clickedIndex, shuffleRequested)
         } else {
-          tracks = [track]
-          currentIndex = 0
+          ordered = computeListPlaybackOrder([track], 0, false)
         }
 
-        const songs = tracks.map(t => ({ ...t, source: 'user' as const }))
+        const songs = ordered.tracks.map(t => ({ ...t, source: 'user' as const }))
 
         set({
           songs,
-          standardOrder: songs.map(s => s.Id),
-          shuffleOrder: songs.map(s => s.Id),
-          currentIndex,
-          previousIndex: currentIndex > 0 ? currentIndex - 1 : -1,
-          shuffle: false,
+          standardOrder: ordered.standardOrder,
+          shuffleOrder: ordered.shuffleOrder,
+          currentIndex: ordered.currentIndex,
+          previousIndex: ordered.currentIndex > 0 ? ordered.currentIndex - 1 : -1,
+          shuffle: shuffleRequested,
           isPlaying: false,
           currentTime: 0,
           duration: 0,

@@ -4,6 +4,7 @@ import { ArrowUpDown, Plus } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import PlaylistItem from './PlaylistItem'
 import PlaylistFormModal from './PlaylistFormModal'
 import ContextMenu from '../shared/ContextMenu'
@@ -27,7 +28,8 @@ export default function PlaylistsPage() {
   const [loading, setLoading] = useState(true)
   const sortPreferences = useMusicStore(s => s.sortPreferences)
   const setSortPreference = useMusicStore(s => s.setSortPreference)
-  const { playTrack, playAlbum, addToQueue } = usePlayerStore()
+  const { addToQueue } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const sortOrder = sortPreferences.playlists
   const isInitialLoad = useRef(true)
   const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
@@ -189,16 +191,10 @@ export default function PlaylistsPage() {
     setRawSearchResults(null)
   }
 
-  const handleSongClick = (song: BaseItemDto) => {
-    // Play only the selected song
-    playTrack(song, [song])
+  const handleSongClick = (song: BaseItemDto, songList: BaseItemDto[] = []) => {
+    // Queue the whole search, starting from the clicked song.
+    playSongWithQueue(songList.length > 0 ? songList : [song], song.Id)
     // Don't close search - keep it open so user can continue browsing
-  }
-
-  const handlePlayAllSongs = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      playAlbum(searchResults.songs)
-    }
   }
 
   const handleAddSongsToQueue = () => {
@@ -336,7 +332,6 @@ export default function PlaylistsPage() {
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
         onPlaylistClick={handlePlaylistClick}
-        onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
 
         isQueueSidebarOpen={isQueueSidebarOpen}

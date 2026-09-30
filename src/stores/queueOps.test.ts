@@ -3,6 +3,7 @@ import {
   computeAddToQueue,
   computeRemoveFromQueue,
   computeReorderQueue,
+  computeListPlaybackOrder,
   MAX_QUEUE_SIZE,
   type QueueSong,
   type QueueState,
@@ -170,5 +171,55 @@ describe('computeReorderQueue', () => {
     const songs = [song('1'), song('2'), song('3')]
     computeReorderQueue(state(songs, { currentIndex: 0 }), 0, 2)
     expect(songs.map(x => x.Id)).toEqual(['1', '2', '3'])
+  })
+})
+
+describe('computeListPlaybackOrder', () => {
+  const item = (id: string) => ({ Id: id })
+  const list = ['1', '2', '3', '4'].map(item)
+  // Reverse acts as an obvious non-identity shuffle.
+  const reverse = <T>(a: T[]): T[] => [...a].reverse()
+
+  it('keeps the list order and the clicked index when shuffle is off', () => {
+    const r = computeListPlaybackOrder(list, 2, false, reverse)
+    expect(r.tracks.map(t => t.Id)).toEqual(['1', '2', '3', '4'])
+    expect(r.currentIndex).toBe(2)
+    expect(r.standardOrder).toEqual(['1', '2', '3', '4'])
+    expect(r.shuffleOrder).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('moves every other song behind the clicked one when shuffle is on', () => {
+    const r = computeListPlaybackOrder(list, 2, true, reverse)
+    // '1' and '2' came before the clicked song and must still end up upcoming.
+    expect(r.tracks.map(t => t.Id)).toEqual(['3', '2', '1', '4'])
+    expect(r.currentIndex).toBe(0)
+  })
+
+  it('anchors the standard order on the clicked song so shuffle can be undone', () => {
+    const r = computeListPlaybackOrder(list, 2, true, reverse)
+    // toggleShuffle() restores upcoming songs with standardOrder.slice(currentIndex + 1).
+    expect(r.standardOrder).toEqual(['3', '4', '1', '2'])
+    expect(r.shuffleOrder).toEqual(r.tracks.map(t => t.Id))
+  })
+
+  it('leaves the clicked song first whatever the shuffle function returns', () => {
+    const r = computeListPlaybackOrder(list, 0, true, reverse)
+    expect(r.tracks[0].Id).toBe('1')
+    expect(r.tracks.map(t => t.Id).sort()).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('falls back to the first entry for an unknown clicked index', () => {
+    expect(computeListPlaybackOrder(list, -1, true, reverse).tracks[0].Id).toBe('1')
+    expect(computeListPlaybackOrder(list, 99, false, reverse).currentIndex).toBe(0)
+  })
+
+  it('handles an empty list', () => {
+    const r = computeListPlaybackOrder([], 0, true, reverse)
+    expect(r).toEqual({ tracks: [], currentIndex: -1, standardOrder: [], shuffleOrder: [] })
+  })
+
+  it('does not mutate the input list', () => {
+    computeListPlaybackOrder(list, 1, true, reverse)
+    expect(list.map(t => t.Id)).toEqual(['1', '2', '3', '4'])
   })
 })

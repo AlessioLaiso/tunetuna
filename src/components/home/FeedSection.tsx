@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Disc, Ellipsis, Music } from 'lucide-react'
 import { useMusicStore } from '../../stores/musicStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { usePlayerStore } from '../../stores/playerStore'
 import { useRecentlyPlayedStore } from '../../stores/recentlyPlayedStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
@@ -13,6 +12,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLibraryLookup } from '../../hooks/useLibraryLookup'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import {
   fetchAppleMusicTopSongs,
   getAppleMusicArtworkUrl,
@@ -198,7 +198,7 @@ function FeedSkeleton() {
 // Top 10 Section Component
 export function Top10Section() {
   const navigate = useNavigate()
-  const { playTrack } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const { feedTopSongs, feedLastUpdated, loading, setFeedTopSongs, setFeedLastUpdated, setLoading } = useMusicStore()
   const { feedCountry, showTop10 } = useSettingsStore()
   const { findSong } = useLibraryLookup()
@@ -249,12 +249,14 @@ export function Top10Section() {
     }
   }, [showTop10, feedCountry]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Library matches for the chart rows, in chart order: the queue when a row is clicked.
+  const matchedTopSongs = feedTopSongs
+    .map((song) => findSong(song.name, song.artistName))
+    .filter((s): s is LightweightSong => s !== null)
+
   const handleTopSongClick = async (song: AppleMusicSong, matchedSong: LightweightSong | null, e: React.MouseEvent) => {
     if (matchedSong) {
-      const fullSong = await jellyfinClient.getSongById(matchedSong.Id)
-      if (fullSong) {
-        playTrack(fullSong)
-      }
+      playSongWithQueue(matchedTopSongs, matchedSong.Id)
     } else {
       await handleExternalClick(song, e)
     }
@@ -387,7 +389,7 @@ export function Top10Section() {
 // New Releases Section Component
 export function NewReleasesSection() {
   const navigate = useNavigate()
-  const { playTrack } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const { feedNewReleases, feedLastUpdated, loading, setFeedNewReleases, setFeedLastUpdated, setLoading } = useMusicStore()
   const { showNewReleases, muspyRssUrl } = useSettingsStore()
   const { findAlbum, findSong, findArtistImageUrl } = useLibraryLookup()
@@ -509,6 +511,15 @@ export function NewReleasesSection() {
     }
   }, [feedNewReleases, setFeedNewReleases])
 
+  // A release counts as a song only when it is a single with a library match.
+  const matchReleaseSong = (release: NewRelease): LightweightSong | null =>
+    release.type === 'Single' ? findSong(release.title, release.artistName) : null
+
+  // Matched songs in list order: the queue when one of them is clicked.
+  const matchedReleaseSongs = feedNewReleases
+    .map(matchReleaseSong)
+    .filter((s): s is LightweightSong => s !== null)
+
   const handleReleaseClick = async (
     release: NewRelease,
     match: { type: 'album'; albumId: string } | { type: 'song'; song: LightweightSong } | null,
@@ -516,10 +527,7 @@ export function NewReleasesSection() {
   ) => {
     if (match) {
       if (match.type === 'song') {
-        const fullSong = await jellyfinClient.getSongById(match.song.Id)
-        if (fullSong) {
-          playTrack(fullSong)
-        }
+        playSongWithQueue(matchedReleaseSongs, match.song.Id)
       } else {
         navigate(`/album/${match.albumId}`)
       }
@@ -578,7 +586,7 @@ export function NewReleasesSection() {
           {feedNewReleases.map((release) => {
             // For singles, try song match; otherwise match album
             const isSingle = release.type === 'Single'
-            const matchedSong = isSingle ? findSong(release.title, release.artistName) : null
+            const matchedSong = matchReleaseSong(release)
             const matchedAlbum = !matchedSong ? findAlbum(release.title, release.artistName) : null
             const match = matchedSong
               ? { type: 'song' as const, song: matchedSong }
@@ -736,7 +744,7 @@ export function NewReleasesSection() {
 export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boolean }) {
   const navigate = useNavigate()
   const { showRecentlyPlayed } = useSettingsStore()
-  const { playTrack } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const currentTrack = useCurrentTrack()
   const entries = useRecentlyPlayedStore((s) => s.entries)
 
@@ -749,7 +757,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
   const recentlyPlayed = entries.slice(0, 10)
 
   const handleSongClick = (song: BaseItemDto) => {
-    playTrack(song, recentlyPlayed)
+    playSongWithQueue(recentlyPlayed, song.Id)
   }
 
   const getRecentlyPlayedSubtitleParts = (song: BaseItemDto): SubtitlePart[] => {

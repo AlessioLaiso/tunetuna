@@ -126,6 +126,56 @@ export function computeAddToQueue(
   }
 }
 
+export interface ListPlaybackOrder<T> {
+  tracks: T[]
+  currentIndex: number
+  standardOrder: string[]
+  shuffleOrder: string[]
+}
+
+/**
+ * Order a list of songs when playback starts from one of its entries (clicking a
+ * row on an album, artist, genre, search results, ...). Pure.
+ *
+ * Shuffle off: the list keeps its order and the clicked song stays at its own
+ * index, so the entries before it remain under "previous".
+ *
+ * Shuffle on: the clicked song moves to the front and every other entry — the
+ * ones after it as well as the ones before it — is shuffled behind it, so
+ * "previous" ends up empty and the whole list shows up as "coming up".
+ * `standardOrder` is anchored on the clicked song so that turning shuffle off
+ * mid-playback restores the list order for the upcoming songs: `toggleShuffle`
+ * reads `standardOrder.slice(currentIndex + 1)`, which with currentIndex 0 must
+ * start right after the clicked song.
+ */
+export function computeListPlaybackOrder<T extends { Id: string }>(
+  list: T[],
+  clickedIndex: number,
+  shuffle: boolean,
+  shuffleFn: ShuffleFn = shuffleArray,
+): ListPlaybackOrder<T> {
+  if (list.length === 0) {
+    return { tracks: [], currentIndex: -1, standardOrder: [], shuffleOrder: [] }
+  }
+
+  const at = clickedIndex >= 0 && clickedIndex < list.length ? clickedIndex : 0
+  const ids = list.map(t => t.Id)
+
+  if (!shuffle) {
+    return { tracks: list, currentIndex: at, standardOrder: ids, shuffleOrder: ids }
+  }
+
+  const anchored = [...list.slice(at), ...list.slice(0, at)]
+  const tracks = [anchored[0], ...shuffleFn(anchored.slice(1))]
+
+  return {
+    tracks,
+    currentIndex: 0,
+    standardOrder: anchored.map(t => t.Id),
+    shuffleOrder: tracks.map(t => t.Id),
+  }
+}
+
 export interface RemoveFromQueueResult {
   songs: QueueSong[]
   currentIndex: number

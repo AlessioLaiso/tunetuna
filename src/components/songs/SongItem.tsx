@@ -2,8 +2,8 @@ import { useState, useCallback, memo, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
-import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
@@ -13,14 +13,15 @@ import { formatDuration } from '../../utils/formatting'
 interface SongItemProps {
   song: LightweightSong
   showImage?: boolean
+  /** The list this row belongs to: clicking plays the song with the whole list as its queue. */
+  playQueue?: LightweightSong[]
   onContextMenu?: (item: LightweightSong, type: 'song', mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId?: string | null
 }
 
 // Memoized component to prevent unnecessary re-renders when parent updates
-const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu, contextMenuItemId }: SongItemProps) {
-  // Use selector to only get playTrack function - stable reference
-  const playTrack = usePlayerStore((state) => state.playTrack)
+const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onContextMenu, contextMenuItemId }: SongItemProps) {
+  const playSongWithQueue = usePlaySongWithQueue()
   const navigate = useNavigate()
   const currentTrack = useCurrentTrack()
   const [imageError, setImageError] = useState(false)
@@ -50,7 +51,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, onContextMenu,
             e.stopPropagation()
             return
           }
-          playTrack(song)
+          playSongWithQueue(playQueue ?? [song], song.Id)
         }}
         onContextMenu={handleContextMenu}
         className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}

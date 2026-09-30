@@ -126,7 +126,7 @@ export default function SongsPage() {
   const {
     handleSearch, handleClearSearch, handleCancelSearch,
     handleArtistClick, handleAlbumClick, handleSongClick,
-    handlePlayAllSongs, handleAddSongsToQueue, handlePlaylistClick,
+    handleAddSongsToQueue, handlePlaylistClick,
   } = useSearchHandlers({
     setSearchQuery, isSearchOpen, setIsSearchOpen, openSearch,
     clearSearch, clearAll, searchResults,
@@ -352,7 +352,6 @@ export default function SongsPage() {
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
         onPlaylistClick={handlePlaylistClick}
-        onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
@@ -175,7 +176,8 @@ export default function PlaylistDetailPage() {
   const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { playAlbum, playTrack, isPlaying, shuffleArtist } = usePlayerStore()
+  const { playAlbum, isPlaying, shuffleArtist } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const songs = useMusicStore(s => s.songs)
   const recordMoodAccess = useMusicStore(s => s.recordMoodAccess)
   const currentTrack = useCurrentTrack()
@@ -489,6 +491,10 @@ export default function PlaylistDetailPage() {
     }
   }
 
+  const handlePlayTrack = async (track: BaseItemDto) => {
+    await playSongWithQueue(sortedTracks, track.Id)
+  }
+
   const handleShuffleAll = () => {
     if (sortedTracks.length > 0) {
       shuffleArtist(sortedTracks)
@@ -729,7 +735,7 @@ export default function PlaylistDetailPage() {
                       track={track}
                       index={index}
                       tracks={sortedTracks}
-                      onClick={(track) => playTrack(track, sortedTracks)}
+                      onClick={(track) => handlePlayTrack(track)}
                       onContextMenu={(track, mode, position) => {
                         setContextMenuItem(track)
                         setContextMenuMode(mode || 'mobile')

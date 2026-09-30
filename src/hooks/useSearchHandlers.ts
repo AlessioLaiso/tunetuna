@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../stores/playerStore'
+import { usePlaySongWithQueue } from './usePlaySongWithQueue'
 import type { BaseItemDto } from '../api/types'
 
 interface UseSearchHandlersOptions {
@@ -27,8 +28,7 @@ export function useSearchHandlers({
   searchResults,
 }: UseSearchHandlersOptions) {
   const navigate = useNavigate()
-  const playTrack = usePlayerStore((state) => state.playTrack)
-  const playAlbum = usePlayerStore((state) => state.playAlbum)
+  const playSongWithQueue = usePlaySongWithQueue()
   const addToQueue = usePlayerStore((state) => state.addToQueue)
 
   const handleSearch = useCallback((query: string) => {
@@ -59,15 +59,9 @@ export function useSearchHandlers({
     clearSearch()
   }, [navigate, setIsSearchOpen, clearSearch])
 
-  const handleSongClick = useCallback((song: BaseItemDto) => {
-    playTrack(song, [song])
-  }, [playTrack])
-
-  const handlePlayAllSongs = useCallback(() => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      playAlbum(searchResults.songs)
-    }
-  }, [searchResults, playAlbum])
+  const handleSongClick = useCallback((song: BaseItemDto, songList: BaseItemDto[] = []) => {
+    playSongWithQueue(songList.length > 0 ? songList : [song], song.Id)
+  }, [playSongWithQueue])
 
   const handleAddSongsToQueue = useCallback(() => {
     if (searchResults?.songs && searchResults.songs.length > 0) {
@@ -88,7 +82,6 @@ export function useSearchHandlers({
     handleArtistClick,
     handleAlbumClick,
     handleSongClick,
-    handlePlayAllSongs,
     handleAddSongsToQueue,
     handlePlaylistClick,
   }

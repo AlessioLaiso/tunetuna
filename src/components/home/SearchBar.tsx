@@ -7,6 +7,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import FilterBottomSheet from './FilterBottomSheet'
 import { useMusicStore, getGroupingCategories } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useSearch } from '../../hooks/useSearch'
 import { useSearchOpen } from '../../hooks/useSearchOpen'
 import { logger } from '../../utils/logger'
@@ -43,7 +44,8 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
 
   // Player functions
-  const { playAlbum, addToQueue, playTrack, shuffleAllSongs, isQueueSidebarOpen } = usePlayerStore()
+  const { addToQueue, shuffleAllSongs, isQueueSidebarOpen } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
 
   // Loading state for shuffle button
   const [isShuffling, setIsShuffling] = useState(false)
@@ -153,9 +155,9 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     clearSearch()
   }
 
-  const handleSongClick = (song: BaseItemDto) => {
-    // Play only the selected song
-    playTrack(song, [song])
+  const handleSongClick = (song: BaseItemDto, songList: BaseItemDto[] = []) => {
+    // Queue the whole search, starting from the clicked song.
+    playSongWithQueue(songList.length > 0 ? songList : [song], song.Id)
     // Don't close search - keep it open so user can continue browsing
   }
 
@@ -222,12 +224,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
       ...prev,
       [categoryKey]: mode
     }))
-  }
-
-  const handlePlayAllSongs = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      playAlbum(searchResults.songs)
-    }
   }
 
   const handleAddSongsToQueue = () => {
@@ -354,7 +350,6 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
         onAlbumClick={handleAlbumClick}
         onSongClick={handleSongClick}
         onPlaylistClick={handlePlaylistClick}
-        onPlayAllSongs={handlePlayAllSongs}
         onAddSongsToQueue={handleAddSongsToQueue}
         isQueueSidebarOpen={isQueueSidebarOpen}
         desktopSearchInputRef={desktopSearchInputRef}

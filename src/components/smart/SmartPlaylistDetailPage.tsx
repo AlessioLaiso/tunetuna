@@ -4,6 +4,7 @@ import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -321,7 +322,7 @@ function SmartTrackItem({
   onContextMenu: (track: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
 }) {
   const navigate = useNavigate()
-  const { playTrack } = usePlayerStore()
+  const playSongWithQueue = usePlaySongWithQueue()
   const currentTrack = useCurrentTrack()
 
   const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
@@ -334,7 +335,7 @@ function SmartTrackItem({
       className="relative w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 cursor-pointer"
       onClick={() => {
         if (shouldSuppressClick()) return
-        playTrack(track, tracks)
+        playSongWithQueue(tracks, track.Id)
       }}
       onContextMenu={handleContextMenu}
       {...longPressHandlers}
