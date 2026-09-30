@@ -556,13 +556,13 @@ export default function CollectionDetailPage() {
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{detail.title}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400 flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+              <div className="text-gray-400 min-w-0 flex-1 break-words text-left">
                 {(() => {
                   const artistId = libraryMatches[0]?.ArtistItems?.[0]?.Id
                   return artistId ? (
                     <button
                       onClick={() => navigate(`/artist/${artistId}`)}
-                      className="hover:text-[var(--accent-color)] transition-colors cursor-pointer"
+                      className="inline text-left hover:text-[var(--accent-color)] transition-colors cursor-pointer"
                     >
                       {displayArtistName}
                     </button>
@@ -572,20 +572,18 @@ export default function CollectionDetailPage() {
                 })()}
                 {detail.year > 0 && (
                   <>
-                    <span>•</span>
-                    <span>{detail.year}</span>
+                    {' • '}
+                    {detail.year}
                   </>
                 )}
                 {formatString && <>
-                  <span>•</span>
-                  {formatString.split(', ').map((part, i, arr) => (
-                    <span key={i}>{part}{i < arr.length - 1 ? ',' : ''}</span>
-                  ))}
+                  {' • '}
+                  {formatString}
                 </>}
                 {libraryMatches.length < matchedTracks.length && (
                   <>
-                    <span>•</span>
-                    <span>{libraryMatches.length} of {matchedTracks.length} in library</span>
+                    {' • '}
+                    {libraryMatches.length} of {matchedTracks.length} in library
                   </>
                 )}
               </div>

@@ -413,30 +413,30 @@ export default function AlbumDetailPage() {
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{album.Name}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400 flex items-center gap-1.5">
+              <div className="text-gray-400 min-w-0 flex-1 break-words text-left">
                 {getArtistName() && (
                   <>
                     <button
                       onClick={handleArtistClick}
-                      className={`hover:text-[var(--accent-color)] transition-colors ${getArtistId() ? 'cursor-pointer' : 'cursor-default'}`}
+                      className={`inline text-left hover:text-[var(--accent-color)] transition-colors ${getArtistId() ? 'cursor-pointer' : 'cursor-default'}`}
                     >
                       {getArtistName()}
                     </button>
-                    {(getAlbumYear() || getAlbumDuration()) && <span>•</span>}
+                    {(getAlbumYear() || getAlbumDuration()) && ' • '}
                   </>
                 )}
                 {getAlbumYear() && (
                   <button
                     onClick={() => navigate(`/albums?year=${getAlbumYear()}`)}
-                    className="hover:text-[var(--accent-color)] transition-colors cursor-pointer"
+                    className="inline text-left hover:text-[var(--accent-color)] transition-colors cursor-pointer"
                   >
                     {getAlbumYear()}
                   </button>
                 )}
                 {getAlbumDuration() && (
                   <>
-                    {getAlbumYear() && <span>•</span>}
-                    <span>{getAlbumDuration()}</span>
+                    {getAlbumYear() && ' • '}
+                    {getAlbumDuration()}
                   </>
                 )}
               </div>
