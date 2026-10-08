@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'fs'
+import { createHash } from 'crypto'
 import { dirname } from 'path'
 
 const DATA_DIR = process.env.DATA_DIR || './data'
@@ -186,15 +187,68 @@ await fastify.register(cors, {
   allowedHeaders: ['Content-Type', 'X-Stats-Token'],
 })
 
+// Successful verifications are cached so we don't hit Jellyfin on every request
+const AUTH_CACHE_TTL_MS = 10 * 60 * 1000
+const AUTH_CACHE_MAX_ENTRIES = 1000
+const authCache = new Map()
+
 /**
  * Validates the auth token for a request.
- * Verifies a token is present (nginx ensures only internal requests reach this API).
- * The key (SHA-256 of serverUrl::userId) provides namespace isolation.
+ * The token is `<encodeURIComponent(serverUrl)>:<jellyfinAccessToken>`. We ask that Jellyfin
+ * server who the token belongs to, then require the key to equal SHA-256(serverUrl::userId).
+ * Any device logged in as the same Jellyfin user produces the same key, so stats stay shared
+ * across devices, while nobody can read or write another user's stats without their token.
  */
-function validateAuth(key, token) {
+async function validateAuth(key, token) {
   if (!token) {
     return { valid: false, error: 'Missing X-Stats-Token header' }
   }
+
+  const cacheKey = `${key}\n${token}`
+  const cachedUntil = authCache.get(cacheKey)
+  if (cachedUntil && cachedUntil > Date.now()) {
+    return { valid: true }
+  }
+
+  const sep = token.indexOf(':')
+  if (sep === -1) {
+    return { valid: false, error: 'Invalid X-Stats-Token header' }
+  }
+  let serverUrl
+  try {
+    serverUrl = decodeURIComponent(token.slice(0, sep))
+    const protocol = new URL(serverUrl).protocol
+    if (protocol !== 'http:' && protocol !== 'https:') throw new Error('Bad protocol')
+  } catch {
+    return { valid: false, error: 'Invalid X-Stats-Token header' }
+  }
+  const accessToken = token.slice(sep + 1)
+
+  let userId
+  try {
+    const response = await fetch(`${serverUrl.replace(/\/$/, '')}/Users/Me`, {
+      headers: {
+        Authorization: `MediaBrowser Token="${accessToken}"`,
+        'X-Emby-Token': accessToken,
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) {
+      return { valid: false, error: 'Jellyfin rejected the access token' }
+    }
+    userId = (await response.json())?.Id
+  } catch (error) {
+    fastify.log.warn({ err: error }, 'Could not verify stats token with Jellyfin')
+    return { valid: false, error: 'Could not verify access token with Jellyfin' }
+  }
+
+  const expectedKey = createHash('sha256').update(`${serverUrl}::${userId}`).digest('hex')
+  if (!userId || expectedKey !== key) {
+    return { valid: false, error: 'Token does not match stats key' }
+  }
+
+  if (authCache.size >= AUTH_CACHE_MAX_ENTRIES) authCache.clear()
+  authCache.set(cacheKey, Date.now() + AUTH_CACHE_TTL_MS)
   return { valid: true }
 }
 
@@ -236,7 +290,7 @@ fastify.post('/api/stats/:key/events', async (request, reply) => {
   const events = body._token ? body.events : body
 
   // Validate auth
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -276,7 +330,7 @@ fastify.get('/api/stats/:key/events', async (request, reply) => {
   const { from, to } = request.query
 
   // Validate auth
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -314,7 +368,7 @@ fastify.put('/api/stats/:key/events/remap', async (request, reply) => {
   const token = request.headers['x-stats-token']
   const { mappings } = request.body || {}
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -345,7 +399,7 @@ fastify.delete('/api/stats/:key/events/by-song-ids', async (request, reply) => {
   const token = request.headers['x-stats-token']
   const { songIds } = request.body || {}
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -369,7 +423,7 @@ fastify.delete('/api/stats/:key/events', async (request, reply) => {
   const token = request.headers['x-stats-token']
 
   // Validate auth
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -392,7 +446,7 @@ fastify.patch('/api/stats/:key/events/metadata', async (request, reply) => {
   const { itemType, itemId, metadata } = request.body || {}
 
   // Validate auth
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -511,7 +565,7 @@ fastify.post('/api/stats/:key/library-snapshots', async (request, reply) => {
   const token = request.headers['x-stats-token']
   const { snapshots } = request.body || {}
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -555,7 +609,7 @@ fastify.get('/api/stats/:key/library-snapshots', async (request, reply) => {
   const { key } = request.params
   const token = request.headers['x-stats-token']
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -587,7 +641,7 @@ fastify.delete('/api/stats/:key/library-snapshots/month', async (request, reply)
   const fromTs = Number(request.query?.fromTs)
   const toTs = Number(request.query?.toTs)
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }
@@ -610,7 +664,7 @@ fastify.delete('/api/stats/:key/library-snapshots', async (request, reply) => {
   const { key } = request.params
   const token = request.headers['x-stats-token']
 
-  const auth = validateAuth(key, token)
+  const auth = await validateAuth(key, token)
   if (!auth.valid) {
     return reply.status(401).send({ error: auth.error })
   }

@@ -76,7 +76,7 @@ interface StatsState {
   currentPlay: CurrentPlay | null
   /** SHA-256 hash of serverUrl::userId for API calls */
   cachedStatsKey: string | null
-  /** Random auth token for stats API authentication (persisted per user) */
+  /** Stats API auth token, derived from the Jellyfin server URL and access token */
   cachedStatsToken: string | null
   /** Version counter that increments when event metadata changes, used to trigger UI updates */
   metadataVersion: number
@@ -129,9 +129,8 @@ const indexedDBStorage = createIndexedDBStorage<StatsState>(INDEXEDDB_NAMES.stat
  * Uses SHA-256 hash to create a consistent, URL-safe identifier.
  *
  * The key is deterministic (same for all devices with same serverUrl + userId)
- * to enable cross-device sync. Security is handled by:
- * 1. nginx stripping Origin header (API only accessible internally)
- * 2. Token-based authentication on the server side
+ * to enable cross-device sync. Security is handled by the server verifying the
+ * Jellyfin access token and checking it belongs to the user this key was derived from.
  */
 async function generateStatsKey(serverUrl: string, userId: string): Promise<string> {
   const data = `${serverUrl}::${userId}`
@@ -146,13 +145,12 @@ async function generateStatsKey(serverUrl: string, userId: string): Promise<stri
 }
 
 /**
- * Generates a random 32-byte hex token for API authentication.
- * Used to secure stats API requests beyond just the predictable key.
+ * Builds the stats API token from the Jellyfin session.
+ * The server verifies the access token with Jellyfin and checks that the user it
+ * belongs to matches the stats key, so only that user (on any device) can access it.
  */
-function generateStatsToken(): string {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+function generateStatsToken(serverUrl: string, accessToken: string): string {
+  return `${encodeURIComponent(serverUrl)}:${accessToken}`
 }
 
 /**
@@ -369,19 +367,17 @@ export const useStatsStore = create<StatsState>()(
       /**
        * Updates the cached stats key and token when auth changes.
        * Called on auth state changes and initial load.
-       * Token is generated once per device and persisted for authentication.
+       * Token is derived from the current Jellyfin session (verified server-side).
        * Key is derived from serverUrl + userId only (enables cross-device sync).
        */
       updateStatsKey: async () => {
-        const { serverUrl, userId } = useAuthStore.getState()
-        if (!serverUrl || !userId) {
+        const { serverUrl, userId, accessToken } = useAuthStore.getState()
+        if (!serverUrl || !userId || !accessToken) {
           set({ cachedStatsKey: null, cachedStatsToken: null })
           return
         }
 
-        const { cachedStatsToken } = get()
-        // Generate token if we don't have one (token is per-device for auth)
-        const token = cachedStatsToken || generateStatsToken()
+        const token = generateStatsToken(serverUrl, accessToken)
         // Key is derived from serverUrl + userId only (same across all devices)
         const key = await generateStatsKey(serverUrl, userId)
 
@@ -1073,6 +1069,10 @@ function initStatsListeners() {
 
     // Update stats key when auth changes
     authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
+      if (state.accessToken !== prevState.accessToken) {
+        // Stats token embeds the Jellyfin access token, so refresh it on re-login
+        useStatsStore.getState().updateStatsKey()
+      }
       if (state.serverUrl !== prevState.serverUrl || state.userId !== prevState.userId) {
         useStatsStore.getState().updateStatsKey()
         // Re-initialize oldest timestamp for new user
