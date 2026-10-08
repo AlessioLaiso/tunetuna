@@ -70,6 +70,10 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
         })
         localStorage.removeItem(STORE_KEYS.auth)
+
+        // deleteDatabase is blocked while this page holds the DBs open, and the
+        // in-memory stores still hold the previous user's data. Reload to drop both.
+        window.location.replace('/')
       },
 
       setCredentials: (serverUrl: string, accessToken: string, userId: string) => {

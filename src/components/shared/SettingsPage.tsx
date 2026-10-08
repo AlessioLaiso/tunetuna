@@ -121,7 +121,6 @@ export default function SettingsPage() {
 
   const handleLogout = () => {
     logout()
-    navigate('/')
   }
 
   const handleSyncStats = async () => {

@@ -12,6 +12,8 @@ import { jellyfinClient } from './api/jellyfin'
 import { useToastStore } from './stores/toastStore'
 import { probeAndUpdateServerUrl } from './utils/serverUrl'
 
+const SESSION_EXPIRED_KEY = 'tunetuna-session-expired'
+
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./components/home/HomePage'))
 const ArtistsPage = lazy(() => import('./components/artists/ArtistsPage'))
@@ -54,32 +56,31 @@ function App() {
   // Re-probe local/remote server URL on foreground
   useServerUrlResolver()
 
-  // Handle 401 from Jellyfin API — session expired
+  // Handle 401 from Jellyfin API — session expired.
+  // logout() reloads the page, so the toast is deferred via sessionStorage.
   useEffect(() => {
     let handled = false
     jellyfinClient.setOnUnauthorized(() => {
       if (handled) return
       handled = true
-      useToastStore.getState().addToast('Session expired — please log in again', 'error', 5000)
+      try { sessionStorage.setItem(SESSION_EXPIRED_KEY, '1') } catch { /* ignore */ }
       logout()
     })
   }, [logout])
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY)
+        useToastStore.getState().addToast('Session expired — please log in again', 'error', 5000)
+      }
+    } catch { /* ignore */ }
+  }, [])
 
   // On network failure, re-probe LAN/remote so the next retry may swap server URL
   useEffect(() => {
     jellyfinClient.setOnNetworkError(() => probeAndUpdateServerUrl())
   }, [])
-
-  // Handle logout via URL parameter (e.g. ?logout=true)
-  // Must be called before any conditional returns to ensure consistent hook order
-  useEffect(() => {
-    if (isAuthenticated && window.location.search.includes('logout=true')) {
-      logout()
-      window.location.search = ''
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
-
 
   if (!isAuthenticated) {
     return (
