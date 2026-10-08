@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory } from '../api/types'
+import type { LightweightSong, BaseItemDto, SortOrder, GroupingCategory, SearchCatalog } from '../api/types'
 import type { AppleMusicSong, NewRelease } from '../api/feed'
 import { createIndexedDBStorage } from '../utils/storage'
 import { capitalizeFirst, parseGroupingTag, RELEASE_GROUPING_CATEGORY } from '../utils/formatting'
@@ -35,6 +35,12 @@ interface MusicState {
   albums: BaseItemDto[]
   /** All songs with lightweight metadata for fast search */
   songs: LightweightSong[]
+  /**
+   * Every artist, album and playlist, for search (artists/albums above hold
+   * only the page on screen). Saved by each library sync; null until the
+   * first fetch.
+   */
+  searchCatalog: SearchCatalog | null
   /** All genres for filtering and recommendations */
   genres: BaseItemDto[]
   /** Timestamp when genres cache was last refreshed from server */
@@ -96,6 +102,7 @@ interface MusicState {
   setLoading: (key: keyof MusicState['loading'], value: boolean) => void
   setSortPreference: (type: 'artists' | 'albums' | 'songs' | 'playlists', order: SortOrder) => void
   setSongs: (songs: LightweightSong[]) => void
+  setSearchCatalog: (catalog: SearchCatalog) => void
   /** Drops songs deleted on the server from every song cache */
   removeSongs: (ids: Iterable<string>) => void
   setLastSyncCompleted: (timestamp: number) => void
@@ -177,6 +184,7 @@ export const useMusicStore = create<MusicState>()(
       artists: [],
       albums: [],
       songs: [],
+      searchCatalog: null,
       genres: [],
       genresLastUpdated: null,
       genresLastChecked: null,
@@ -245,6 +253,7 @@ export const useMusicStore = create<MusicState>()(
         })),
 
       setSongs: (songs) => set({ songs }),
+      setSearchCatalog: (searchCatalog) => set({ searchCatalog }),
 
       /**
        * Drops deleted songs from the main cache, the genre caches and the
@@ -324,9 +333,10 @@ export const useMusicStore = create<MusicState>()(
       /**
        * Selective persistence - only persist cache data, not transient UI state.
        * Excludes: artists, albums, loading states (fetched fresh each session)
-       * Includes: songs, genres, timestamps (expensive to refetch)
+       * Includes: songs, search catalog, genres, timestamps (expensive to refetch)
        */
       partialize: (state) => ({
+        searchCatalog: state.searchCatalog,
         genres: state.genres,
         genresLastUpdated: state.genresLastUpdated,
         genresLastChecked: state.genresLastChecked,

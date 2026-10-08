@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from 'react'
+import { CircleX } from 'lucide-react'
 
 interface SearchInputProps {
   value: string
@@ -106,19 +107,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
         aria-label="Clear search"
         type="button"
       >
-        <svg
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          className="w-full h-full"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        <CircleX className="w-full h-full" />
       </button>
     </div>
   )

@@ -97,6 +97,13 @@ export interface LightweightSong {
   Bpm?: number
 }
 
+// Every artist, album and playlist, for searching locally
+export interface SearchCatalog {
+  artists: BaseItemDto[]
+  albums: BaseItemDto[]
+  playlists: BaseItemDto[]
+}
+
 // Grouping category for filter UI (derived from song grouping tags)
 export interface GroupingCategory {
   name: string           // Display name: "Language", "Mood", "Instrumental"

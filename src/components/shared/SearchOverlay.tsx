@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { createPortal } from 'react-dom'
-import { Guitar, Calendar, ListEnd, Globe, Smile, Piano, Tag, Metronome } from 'lucide-react'
+import { Guitar, Calendar, ListEnd, Globe, Smile, Piano, Tag, Metronome, Music, ListMusic, X } from 'lucide-react'
 import SearchInput from './SearchInput'
 import SearchArtistItem from './SearchArtistItem'
 import AlbumCard from '../albums/AlbumCard'
@@ -162,6 +162,7 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
             className="w-full h-full object-cover"
             showOutline={true}
             rounded="rounded-sm"
+            fallbackIcon={Music}
           />
         </div>
       )}
@@ -229,6 +230,7 @@ function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemPr
           className="w-full h-full object-cover"
           showOutline={true}
           rounded="rounded-sm"
+          fallbackIcon={ListMusic}
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
@@ -600,9 +602,10 @@ export default function SearchOverlay({
               <div className="text-lg font-semibold text-white">{title}</div>
               <button
                 onClick={onClose}
-                className="px-3 py-1.5 text-white text-sm font-medium hover:bg-zinc-800 rounded-lg transition-colors"
+                className="p-1.5 text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                aria-label="Close search"
               >
-                Cancel
+                <X className="w-5 h-5" />
               </button>
             </div>
             <SearchInput
@@ -639,7 +642,7 @@ export default function SearchOverlay({
           style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
         />
 
-        {/* Sticky search header with Cancel button */}
+        {/* Sticky search header with close button */}
         <div className="sticky top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
           <div className="max-w-page mx-auto w-full">
             <div className="flex items-center gap-3 pl-2 pr-4 pt-4 pb-4">
@@ -655,9 +658,10 @@ export default function SearchOverlay({
               </div>
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-white text-sm font-medium hover:text-zinc-300 transition-colors whitespace-nowrap flex-shrink-0"
+                className="p-2 text-white hover:text-zinc-300 transition-colors flex-shrink-0"
+                aria-label="Close search"
               >
-                Cancel
+                <X className="w-6 h-6" />
               </button>
             </div>
           </div>
@@ -669,7 +673,7 @@ export default function SearchOverlay({
             {/* Filter icons - scrolls below header */}
             {hasFilters && (
               <div className="bg-black pt-3 pb-4">
-                <div className="flex flex-wrap items-center gap-3 pl-2 pr-4">
+                <div className="flex flex-wrap items-center gap-3 max-[380px]:gap-2 pl-2 pr-4">
                   {renderFilters()}
                 </div>
               </div>

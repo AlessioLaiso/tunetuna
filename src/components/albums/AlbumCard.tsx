@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Disc } from 'lucide-react'
 import { saveScrollPosition } from '../../utils/scrollPosition'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -60,6 +61,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
               className="w-full h-full object-cover"
               showOutline={true}
               rounded="rounded"
+              fallbackIcon={Disc}
             />
           ) : (
             <div className="w-full h-full bg-zinc-900" />

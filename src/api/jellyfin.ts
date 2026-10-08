@@ -5,6 +5,7 @@ import type {
   SearchResult,
   GetItemsOptions,
   LightweightSong,
+  SearchCatalog,
 } from './types'
 import { storage } from '../utils/storage'
 import { generateUUID } from '../utils/uuid'
@@ -454,43 +455,65 @@ class JellyfinClient {
     return ids
   }
 
-  /**
-   * Every artist, album and playlist, for searching locally. Lean on purpose:
-   * only the fields the search results and their filters use, no user data,
-   * so even a large library comes back in three modest requests.
-   */
-  async fetchSearchCatalog(): Promise<{ artists: BaseItemDto[]; albums: BaseItemDto[]; playlists: BaseItemDto[] }> {
+  /** Query for a lean search catalog list: only the fields search results and their filters use, no user data */
+  private searchCatalogParams(itemType: string): URLSearchParams {
     if (!this.userId || !this.baseUrl) {
       throw new Error('Not authenticated')
     }
-    const params = (itemType: string) => new URLSearchParams({
+    return new URLSearchParams({
       IncludeItemTypes: itemType,
       Recursive: 'true',
       SortBy: 'SortName',
       SortOrder: 'Ascending',
-      UserId: this.userId!,
+      UserId: this.userId,
       Fields: 'Genres,ProductionYear,ChildCount',
       EnableUserData: 'false',
       ImageTypeLimit: '1',
       EnableImageTypes: 'Primary',
     })
+  }
 
-    const [artistsResult, albumsResult, playlistsResult] = await Promise.all([
-      this.request<ItemsResult>(`/Artists?${params('MusicArtist')}`),
-      this.request<ItemsResult>(`/Items?${params('MusicAlbum')}`),
-      this.request<ItemsResult>(`/Items?${params('Playlist')}`),
+  /**
+   * Every artist, album and playlist, for searching locally. Fetched by each
+   * library sync and saved with the songs. Lean on purpose, so even a large
+   * library comes back in three modest requests.
+   */
+  async fetchSearchCatalog(): Promise<SearchCatalog> {
+    const [artistsResult, albumsResult, playlists] = await Promise.all([
+      this.request<ItemsResult>(`/Artists?${this.searchCatalogParams('MusicArtist')}`),
+      this.request<ItemsResult>(`/Items?${this.searchCatalogParams('MusicAlbum')}`),
+      this.fetchSearchPlaylists(),
     ])
 
     // Some servers return nothing from /Artists; getArtists falls back the same way
     let artists = artistsResult.Items || []
     if (artists.length === 0) {
-      artists = (await this.request<ItemsResult>(`/Items?${params('MusicArtist')}`)).Items || []
+      artists = (await this.request<ItemsResult>(`/Items?${this.searchCatalogParams('MusicArtist')}`)).Items || []
     }
 
     return {
       artists,
       albums: albumsResult.Items || [],
-      playlists: playlistsResult.Items || [],
+      playlists,
+    }
+  }
+
+  /** Every playlist, for searching locally. Refreshed on its own, since no sync tracks playlist edits. */
+  async fetchSearchPlaylists(): Promise<BaseItemDto[]> {
+    const result = await this.request<ItemsResult>(`/Items?${this.searchCatalogParams('Playlist')}`)
+    return result.Items || []
+  }
+
+  /**
+   * Saves a fresh search catalog after a sync. Best effort: the songs are
+   * already saved, so a failure here shouldn't fail the sync. The previous
+   * catalog stays until the next sync.
+   */
+  private async syncSearchCatalog(): Promise<void> {
+    try {
+      useMusicStore.getState().setSearchCatalog(await this.fetchSearchCatalog())
+    } catch (error) {
+      logger.warn('[syncLibrary] Could not fetch the search catalog', error)
     }
   }
 
@@ -981,6 +1004,7 @@ class JellyfinClient {
         }
       }
 
+      await this.syncSearchCatalog()
       return
     }
 
@@ -1011,6 +1035,8 @@ class JellyfinClient {
 
     // Distribute songs to genre caches (no additional fetches!)
     this.distributeSongsToGenres(allSongs, genres, store)
+
+    await this.syncSearchCatalog()
     logger.log('[syncLibrary] Full sync complete')
   }
 

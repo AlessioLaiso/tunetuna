@@ -17,6 +17,7 @@ interface ArtistCardProps {
 export default function ArtistCard({ artist, showImage = true, onContextMenu, contextMenuItemId }: ArtistCardProps) {
   const navigate = useNavigate()
   const [imageError, setImageError] = useState(false)
+  const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null)
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
   const isThisItemMenuOpen = contextMenuItemId === artist.Id
 
@@ -55,6 +56,10 @@ export default function ArtistCard({ artist, showImage = true, onContextMenu, co
     onContextMenu: onContextMenu ? externalHandler : undefined,
   })
 
+  const imageUrl = artist.ImageTags?.Primary
+    ? jellyfinClient.getArtistImageUrl(artist.Id, 96)
+    : fallbackAlbumArtUrl
+
   return (
     <>
       <button
@@ -70,25 +75,27 @@ export default function ArtistCard({ artist, showImage = true, onContextMenu, co
         {...longPressHandlers}
         className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       >
-        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center relative">
           {!showImage ? (
             <div className="w-full h-full bg-zinc-900" />
-          ) : imageError ? (
-            <User className="w-6 h-6 text-gray-500" />
-          ) : artist.ImageTags?.Primary || fallbackAlbumArtUrl ? (
-            <img
-              src={
-                artist.ImageTags?.Primary
-                  ? jellyfinClient.getArtistImageUrl(artist.Id, 96)
-                  : fallbackAlbumArtUrl || ''
-              }
-              alt={artist.Name}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-              loading="lazy"
-            />
           ) : (
-            <User className="w-6 h-6 text-gray-500" />
+            <>
+              {/* The icon shows until the image loads; the image stays hidden
+                  until then, so the browser doesn't draw its alt text meanwhile */}
+              {(!imageUrl || imageError || loadedImageUrl !== imageUrl) && (
+                <User className="w-6 h-6 text-gray-500" />
+              )}
+              {imageUrl && !imageError && (
+                <img
+                  src={imageUrl}
+                  alt={artist.Name}
+                  className={`absolute inset-0 w-full h-full object-cover ${loadedImageUrl === imageUrl ? '' : 'opacity-0'}`}
+                  onLoad={() => setLoadedImageUrl(imageUrl)}
+                  onError={() => setImageError(true)}
+                  loading="lazy"
+                />
+              )}
+            </>
           )}
         </div>
         <div className="flex-1 min-w-0 text-left">

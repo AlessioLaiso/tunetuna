@@ -52,6 +52,9 @@ export interface UseSearchReturn {
   clearAll: () => void
 }
 
+/** Stable empty list, so memos and the search index cache don't see a new array each render */
+const NO_ITEMS: BaseItemDto[] = []
+
 /** Runs `task` when the browser is idle (or soon, where unsupported). Returns a cancel function. */
 function runWhenIdle(task: () => void): () => void {
   if (typeof window.requestIdleCallback === 'function') {
@@ -65,8 +68,8 @@ function runWhenIdle(task: () => void): () => void {
 /**
  * Centralized search hook used by every page with a search overlay.
  *
- * Searches in memory: songs from the synced song cache, artists, albums and
- * playlists from the search catalog (loaded once, refreshed after syncs). No
+ * Searches in memory: songs, artists, albums and playlists, all saved on the
+ * device by the library sync (playlists also refreshed in the background). No
  * request per keystroke, so results update as you type. While the song
  * cache is unavailable (first sync not finished, or not loaded from
  * IndexedDB yet) it falls back to searching the server, debounced.
@@ -84,10 +87,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   const cachedSongs = useMusicStore(state => state.songs)
   const hasHydrated = useHasHydrated()
-  const catalogArtists = useSearchCatalogStore(state => state.artists)
-  const catalogAlbums = useSearchCatalogStore(state => state.albums)
-  const catalogPlaylists = useSearchCatalogStore(state => state.playlists)
-  const catalogLoadedAt = useSearchCatalogStore(state => state.loadedAt)
+  const searchCatalog = useMusicStore(state => state.searchCatalog)
+  const catalogArtists = searchCatalog?.artists ?? NO_ITEMS
+  const catalogAlbums = searchCatalog?.albums ?? NO_ITEMS
+  const catalogPlaylists = searchCatalog?.playlists ?? NO_ITEMS
   const catalogFailed = useSearchCatalogStore(state => state.failed)
 
   // Server fallback state
@@ -122,12 +125,13 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   // IndexedDB yet (or the load failed, which zustand never reports as
   // done), or empty because the first sync hasn't finished
   const useServer = !hasHydrated || cachedSongs.length === 0
-  // A failed catalog load still lets songs be searched
-  const catalogReady = catalogLoadedAt !== null || catalogFailed
+  // Saved by the library sync, so normally ready once the cache has loaded.
+  // A failed load (no saved catalog yet) still lets songs be searched.
+  const catalogReady = searchCatalog !== null || catalogFailed
 
-  // Load the catalog once the page is idle, so it's ready by the first
-  // keystroke without competing with the page's own startup requests. A
-  // search that starts first loads it right away (and checks it's fresh).
+  // Fetch what the sync doesn't keep current (playlists, or a catalog never
+  // saved) once the page is idle, so it doesn't compete with the page's own
+  // startup requests. A search that starts first fetches it right away.
   useEffect(() => {
     if (isActive) {
       void loadSearchCatalog()
@@ -136,9 +140,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     return runWhenIdle(() => void loadSearchCatalog())
   }, [isActive])
 
-  // Build the search index while idle, so the first keystroke doesn't pay for
-  // it. The index is cached per library array, so this is a no-op until the
-  // library or catalog changes.
+  // Build the search index while idle, right after the saved library loads,
+  // so the first keystroke doesn't pay for it. The index is cached per
+  // library array, so this is a no-op until the library or catalog changes.
   useEffect(() => {
     if (useServer || !catalogReady) return
     return runWhenIdle(() => browseLibrary({

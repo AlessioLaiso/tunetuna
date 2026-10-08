@@ -20,6 +20,7 @@ const SearchArtistItem = memo(function SearchArtistItem({
   contextMenuItemId
 }: SearchArtistItemProps) {
   const [imageError, setImageError] = useState(false)
+  const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null)
   const isThisItemMenuOpen = contextMenuItemId === artist.Id
   const [fallbackAlbumArtUrl, setFallbackAlbumArtUrl] = useState<string | null>(null)
 
@@ -76,18 +77,20 @@ const SearchArtistItem = memo(function SearchArtistItem({
       aria-label={`Go to artist ${artist.Name}`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center relative">
-        {imageError ? (
+        {/* The icon shows until the image loads; the image stays hidden until
+            then, so the browser doesn't draw its alt text meanwhile */}
+        {(!imageUrl || imageError || loadedImageUrl !== imageUrl) && (
           <User className="w-6 h-6 text-gray-500" />
-        ) : imageUrl ? (
+        )}
+        {imageUrl && !imageError && (
           <img
             src={imageUrl}
             alt={artist.Name}
-            className="w-full h-full object-cover"
+            className={`absolute inset-0 w-full h-full object-cover ${loadedImageUrl === imageUrl ? '' : 'opacity-0'}`}
+            onLoad={() => setLoadedImageUrl(imageUrl)}
             onError={() => setImageError(true)}
             loading="lazy"
           />
-        ) : (
-          <User className="w-6 h-6 text-gray-500" />
         )}
         <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
       </div>

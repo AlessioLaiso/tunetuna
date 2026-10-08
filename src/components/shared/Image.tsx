@@ -72,11 +72,17 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
 
   return (
     <div className="relative w-full h-full">
+      {/* The icon placeholder while loading; the image fades in over it */}
+      {FallbackIcon && !loaded && (
+        <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
+          <FallbackIcon className="w-1/3 h-1/3 text-zinc-600" />
+        </div>
+      )}
       <img
         ref={imgRef}
         src={imgSrc}
         alt={alt}
-        className={`block ${needsFade ? `transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}` : ''} ${className}`}
+        className={`relative block ${needsFade ? `transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}` : ''} ${className}`}
         onError={handleError}
         onLoad={handleLoad}
         loading={loading}
