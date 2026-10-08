@@ -104,8 +104,12 @@ class JellyfinClient {
     return deviceId
   }
 
-  private getEmbyAuthHeader(): string {
-    return `MediaBrowser Client="${APP_CLIENT_NAME}", Device="${APP_DEVICE_TYPE}", DeviceId="${this.getDeviceId()}", Version="${APP_VERSION}"`
+  // Client info and token go in the standard Authorization header. Jellyfin 12
+  // disables the legacy X-Emby-Authorization / X-Emby-Token headers by default;
+  // 10.11 accepts both.
+  private getAuthHeader(withToken = true): string {
+    const header = `MediaBrowser Client="${APP_CLIENT_NAME}", Device="${APP_DEVICE_TYPE}", DeviceId="${this.getDeviceId()}", Version="${APP_VERSION}"`
+    return withToken && this.accessToken ? `${header}, Token="${this.accessToken}"` : header
   }
 
   private getVpnWarning(serverUrl: string): string {
@@ -116,9 +120,8 @@ class JellyfinClient {
 
   private getHeaders(): HeadersInit {
     return {
-      'Authorization': `MediaBrowser Token="${this.accessToken}"`,
+      'Authorization': this.getAuthHeader(),
       'Content-Type': 'application/json',
-      'X-Emby-Authorization': this.getEmbyAuthHeader(),
     }
   }
 
@@ -234,7 +237,7 @@ class JellyfinClient {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          'X-Emby-Authorization': this.getEmbyAuthHeader(),
+          'Authorization': this.getAuthHeader(false),
         },
         body: JSON.stringify({
           Username: username,
@@ -1296,10 +1299,15 @@ class JellyfinClient {
     if (!this.userId || !this.baseUrl || !playlistId || itemIds.length === 0) {
       throw new Error('Not authenticated or invalid parameters')
     }
+    // Jellyfin 12 allows duplicate entries, but gives every copy of a song the
+    // same PlaylistItemId, so removing one removes them all. Skip songs already
+    // in the playlist, which is what 10.11 does on its own.
+    const existingIds = new Set((await this.getPlaylistItems(playlistId)).map(item => item.Id))
+    const newIds = [...new Set(itemIds)].filter(id => !existingIds.has(id))
     // Batch in chunks of 100 to avoid URL length limits
     const BATCH_SIZE = 100
-    for (let i = 0; i < itemIds.length; i += BATCH_SIZE) {
-      const batch = itemIds.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < newIds.length; i += BATCH_SIZE) {
+      const batch = newIds.slice(i, i + BATCH_SIZE)
       const query = new URLSearchParams({
         ids: batch.join(','),
         userId: this.userId,
