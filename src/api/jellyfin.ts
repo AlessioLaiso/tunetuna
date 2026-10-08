@@ -1345,65 +1345,68 @@ class JellyfinClient {
     return result.Items
   }
 
+  // Lyrics cache (including "no lyrics" results) so track changes and modal opens
+  // don't repeatedly hit the server — repeated 404s trip reverse-proxy WAFs like CrowdSec.
+  private lyricsCache = new Map<string, LyricsResult | null>()
+  private lyricsInFlight = new Map<string, Promise<LyricsResult | null>>()
+
   async getLyrics(itemId: string): Promise<LyricsResult | null> {
     if (!this.userId || !this.baseUrl || !itemId) {
       return null
     }
+    if (this.lyricsCache.has(itemId)) {
+      return this.lyricsCache.get(itemId) ?? null
+    }
+    const pending = this.lyricsInFlight.get(itemId)
+    if (pending) return pending
+
+    const promise = this.fetchLyrics(itemId).finally(() => {
+      this.lyricsInFlight.delete(itemId)
+    })
+    this.lyricsInFlight.set(itemId, promise)
+    return promise
+  }
+
+  private cacheLyrics(itemId: string, result: LyricsResult | null): LyricsResult | null {
+    if (this.lyricsCache.size >= 500) {
+      const oldest = this.lyricsCache.keys().next().value
+      if (oldest !== undefined) this.lyricsCache.delete(oldest)
+    }
+    this.lyricsCache.set(itemId, result)
+    return result
+  }
+
+  private async fetchLyrics(itemId: string): Promise<LyricsResult | null> {
     try {
-      // Try multiple endpoint formats - Jellyfin may use different paths
-      const endpoints = [
-        `/Items/${itemId}/Lyrics`,
-        `/Items/${itemId}/RemoteLyrics`,
-        `/Audio/${itemId}/Lyrics`,
-      ]
+      // Jellyfin 10.9+ lyrics endpoint; returns 404 when the track has no lyrics
+      const response = await fetch(`${this.baseUrl}/Audio/${itemId}/Lyrics`, {
+        headers: this.getHeaders(),
+      })
 
-      for (const endpoint of endpoints) {
-        const query = new URLSearchParams({
-          UserId: this.userId,
-        })
-        const url = `${this.baseUrl}${endpoint}?${query}`
-
-        try {
-          const response = await fetch(url, {
-            headers: this.getHeaders(),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-
-            if (data.Lyrics && Array.isArray(data.Lyrics) && data.Lyrics.length > 0) {
-              const lines: LyricsLine[] = data.Lyrics.map((line: { Text?: string; Start?: number }) => ({
-                text: line.Text || '',
-                // Jellyfin returns Start in ticks (10,000 ticks = 1ms)
-                startSeconds: typeof line.Start === 'number' ? line.Start / 10_000_000 : undefined,
-              }))
-              const isSynced = lines.some(l => l.startSeconds !== undefined)
-              return { lines, isSynced }
-            } else if (typeof data === 'string') {
-              return {
-                lines: data.split('\n').map((text: string) => ({ text })),
-                isSynced: false,
-              }
-            } else if (data.Text) {
-              return {
-                lines: data.Text.split('\n').map((text: string) => ({ text })),
-                isSynced: false,
-              }
-            }
-          } else if (response.status === 404) {
-            continue // Try next endpoint
-          } else {
-            continue // Try next endpoint
-          }
-        } catch {
-          continue // Try next endpoint
-        }
+      if (response.status === 404) {
+        return this.cacheLyrics(itemId, null)
+      }
+      if (!response.ok) {
+        // Transient/server error: don't cache, allow a later retry
+        return null
       }
 
-      // All endpoints failed
-      return null
+      const data = await response.json()
+      let result: LyricsResult | null = null
+      if (data.Lyrics && Array.isArray(data.Lyrics) && data.Lyrics.length > 0) {
+        const lines: LyricsLine[] = data.Lyrics.map((line: { Text?: string; Start?: number }) => ({
+          text: line.Text || '',
+          // Jellyfin returns Start in ticks (10,000 ticks = 1ms)
+          startSeconds: typeof line.Start === 'number' ? line.Start / 10_000_000 : undefined,
+        }))
+        result = { lines, isSynced: lines.some(l => l.startSeconds !== undefined) }
+      } else if (typeof data === 'string') {
+        result = { lines: data.split('\n').map((text: string) => ({ text })), isSynced: false }
+      } else if (data.Text) {
+        result = { lines: data.Text.split('\n').map((text: string) => ({ text })), isSynced: false }
+      }
+      return this.cacheLyrics(itemId, result)
     } catch (error) {
-      // Return null if lyrics don't exist or there's an error
       logger.warn('[getLyrics] Failed to fetch lyrics:', error)
       return null
     }

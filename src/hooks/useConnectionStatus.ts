@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { jellyfinClient } from '../api/jellyfin'
 import { useAuthStore } from '../stores/authStore'
 
-const POLL_INTERVAL = 15_000
+const POLL_INTERVAL = 60_000
 const PING_TIMEOUT = 8_000
 
 export type ConnectionState = 'connected' | 'unreachable' | 'restored'
