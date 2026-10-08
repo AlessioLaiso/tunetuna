@@ -47,8 +47,10 @@ export const useSyncStore = create<SyncStore>()(devtools((set, get) => ({
     })
 
     // Auto-hide after 3 seconds
+    // Skip the reset if another sync started meanwhile, or it would hide that
+    // sync's status and let a second sync start on top of it.
     setTimeout(() => {
-      get().reset()
+      if (get().state !== 'syncing') get().reset()
     }, 3000)
   },
 

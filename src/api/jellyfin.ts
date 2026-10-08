@@ -412,6 +412,45 @@ class JellyfinClient {
     return this.request<ItemsResult>(`/Items?${query}`)
   }
 
+  /**
+   * Number of songs on the server matching `options`, without downloading them.
+   * Uses Limit=1 because the query builder drops a zero limit, which would
+   * return the whole library.
+   */
+  async getSongCount(options: Pick<GetItemsOptions, 'minDateLastSaved'> = {}): Promise<number> {
+    const result = await this.getSongs({ ...options, limit: 1 }, true)
+    return result.TotalRecordCount ?? 0
+  }
+
+  /**
+   * Ids of every song on the server. Requests no extra fields, images or user
+   * data so a large library comes back in a few small pages.
+   */
+  async fetchAllSongIds(): Promise<Set<string>> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const pageSize = 5000
+    const ids = new Set<string>()
+    for (let startIndex = 0; startIndex <= SAFETY_FETCH_LIMIT; startIndex += pageSize) {
+      const params = new URLSearchParams({
+        IncludeItemTypes: 'Audio',
+        Recursive: 'true',
+        Limit: pageSize.toString(),
+        StartIndex: startIndex.toString(),
+        UserId: this.userId,
+        EnableImages: 'false',
+        EnableUserData: 'false',
+        _t: Date.now().toString(),
+      })
+      const result = await this.request<ItemsResult>(`/Items?${params}`)
+      const items = result.Items || []
+      items.forEach(item => ids.add(item.Id))
+      if (items.length < pageSize) break
+    }
+    return ids
+  }
+
   async getGenres(forceRefresh = false): Promise<BaseItemDto[]> {
     // Return in-memory cache if available and not forcing refresh
     if (this.genresCache && !forceRefresh) {
@@ -858,6 +897,28 @@ class JellyfinClient {
       })
 
       await Promise.all(genreUpdatePromises)
+
+      // Deletions don't show up in a MinDateLastSaved query, so songs removed
+      // while no socket was listening would stay cached forever. A cache
+      // larger than the server's song count means something was deleted:
+      // fetch the server's Ids and drop the rest. Skipped on an empty answer
+      // so a server mid-rescan can't wipe the cache.
+      // Best effort: the merge above already succeeded, so a failure here
+      // shouldn't fail the sync. The next sync retries.
+      try {
+        const serverSongCount = await this.getSongCount()
+        const cachedSongs = useMusicStore.getState().songs
+        if (cachedSongs.length > serverSongCount) {
+          const serverIds = await this.fetchAllSongIds()
+          if (serverIds.size > 0) {
+            const removedIds = cachedSongs.filter(s => !serverIds.has(s.Id)).map(s => s.Id)
+            logger.log(`[syncLibrary] Removing ${removedIds.length} songs deleted on the server`)
+            useMusicStore.getState().removeSongs(removedIds)
+          }
+        }
+      } catch (error) {
+        logger.warn('[syncLibrary] Could not check for deleted songs', error)
+      }
 
       // Backfill: populate any empty genre caches from the full songs list.
       // If a genre cache was never populated (e.g. recommendations tried it

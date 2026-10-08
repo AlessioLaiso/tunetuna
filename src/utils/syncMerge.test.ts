@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeLightweightSongs } from './syncMerge'
+import { mergeLightweightSongs, removeSongsById } from './syncMerge'
 import type { LightweightSong } from '../api/types'
 
 function song(id: string, name = id): LightweightSong {
@@ -66,5 +66,22 @@ describe('mergeLightweightSongs', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].Name).toBe('new-1')
+  })
+})
+
+describe('removeSongsById', () => {
+  it('drops songs whose Id was removed, preserving order', () => {
+    const result = removeSongsById([song('1'), song('2'), song('3')], new Set(['2']))
+    expect(result.map(s => s.Id)).toEqual(['1', '3'])
+  })
+
+  it('returns the same array when no song matched', () => {
+    const songs = [song('1'), song('2')]
+    expect(removeSongsById(songs, new Set(['album-9']))).toBe(songs)
+  })
+
+  it('returns the same array when nothing was removed', () => {
+    const songs = [song('1')]
+    expect(removeSongsById(songs, new Set())).toBe(songs)
   })
 })

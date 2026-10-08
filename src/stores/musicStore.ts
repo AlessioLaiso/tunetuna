@@ -8,6 +8,7 @@ import { STORE_KEYS, INDEXEDDB_NAMES } from '../utils/constants'
 import { shuffleArray } from '../utils/array'
 import { filterExcludedGenres } from '../utils/genreFilter'
 import { buildFeaturedArtistMap, type FeaturedArtistResult } from '../utils/featuredArtists'
+import { removeSongsById } from '../utils/syncMerge'
 
 const indexedDBStorage = createIndexedDBStorage<MusicState>(INDEXEDDB_NAMES.music)
 
@@ -95,6 +96,8 @@ interface MusicState {
   setLoading: (key: keyof MusicState['loading'], value: boolean) => void
   setSortPreference: (type: 'artists' | 'albums' | 'songs' | 'playlists', order: SortOrder) => void
   setSongs: (songs: LightweightSong[]) => void
+  /** Drops songs deleted on the server from every song cache */
+  removeSongs: (ids: Iterable<string>) => void
   setLastSyncCompleted: (timestamp: number) => void
   refreshShufflePool: () => void
   setFeedTopSongs: (songs: AppleMusicSong[]) => void
@@ -169,7 +172,7 @@ export function getFeaturedArtistData(
 
 export const useMusicStore = create<MusicState>()(
   devtools(persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       artists: [],
       albums: [],
@@ -242,6 +245,34 @@ export const useMusicStore = create<MusicState>()(
         })),
 
       setSongs: (songs) => set({ songs }),
+
+      /**
+       * Drops deleted songs from the main cache, the genre caches and the
+       * shuffle pool. Ids that aren't songs (albums, folders) are ignored.
+       * Calls set only when something changed: persist writes the whole store
+       * to IndexedDB on every set, even a no-op one.
+       */
+      removeSongs: (ids) => {
+        const removed = new Set(ids)
+        if (removed.size === 0) return
+        const state = get()
+
+        const update: Partial<MusicState> = {}
+        const songs = removeSongsById(state.songs, removed)
+        if (songs !== state.songs) update.songs = songs
+        const shufflePool = removeSongsById(state.shufflePool, removed)
+        if (shufflePool !== state.shufflePool) update.shufflePool = shufflePool
+
+        let genresChanged = false
+        const genreSongs: Record<string, LightweightSong[]> = {}
+        for (const [genreId, list] of Object.entries(state.genreSongs)) {
+          genreSongs[genreId] = removeSongsById(list, removed)
+          if (genreSongs[genreId] !== list) genresChanged = true
+        }
+        if (genresChanged) update.genreSongs = genreSongs
+
+        if (Object.keys(update).length > 0) set(update)
+      },
 
       setLastSyncCompleted: (timestamp) => set({ lastSyncCompleted: timestamp }),
 
@@ -319,3 +350,19 @@ export const useMusicStore = create<MusicState>()(
 )
 
 
+
+/**
+ * Resolves once the persisted cache has been loaded from IndexedDB. Writing to
+ * the store before then is unsafe: persist saves the whole store on every set,
+ * so an early write would overwrite the saved song cache with the empty
+ * initial state.
+ */
+export function whenMusicStoreHydrated(): Promise<void> {
+  if (useMusicStore.persist.hasHydrated()) return Promise.resolve()
+  return new Promise((resolve) => {
+    const unsubscribe = useMusicStore.persist.onFinishHydration(() => {
+      unsubscribe()
+      resolve()
+    })
+  })
+}

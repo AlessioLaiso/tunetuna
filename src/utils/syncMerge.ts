@@ -22,3 +22,17 @@ export function mergeLightweightSongs(
 
   return merged
 }
+
+/**
+ * Drop songs whose Id is in `removedIds`. Returns the original array when
+ * nothing matched, so callers can skip a store write (and the IndexedDB
+ * persist that follows it) when a removal event didn't concern any song.
+ */
+export function removeSongsById<T extends { Id: string }>(
+  songs: T[],
+  removedIds: ReadonlySet<string>,
+): T[] {
+  if (removedIds.size === 0) return songs
+  const kept = songs.filter(s => !removedIds.has(s.Id))
+  return kept.length === songs.length ? songs : kept
+}
