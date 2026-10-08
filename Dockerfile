@@ -23,9 +23,12 @@ RUN apk add --no-cache wget
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+# Ensure nginx workers can read everything, regardless of host file permissions
+RUN chmod -R a+rX /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 # Copy entrypoint script for runtime config injection
 COPY entrypoint.sh /entrypoint.sh
