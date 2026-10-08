@@ -1,19 +1,19 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, Plus } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
-import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import PlaylistItem from './PlaylistItem'
 import PlaylistFormModal from './PlaylistFormModal'
 import ContextMenu from '../shared/ContextMenu'
 import Spinner from '../shared/Spinner'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
 import type { BaseItemDto } from '../../api/types'
-import { unifiedSearch } from '../../utils/search'
 import { logger } from '../../utils/logger'
 import { useSearchOpen } from '../../hooks/useSearchOpen'
+import { useSearch } from '../../hooks/useSearch'
+import { useSearchHandlers } from '../../hooks/useSearchHandlers'
 
 // Section configuration for PlaylistsPage: Playlists first (all), then Artists (5), Albums (12), Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -28,25 +28,23 @@ export default function PlaylistsPage() {
   const [loading, setLoading] = useState(true)
   const sortPreferences = useMusicStore(s => s.sortPreferences)
   const setSortPreference = useMusicStore(s => s.setSortPreference)
-  const { addToQueue } = usePlayerStore()
-  const playSongWithQueue = usePlaySongWithQueue()
   const sortOrder = sortPreferences.playlists
   const isInitialLoad = useRef(true)
   const [isLoadingSortChange, setIsLoadingSortChange] = useState(false)
   const prevSortOrderRef = useRef(sortOrder)
   const navigate = useNavigate()
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('')
+  // Search state (no filters on this page)
   const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
-  const [rawSearchResults, setRawSearchResults] = useState<{
-    artists: BaseItemDto[]
-    albums: BaseItemDto[]
-    playlists: BaseItemDto[]
-    songs: BaseItemDto[]
-  } | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const searchAbortControllerRef = useRef<AbortController | null>(null)
+  const { searchQuery, setSearchQuery, isSearching, searchResults, clearSearch, clearAll } = useSearch()
+  const {
+    handleSearch, handleClearSearch, handleCancelSearch,
+    handleArtistClick, handleAlbumClick, handleSongClick,
+    handleAddSongsToQueue, handlePlaylistClick,
+  } = useSearchHandlers({
+    setSearchQuery, isSearchOpen, setIsSearchOpen, openSearch,
+    clearSearch, clearAll, searchResults,
+  })
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuItem, setContextMenuItem] = useState<BaseItemDto | null>(null)
   const [contextMenuItemType, setContextMenuItemType] = useState<'album' | 'song' | 'artist' | 'playlist' | null>(null)
@@ -82,58 +80,6 @@ export default function PlaylistsPage() {
     }
   }, [])
 
-  useEffect(() => {
-    // Cancel any previous search
-    if (searchAbortControllerRef.current) {
-      searchAbortControllerRef.current.abort()
-    }
-
-    if (searchQuery.trim()) {
-      setIsSearching(true)
-      searchAbortControllerRef.current = new AbortController()
-
-      const timeoutId = window.setTimeout(async () => {
-        if (searchAbortControllerRef.current?.signal.aborted) return
-
-        try {
-          const results = await unifiedSearch(searchQuery, 450)
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setRawSearchResults(results)
-          }
-        } catch (error) {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            logger.error('Search failed:', error)
-            setRawSearchResults(null)
-          }
-        } finally {
-          if (!searchAbortControllerRef.current?.signal.aborted) {
-            setIsSearching(false)
-          }
-        }
-      }, 250)
-
-      return () => {
-        window.clearTimeout(timeoutId)
-        if (searchAbortControllerRef.current) {
-          searchAbortControllerRef.current.abort()
-        }
-      }
-    } else {
-      searchAbortControllerRef.current = null
-      setRawSearchResults(null)
-      setIsSearching(false)
-    }
-  }, [searchQuery])
-
-  // Cleanup search abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (searchAbortControllerRef.current) {
-        searchAbortControllerRef.current.abort()
-      }
-    }
-  }, [])
-
   const loadPlaylists = async () => {
     setLoading(true)
     try {
@@ -159,70 +105,8 @@ export default function PlaylistsPage() {
     }
   }
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (query.trim().length > 0 && !isSearchOpen) {
-      openSearch()
-    }
-  }
-
-  const handleClearSearch = () => {
-    setSearchQuery('')
-    setRawSearchResults(null)
-  }
-
-  const handleCancelSearch = () => {
-    setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-  }
-
-  const handleArtistClick = (artistId: string) => {
-    navigate(`/artist/${artistId}`)
-    setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-  }
-
-  const handleAlbumClick = (albumId: string) => {
-    navigate(`/album/${albumId}`)
-    setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-  }
-
-  const handleSongClick = (song: BaseItemDto, songList: BaseItemDto[] = []) => {
-    // Queue the whole search, starting from the clicked song.
-    playSongWithQueue(songList.length > 0 ? songList : [song], song.Id)
-    // Don't close search - keep it open so user can continue browsing
-  }
-
-  const handleAddSongsToQueue = () => {
-    if (searchResults?.songs && searchResults.songs.length > 0) {
-      addToQueue(searchResults.songs)
-    }
-  }
-
-  const handlePlaylistClick = (playlistId: string) => {
-    navigate(`/playlist/${playlistId}`)
-    setIsSearchOpen(false)
-    setSearchQuery('')
-    setRawSearchResults(null)
-  }
-
   // No-op since PlaylistsPage doesn't have filters, but needed for SearchOverlay interface
   const openFilterSheet = (_type: 'genre' | 'year') => { }
-
-  // Order results: playlists first, then artists, albums, songs
-  const searchResults = useMemo(() => {
-    if (!rawSearchResults) return null
-    return {
-      playlists: rawSearchResults.playlists || [],
-      artists: rawSearchResults.artists || [],
-      albums: rawSearchResults.albums || [],
-      songs: rawSearchResults.songs || [],
-    }
-  }, [rawSearchResults])
 
   return (
     <>

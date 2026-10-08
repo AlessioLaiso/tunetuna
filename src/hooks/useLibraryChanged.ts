@@ -76,7 +76,9 @@ export function useLibraryChanged() {
       const deviceId = storage.get<string>('deviceId') || 'unknown'
       const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws'
       const host = baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      const socket = new WebSocket(`${wsProtocol}://${host}/socket?api_key=${accessToken}&deviceId=${deviceId}`)
+      // Newer Jellyfin servers reject the legacy api_key parameter and need
+      // ApiKey; servers that predate ApiKey ignore it. Send both.
+      const socket = new WebSocket(`${wsProtocol}://${host}/socket?ApiKey=${accessToken}&api_key=${accessToken}&deviceId=${deviceId}`)
       ws = socket
       socketBaseUrl = baseUrl
 

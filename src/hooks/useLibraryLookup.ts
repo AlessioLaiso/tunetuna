@@ -4,7 +4,7 @@ import type { LightweightSong } from '../api/types'
 
 // Hook to subscribe to hydration state - handles race condition where
 // hydration may complete before subscription is set up
-function useHasHydrated() {
+export function useHasHydrated() {
   const [hydrated, setHydrated] = useState(() => useMusicStore.persist.hasHydrated())
 
   useEffect(() => {

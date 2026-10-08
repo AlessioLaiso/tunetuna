@@ -1,7 +1,10 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback, useDeferredValue } from 'react'
 import type { BaseItemDto } from '../api/types'
 import { fetchAllLibraryItems, unifiedSearch, type SearchFilterOptions } from '../utils/search'
+import { searchLibrary, browseLibrary, queryWords } from '../utils/localSearch'
 import { useMusicStore } from '../stores/musicStore'
+import { useSearchCatalogStore, loadSearchCatalog } from '../stores/searchCatalogStore'
+import { useHasHydrated } from './useLibraryLookup'
 import { logger } from '../utils/logger'
 import { parseGroupingTag } from '../utils/formatting'
 
@@ -20,9 +23,9 @@ export interface FilterState {
 }
 
 export interface UseSearchOptions {
-  /** Debounce delay in ms. Set to 0 for no debounce. Default: 250 */
+  /** Server fallback only: debounce delay in ms. Set to 0 for no debounce. Default: 250 */
   debounceMs?: number
-  /** Max items to fetch per category. Default: 450 */
+  /** Server fallback only: max items to fetch per category. Default: 450 */
   limit?: number
   /** Whether to include year filtering. Default: true */
   includeYearFilter?: boolean
@@ -49,20 +52,48 @@ export interface UseSearchReturn {
   clearAll: () => void
 }
 
+/** Runs `task` when the browser is idle (or soon, where unsupported). Returns a cancel function. */
+function runWhenIdle(task: () => void): () => void {
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(task, { timeout: 2000 })
+    return () => window.cancelIdleCallback(id)
+  }
+  const id = window.setTimeout(task, 200)
+  return () => window.clearTimeout(id)
+}
+
 /**
- * Centralized search hook with proper abort handling and filtering.
+ * Centralized search hook used by every page with a search overlay.
+ *
+ * Searches in memory: songs from the synced song cache, artists, albums and
+ * playlists from the search catalog (loaded once, refreshed after syncs). No
+ * request per keystroke, so results update as you type. While the song
+ * cache is unavailable (first sync not finished, or not loaded from
+ * IndexedDB yet) it falls back to searching the server, debounced.
+ *
+ * Filters (genre, year, grouping, BPM) are applied to either result set in
+ * the same way. Pages differ only in the options they pass and which filters
+ * and sections their overlay shows.
  */
 export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const { debounceMs = 250, limit = 450, includeYearFilter = true } = options
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [rawSearchResults, setRawSearchResults] = useState<SearchResults | null>(null)
-  const searchAbortControllerRef = useRef<AbortController | null>(null)
+  // Typing stays responsive while a large result list re-renders
+  const deferredQuery = useDeferredValue(searchQuery)
 
-  // Cached songs from the music store — used for instant grouping filtering
-  // instead of making a network request (same approach as the mood page)
   const cachedSongs = useMusicStore(state => state.songs)
+  const hasHydrated = useHasHydrated()
+  const catalogArtists = useSearchCatalogStore(state => state.artists)
+  const catalogAlbums = useSearchCatalogStore(state => state.albums)
+  const catalogPlaylists = useSearchCatalogStore(state => state.playlists)
+  const catalogLoadedAt = useSearchCatalogStore(state => state.loadedAt)
+  const catalogFailed = useSearchCatalogStore(state => state.failed)
+
+  // Server fallback state
+  const [serverResults, setServerResults] = useState<SearchResults | null>(null)
+  const [isServerSearching, setIsServerSearching] = useState(false)
+  const searchAbortControllerRef = useRef<AbortController | null>(null)
 
   // Filter state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
@@ -84,6 +115,52 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const hasActiveFilters = includeYearFilter
     ? selectedGenres.length > 0 || yearRange.min !== null || yearRange.max !== null || hasGroupingFilters || hasBpmFilter
     : selectedGenres.length > 0 || hasGroupingFilters || hasBpmFilter
+
+  const hasQuery = searchQuery.trim().length > 0
+  const isActive = hasQuery || hasActiveFilters
+  // Search the server while the song cache is unavailable: not loaded from
+  // IndexedDB yet (or the load failed, which zustand never reports as
+  // done), or empty because the first sync hasn't finished
+  const useServer = !hasHydrated || cachedSongs.length === 0
+  // A failed catalog load still lets songs be searched
+  const catalogReady = catalogLoadedAt !== null || catalogFailed
+
+  // Load the catalog once the page is idle, so it's ready by the first
+  // keystroke without competing with the page's own startup requests. A
+  // search that starts first loads it right away (and checks it's fresh).
+  useEffect(() => {
+    if (isActive) {
+      void loadSearchCatalog()
+      return
+    }
+    return runWhenIdle(() => void loadSearchCatalog())
+  }, [isActive])
+
+  // Build the search index while idle, so the first keystroke doesn't pay for
+  // it. The index is cached per library array, so this is a no-op until the
+  // library or catalog changes.
+  useEffect(() => {
+    if (useServer || !catalogReady) return
+    return runWhenIdle(() => browseLibrary({
+      songs: cachedSongs,
+      artists: catalogArtists,
+      albums: catalogAlbums,
+      playlists: catalogPlaylists,
+    }))
+  }, [useServer, catalogReady, cachedSongs, catalogArtists, catalogAlbums, catalogPlaylists])
+
+  const localResults = useMemo((): SearchResults | null => {
+    if (useServer || !catalogReady) return null
+    const deferredHasQuery = queryWords(deferredQuery).length > 0
+    if (!deferredHasQuery && !hasActiveFilters) return null
+    const source = {
+      songs: cachedSongs,
+      artists: catalogArtists,
+      albums: catalogAlbums,
+      playlists: catalogPlaylists,
+    }
+    return deferredHasQuery ? searchLibrary(deferredQuery, source) : browseLibrary(source)
+  }, [useServer, catalogReady, deferredQuery, hasActiveFilters, cachedSongs, catalogArtists, catalogAlbums, catalogPlaylists])
 
   // Build server-side filter options from current filter state
   const buildServerFilters = useCallback((): SearchFilterOptions | undefined => {
@@ -131,109 +208,57 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
     }
     return filters.genres || filters.years || filters.tags || filters.hasGroupingFilters ? filters : undefined
-  }, [selectedGenres, yearRange, includeYearFilter, selectedGroupings, groupingMatchModes])
+  }, [selectedGenres, yearRange, includeYearFilter, selectedGroupings, groupingMatchModes, hasGroupingFilters])
 
-  // Search effect with proper abort handling
+  // Server fallback, used only while the song cache is empty
   useEffect(() => {
-    // Cancel any previous search
     if (searchAbortControllerRef.current) {
       searchAbortControllerRef.current.abort()
     }
 
-    const hasQuery = searchQuery.trim().length > 0
-
-    if (hasQuery || hasActiveFilters) {
-      // When only grouping filters are active (no search query, no genre/year),
-      // filter from the in-memory song cache instead of making a network request.
-      // This is the same approach the mood page uses and is instant.
-      const onlyGroupingFilters = !hasQuery && (hasGroupingFilters || hasBpmFilter)
-        && selectedGenres.length === 0
-        && !(includeYearFilter && (yearRange.min !== null || yearRange.max !== null))
-
-      if (onlyGroupingFilters && cachedSongs.length > 0) {
-        // Convert LightweightSong[] to BaseItemDto[] for consistency with search results
-        const songsAsItems: BaseItemDto[] = cachedSongs.map(song => ({
-          Id: song.Id,
-          Name: song.Name,
-          AlbumArtist: song.AlbumArtist,
-          ArtistItems: song.ArtistItems,
-          Album: song.Album,
-          AlbumId: song.AlbumId,
-          IndexNumber: song.IndexNumber,
-          ProductionYear: song.ProductionYear,
-          RunTimeTicks: song.RunTimeTicks,
-          Genres: song.Genres,
-          Grouping: song.Grouping,
-          Type: 'Audio',
-        } as BaseItemDto))
-
-        setRawSearchResults({
-          artists: [],
-          albums: [],
-          playlists: [],
-          songs: songsAsItems,
-        })
-        setIsSearching(false)
-        return
-      }
-
-      setIsSearching(true)
-      const abortController = new AbortController()
-      searchAbortControllerRef.current = abortController
-
-      const executeSearch = async () => {
-        if (abortController.signal.aborted) return
-
-        try {
-          const serverFilters = buildServerFilters()
-          let results
-          if (hasQuery) {
-            results = await unifiedSearch(searchQuery, limit, serverFilters, cachedSongs)
-          } else {
-            results = await fetchAllLibraryItems(limit, serverFilters)
-          }
-          if (!abortController.signal.aborted) {
-            setRawSearchResults(results)
-          }
-        } catch (error) {
-          if (!abortController.signal.aborted) {
-            logger.error('Search failed:', error)
-            setRawSearchResults(null)
-          }
-        } finally {
-          if (!abortController.signal.aborted) {
-            setIsSearching(false)
-          }
-        }
-      }
-
-      if (debounceMs > 0) {
-        const timeoutId = window.setTimeout(executeSearch, debounceMs)
-        return () => {
-          window.clearTimeout(timeoutId)
-          abortController.abort()
-        }
-      } else {
-        executeSearch()
-        return () => {
-          abortController.abort()
-        }
-      }
-    } else {
+    if (!useServer || !isActive) {
       searchAbortControllerRef.current = null
-      setRawSearchResults(null)
-      setIsSearching(false)
+      setServerResults(null)
+      setIsServerSearching(false)
+      return
     }
-  }, [searchQuery, selectedGenres, yearRange, bpmRange, selectedGroupings, hasActiveFilters, hasGroupingFilters, hasBpmFilter, includeYearFilter, debounceMs, limit, buildServerFilters, cachedSongs])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (searchAbortControllerRef.current) {
-        searchAbortControllerRef.current.abort()
+    setIsServerSearching(true)
+    const abortController = new AbortController()
+    searchAbortControllerRef.current = abortController
+
+    const executeSearch = async () => {
+      if (abortController.signal.aborted) return
+
+      try {
+        const serverFilters = buildServerFilters()
+        const results = hasQuery
+          ? await unifiedSearch(searchQuery, limit, serverFilters)
+          : await fetchAllLibraryItems(limit, serverFilters)
+        if (!abortController.signal.aborted) {
+          setServerResults(results)
+        }
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          logger.error('Search failed:', error)
+          setServerResults(null)
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsServerSearching(false)
+        }
       }
     }
-  }, [])
+
+    const timeoutId = window.setTimeout(executeSearch, debounceMs)
+    return () => {
+      window.clearTimeout(timeoutId)
+      abortController.abort()
+    }
+  }, [useServer, isActive, hasQuery, searchQuery, debounceMs, limit, buildServerFilters])
+
+  const rawSearchResults = useServer ? serverResults : localResults
+  const isSearching = isActive && (useServer ? isServerSearching : !catalogReady)
 
   // Build a BPM lookup map from cached songs for filtering
   const bpmMap = useMemo(() => {
@@ -288,7 +313,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         if (yearRange.max !== null && itemYear > yearRange.max) return false
       }
 
-      // Apply grouping filters (songs only effectively, since albums don't have Grouping)
+      // Apply grouping filters (songs only; albums are excluded in filterAlbum)
       if (hasGroupingFilters) {
         const itemGroupings = item.Grouping || []
 
@@ -386,9 +411,15 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return true
     }
 
+    const filterAlbum = (item: BaseItemDto): boolean => {
+      // Albums don't have grouping tags, so filter them out when grouping filter is active
+      if (hasGroupingFilters) return false
+      return filterAlbumOrSong(item)
+    }
+
     return {
       artists: rawSearchResults.artists.filter(filterArtist),
-      albums: rawSearchResults.albums.filter(filterAlbumOrSong),
+      albums: rawSearchResults.albums.filter(filterAlbum),
       playlists: (rawSearchResults.playlists || []).filter(filterPlaylist),
       songs: rawSearchResults.songs.filter(filterAlbumOrSong),
     }
@@ -396,12 +427,12 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   const clearSearch = useCallback(() => {
     setSearchQuery('')
-    setRawSearchResults(null)
+    setServerResults(null)
   }, [])
 
   const clearAll = useCallback(() => {
     setSearchQuery('')
-    setRawSearchResults(null)
+    setServerResults(null)
     setSelectedGenres([])
     setYearRange({ min: null, max: null })
     setBpmRange({ min: null, max: null })

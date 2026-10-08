@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { createPortal } from 'react-dom'
 import { Guitar, Calendar, ListEnd, Globe, Smile, Piano, Tag, Metronome } from 'lucide-react'
@@ -68,6 +68,51 @@ interface SearchOverlayProps {
   desktopSearchInputRef?: React.RefObject<HTMLInputElement | null>
   // Mobile search input ref for auto-focus
   mobileSearchInputRef?: React.RefObject<HTMLInputElement | null>
+}
+
+/** Rows rendered at first, and added each time the end comes near */
+const RESULTS_PAGE_SIZE = 60
+
+/**
+ * Renders a long result list a page at a time. A broad query can match
+ * thousands of songs, and the overlay renders its desktop and mobile layouts
+ * side by side, so rendering everything would stall typing. More rows are
+ * added as the end of the list nears the bottom of the scroll area; the
+ * hidden layout never scrolls, so it stays at one page.
+ */
+function ProgressiveList<T>({ items, children }: { items: T[]; children: (visible: T[]) => ReactNode }) {
+  const [count, setCount] = useState(RESULTS_PAGE_SIZE)
+  const [shownItems, setShownItems] = useState(items)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // New results start from the first page again. Reset during render (not in
+  // an effect) so a new list never renders at the previous, longer length.
+  if (shownItems !== items) {
+    setShownItems(items)
+    setCount(RESULTS_PAGE_SIZE)
+  }
+
+  const hasMore = count < items.length
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasMore) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some(e => e.isIntersecting)) setCount(c => c + RESULTS_PAGE_SIZE)
+      },
+      // Observe within the overlay's own scroll area, a screen ahead of time
+      { root: sentinel.closest('.overflow-y-auto'), rootMargin: '0px 0px 800px 0px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, count])
+
+  return (
+    <>
+      {children(hasMore ? items.slice(0, count) : items)}
+      {hasMore && <div ref={sentinelRef} aria-hidden="true" className="h-px" />}
+    </>
+  )
 }
 
 // Memoized album item component
@@ -331,15 +376,17 @@ export default function SearchOverlay({
           <div key="artists">
             <h2 className={`text-xl font-bold text-white mb-4 ${paddingClass}`}>Artists</h2>
             <div className={`space-y-0 ${marginClass}`}>
-              {items.map((artist) => (
-                <SearchArtistItem
-                  key={artist.Id}
-                  artist={artist}
-                  onClick={onArtistClick}
-                  onContextMenu={openContextMenu}
-                  contextMenuItemId={contextMenuItem?.Id || null}
-                />
-              ))}
+              <ProgressiveList items={items}>
+                {(visible) => visible.map((artist) => (
+                  <SearchArtistItem
+                    key={artist.Id}
+                    artist={artist}
+                    onClick={onArtistClick}
+                    onContextMenu={openContextMenu}
+                    contextMenuItemId={contextMenuItem?.Id || null}
+                  />
+                ))}
+              </ProgressiveList>
             </div>
           </div>
         )
@@ -352,16 +399,18 @@ export default function SearchOverlay({
           <div key="albums" className={isMobile ? paddingClass : ''}>
             <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {items.map((album) => (
-                <AlbumCard
-                  key={album.Id}
-                  album={album}
-                  onNavigate={onAlbumClick}
-                  onArtistClick={onArtistClick}
-                  onContextMenu={openContextMenu}
-                  contextMenuItemId={contextMenuItem?.Id || null}
-                />
-              ))}
+              <ProgressiveList items={items}>
+                {(visible) => visible.map((album) => (
+                  <AlbumCard
+                    key={album.Id}
+                    album={album}
+                    onNavigate={onAlbumClick}
+                    onArtistClick={onArtistClick}
+                    onContextMenu={openContextMenu}
+                    contextMenuItemId={contextMenuItem?.Id || null}
+                  />
+                ))}
+              </ProgressiveList>
             </div>
           </div>
         )
@@ -385,17 +434,20 @@ export default function SearchOverlay({
               </div>
             </div>
             <div className={`space-y-0 ${marginClass}`}>
-              {results.songs.map((song) => (
-                <SearchSongItem
-                  key={song.Id}
-                  song={song}
-                  onClick={(clicked) => onSongClick(clicked, results.songs)}
-                  onArtistClick={onArtistClick}
-                  onContextMenu={openContextMenu}
-                  contextMenuItemId={contextMenuItem?.Id || null}
-                  showImage
-                />
-              ))}
+              <ProgressiveList items={results.songs}>
+                {(visible) => visible.map((song) => (
+                  <SearchSongItem
+                    key={song.Id}
+                    song={song}
+                    // The queue is every result, not just the rendered ones
+                    onClick={(clicked) => onSongClick(clicked, results.songs)}
+                    onArtistClick={onArtistClick}
+                    onContextMenu={openContextMenu}
+                    contextMenuItemId={contextMenuItem?.Id || null}
+                    showImage
+                  />
+                ))}
+              </ProgressiveList>
             </div>
           </div>
         )
@@ -408,14 +460,16 @@ export default function SearchOverlay({
           <div key="playlists">
             <h2 className={`text-xl font-bold text-white mb-4 ${paddingClass}`}>Playlists</h2>
             <div className={`space-y-0 ${marginClass}`}>
-              {items.map((playlist) => (
-                <SearchPlaylistItem
-                  key={playlist.Id}
-                  playlist={playlist}
-                  onClick={onPlaylistClick}
-                  onContextMenu={openContextMenu}
-                />
-              ))}
+              <ProgressiveList items={items}>
+                {(visible) => visible.map((playlist) => (
+                  <SearchPlaylistItem
+                    key={playlist.Id}
+                    playlist={playlist}
+                    onClick={onPlaylistClick}
+                    onContextMenu={openContextMenu}
+                  />
+                ))}
+              </ProgressiveList>
             </div>
           </div>
         )

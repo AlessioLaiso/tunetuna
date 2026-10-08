@@ -451,6 +451,46 @@ class JellyfinClient {
     return ids
   }
 
+  /**
+   * Every artist, album and playlist, for searching locally. Lean on purpose:
+   * only the fields the search results and their filters use, no user data,
+   * so even a large library comes back in three modest requests.
+   */
+  async fetchSearchCatalog(): Promise<{ artists: BaseItemDto[]; albums: BaseItemDto[]; playlists: BaseItemDto[] }> {
+    if (!this.userId || !this.baseUrl) {
+      throw new Error('Not authenticated')
+    }
+    const params = (itemType: string) => new URLSearchParams({
+      IncludeItemTypes: itemType,
+      Recursive: 'true',
+      SortBy: 'SortName',
+      SortOrder: 'Ascending',
+      UserId: this.userId!,
+      Fields: 'Genres,ProductionYear,ChildCount',
+      EnableUserData: 'false',
+      ImageTypeLimit: '1',
+      EnableImageTypes: 'Primary',
+    })
+
+    const [artistsResult, albumsResult, playlistsResult] = await Promise.all([
+      this.request<ItemsResult>(`/Artists?${params('MusicArtist')}`),
+      this.request<ItemsResult>(`/Items?${params('MusicAlbum')}`),
+      this.request<ItemsResult>(`/Items?${params('Playlist')}`),
+    ])
+
+    // Some servers return nothing from /Artists; getArtists falls back the same way
+    let artists = artistsResult.Items || []
+    if (artists.length === 0) {
+      artists = (await this.request<ItemsResult>(`/Items?${params('MusicArtist')}`)).Items || []
+    }
+
+    return {
+      artists,
+      albums: albumsResult.Items || [],
+      playlists: playlistsResult.Items || [],
+    }
+  }
+
   async getGenres(forceRefresh = false): Promise<BaseItemDto[]> {
     // Return in-memory cache if available and not forcing refresh
     if (this.genresCache && !forceRefresh) {

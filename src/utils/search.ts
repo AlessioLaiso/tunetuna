@@ -1,5 +1,5 @@
 import { jellyfinClient } from '../api/jellyfin'
-import type { BaseItemDto, LightweightSong } from '../api/types'
+import type { BaseItemDto } from '../api/types'
 import { normalizeForSearch, extractGroupingFromTags, extractBpmFromTags } from './formatting'
 
 export interface UnifiedSearchResults {
@@ -17,15 +17,15 @@ export interface SearchFilterOptions {
 }
 
 /**
- * Perform a Jellyfin search and apply the common client-side matching rules
- * we currently use across pages: normalized matching on titles, artist names,
- * album names and playlist names.
+ * Server search, used only until the first library sync fills the song cache
+ * (search otherwise runs in memory, see localSearch.ts). Applies the same
+ * normalized matching rules on titles, artist names, album names and
+ * playlist names.
  */
 export async function unifiedSearch(
   searchQuery: string,
   limit: number,
   filters?: SearchFilterOptions,
-  cachedSongs?: LightweightSong[]
 ): Promise<UnifiedSearchResults> {
   const normalizedQuery = normalizeForSearch(searchQuery)
   const queryWords = normalizedQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)
@@ -99,34 +99,6 @@ export async function unifiedSearch(
     return matchesAllWords(getSongSearchText(song))
   })
 
-  // Supplement with cached songs that match the query but weren't returned
-  // by the server (Jellyfin only matches song titles for Audio items)
-  if (cachedSongs && cachedSongs.length > 0) {
-    const serverSongIds = new Set(filteredSongs.map(s => s.Id))
-
-    for (const song of cachedSongs) {
-      if (serverSongIds.has(song.Id)) continue
-
-      if (matchesAllWords(getSongSearchText(song))) {
-        filteredSongs.push({
-          Id: song.Id,
-          Name: song.Name,
-          AlbumArtist: song.AlbumArtist,
-          ArtistItems: song.ArtistItems,
-          Album: song.Album,
-          AlbumId: song.AlbumId,
-          IndexNumber: song.IndexNumber,
-          ProductionYear: song.ProductionYear,
-          RunTimeTicks: song.RunTimeTicks,
-          Genres: song.Genres,
-          Grouping: song.Grouping,
-          Type: 'Audio',
-        } as BaseItemDto)
-        serverSongIds.add(song.Id)
-      }
-    }
-  }
-
   // Artists: match all query words in artist name
   const filteredArtists = artistsSource.filter((artist) => {
     const artistName = normalizeForSearch(artist.Name || '').toLowerCase()
@@ -158,7 +130,8 @@ export async function unifiedSearch(
 
 /**
  * Fetch a large slice of library items for all entity types.
- * Used when filters are active but there is no search query.
+ * Server fallback for filters without a search query, used only until the
+ * first library sync fills the song cache.
  */
 export async function fetchAllLibraryItems(
   limit: number,
