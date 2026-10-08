@@ -54,7 +54,6 @@ interface LibrarySnapshotState {
 }
 
 function computeSnapshotFromLibrary(songs: LightweightSong[], ts: number, isBaseline = false): LibrarySnapshot {
-  console.log('[computeSnapshot] Input songs:', songs.length)
   const genreCounts: Record<string, number> = {}
   const decadeCounts: Record<string, number> = {}
   const artistCounts = new Map<string, number>()
@@ -224,14 +223,6 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
         }
 
         const snapshot = computeSnapshotFromLibrary(songs, ts, isBaseline)
-        console.log('[librarySnapshot] Capturing snapshot:', {
-          totalSongs: snapshot.totalSongs,
-          totalAlbums: snapshot.totalAlbums,
-          totalArtists: snapshot.totalArtists,
-          inputSongsLength: songs.length,
-          isBaseline,
-          ts,
-        })
         // On forced non-baseline captures, replace any existing snapshot in the
         // same calendar month so stale genre casings don't linger.
         if (force && !isBaseline) {
@@ -245,7 +236,6 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
           }))
         }
         const ok = await postSnapshots([snapshot])
-        console.log('[librarySnapshot] Post result:', ok)
         if (ok) {
           set(state => ({
             snapshots: [...state.snapshots, snapshot].sort((a, b) => a.ts - b.ts),
@@ -254,17 +244,12 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
       },
 
       ensureBaseline: async (songs) => {
-        console.log('[librarySnapshot] ensureBaseline called, existing snapshots:', get().snapshots.length)
         if (!get().loaded) {
           await get().loadSnapshots()
         }
 
         const existing = get().snapshots
-        console.log('[librarySnapshot] After load, snapshots:', existing.length)
-        if (existing.length > 0) {
-          console.log('[librarySnapshot] Baseline already exists, skipping')
-          return
-        }
+        if (existing.length > 0) return
 
         if (!songs || songs.length === 0) {
           const { songs: storeSongs } = useMusicStore.getState()
@@ -345,7 +330,6 @@ export const useLibrarySnapshotStore = create<LibrarySnapshotState>()(
 
         if (snapshotsToCapture.length > 0) {
           const ok = await postSnapshots(snapshotsToCapture)
-          console.log(`[backfill] Posted ${snapshotsToCapture.length} snapshots, ok=${ok}`)
           if (ok) {
             set(state => ({
               snapshots: [...state.snapshots, ...snapshotsToCapture].sort((a, b) => a.ts - b.ts),
