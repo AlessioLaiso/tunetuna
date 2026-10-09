@@ -98,7 +98,7 @@ export default function VinylArtwork({
                   >
                     <img
                       src={artistLogoUrl}
-                      alt="Artist Logo"
+                      alt="Artist logo"
                       className="w-full h-full object-contain"
                       onError={onArtistLogoError}
                     />
@@ -110,7 +110,7 @@ export default function VinylArtwork({
               <>
                 <img
                   src={vinylImage}
-                  alt="Vinyl Record"
+                  alt="Vinyl record"
                   className="w-full h-full object-cover"
                   onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
@@ -140,7 +140,7 @@ export default function VinylArtwork({
                   >
                     <img
                       src={artistLogoUrl}
-                      alt="Artist Logo"
+                      alt="Artist logo"
                       className="w-full h-full object-contain"
                       onError={onArtistLogoError}
                     />
@@ -194,7 +194,7 @@ export default function VinylArtwork({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-zinc-600 rounded">
-              No Image
+              No image
             </div>
           )}
         </div>

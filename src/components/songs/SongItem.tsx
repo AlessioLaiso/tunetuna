@@ -95,10 +95,10 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
                   navigate(`/artist/${song.ArtistItems![0].Id}`)
                 }}
               >
-                {song.ArtistItems[0].Name || song.AlbumArtist || 'Unknown Artist'}
+                {song.ArtistItems[0].Name || song.AlbumArtist || 'Unknown artist'}
               </span>
             ) : (
-              song.AlbumArtist || 'Unknown Artist'
+              song.AlbumArtist || 'Unknown artist'
             )}
             {song.Album && (
               <>

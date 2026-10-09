@@ -150,7 +150,7 @@ export default function LoginForm() {
             disabled={loading}
             className="w-full bg-[var(--accent-color)] hover:brightness-90 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
       </div>

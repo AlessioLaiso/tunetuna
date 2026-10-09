@@ -49,11 +49,11 @@ function formatHours(hours: number): string {
 type Category = 'songs' | 'artists' | 'albums' | 'genres' | 'genre-decades'
 
 const CATEGORY_CONFIG: Record<Category, { title: string; icon: typeof Music }> = {
-  songs: { title: 'Top Songs', icon: Music },
-  artists: { title: 'Top Artists', icon: User },
-  albums: { title: 'Top Albums', icon: Disc },
-  genres: { title: 'Top Genres', icon: Guitar },
-  'genre-decades': { title: 'Top Genres \u00d7 Decade', icon: GalleryHorizontalEnd },
+  songs: { title: 'Top songs', icon: Music },
+  artists: { title: 'Top artists', icon: User },
+  albums: { title: 'Top albums', icon: Disc },
+  genres: { title: 'Top genres', icon: Guitar },
+  'genre-decades': { title: 'Top genres \u00d7 decade', icon: GalleryHorizontalEnd },
 }
 
 export default function StatsDetailPage() {

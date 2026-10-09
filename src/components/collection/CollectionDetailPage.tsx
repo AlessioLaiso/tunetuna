@@ -419,10 +419,10 @@ export default function CollectionDetailPage() {
     const actions = [
       { id: 'play', label: 'Play', icon: Play },
       { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-      { id: 'playNext', label: 'Play Next', icon: ListStart },
-      { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
-      { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
-      { id: 'logStream', label: 'Log Songs in Library to Stats', icon: BarChart3 },
+      { id: 'playNext', label: 'Play next', icon: ListStart },
+      { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
+      { id: 'addToPlaylist', label: 'Add to playlist', icon: ListPlus },
+      { id: 'logStream', label: 'Log songs in library to stats', icon: BarChart3 },
     ] as { id: string; label: string; icon: typeof Play }[]
     if (hasMultipleDiscs) {
       for (const [discLabel] of tracksByDisc) {
@@ -468,7 +468,7 @@ export default function CollectionDetailPage() {
             onClick={() => navigate('/collection')}
             className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
           >
-            Back to Collection
+            Back to collection
           </button>
         </div>
       </div>

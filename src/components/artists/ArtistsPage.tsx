@@ -190,7 +190,7 @@ export default function ArtistsPage() {
                     onClick={() => setSortPreference('artists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
                     className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
-                    {sortOrder === 'RecentlyAdded' ? 'Recently Added' : 'Alphabetically'}
+                    {sortOrder === 'RecentlyAdded' ? 'Recently added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
                   {loading.artists && !isInitialLoad.current && (

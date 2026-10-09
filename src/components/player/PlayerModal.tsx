@@ -701,7 +701,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                         <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center relative">
                           <img
                             src={vinylImage}
-                            alt="Vinyl Record"
+                            alt="Vinyl record"
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               logger.error('Failed to load vinyl image')

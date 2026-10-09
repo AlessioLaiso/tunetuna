@@ -868,7 +868,7 @@ export default function StatsPage() {
           <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
             <div className="flex items-center gap-2 text-zinc-400 mb-2">
               <Clock className="w-5 h-5" />
-              <span className="text-sm font-medium">Time Listened</span>
+              <span className="text-sm font-medium">Time listened</span>
             </div>
             <div className="text-4xl font-bold text-white">
               {(() => {
@@ -889,7 +889,7 @@ export default function StatsPage() {
               <div className="flex items-center gap-2 text-zinc-400 mb-2">
                 <TrendingUp className="w-5 h-5" />
                 <span className="text-sm font-medium">
-                  Top Day: {new Date(stats.mostListeningDay.date).toLocaleDateString('en-US', {
+                  Top day: {new Date(stats.mostListeningDay.date).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric'
                   })}
@@ -942,7 +942,7 @@ export default function StatsPage() {
         {/* Top Songs */}
         {stats.topSongs.length > 0 && (
           <div className="mt-12">
-            <SectionHeader icon={Music} title="Top Songs" onClick={() => navigate(`/stats/songs?from=${fromMonth}&to=${toMonth}`)} />
+            <SectionHeader icon={Music} title="Top songs" onClick={() => navigate(`/stats/songs?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topSongs.map((song, i) => (
                 <TopSongItem
@@ -965,7 +965,7 @@ export default function StatsPage() {
         {/* Top Artists */}
         {stats.topArtists.length > 0 && (
           <div className="mt-12">
-            <SectionHeader icon={User} title="Top Artists" onClick={() => navigate(`/stats/artists?from=${fromMonth}&to=${toMonth}`)} />
+            <SectionHeader icon={User} title="Top artists" onClick={() => navigate(`/stats/artists?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topArtists.map((artist, i) => (
                 <TopArtistItem
@@ -984,7 +984,7 @@ export default function StatsPage() {
         {/* Top Albums */}
         {stats.topAlbums.length > 0 && (
           <div className="mt-12">
-            <SectionHeader icon={Disc} title="Top Albums" onClick={() => navigate(`/stats/albums?from=${fromMonth}&to=${toMonth}`)} />
+            <SectionHeader icon={Disc} title="Top albums" onClick={() => navigate(`/stats/albums?from=${fromMonth}&to=${toMonth}`)} />
             <div className="space-y-1">
               {stats.topAlbums.map((album, i) => (
                 <TopAlbumItem
@@ -1005,7 +1005,7 @@ export default function StatsPage() {
         {/* Top Genres */}
         {stats.topGenres.length > 0 && (
           <div className="mt-12">
-            <SectionHeader icon={Guitar} title="Top Genres" onClick={() => navigate(`/stats/genres?from=${fromMonth}&to=${toMonth}`)} />
+            <SectionHeader icon={Guitar} title="Top genres" onClick={() => navigate(`/stats/genres?from=${fromMonth}&to=${toMonth}`)} />
             <div>
               {stats.topGenres.map((genre) => {
                 // Find genre ID from music store
@@ -1027,7 +1027,7 @@ export default function StatsPage() {
         {/* Decades */}
         {stats.decades.length > 0 && (
           <>
-            <SectionHeader icon={Clock} title="Top Decades" />
+            <SectionHeader icon={Clock} title="Top decades" />
             <div>
               {stats.decades.slice().reverse().map((decade) => {
                 // Parse decade string (e.g., "1990s") to get min/max years
@@ -1050,7 +1050,7 @@ export default function StatsPage() {
         {/* Top Genres × Decade */}
         {stats.topGenreDecades.length > 0 && (
           <>
-            <SectionHeader icon={GalleryHorizontalEnd} title="Top Genres × Decade" onClick={() => navigate(`/stats/genre-decades?from=${fromMonth}&to=${toMonth}`)} />
+            <SectionHeader icon={GalleryHorizontalEnd} title="Top genres × decade" onClick={() => navigate(`/stats/genre-decades?from=${fromMonth}&to=${toMonth}`)} />
             <div>
               {stats.topGenreDecades.map((combo) => {
                 // Parse decade string (e.g., "1990s") to get min/max years
@@ -1073,7 +1073,7 @@ export default function StatsPage() {
         {/* Top Artist by Month */}
         {stats.timeline.length >= 2 && (
           <>
-            <SectionHeader icon={CalendarDays} title="Top Artist by Month" />
+            <SectionHeader icon={CalendarDays} title="Top artist by month" />
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {(() => {
                 const showYear = rangeHasDuplicateMonths(fromMonth, toMonth)

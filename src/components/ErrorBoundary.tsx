@@ -74,13 +74,13 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleReload}
                 className="w-full bg-[var(--accent-color)] hover:brightness-90 text-white font-semibold py-3 px-4 rounded-lg transition-all"
               >
-                Reload App
+                Reload app
               </button>
               <button
                 onClick={this.handleClearAndReload}
                 className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
               >
-                Clear Data & Reload
+                Clear data & reload
               </button>
               <button
                 onClick={this.handleCopyError}

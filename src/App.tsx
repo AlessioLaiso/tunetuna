@@ -101,8 +101,8 @@ function App() {
               <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
               <Route path="/song/:id" element={withErrorBoundary(<SongDetailPage />, 'Song')} />
               <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
-              <Route path="/smart/picker/:pickerId" element={withErrorBoundary(<SmartPickerPage />, 'Smart Picker')} />
-              <Route path="/smart/:smartId" element={withErrorBoundary(<SmartPlaylistDetailPage />, 'Smart Playlist')} />
+              <Route path="/smart/picker/:pickerId" element={withErrorBoundary(<SmartPickerPage />, 'Smart picker')} />
+              <Route path="/smart/:smartId" element={withErrorBoundary(<SmartPlaylistDetailPage />, 'Smart playlist')} />
               <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
               {pageVisibility.artists && (
                 <>
@@ -132,14 +132,14 @@ function App() {
               {pageVisibility.collection && (
                 <>
                   <Route path="/collection" element={withErrorBoundary(<CollectionPage />, 'Collection')} />
-                  <Route path="/collection/:releaseId" element={withErrorBoundary(<CollectionDetailPage />, 'Collection Detail')} />
+                  <Route path="/collection/:releaseId" element={withErrorBoundary(<CollectionDetailPage />, 'Collection detail')} />
                 </>
               )}
               {pageVisibility.stats && (
                 <>
                   <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
-                  <Route path="/stats/artist/songs" element={withErrorBoundary(<ArtistTopSongsDetailPage />, 'Artist Top Songs')} />
-                  <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats Detail')} />
+                  <Route path="/stats/artist/songs" element={withErrorBoundary(<ArtistTopSongsDetailPage />, 'Artist top songs')} />
+                  <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats detail')} />
                 </>
               )}
               <Route path="*" element={<Navigate to="/" replace />} />

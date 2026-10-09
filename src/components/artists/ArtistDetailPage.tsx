@@ -379,7 +379,7 @@ export default function ArtistDetailPage() {
         seenAlbumIds.add(song.AlbumId)
         result.push({
           Id: song.AlbumId,
-          Name: song.Album || 'Unknown Album',
+          Name: song.Album || 'Unknown album',
           AlbumArtist: song.AlbumArtist,
           ArtistItems: song.ArtistItems,
           ProductionYear: song.ProductionYear,
@@ -1117,7 +1117,7 @@ export default function ArtistDetailPage() {
         {/* Appears On section - albums where artist is featured */}
         {appearsOnAlbums.length > 0 && (
           <div className="mb-10 px-4">
-            <h2 className="text-2xl font-bold text-white mb-4">Appears On ({appearsOnAlbums.length})</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Appears on ({appearsOnAlbums.length})</h2>
             <div className="grid grid-cols-3 md:grid-cols-4 min-[1500px]:grid-cols-5 gap-4">
               {appearsOnAlbums.map((album, index) => {
                 const year = getAlbumYear(album)

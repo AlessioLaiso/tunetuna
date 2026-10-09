@@ -121,10 +121,10 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
                 navigate(`/artist/${track.ArtistItems![0].Id}`)
               }}
             >
-              {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown Artist'}
+              {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown artist'}
             </span>
           ) : (
-            track.AlbumArtist || 'Unknown Artist'
+            track.AlbumArtist || 'Unknown artist'
           )}
           {track.Album && (
             <>
@@ -720,7 +720,7 @@ export default function PlaylistDetailPage() {
                   onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
                   className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                 >
-                  {playlistSortOrder === 'PlaylistOrder' ? 'Playlist Order' : 'Alphabetically'}
+                  {playlistSortOrder === 'PlaylistOrder' ? 'Playlist order' : 'Alphabetically'}
                   <ArrowUpDown className="w-4 h-4" />
                 </button>
               </div>
@@ -766,7 +766,7 @@ export default function PlaylistDetailPage() {
         }}
         mode={contextMenuMode}
         position={contextMenuPosition || undefined}
-        extraActions={!isMoodRoute ? [{ id: 'removeFromPlaylist', label: 'Remove from Playlist', icon: ListMinus }] : undefined}
+        extraActions={!isMoodRoute ? [{ id: 'removeFromPlaylist', label: 'Remove from playlist', icon: ListMinus }] : undefined}
         onExtraAction={!isMoodRoute ? handleRemoveFromPlaylist : undefined}
       />
       <ContextMenu

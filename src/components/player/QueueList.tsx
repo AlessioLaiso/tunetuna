@@ -90,7 +90,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             onContextMenu={handleContextMenu}
             tabIndex={0}
             role="button"
-            aria-label={`${track.Name} by ${track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown Artist'}`}
+            aria-label={`${track.Name} by ${track.ArtistItems?.[0]?.Name || track.AlbumArtist || 'Unknown artist'}`}
             {...longPressHandlers}
         >
             {isDragOver && !isCurrent && (
@@ -122,10 +122,10 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                 navigate(`/artist/${track.ArtistItems![0].Id}`)
                             }}
                         >
-                            {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown Artist'}
+                            {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown artist'}
                         </span>
                     ) : (
-                        track.AlbumArtist || 'Unknown Artist'
+                        track.AlbumArtist || 'Unknown artist'
                     )}
                 </div>
             </div>
@@ -437,14 +437,14 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                 <div>
                                     <div className="px-4 pb-0 pt-7 flex items-center justify-between">
                                         <div className="text-base font-bold text-white tracking-wider">
-                                            Now Playing
+                                            Now playing
                                         </div>
                                         {visiblePreviouslyPlayed.length > 0 && !showPrevious && (
                                             <button
                                                 onClick={() => setShowPrevious(true)}
                                                 className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
                                             >
-                                                Show Previous
+                                                Show previous
                                             </button>
                                         )}
                                     </div>
@@ -470,7 +470,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                 <div>
                                     <div className="px-4 pb-0 pt-7 flex items-center justify-between">
                                         <div className="text-base font-bold text-white tracking-wider">
-                                            Coming Up
+                                            Coming up
                                         </div>
                                         <button
                                             onClick={() => {

@@ -375,7 +375,7 @@ export default function SettingsPage() {
         {/* Page Visibility Section */}
         <section>
           <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
-            <h2 className="text-lg font-bold text-white p-3">Page Visibility</h2>
+            <h2 className="text-lg font-bold text-white p-3">Page visibility</h2>
             {(['artists', 'albums', 'songs', 'genres', 'playlists', 'collection', 'stats'] as const).map((page) => (
               <div
                 key={page}
@@ -444,7 +444,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center justify-between p-3">
-              <label className="text-white font-medium">Recently Played</label>
+              <label className="text-white font-medium">Recently played</label>
               <button
                 onClick={() => setShowRecentlyPlayed(!showRecentlyPlayed)}
                 className={`relative w-12 h-6 rounded-full transition-colors ${showRecentlyPlayed ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
@@ -525,7 +525,7 @@ export default function SettingsPage() {
             <div className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <label className="text-white font-medium">New Releases</label>
+                  <label className="text-white font-medium">New releases</label>
                   {showNewReleases && (
                     <button
                       onClick={() => {
@@ -591,7 +591,7 @@ export default function SettingsPage() {
                 onClick={() => setShowColorPicker(!showColorPicker)}
                 className="w-full flex items-center justify-between"
               >
-                <label className="text-white font-medium">Accent Color</label>
+                <label className="text-white font-medium">Accent color</label>
                 <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
               </button>
               {showColorPicker && (
@@ -617,7 +617,7 @@ export default function SettingsPage() {
 
             <div className="p-3">
               <div className="flex items-center justify-between">
-                <label className="text-white font-medium">Log Listening Stats</label>
+                <label className="text-white font-medium">Log listening stats</label>
                 <button
                   onClick={() => setStatsTrackingEnabled(!statsTrackingEnabled)}
                   className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
@@ -700,7 +700,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="p-3">
-              <label className="text-white font-medium block mb-1">Excluded Genres</label>
+              <label className="text-white font-medium block mb-1">Excluded genres</label>
               <p className="text-xs text-gray-400 mb-3">
                 Songs from these genres won't appear in shuffle all and mixes.
               </p>
@@ -776,7 +776,7 @@ export default function SettingsPage() {
         <section>
           <div className="bg-zinc-900 rounded-lg">
             <div className="p-3">
-              <h2 className="text-lg font-bold text-white">Jellyfin Library</h2>
+              <h2 className="text-lg font-bold text-white">Jellyfin library</h2>
               <div className="text-xs text-gray-400 mt-1">
                 <button
                   type="button"
@@ -820,7 +820,7 @@ export default function SettingsPage() {
                 />
                 {localServerUrl && window.location.protocol === 'https:' && localServerUrl.startsWith('http://') && (
                   <p className="text-xs text-amber-400 mt-2">
-                    This app is loaded over HTTPS, so a http:// LAN address will be blocked by the browser (Mixed Content). It will be ignored.
+                    This app is loaded over HTTPS, so a http:// LAN address will be blocked by the browser (mixed content). It will be ignored.
                   </p>
                 )}
               </div>
@@ -851,7 +851,7 @@ export default function SettingsPage() {
                   className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
                 >
                   <LogOut className="w-5 h-5" />
-                  <span>Log Out</span>
+                  <span>Log out</span>
                 </button>
               </div>
             </div>
@@ -905,7 +905,7 @@ export default function SettingsPage() {
               <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
                 <div className="text-lg font-semibold text-white">
-                  Clear All Stats?
+                  Clear all stats?
                 </div>
                 <div className="text-sm text-gray-400 mt-1">
                   This will permanently delete all your listening history, both locally and from the server. This action cannot be undone.
@@ -927,7 +927,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <Trash2 className="w-5 h-5" />
-                    <span>Clear All Stats</span>
+                    <span>Clear all stats</span>
                   </>
                 )}
               </button>
@@ -950,7 +950,7 @@ export default function SettingsPage() {
               <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="text-lg font-semibold text-white">
-                  Library Mismatch Detected
+                  Library mismatch detected
                 </div>
                 <div className="text-sm text-gray-400 mt-1">
                   {mismatchCount} of {mismatchTotal} events reference songs not in your current library.
@@ -1104,7 +1104,7 @@ export default function SettingsPage() {
                     </div>
                   ) : (
                     <>
-                      <span>Remap{autoMatchable.length > 0 && manualMappings.size > 0 ? ` (${autoMatchable.length} auto + ${manualMappings.size} manual)` : autoMatchable.length > 0 ? ` ${autoMatchable.length} Song${autoMatchable.length !== 1 ? 's' : ''}` : ` ${manualMappings.size} Manual Mapping${manualMappings.size !== 1 ? 's' : ''}`}</span>
+                      <span>Remap{autoMatchable.length > 0 && manualMappings.size > 0 ? ` (${autoMatchable.length} auto + ${manualMappings.size} manual)` : autoMatchable.length > 0 ? ` ${autoMatchable.length} song${autoMatchable.length !== 1 ? 's' : ''}` : ` ${manualMappings.size} manual mapping${manualMappings.size !== 1 ? 's' : ''}`}</span>
                       <span className="text-xs font-normal opacity-70">{unmatchedSongs.length - manualMappings.size > 0 ? `${unmatchedSongs.length - manualMappings.size} unmapped event${unmatchedSongs.length - manualMappings.size !== 1 ? 's' : ''} will be kept as-is` : 'All events will be remapped'}</span>
                     </>
                   )}
@@ -1123,7 +1123,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <>
-                    <span>Remove All Mismatched Events</span>
+                    <span>Remove all mismatched events</span>
                     <span className="text-xs font-normal opacity-70">Permanently delete {mismatchCount} event{mismatchCount !== 1 ? 's' : ''} that don't match</span>
                   </>
                 )}

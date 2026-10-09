@@ -71,10 +71,10 @@ export default function SmartPickerPage() {
 
   const title = useMemo(() => {
     switch (pickerId) {
-      case 'decades': return 'Decade Mixes'
-      case 'year-throwback': return 'Year Throwback'
-      case 'moods': return 'Mood Mixes'
-      case 'languages': return 'Language Mixes'
+      case 'decades': return 'Decade mixes'
+      case 'year-throwback': return 'Year throwback'
+      case 'moods': return 'Mood mixes'
+      case 'languages': return 'Language mixes'
       case 'bpm': return 'BPM Mixes'
       default: return ''
     }

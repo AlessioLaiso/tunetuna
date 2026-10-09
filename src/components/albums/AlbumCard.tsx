@@ -86,10 +86,10 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
                   }
                 }}
               >
-                {album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'}
+                {album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown artist'}
               </span>
             ) : (
-              album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown Artist'
+              album.AlbumArtist || album.AlbumArtists?.[0]?.Name || album.ArtistItems?.[0]?.Name || 'Unknown artist'
             )}
             {subtitleSuffix && <span> • {subtitleSuffix}</span>}
           </div>

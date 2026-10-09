@@ -147,7 +147,7 @@ export default function SmartPlaylistCards() {
       if (moodAlbumId) usedAlbumIds.add(moodAlbumId)
       items.push({
         id: 'moods',
-        name: 'Mood Mixes',
+        name: 'Mood mixes',
         description: 'Browse by mood',
         route: '/smart/picker/moods',
         albumId: moodAlbumId,
@@ -165,7 +165,7 @@ export default function SmartPlaylistCards() {
       if (decadeAlbumId) usedAlbumIds.add(decadeAlbumId)
       items.push({
         id: 'decades',
-        name: 'Decade Mixes',
+        name: 'Decade mixes',
         description: 'Browse by decade',
         route: '/smart/picker/decades',
         albumId: decadeAlbumId,
@@ -201,7 +201,7 @@ export default function SmartPlaylistCards() {
       if (langAlbumId) usedAlbumIds.add(langAlbumId)
       items.push({
         id: 'languages',
-        name: 'Language Mixes',
+        name: 'Language mixes',
         description: 'Browse by language',
         route: '/smart/picker/languages',
         albumId: langAlbumId,
@@ -233,7 +233,7 @@ export default function SmartPlaylistCards() {
         if (yearAlbumId) usedAlbumIds.add(yearAlbumId)
         items.push({
           id: 'year-throwback',
-          name: 'Year Throwback',
+          name: 'Year throwback',
           description: 'Your top songs by year',
           route: '/smart/picker/year-throwback',
           albumId: yearAlbumId,

@@ -159,7 +159,7 @@ export default function AlbumDetailPage() {
           if (tracksList.length > 0 && tracksList[0].AlbumId === id) {
             currentAlbum = {
               Id: id,
-              Name: tracksList[0].Album || 'Unknown Album',
+              Name: tracksList[0].Album || 'Unknown album',
               AlbumArtist: tracksList[0].AlbumArtist,
             } as BaseItemDto
           }

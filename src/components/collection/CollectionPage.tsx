@@ -191,10 +191,10 @@ export default function CollectionPage() {
   const collectionMenuActions = [
     { id: 'play', label: 'Play', icon: Play },
     { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-    { id: 'playNext', label: 'Play Next', icon: ListStart },
-    { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
-    { id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus },
-    { id: 'logStream', label: 'Log Songs in Library to Stats', icon: BarChart3 },
+    { id: 'playNext', label: 'Play next', icon: ListStart },
+    { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
+    { id: 'addToPlaylist', label: 'Add to playlist', icon: ListPlus },
+    { id: 'logStream', label: 'Log songs in library to stats', icon: BarChart3 },
     { id: 'openInDiscogs', label: 'Open in Discogs', icon: ExternalLink },
   ]
 
@@ -208,7 +208,7 @@ export default function CollectionPage() {
           className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
         >
           <Settings className="w-4 h-4" />
-          Go to Settings
+          Go to settings
         </button>
       </div>
     )
@@ -238,7 +238,7 @@ export default function CollectionPage() {
             className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            Go to Settings
+            Go to settings
           </button>
         ) : (
           <button
@@ -386,7 +386,7 @@ export default function CollectionPage() {
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredAndSorted.slice(gridPage * ITEMS_PER_PAGE, (gridPage + 1) * ITEMS_PER_PAGE).map((release) => {
                   const info = release.basic_information
-                  const artistName = cleanDiscogsArtistName(info.artists[0]?.name || 'Unknown Artist')
+                  const artistName = cleanDiscogsArtistName(info.artists[0]?.name || 'Unknown artist')
                   const formatName = info.formats[0]?.name || ''
                   const isCassette = info.formats.some(f => /cassette/i.test(f.name))
 

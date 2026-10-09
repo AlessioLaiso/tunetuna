@@ -80,7 +80,7 @@ export default function SmartPlaylistDetailPage() {
       const yearMatch = smartId.match(/^year-throwback-(\d{4})$/)
       if (yearMatch) {
         const year = parseInt(yearMatch[1])
-        setTitle(`Your Top Songs ${year}`)
+        setTitle(`Your top songs ${year}`)
         setSubtitle(`Your most played tracks from ${year}.`)
         const result = getYearThrowbackSongs(year, songs, events)
         setTracks(result.map(toBaseItemDto))
@@ -368,10 +368,10 @@ function SmartTrackItem({
                 navigate(`/artist/${track.ArtistItems![0].Id}`)
               }}
             >
-              {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown Artist'}
+              {track.ArtistItems[0].Name || track.AlbumArtist || 'Unknown artist'}
             </span>
           ) : (
-            track.AlbumArtist || 'Unknown Artist'
+            track.AlbumArtist || 'Unknown artist'
           )}
           {track.Album && (
             <>

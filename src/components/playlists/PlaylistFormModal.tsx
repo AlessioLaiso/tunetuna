@@ -273,12 +273,12 @@ export default function PlaylistFormModal({
       <div className="pb-6">
         <div className="mb-4 px-4">
           <div className="text-lg font-semibold text-white">
-            {isEditMode ? 'Edit Playlist' : 'Create Playlist'}
+            {isEditMode ? 'Edit playlist' : 'Create playlist'}
           </div>
         </div>
         <div className="px-4 space-y-6">
           <div>
-            <div className="text-base font-medium text-white mb-2">Playlist Name</div>
+            <div className="text-base font-medium text-white mb-2">Playlist name</div>
             <input
               type="text"
               value={name}

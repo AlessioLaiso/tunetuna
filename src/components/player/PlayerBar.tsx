@@ -680,10 +680,10 @@ export default function PlayerBar() {
                       navigate(`/artist/${(currentTrack || displayTrack).ArtistItems![0].Id}`)
                     }}
                   >
-                    {(currentTrack || displayTrack).ArtistItems![0].Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+                    {(currentTrack || displayTrack).ArtistItems![0].Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}
                   </span>
                 ) : (
-                  <span className="truncate">{(currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}</span>
+                  <span className="truncate">{(currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}</span>
                 )}
                 <span className="flex-shrink-0">•</span>
                 <span className="tabular-nums flex-shrink-0">{formatTime(currentTime)}/{formatTime(duration)}</span>
@@ -791,7 +791,7 @@ export default function PlayerBar() {
                     toggleQueueSidebar()
                   }}
                   className="text-gray-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center justify-center w-10 h-10 rounded-full"
-                  title="Open Queue"
+                  title="Open queue"
                   aria-label="Open queue"
                 >
                   <ListVideo className="w-5 h-5" />
@@ -840,7 +840,7 @@ export default function PlayerBar() {
                 {(currentTrack || displayTrack).Name}
               </div>
               <div className="text-xs text-gray-400 truncate">
-                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown Artist'}
+                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}
               </div>
             </div>
           </div>

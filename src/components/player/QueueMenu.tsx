@@ -64,7 +64,7 @@ export default function QueueMenu({
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-zinc-800 transition-colors"
             >
               <ListPlus className="w-4 h-4 text-gray-400" />
-              Add Queue to Playlist
+              Add queue to playlist
             </button>
             <button
               onClick={() => {
@@ -74,7 +74,7 @@ export default function QueueMenu({
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-zinc-800 transition-colors"
             >
               <Moon className={`w-4 h-4 ${sleepTimerMode !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400'}`} />
-              Pause Playback
+              Pause playback
             </button>
           </div>
         )}

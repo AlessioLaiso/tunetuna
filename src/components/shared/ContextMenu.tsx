@@ -172,8 +172,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         secondaryActions.push({ id: 'shuffle', label: 'Shuffle', icon: Shuffle })
       }
       if (currentItemType === 'album' || currentItemType === 'song') {
-        secondaryActions.push({ id: 'addToPlaylist', label: 'Add to Playlist', icon: ListPlus })
-        secondaryActions.push({ id: 'playThenShuffleAll', label: 'Play This Then Shuffle All', icon: Shuffle })
+        secondaryActions.push({ id: 'addToPlaylist', label: 'Add to playlist', icon: ListPlus })
+        secondaryActions.push({ id: 'playThenShuffleAll', label: 'Play this then shuffle all', icon: Shuffle })
       }
       if (currentItemType !== 'artist') {
         secondaryActions.push({ id: 'sync', label: 'Sync', icon: RefreshCw })
@@ -183,18 +183,18 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         try {
           const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
           const discNumbers = [...new Set(tracks.map(t => t.ParentIndexNumber ?? 1))].sort((a, b) => a - b)
-          secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+          secondaryActions.push({ id: 'logStream', label: 'Log stream to stats', icon: BarChart3 })
           if (discNumbers.length > 1) {
             for (const disc of discNumbers) {
-              secondaryActions.push({ id: `logStreamDisc:${disc}`, label: `Log Disc ${disc} Stream`, icon: BarChart3 })
+              secondaryActions.push({ id: `logStreamDisc:${disc}`, label: `Log disc ${disc} stream`, icon: BarChart3 })
             }
           }
         } catch {
-          secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+          secondaryActions.push({ id: 'logStream', label: 'Log stream to stats', icon: BarChart3 })
         }
       }
       if (currentItemType === 'song') {
-        secondaryActions.push({ id: 'logStream', label: 'Log Stream to Stats', icon: BarChart3 })
+        secondaryActions.push({ id: 'logStream', label: 'Log stream to stats', icon: BarChart3 })
       }
       setMoreActionsList(secondaryActions)
       // Don't call onClose() here — it would null out the item in parent components,
@@ -441,13 +441,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           } else if (action === 'logStream') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             logStream(tracks)
-            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
+            useToastStore.getState().addToast('Stream logged', 'success', 2000)
           } else if (action.startsWith('logStreamDisc:')) {
             const discNum = parseInt(action.split(':')[1], 10)
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             const discTracks = tracks.filter(t => (t.ParentIndexNumber ?? 1) === discNum)
             logStream(discTracks)
-            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
+            useToastStore.getState().addToast('Stream logged', 'success', 2000)
           }
           break
         }
@@ -494,7 +494,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
               }
           } else if (action === 'logStream') {
             logStream([currentItem])
-            useToastStore.getState().addToast('Stream Logged', 'success', 2000)
+            useToastStore.getState().addToast('Stream logged', 'success', 2000)
           }
           break
         }
@@ -648,7 +648,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           <div className="mb-6 px-4 flex items-start gap-3">
             <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <div className="text-lg font-semibold text-white">Delete Playlist?</div>
+              <div className="text-lg font-semibold text-white">Delete playlist?</div>
               <div className="text-sm text-gray-400 mt-1">
                 &ldquo;{deleteTargetName}&rdquo; will be permanently deleted. This cannot be undone.
               </div>
@@ -759,8 +759,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         const genreName = fetchedGenreName || 'Genre'
         return [
           { id: 'play', label: 'Play', icon: Play },
-          { id: 'playNext', label: 'Play Next', icon: ListStart },
-          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+          { id: 'playNext', label: 'Play next', icon: ListStart },
+          { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
@@ -773,9 +773,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         const genreName = item.Genres?.[0] || 'Genre'
         const baseActions = [
           { id: 'play', label: 'Play', icon: Play },
-          { id: 'playNext', label: 'Play Next', icon: ListStart },
-          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
-          { id: 'viewDetails', label: 'Go to Song Details', icon: Music },
+          { id: 'playNext', label: 'Play next', icon: ListStart },
+          { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
+          { id: 'viewDetails', label: 'Go to song details', icon: Music },
           { id: 'goToAlbum', label: `Go to ${albumName}`, icon: Disc },
           { id: 'goToArtist', label: `Go to ${artistName}`, icon: User },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
@@ -789,8 +789,8 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         const genreName = fetchedGenreName || 'Genre'
         return [
           { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-          { id: 'playNext', label: 'Play Next', icon: ListStart },
-          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+          { id: 'playNext', label: 'Play next', icon: ListStart },
+          { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
           { id: 'goToGenre', label: `Go to ${genreName}`, icon: Guitar },
           { id: 'sync', label: 'Sync', icon: RefreshCw },
           { id: 'openIn', label: 'Open in\u2026', icon: ExternalLink },
@@ -802,22 +802,22 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           ...(hasItems ? [
             { id: 'play', label: 'Play', icon: Play },
             { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-            { id: 'playNext', label: 'Play Next', icon: ListStart },
-            { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+            { id: 'playNext', label: 'Play next', icon: ListStart },
+            { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
           ] : []),
           { id: 'sync', label: 'Sync', icon: RefreshCw },
-          { id: 'renamePlaylist', label: 'Edit Playlist', icon: Pencil },
-          { id: 'duplicatePlaylist', label: 'Duplicate Playlist', icon: Copy },
+          { id: 'renamePlaylist', label: 'Edit playlist', icon: Pencil },
+          { id: 'duplicatePlaylist', label: 'Duplicate playlist', icon: Copy },
           { id: 'openInJellyfin', label: 'Open in Jellyfin', icon: JellyfinIcon as unknown as LucideIcon },
-          { id: 'deletePlaylist', label: 'Delete Playlist', icon: Trash2 },
+          { id: 'deletePlaylist', label: 'Delete playlist', icon: Trash2 },
         ]
       }
       case 'mood': {
         return [
           { id: 'play', label: 'Play', icon: Play },
           { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
-          { id: 'playNext', label: 'Play Next', icon: ListStart },
-          { id: 'addToQueue', label: 'Add to Queue', icon: ListEnd },
+          { id: 'playNext', label: 'Play next', icon: ListStart },
+          { id: 'addToQueue', label: 'Add to queue', icon: ListEnd },
         ]
       }
       default:

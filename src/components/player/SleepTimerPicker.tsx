@@ -41,7 +41,7 @@ export default function SleepTimerPicker({ isOpen, onClose }: SleepTimerPickerPr
   return (
     <ResponsiveModal isOpen={isOpen} onClose={onClose}>
       <div className="px-6 pb-6">
-        <h3 className="text-white text-lg font-semibold mb-4">Pause Playback</h3>
+        <h3 className="text-white text-lg font-semibold mb-4">Pause playback</h3>
         <div className="flex flex-col gap-1">
           {options.map((option) => (
             <button

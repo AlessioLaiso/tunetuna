@@ -269,7 +269,7 @@ export default function StatsCannedImage({
           <div className="flex flex-col gap-10">
             {/* Top Artists */}
             <div>
-              <p className="text-white/65 text-2xl mb-4">Top Artists</p>
+              <p className="text-white/65 text-2xl mb-4">Top artists</p>
               <div className="flex flex-col gap-3">
                 {topArtists.slice(0, 5).map((artist, i) => (
                   <p key={i} className="text-white text-2xl truncate leading-normal">{artist.name}</p>
@@ -279,7 +279,7 @@ export default function StatsCannedImage({
 
             {/* Top Genres */}
             <div>
-              <p className="text-white/65 text-2xl mb-4">Top Genres</p>
+              <p className="text-white/65 text-2xl mb-4">Top genres</p>
               <div className="flex flex-col gap-3">
                 {topGenres.slice(0, 5).map((genre, i) => (
                   <p key={i} className="text-white text-2xl truncate leading-normal">{genre.name}</p>
@@ -292,7 +292,7 @@ export default function StatsCannedImage({
           <div className="flex flex-col gap-10">
             {/* Top Songs */}
             <div>
-              <p className="text-white/65 text-2xl mb-4">Top Songs</p>
+              <p className="text-white/65 text-2xl mb-4">Top songs</p>
               <div className="flex flex-col gap-3">
                 {topSongs.slice(0, 5).map((song, i) => (
                   <p key={i} className="text-white text-2xl truncate leading-normal">
@@ -306,7 +306,7 @@ export default function StatsCannedImage({
 
             {/* Top Albums */}
             <div>
-              <p className="text-white/65 text-2xl mb-4">Top Albums</p>
+              <p className="text-white/65 text-2xl mb-4">Top albums</p>
               <div className="flex flex-col gap-3">
                 {topAlbums.slice(0, 3).map((album, i) => (
                   <p key={i} className="text-white text-2xl truncate leading-normal">

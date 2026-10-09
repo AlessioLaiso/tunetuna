@@ -42,7 +42,7 @@ function SkeletonAlbumItem() {
 function RecentlyAddedSkeleton() {
   return (
     <div className="px-4 mb-8 animate-pulse">
-      <h2 className="text-xl font-bold mb-4">Recently Added</h2>
+      <h2 className="text-xl font-bold mb-4">Recently added</h2>
       {/* Mobile: 3-col, 2-row grid */}
       <div className="md:hidden">
         <div className="grid grid-cols-3 gap-3">
@@ -120,7 +120,7 @@ export default function RecentlyAdded() {
 
   return (
     <div className="px-4 mb-8">
-      <h2 className="text-xl font-bold mb-4">Recently Added</h2>
+      <h2 className="text-xl font-bold mb-4">Recently added</h2>
       {/* Small screens (<768px): 3-col, 2-row with arrow navigation */}
       <div className="md:hidden">
         <HorizontalScrollContainer gap={12}>

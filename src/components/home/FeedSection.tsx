@@ -578,7 +578,7 @@ export function NewReleasesSection() {
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-bold mb-2">New Releases</h2>
+      <h2 className="text-xl font-bold mb-2">New releases</h2>
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasNewReleases ? (
@@ -762,7 +762,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
 
   const getRecentlyPlayedSubtitleParts = (song: BaseItemDto): SubtitlePart[] => {
     const parts: SubtitlePart[] = []
-    const artistName = song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'
+    const artistName = song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown artist'
     const artistId = song.ArtistItems?.[0]?.Id
     parts.push({
       text: artistName,
@@ -786,7 +786,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-bold mb-2">Recently Played</h2>
+      <h2 className="text-xl font-bold mb-2">Recently played</h2>
       {hasRecentlyPlayed ? (
         <div className={twoColumns ? 'md:grid md:grid-cols-2 md:gap-3 min-[1500px]:block' : ''}>
           {twoColumns ? (
@@ -796,7 +796,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
                   <HomeListItem
                     key={song.Id}
                     title={song.Name || 'Unknown'}
-                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown artist'}${song.Album ? ` • ${song.Album}` : ''}`}
                     subtitleParts={getRecentlyPlayedSubtitleParts(song)}
                     artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
                     isCurrentTrack={currentTrack?.Id === song.Id}
@@ -825,7 +825,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
                   <HomeListItem
                     key={song.Id}
                     title={song.Name || 'Unknown'}
-                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                    subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown artist'}${song.Album ? ` • ${song.Album}` : ''}`}
                     subtitleParts={getRecentlyPlayedSubtitleParts(song)}
                     artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
                     isCurrentTrack={currentTrack?.Id === song.Id}
@@ -855,7 +855,7 @@ export function RecentlyPlayedSection({ twoColumns = false }: { twoColumns?: boo
               <HomeListItem
                 key={song.Id}
                 title={song.Name || 'Unknown'}
-                subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown Artist'}${song.Album ? ` • ${song.Album}` : ''}`}
+                subtitle={`${song.AlbumArtist || song.ArtistItems?.[0]?.Name || 'Unknown artist'}${song.Album ? ` • ${song.Album}` : ''}`}
                 artworkUrl={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
                 isCurrentTrack={currentTrack?.Id === song.Id}
                 isInLibrary={true}

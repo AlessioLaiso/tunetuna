@@ -240,7 +240,7 @@ export default function ArtistTopSongsDetailPage() {
     () => formatRangeSubtitle(range.fromMonth, range.toMonth),
     [range.fromMonth, range.toMonth],
   )
-  const title = `Top Songs by ${artistNameParam || 'this artist'}`
+  const title = `Top songs by ${artistNameParam || 'this artist'}`
 
   const handlePlaySong = async (songId: string) => {
     // Play the clicked song with the rest of the artist's ranked songs as the

@@ -190,7 +190,7 @@ function getOneHitWonders(songs: LightweightSong[]): LightweightSong[] {
 export const SMART_PLAYLISTS: SmartPlaylist[] = [
   {
     id: 'on-repeat',
-    name: 'On Repeat',
+    name: 'On repeat',
     description: 'Your most played songs this month',
     subtitle: 'Your most played songs in the last 30 days',
     getSongs: getOnRepeat,
@@ -198,7 +198,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
   },
   {
     id: 'forgotten-favorites',
-    name: 'Forgotten Favorites',
+    name: 'Forgotten favorites',
     description: 'Old favorites you haven\'t played lately',
     subtitle: 'Songs you used to love but haven\'t listened in months',
     getSongs: getForgottenFavorites,
@@ -206,7 +206,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
   },
   {
     id: 'fresh-finds',
-    name: 'Fresh Finds',
+    name: 'Fresh finds',
     description: 'Recently added to your library',
     subtitle: 'The latest additions to your library',
     getSongs: getFreshFinds,
@@ -214,7 +214,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
   },
   {
     id: 'collab-central',
-    name: 'Collab Central',
+    name: 'Collab central',
     description: 'Songs with featured artists',
     subtitle: 'Collaborations in your library',
     getSongs: getCollabCentral,
@@ -222,7 +222,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
   },
   {
     id: 'one-hit-wonders',
-    name: 'One-Hit Wonders',
+    name: 'One-hit wonders',
     description: 'Artists with only 1 song in your library',
     subtitle: 'Artists with only one song in your library',
     getSongs: getOneHitWonders,
@@ -230,7 +230,7 @@ export const SMART_PLAYLISTS: SmartPlaylist[] = [
   },
   {
     id: 'longest-unplayed',
-    name: 'Longest Unplayed',
+    name: 'Longest unplayed',
     description: 'In your library the longest, never played',
     subtitle: 'Songs that have been waiting the longest for their moment',
     getSongs: getLongestUnplayed,

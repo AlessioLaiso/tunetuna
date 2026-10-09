@@ -245,7 +245,7 @@ export default function AlbumsPage() {
                     }}
                     className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
-                    {sortOrder === 'RecentlyAdded' ? 'Recently Added' :
+                    {sortOrder === 'RecentlyAdded' ? 'Recently added' :
                       sortOrder === 'Newest' ? 'Newest' :
                         'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />

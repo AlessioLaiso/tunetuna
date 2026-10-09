@@ -80,7 +80,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: Pla
     <ResponsiveModal isOpen={isOpen} onClose={onClose} zIndex={zIndex}>
       <div className="pb-6">
         <div className="mb-4 px-4">
-          <div className="text-lg font-semibold text-white">Add to Playlist</div>
+          <div className="text-lg font-semibold text-white">Add to playlist</div>
         </div>
 
         {/* Create New Playlist */}
@@ -93,7 +93,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: Pla
             <div className="w-10 h-10 rounded-sm bg-zinc-800 flex items-center justify-center flex-shrink-0">
               <Plus className="w-5 h-5 text-white" />
             </div>
-            <span className="text-sm text-white font-medium">Create New Playlist</span>
+            <span className="text-sm text-white font-medium">Create new playlist</span>
           </button>
 
           {showCreateInput && (
