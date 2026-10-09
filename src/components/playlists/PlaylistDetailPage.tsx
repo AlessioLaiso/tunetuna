@@ -5,6 +5,8 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
+import { queueMatchesList } from '../../stores/queueOps'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { ArrowLeft, Play, Pause, Shuffle, MoreHorizontal, ArrowUpDown, ListMinus, GripHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
@@ -52,6 +54,8 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
   const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
+  const isQueueThisPlaylist = useIsQueueList(tracks)
+  const isCurrent = isQueueThisPlaylist && currentTrack?.Id === track.Id
 
   const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
     item: track,
@@ -100,7 +104,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
+        <div className={`text-sm font-medium truncate transition-colors ${isCurrent
           ? 'text-[var(--accent-color)]'
           : 'text-white group-hover:text-[var(--accent-color)]'
           }`}>
@@ -180,7 +184,6 @@ export default function PlaylistDetailPage() {
   const playSongWithQueue = usePlaySongWithQueue()
   const songs = useMusicStore(s => s.songs)
   const recordMoodAccess = useMusicStore(s => s.recordMoodAccess)
-  const currentTrack = useCurrentTrack()
   const [playlist, setPlaylist] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -279,10 +282,10 @@ export default function PlaylistDetailPage() {
 
   // --- Cassette animation effects (mirrors vinyl logic from AlbumDetailPage) ---
 
-  const isPlaylistCurrentlyPlaying = useMemo(() => {
-    if (!currentTrack || tracks.length === 0) return false
-    return tracks.some(t => t.Id === currentTrack.Id) && isPlaying
-  }, [currentTrack, tracks, isPlaying])
+  // "Playing" only when the queue is this playlist, not when one of its songs
+  // merely turns up during shuffle-all or another queue.
+  const isQueueThisPlaylist = useIsQueueList(tracks)
+  const isPlaylistCurrentlyPlaying = isQueueThisPlaylist && isPlaying
 
   const wheelRotation = useCassetteWheelAnimation(isPlaylistCurrentlyPlaying)
 
@@ -310,8 +313,7 @@ export default function PlaylistDetailPage() {
         setTimeout(() => {
           // Re-check playing state
           const ps = usePlayerStore.getState()
-          const ct = ps.currentIndex >= 0 && ps.songs[ps.currentIndex] ? ps.songs[ps.currentIndex] : null
-          const stillPlaying = ct && tracks.some(t => t.Id === ct.Id) && ps.isPlaying
+          const stillPlaying = queueMatchesList(ps.songs, tracks.map(t => t.Id)) && ps.isPlaying
           if (stillPlaying) {
             setHideCover(true)
           }
@@ -501,10 +503,7 @@ export default function PlaylistDetailPage() {
     }
   }
 
-  const isPlaylistPlaying = () => {
-    if (!sortedTracks.length || !currentTrack) return false
-    return sortedTracks.some(track => track.Id === currentTrack.Id)
-  }
+  const isPlaylistPlaying = () => isQueueThisPlaylist
 
   if (loading) {
     return (

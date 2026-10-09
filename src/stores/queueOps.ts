@@ -302,3 +302,24 @@ export function computeReorderQueue(
         state.previousIndex,
   }
 }
+
+/**
+ * True when the queue was built from exactly this list: the user-chosen songs in
+ * the queue (recommendations excluded) are the same set of IDs as `ids`. Pages
+ * use this to decide whether they are "the thing playing" — a song from an
+ * album turning up mid shuffle-all does not make the album page show Pause.
+ */
+export function queueMatchesList(songs: readonly QueueSong[], ids: readonly string[]): boolean {
+  if (ids.length === 0) return false
+  const queueIds = new Set<string>()
+  for (const s of songs) {
+    if (s.source === 'user') queueIds.add(s.Id)
+  }
+  if (queueIds.size === 0) return false
+  const listIds = new Set(ids)
+  if (listIds.size !== queueIds.size) return false
+  for (const id of listIds) {
+    if (!queueIds.has(id)) return false
+  }
+  return true
+}

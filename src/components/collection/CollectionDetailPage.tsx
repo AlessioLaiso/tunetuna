@@ -4,6 +4,7 @@ import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, Li
 import { useCollectionStore } from '../../stores/collectionStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useStatsStore } from '../../stores/statsStore'
 import { useToastStore } from '../../stores/toastStore'
 import { useLibraryLookup } from '../../hooks/useLibraryLookup'
@@ -50,7 +51,8 @@ function CollectionTrackItem({
   const { playTrack } = usePlayerStore()
   const currentTrack = useCurrentTrack()
   const isMatched = !!track.libraryMatch
-  const isPlaying = currentTrack?.Id === track.libraryMatch?.Id
+  const isQueueThisRelease = useIsQueueList(libraryMatches)
+  const isPlaying = isQueueThisRelease && currentTrack?.Id === track.libraryMatch?.Id
 
   const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
     item: track.libraryMatch as LightweightSong,
@@ -117,7 +119,6 @@ export default function CollectionDetailPage() {
   const navigate = useNavigate()
   const { releases, fetchReleaseDetail } = useCollectionStore()
   const { playAlbum, isPlaying, play, pause, addToQueueWithToast, playNext, toggleShuffle } = usePlayerStore()
-  const currentTrack = useCurrentTrack()
   const { logStream } = useStatsStore()
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint, findLibraryArtistName } = useLibraryLookup()
@@ -349,11 +350,10 @@ export default function CollectionDetailPage() {
     return () => { isMounted = false }
   }, [libraryMatches])
 
-  // Check if we're currently playing from this collection release
-  const isPlayingFromCollection = useMemo(
-    () => libraryMatches.some((m) => m.Id === currentTrack?.Id) && isPlaying,
-    [libraryMatches, currentTrack, isPlaying]
-  )
+  // "Playing" only when the queue is this release, not when one of its songs
+  // merely turns up during shuffle-all or another queue.
+  const isQueueThisRelease = useIsQueueList(libraryMatches)
+  const isPlayingFromCollection = isQueueThisRelease && isPlaying
 
   const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
     isPlaying: isPlayingFromCollection,
@@ -591,7 +591,7 @@ export default function CollectionDetailPage() {
                 onClick={() => {
                   if (isPlayingFromCollection) {
                     pause()
-                  } else if (currentTrack && libraryMatches.some(m => m.Id === currentTrack.Id) && !isPlaying) {
+                  } else if (isQueueThisRelease && !isPlaying) {
                     play()
                   } else {
                     handlePlayAll()

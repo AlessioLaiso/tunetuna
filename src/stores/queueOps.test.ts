@@ -4,6 +4,7 @@ import {
   computeRemoveFromQueue,
   computeReorderQueue,
   computeListPlaybackOrder,
+  queueMatchesList,
   MAX_QUEUE_SIZE,
   type QueueSong,
   type QueueState,
@@ -221,5 +222,36 @@ describe('computeListPlaybackOrder', () => {
   it('does not mutate the input list', () => {
     computeListPlaybackOrder(list, 1, true, reverse)
     expect(list.map(t => t.Id)).toEqual(['1', '2', '3', '4'])
+  })
+})
+
+describe('queueMatchesList', () => {
+  it('matches when the user songs in the queue are exactly the list', () => {
+    const songs = [song('a'), song('b'), song('c')]
+    expect(queueMatchesList(songs, ['a', 'b', 'c'])).toBe(true)
+  })
+
+  it('ignores order (shuffled queue) and recommendations', () => {
+    const songs = [song('c'), song('a'), song('b'), song('x', 'recommendation')]
+    expect(queueMatchesList(songs, ['a', 'b', 'c'])).toBe(true)
+  })
+
+  it('does not match when the queue is a superset (e.g. shuffle all)', () => {
+    const songs = [song('a'), song('b'), song('c'), song('d')]
+    expect(queueMatchesList(songs, ['a', 'b', 'c'])).toBe(false)
+  })
+
+  it('does not match when the queue is a subset', () => {
+    expect(queueMatchesList([song('a')], ['a', 'b'])).toBe(false)
+  })
+
+  it('does not match an empty list or an empty queue', () => {
+    expect(queueMatchesList([song('a')], [])).toBe(false)
+    expect(queueMatchesList([], ['a'])).toBe(false)
+    expect(queueMatchesList([song('x', 'recommendation')], ['x'])).toBe(false)
+  })
+
+  it('tolerates duplicate entries on either side', () => {
+    expect(queueMatchesList([song('a'), song('a'), song('b')], ['a', 'b', 'b'])).toBe(true)
   })
 })

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Image from '../shared/Image'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import type { LightweightSong } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
@@ -24,6 +25,10 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
   const playSongWithQueue = usePlaySongWithQueue()
   const navigate = useNavigate()
   const currentTrack = useCurrentTrack()
+  // With a list, highlight only while the queue is that list; a lone row
+  // (no list) highlights whenever its song is the current one.
+  const isQueueThisList = useIsQueueList(playQueue)
+  const isCurrent = currentTrack?.Id === song.Id && (!playQueue || isQueueThisList)
   const [imageError, setImageError] = useState(false)
   const isThisItemMenuOpen = contextMenuItemId === song.Id
 
@@ -74,7 +79,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
           )}
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
+          <div className={`text-sm font-medium truncate transition-colors ${isCurrent
               ? 'text-[var(--accent-color)]'
               : 'text-white group-hover:text-[var(--accent-color)]'
             }`}>

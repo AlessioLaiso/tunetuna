@@ -4,6 +4,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useVinylAnimation } from '../../hooks/useVinylAnimation'
 import Spinner from '../shared/Spinner'
 import VinylArtwork from '../shared/VinylArtwork'
@@ -28,6 +29,8 @@ interface AlbumTrackItemProps {
 function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onContextMenu, contextMenuItemId, trackNumberWidth }: AlbumTrackItemProps) {
   const isThisItemMenuOpen = contextMenuItemId === track.Id
   const currentTrack = useCurrentTrack()
+  const isQueueThisAlbum = useIsQueueList(tracks)
+  const isCurrent = isQueueThisAlbum && currentTrack?.Id === track.Id
   const navigate = useNavigate()
   const artistClickedRef = useRef(false)
 
@@ -49,12 +52,12 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
       {...longPressHandlers}
       className={`w-full flex items-baseline hover:bg-white/10 transition-colors group py-3 pl-4 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <span className={`text-sm text-left flex-shrink-0 mr-4 ${currentTrack?.Id === track.Id
+      <span className={`text-sm text-left flex-shrink-0 mr-4 ${isCurrent
         ? 'text-[var(--accent-color)]'
         : 'text-gray-500'
         }`} style={{ width: trackNumberWidth }}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
+        <div className={`text-sm font-medium truncate transition-colors ${isCurrent
           ? 'text-[var(--accent-color)]'
           : 'text-white group-hover:text-[var(--accent-color)]'
           }`}>
@@ -96,7 +99,6 @@ export default function AlbumDetailPage() {
   const navigate = useNavigate()
   const { playAlbum, isPlaying, play, pause } = usePlayerStore()
   const playSongWithQueue = usePlaySongWithQueue()
-  const currentTrack = useCurrentTrack()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,7 +116,10 @@ export default function AlbumDetailPage() {
   const [discImageUrl, setDiscImageUrl] = useState<string | null>(null)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
-  const isCurrentAlbumPlaying = currentTrack?.AlbumId === album?.Id && isPlaying
+  // "Playing" only when the queue is this album, not when one of its songs
+  // merely turns up during shuffle-all or another queue.
+  const isQueueThisAlbum = useIsQueueList(tracks)
+  const isCurrentAlbumPlaying = isQueueThisAlbum && isPlaying
 
   const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
     isPlaying: isCurrentAlbumPlaying,
@@ -444,7 +449,7 @@ export default function AlbumDetailPage() {
                 onClick={() => {
                   if (isCurrentAlbumPlaying) {
                     pause()
-                  } else if (currentTrack?.AlbumId === album.Id && !isPlaying) {
+                  } else if (isQueueThisAlbum && !isPlaying) {
                     play()
                   } else {
                     handlePlayAll()

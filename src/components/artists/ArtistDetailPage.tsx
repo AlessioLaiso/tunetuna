@@ -3,6 +3,7 @@ import { useParams, useNavigate, useNavigationType } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import Image from '../shared/Image'
 import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, ListEnd } from 'lucide-react'
@@ -38,15 +39,19 @@ interface ArtistSongItemProps {
   onContextMenu: (song: BaseItemDto, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
   showImage?: boolean
+  /** The queue is the list this row belongs to, so its current song may be highlighted. */
+  isQueueActive: boolean
 }
 
 function ArtistTopSongItem({
   song,
+  isQueueActive,
   onClick,
   onContextMenu,
   contextMenuItemId,
 }: {
   song: ArtistTopSong
+  isQueueActive: boolean
   onClick: (song: ArtistTopSong) => void
   onContextMenu: (song: ArtistTopSong, mode?: 'mobile' | 'desktop', position?: { x: number, y: number }) => void
   contextMenuItemId: string | null
@@ -81,7 +86,7 @@ function ArtistTopSongItem({
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.songId
+        <div className={`text-sm font-medium truncate transition-colors ${isQueueActive && currentTrack?.Id === song.songId
           ? 'text-[var(--accent-color)]'
           : 'text-white group-hover:text-[var(--accent-color)]'
           }`}>
@@ -138,7 +143,7 @@ function ArtistTopSongItem({
   )
 }
 
-function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onContextMenu, contextMenuItemId, showImage = true }: ArtistSongItemProps) {
+function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onContextMenu, contextMenuItemId, showImage = true, isQueueActive }: ArtistSongItemProps) {
   const navigate = useNavigate()
   const isThisItemMenuOpen = contextMenuItemId === song.Id
   const currentTrack = useCurrentTrack()
@@ -173,7 +178,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
         )}
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === song.Id
+        <div className={`text-sm font-medium truncate transition-colors ${isQueueActive && currentTrack?.Id === song.Id
           ? 'text-[var(--accent-color)]'
           : 'text-white group-hover:text-[var(--accent-color)]'
           }`}>
@@ -240,7 +245,6 @@ export default function ArtistDetailPage() {
   const navigationType = useNavigationType()
   const { isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
   const playSongWithQueue = usePlaySongWithQueue()
-  const currentTrack = useCurrentTrack()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
   const [allOwnAlbums, setAllOwnAlbums] = useState<BaseItemDto[]>([])
   const [serverAppearsOn, setServerAppearsOn] = useState<BaseItemDto[]>([])
@@ -799,6 +803,14 @@ export default function ArtistDetailPage() {
     return [...mergedSongs].sort((a, b) => compareByDate(a, b, newestFirst))
   }, [mergedSongs, songSortOrder, allOwnAlbums])
 
+  // "Playing" only when the queue is this artist's songs (or the Top songs
+  // list), not when one of their songs merely turns up during shuffle-all or
+  // another queue.
+  const isQueueArtistSongs = useIsQueueList(sortedSongs)
+  const topSongIds = useMemo(() => artistTopSongs.map((s) => s.songId), [artistTopSongs])
+  const isQueueTopSongs = useIsQueueList(topSongIds)
+  const isCurrentArtistPlaying = isQueueArtistSongs && isPlaying
+
   const handleAddAllSongsFromArtistToQueue = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -940,10 +952,6 @@ export default function ArtistDetailPage() {
                   </p>
                   <button
                     onClick={() => {
-                      const isCurrentArtistPlaying = currentTrack && isPlaying && (
-                        currentTrack.ArtistItems?.some(artist => artist.Id === id) ||
-                        currentTrack.AlbumArtist === artist?.Name
-                      )
                       if (isCurrentArtistPlaying) {
                         pause()
                       } else {
@@ -952,10 +960,7 @@ export default function ArtistDetailPage() {
                     }}
                     className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
                   >
-                    {currentTrack && isPlaying && (
-                      currentTrack.ArtistItems?.some(artist => artist.Id === id) ||
-                      currentTrack.AlbumArtist === artist?.Name
-                    ) ? (
+                    {isCurrentArtistPlaying ? (
                       <>
                         <Pause className="w-3.5 h-3.5" />
                         Pause
@@ -1044,6 +1049,7 @@ export default function ArtistDetailPage() {
                 <ArtistTopSongItem
                   key={song.songId}
                   song={song}
+                  isQueueActive={isQueueTopSongs}
                   onClick={handlePlayTopSong}
                   onContextMenu={(song, mode, position) => {
                     setContextMenuItem({
@@ -1162,6 +1168,7 @@ export default function ArtistDetailPage() {
                   <ArtistSongItem
                     key={song.Id}
                     song={song}
+                    isQueueActive={isQueueArtistSongs}
                     album={album}
                     year={year}
                     artistName={artistName}

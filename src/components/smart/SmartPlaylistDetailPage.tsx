@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { jellyfinClient } from '../../api/jellyfin'
 import { ArrowLeft, Pause, Shuffle } from 'lucide-react'
@@ -52,7 +53,6 @@ export default function SmartPlaylistDetailPage() {
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const { shuffleArtist, isPlaying } = usePlayerStore()
-  const currentTrack = useCurrentTrack()
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const isLargeViewport = useLargeViewport()
 
@@ -151,10 +151,9 @@ export default function SmartPlaylistDetailPage() {
     if (tracks.length > 0) shuffleArtist(tracks)
   }
 
-  const isListPlaying = useMemo(() => {
-    if (!currentTrack || tracks.length === 0) return false
-    return tracks.some(t => t.Id === currentTrack.Id) && isPlaying
-  }, [currentTrack, tracks, isPlaying])
+  // "Playing" only when the queue is this list, not when one of its songs
+  // merely turns up during shuffle-all or another queue.
+  const isListPlaying = useIsQueueList(tracks) && isPlaying
 
   const wheelRotation = useCassetteWheelAnimation(isListPlaying)
 
@@ -324,6 +323,8 @@ function SmartTrackItem({
   const navigate = useNavigate()
   const playSongWithQueue = usePlaySongWithQueue()
   const currentTrack = useCurrentTrack()
+  const isQueueThisList = useIsQueueList(tracks)
+  const isCurrent = isQueueThisList && currentTrack?.Id === track.Id
 
   const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
     item: track,
@@ -350,7 +351,7 @@ function SmartTrackItem({
         />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium truncate transition-colors ${currentTrack?.Id === track.Id
+        <div className={`text-sm font-medium truncate transition-colors ${isCurrent
           ? 'text-[var(--accent-color)]'
           : 'text-white group-hover:text-[var(--accent-color)]'
         }`}>
