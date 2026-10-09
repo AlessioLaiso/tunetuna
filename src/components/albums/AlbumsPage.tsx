@@ -85,7 +85,7 @@ export default function AlbumsPage() {
         setSearchParams({}, { replace: true })
       }
     }
-  }, [searchParams, setSearchParams, setYearRange])
+  }, [searchParams, setSearchParams, setYearRange, setIsSearchOpen])
 
   useSearchFocus(isSearchOpen, searchInputRef, desktopSearchInputRef)
 
@@ -163,6 +163,8 @@ export default function AlbumsPage() {
       checkSortChange()
       loadAlbums()
     }
+    // loadAlbums and checkSortChange are recreated every render; reload only when paging/sort/search change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, sortOrder, searchQuery])
 
   const loadAlbums = async () => {

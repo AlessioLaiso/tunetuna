@@ -747,20 +747,6 @@ export default function ArtistDetailPage() {
     return { album, year }
   }
 
-  // Use the same sorting logic as albums
-  const getSongAlbumDate = (song: BaseItemDto): number => {
-    // Find the album for this song
-    if (song.AlbumId) {
-      const albumData = allOwnAlbums.find(a => a.Id === song.AlbumId)
-      if (albumData) {
-        // Use the same logic as album sorting
-        return albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
-      }
-    }
-    // Fallback to song data
-    return song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
-  }
-
   const sortedSongs = useMemo(() => {
     if (songSortOrder === 'Alphabetical') {
       return [...mergedSongs].sort((a, b) => {
@@ -768,6 +754,20 @@ export default function ArtistDetailPage() {
         const nameB = b.Name || ''
         return nameA.localeCompare(nameB)
       })
+    }
+
+    // Use the same sorting logic as albums
+    const getSongAlbumDate = (song: BaseItemDto): number => {
+      // Find the album for this song
+      if (song.AlbumId) {
+        const albumData = allOwnAlbums.find(a => a.Id === song.AlbumId)
+        if (albumData) {
+          // Use the same logic as album sorting
+          return albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
+        }
+      }
+      // Fallback to song data
+      return song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
     }
 
     // Date-based sort: group by album date, then album, then track number, then name

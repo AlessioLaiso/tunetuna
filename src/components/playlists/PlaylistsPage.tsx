@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowUpDown, Plus } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -55,32 +55,7 @@ export default function PlaylistsPage() {
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
 
-  // Refresh playlist list when playlists are created/deleted/renamed elsewhere
-  useEffect(() => {
-    const handler = () => loadPlaylists()
-    window.addEventListener('playlistUpdated', handler)
-    return () => window.removeEventListener('playlistUpdated', handler)
-  }, [])
-
-  useEffect(() => {
-    if (!isSearchOpen) {
-      // Check if sortOrder changed (not initial load)
-      if (!isInitialLoad.current && prevSortOrderRef.current !== sortOrder) {
-        setIsLoadingSortChange(true)
-      }
-      prevSortOrderRef.current = sortOrder
-      loadPlaylists()
-    }
-  }, [sortOrder, isSearchOpen])
-
-  useEffect(() => {
-    // Mark initial load as complete after first render
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false
-    }
-  }, [])
-
-  const loadPlaylists = async () => {
+  const loadPlaylists = useCallback(async () => {
     setLoading(true)
     try {
       const options: Parameters<typeof jellyfinClient.getPlaylists>[0] = {
@@ -103,7 +78,32 @@ export default function PlaylistsPage() {
       setLoading(false)
       setIsLoadingSortChange(false)
     }
-  }
+  }, [sortOrder])
+
+  // Refresh playlist list when playlists are created/deleted/renamed elsewhere
+  useEffect(() => {
+    const handler = () => loadPlaylists()
+    window.addEventListener('playlistUpdated', handler)
+    return () => window.removeEventListener('playlistUpdated', handler)
+  }, [loadPlaylists])
+
+  useEffect(() => {
+    if (!isSearchOpen) {
+      // Check if sortOrder changed (not initial load)
+      if (!isInitialLoad.current && prevSortOrderRef.current !== sortOrder) {
+        setIsLoadingSortChange(true)
+      }
+      prevSortOrderRef.current = sortOrder
+      loadPlaylists()
+    }
+  }, [loadPlaylists, sortOrder, isSearchOpen])
+
+  useEffect(() => {
+    // Mark initial load as complete after first render
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false
+    }
+  }, [])
 
   // No-op since PlaylistsPage doesn't have filters, but needed for SearchOverlay interface
   const openFilterSheet = (_type: 'genre' | 'year') => { }

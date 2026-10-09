@@ -57,8 +57,8 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
   // Only sync from parent if user isn't actively typing
   // (i.e., when parent clears the value externally)
   useEffect(() => {
-    if (value === '' && localValue !== '') {
-      setLocalValue(value)
+    if (value === '') {
+      setLocalValue('')
     }
   }, [value])
 

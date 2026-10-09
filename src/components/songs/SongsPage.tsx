@@ -205,6 +205,8 @@ export default function SongsPage() {
       checkSortChange()
       loadSongs()
     }
+    // loadSongs and checkSortChange are recreated every render; reload only when paging/sort/search change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, sortOrder, searchQuery])
 
   const loadSongs = async () => {

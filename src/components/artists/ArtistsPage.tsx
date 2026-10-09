@@ -146,6 +146,8 @@ export default function ArtistsPage() {
       checkSortChange()
       loadArtists()
     }
+    // loadArtists and checkSortChange are recreated every render; reload only when paging/sort/search change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, sortOrder, searchQuery, isSearchOpen])
 
   return (

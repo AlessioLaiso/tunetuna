@@ -112,8 +112,9 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   }, [item, itemType])
 
   // Fetch genre from first song when opening menu for album or artist
+  const itemId = item?.Id
   useEffect(() => {
-    if (!isOpen || !item) {
+    if (!isOpen || !itemId) {
       setFetchedGenreName(null)
       return
     }
@@ -121,12 +122,12 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     const fetchGenre = async () => {
       try {
         if (itemType === 'album') {
-          const tracks = await jellyfinClient.getAlbumTracks(item.Id)
+          const tracks = await jellyfinClient.getAlbumTracks(itemId)
           if (tracks.length > 0 && tracks[0].Genres?.[0]) {
             setFetchedGenreName(tracks[0].Genres[0])
           }
         } else if (itemType === 'artist') {
-          const { songs } = await jellyfinClient.getArtistItems(item.Id)
+          const { songs } = await jellyfinClient.getArtistItems(itemId)
           if (songs.length > 0 && songs[0].Genres?.[0]) {
             setFetchedGenreName(songs[0].Genres[0])
           }
@@ -137,14 +138,14 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
     }
 
     fetchGenre()
-  }, [isOpen, item?.Id, itemType])
+  }, [isOpen, itemId, itemType])
 
   // Helper to get genre ID from genre name
-  const getGenreId = (genreName: string | undefined): string | null => {
+  const getGenreId = useCallback((genreName: string | undefined): string | null => {
     if (!genreName) return null
     const genre = genres.find(g => g.Name?.toLowerCase() === genreName.toLowerCase())
     return genre?.Id || null
-  }
+  }, [genres])
 
   // Use useCallback with refs to ensure we always use the latest item/itemType
   const handleAction = useCallback(async (action: string) => {
@@ -610,7 +611,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setLoading(false)
       setLoadingAction(null)
     }
-  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs, startSync, completeSync, logStream, providedTracks])
+  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs, startSync, completeSync, logStream, updateEventMetadata, providedTracks, extraActions, onExtraAction, position])
 
   const handleMoreAction = useCallback((actionId: string) => {
     setMoreActionsOpen(false)

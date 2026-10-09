@@ -413,7 +413,7 @@ export default function CollectionDetailPage() {
     } finally {
       setCollectionMenuLoading(null)
     }
-  }, [libraryMatches, tracksByDisc, playAlbum, playNext, addToQueueWithToast, toggleShuffle, logStream, addToast])
+  }, [libraryMatches, tracksByDisc, numericReleaseId, playAlbum, playNext, addToQueueWithToast, toggleShuffle, logStream, addToast])
 
   const collectionMenuActions = useMemo(() => {
     const actions = [

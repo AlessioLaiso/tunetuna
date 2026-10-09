@@ -46,16 +46,17 @@ export default function LyricsModal() {
   // Lyrics already placed at the active line; new lyrics jump there instead of animating from the top
   const positionedLyricsRef = useRef<LyricsResult | null>(null)
 
+  const displayTrackId = displayTrack?.Id
   useEffect(() => {
     const fetchLyrics = async () => {
-      if (!displayTrack) {
+      if (!displayTrackId) {
         setLyrics(null)
         return
       }
 
       setIsLoading(true)
       try {
-        const result = await jellyfinClient.getLyrics(displayTrack.Id)
+        const result = await jellyfinClient.getLyrics(displayTrackId)
         setLyrics(result)
       } catch (error) {
         logger.error('Failed to fetch lyrics:', error)
@@ -66,7 +67,7 @@ export default function LyricsModal() {
     }
 
     fetchLyrics()
-  }, [displayTrack?.Id])
+  }, [displayTrackId])
 
   const activeLineIndex = useMemo(() => {
     if (!lyrics?.isSynced) return -1

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, useRef, type CSSProperties } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
@@ -156,28 +156,28 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     checkLyrics()
   }, [displayTrack])
 
-  // Get display name: use Name if available, otherwise extract filename from Path
-  const getDisplayNameForMetadata = (track: typeof displayTrack) => {
-    if (!track) return 'Unknown'
-    if (track.Name && track.Name.trim()) {
-      return track.Name
-    }
-    // Try to extract filename from Path if available
-    const path = track.Path
-    if (path && typeof path === 'string') {
-      const filename = path.split('/').pop() || path.split('\\').pop()
-      return filename || 'Unknown'
-    }
-    return 'Unknown'
-  }
-
-  // Get artist name if available
-  const getArtistNameForMetadata = (track: typeof displayTrack) => {
-    if (!track) return ''
-    return track.ArtistItems?.[0]?.Name || track.AlbumArtist || ''
-  }
-
   useEffect(() => {
+    // Get display name: use Name if available, otherwise extract filename from Path
+    const getDisplayNameForMetadata = (track: typeof displayTrack) => {
+      if (!track) return 'Unknown'
+      if (track.Name && track.Name.trim()) {
+        return track.Name
+      }
+      // Try to extract filename from Path if available
+      const path = track.Path
+      if (path && typeof path === 'string') {
+        const filename = path.split('/').pop() || path.split('\\').pop()
+        return filename || 'Unknown'
+      }
+      return 'Unknown'
+    }
+
+    // Get artist name if available
+    const getArtistNameForMetadata = (track: typeof displayTrack) => {
+      if (!track) return ''
+      return track.ArtistItems?.[0]?.Name || track.AlbumArtist || ''
+    }
+
     if ('mediaSession' in navigator && displayTrack) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: getDisplayNameForMetadata(displayTrack),
@@ -220,10 +220,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   }, [displayTrack?.Id])
 
   // Pre-blur the background art and crossfade to prevent flash
+  const backgroundArtItemId = displayTrack ? displayTrack.AlbumId || displayTrack.Id : null
   useEffect(() => {
-    if (!displayTrack) return
+    if (!backgroundArtItemId) return
 
-    const newUrl = jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)
+    const newUrl = jellyfinClient.getAlbumArtUrl(backgroundArtItemId)
     if (newUrl === rawBackgroundUrlRef.current) return
 
     let cancelled = false
@@ -246,7 +247,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     return () => {
       cancelled = true
     }
-  }, [displayTrack?.Id, displayTrack?.AlbumId])
+  }, [backgroundArtItemId])
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
 
@@ -364,13 +365,13 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     }
   }, [duration, seek])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsClosing(true)
     onClosingStart?.() // Notify parent that closing has started
     setTimeout(() => {
       onClose()
     }, 300) // Match transition duration
-  }
+  }, [onClose, onClosingStart])
 
   // Handle volume popover opening
   const handleOpenVolumePopover = (direction: 'up' | 'down' = 'up') => {
@@ -396,7 +397,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         closeRef.current = null
       }
     }
-  }, [closeRef])
+  }, [closeRef, handleClose])
 
   // All hooks must run before this guard to keep hook order stable across renders.
   if (!displayTrack) {

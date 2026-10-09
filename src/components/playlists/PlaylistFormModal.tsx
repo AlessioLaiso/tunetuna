@@ -106,6 +106,8 @@ export default function PlaylistFormModal({
       setM3uImporting(false)
       setSaving(false)
     }
+    // Reset only on open or playlist switch so a re-rendered initialName doesn't clobber the user's edits
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editPlaylistId])
 
   const handleClose = () => {

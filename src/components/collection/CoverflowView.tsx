@@ -493,7 +493,7 @@ export default function CoverflowView({
     }
 
     snapAnimRef.current = requestAnimationFrame(animate)
-  }, [itemSpacing, updateTransforms, releases.length, onSnappedIndexChange])
+  }, [itemSpacing, updateTransforms, releases.length, onSnappedIndexChange, setSnappedIndex])
 
   const handleScroll = useCallback(() => {
     // Ignore scroll events fired by our own snap animation
@@ -525,7 +525,7 @@ export default function CoverflowView({
         snapTo(idx)
       }, 300)
     })
-  }, [updateTransforms, itemSpacing, releases.length, snapTo])
+  }, [updateTransforms, itemSpacing, releases.length, snapTo, onSnappedIndexChange])
 
   useEffect(() => {
     const container = containerRef.current
@@ -569,7 +569,7 @@ export default function CoverflowView({
     atRestRef.current = true
     atRestIndexRef.current = 0
     updateTransforms()
-  }, [releases, updateTransforms])
+  }, [releases, updateTransforms, setSnappedIndex])
 
   // Scroll to the initial snapped index on first render (handles back navigation restore).
   // useLayoutEffect runs before paint so scroll position is set before the browser renders.

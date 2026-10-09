@@ -297,6 +297,8 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
     return { fromTs: fromDate.getTime(), toTs: toDate.getTime(), fromDate, toDate }
   }, [fromMonth, toMonth])
 
+  // snapshotForRange reads the store directly; snapshots is listed so the lookup reruns when they load
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const snapshot = useMemo(() => snapshotForRange(fromTs, toTs), [snapshotForRange, fromTs, toTs, snapshots])
 
 

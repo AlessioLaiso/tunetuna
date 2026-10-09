@@ -40,6 +40,8 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
     } else if (volume > 0) {
       setLastNonZeroVolume(volume)
     }
+    // Mount-only initialization; later volume changes are tracked by the effect below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Track non-zero volume for toggle

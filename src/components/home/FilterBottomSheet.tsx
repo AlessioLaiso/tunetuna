@@ -55,21 +55,28 @@ export default function FilterBottomSheet({
   const minBpmRef = useRef<HTMLDivElement>(null)
   const maxBpmRef = useRef<HTMLDivElement>(null)
 
+  const { min: yearMin, max: yearMax } = yearRange
   useEffect(() => {
-    setLocalYearRange(yearRange)
-  }, [yearRange.min, yearRange.max])
+    setLocalYearRange({ min: yearMin, max: yearMax })
+  }, [yearMin, yearMax])
 
+  // Arrays default to a fresh [] each render, so resync on content changes only
+  const selectedValuesKey = selectedValues.join(',')
   useEffect(() => {
     setLocalSelectedGenres(selectedValues)
-  }, [selectedValues.join(',')])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedValuesKey])
 
+  const selectedGroupingValuesKey = selectedGroupingValues.join(',')
   useEffect(() => {
     setLocalSelectedGroupings(selectedGroupingValues)
-  }, [selectedGroupingValues.join(',')])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroupingValuesKey])
 
+  const { min: bpmMin, max: bpmMax } = bpmRange
   useEffect(() => {
-    setLocalBpmRange(bpmRange)
-  }, [bpmRange.min, bpmRange.max])
+    setLocalBpmRange({ min: bpmMin, max: bpmMax })
+  }, [bpmMin, bpmMax])
 
   const handleToggle = (genreName: string) => {
     setLocalSelectedGenres(prev =>

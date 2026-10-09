@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Settings, Shuffle, Search } from 'lucide-react'
 import SearchOverlay, { type SearchSectionConfig } from '../shared/SearchOverlay'
@@ -110,6 +110,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
       // Clear the URL params after applying them
       setSearchParams({}, { replace: true })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run on mount
 
   // Load filter values on mount
@@ -172,11 +173,11 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     clearSearch()
   }
 
-  const handleCancelSearch = () => {
+  const handleCancelSearch = useCallback(() => {
     // Close the overlay and clear everything
     setIsSearchOpen(false)
     clearAll()
-  }
+  }, [setIsSearchOpen, clearAll])
 
   // Compute available BPM values from songs
   const availableBpms = useMemo(() => {
@@ -271,7 +272,7 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
     }
     window.addEventListener('keydown', handleKeyDown, true) // capture phase
     return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [isSearchOpen])
+  }, [isSearchOpen, handleCancelSearch])
 
   return (
     <>

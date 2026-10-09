@@ -80,6 +80,8 @@ export default function PlayerBar() {
         setIsModalClosing(false)
       }, 300) // Match animation duration
     }
+    // Only react to route changes, not to the modal opening
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname])
 
   // Ensure modal is closed on initial mount to prevent flash from browser cache

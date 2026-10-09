@@ -48,7 +48,7 @@ export default function SmartPickerPage() {
   const navigate = useNavigate()
   const allSongs = useMusicStore(s => s.songs)
   const { statsTrackingEnabled, excludedGenres } = useSettingsStore()
-  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
+  const songs = useMemo(() => filterExcludedGenres(allSongs, excludedGenres), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)

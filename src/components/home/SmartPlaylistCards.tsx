@@ -105,7 +105,7 @@ export default function SmartPlaylistCards() {
   const cachedMixCardIds = useMusicStore(s => s.cachedMixCardIds)
   const setCachedMixCardIds = useMusicStore(s => s.setCachedMixCardIds)
   const { statsTrackingEnabled, showMoodCards, excludedGenres } = useSettingsStore()
-  const songs = useMemo(() => filterExcludedGenres(allSongs), [allSongs, excludedGenres])
+  const songs = useMemo(() => filterExcludedGenres(allSongs, excludedGenres), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
   const [events, setEvents] = useState<PlayEvent[]>([])
