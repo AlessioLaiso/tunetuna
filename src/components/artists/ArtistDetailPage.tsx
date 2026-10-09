@@ -29,6 +29,31 @@ const VISIBLE_ALBUMS_INCREMENT = 45
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
 
+// Release time for ordering: the full PremiereDate when it agrees with the
+// displayed year (ProductionYear wins for display), else Jan 1 of that year.
+function getReleaseTime(item: BaseItemDto): number {
+  const premiere = item.PremiereDate ? Date.parse(item.PremiereDate) : NaN
+  if (!isNaN(premiere)) {
+    if (!item.ProductionYear || new Date(premiere).getUTCFullYear() === item.ProductionYear) {
+      return premiere
+    }
+  }
+  return item.ProductionYear ? Date.UTC(item.ProductionYear, 0, 1) : 0
+}
+
+// Album order shared by the album sections and the date-sorted song list:
+// release date, then name, then id so ties always resolve the same way.
+function compareAlbums(a: BaseItemDto, b: BaseItemDto, newestFirst = true): number {
+  const timeA = getReleaseTime(a)
+  const timeB = getReleaseTime(b)
+  if (timeA !== timeB) {
+    return newestFirst ? timeB - timeA : timeA - timeB
+  }
+  const byName = (a.Name || '').localeCompare(b.Name || '')
+  if (byName !== 0) return byName
+  return (a.Id || '').localeCompare(b.Id || '')
+}
+
 interface ArtistSongItemProps {
   song: BaseItemDto
   album: string | null
@@ -363,11 +388,7 @@ export default function ArtistDetailPage() {
       }
     }
 
-    return result.sort((a, b) => {
-      const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
-      const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
-      return yearB - yearA
-    })
+    return result.sort((a, b) => compareAlbums(a, b))
   }, [serverAppearsOn, featuredSongsForArtist, allOwnAlbums])
 
   // Classify own albums into sections by release type, derived from each
@@ -533,13 +554,8 @@ export default function ArtistDetailPage() {
 
         if (!isMounted) return
 
-        const sortByYear = (a: BaseItemDto, b: BaseItemDto) => {
-          const yearA = a.ProductionYear || (a.PremiereDate ? new Date(a.PremiereDate).getFullYear() : 0)
-          const yearB = b.ProductionYear || (b.PremiereDate ? new Date(b.PremiereDate).getFullYear() : 0)
-          return yearB - yearA
-        }
-        setAllOwnAlbums(ownAlbums.sort(sortByYear))
-        setServerAppearsOn(appearsOn.sort(sortByYear))
+        setAllOwnAlbums(ownAlbums.sort((a, b) => compareAlbums(a, b)))
+        setServerAppearsOn(appearsOn.sort((a, b) => compareAlbums(a, b)))
         setSongs(result.songs)
       } catch (error) {
         if (!isMounted) return
@@ -756,38 +772,36 @@ export default function ArtistDetailPage() {
       })
     }
 
-    // Use the same sorting logic as albums
-    const getSongAlbumDate = (song: BaseItemDto): number => {
-      // Find the album for this song
-      if (song.AlbumId) {
-        const albumData = allOwnAlbums.find(a => a.Id === song.AlbumId)
-        if (albumData) {
-          // Use the same logic as album sorting
-          return albumData.ProductionYear || (albumData.PremiereDate ? new Date(albumData.PremiereDate).getFullYear() : 0)
-        }
+    // Order songs by their album using the same comparator as the album
+    // sections, falling back to the song's own fields when the album is unknown
+    const albumsById = new Map<string, BaseItemDto>()
+    for (const album of [...allOwnAlbums, ...appearsOnAlbums]) {
+      albumsById.set(album.Id, album)
+    }
+    const getSongAlbum = (song: BaseItemDto): BaseItemDto => {
+      const album = song.AlbumId ? albumsById.get(song.AlbumId) : undefined
+      return album || {
+        Id: song.AlbumId || '',
+        Name: song.Album || '',
+        ProductionYear: song.ProductionYear,
+        PremiereDate: song.PremiereDate,
       }
-      // Fallback to song data
-      return song.ProductionYear || (song.PremiereDate ? new Date(song.PremiereDate).getFullYear() : 0)
     }
 
-    // Date-based sort: group by album date, then album, then track number, then name
+    // Date-based sort: group by album, then track number, then name
     const compareByDate = (a: BaseItemDto, b: BaseItemDto, newestFirst: boolean) => {
-      const dateA = getSongAlbumDate(a)
-      const dateB = getSongAlbumDate(b)
-      const albumIdA = a.AlbumId || ''
-      const albumIdB = b.AlbumId || ''
-
-      // First sort by album date
-      if (dateA !== dateB) {
-        return newestFirst ? dateB - dateA : dateA - dateB
+      const byAlbum = compareAlbums(getSongAlbum(a), getSongAlbum(b), newestFirst)
+      if (byAlbum !== 0) {
+        return byAlbum
       }
 
-      // If same date, group by album (songs from same album should be together)
-      if (albumIdA !== albumIdB) {
-        return albumIdA.localeCompare(albumIdB)
+      // Within same album, sort by disc, then track number
+      const discA = a.ParentIndexNumber ?? 1
+      const discB = b.ParentIndexNumber ?? 1
+      if (discA !== discB) {
+        return discA - discB
       }
 
-      // Within same album, sort by track number
       const trackA = a.IndexNumber || 0
       const trackB = b.IndexNumber || 0
 
@@ -801,7 +815,7 @@ export default function ArtistDetailPage() {
 
     const newestFirst = songSortOrder === 'Newest'
     return [...mergedSongs].sort((a, b) => compareByDate(a, b, newestFirst))
-  }, [mergedSongs, songSortOrder, allOwnAlbums])
+  }, [mergedSongs, songSortOrder, allOwnAlbums, appearsOnAlbums])
 
   // "Playing" only when the queue is this artist's songs (or the Top songs
   // list), not when one of their songs merely turns up during shuffle-all or
