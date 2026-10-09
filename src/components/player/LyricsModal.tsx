@@ -6,6 +6,14 @@ import { jellyfinClient } from '../../api/jellyfin'
 import type { LyricsResult } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
 
+// Highlight the next line slightly before its timestamp so it feels in sync with the vocals
+const LINE_LEAD_SECONDS = 0.5
+const SCROLL_DURATION_MS = 600
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+
 function getActiveLineIndex(lines: LyricsResult['lines'], currentTime: number): number {
   // Find the last line whose start time is <= current playback time
   let active = -1
@@ -34,6 +42,7 @@ export default function LyricsModal() {
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const userScrollingRef = useRef(false)
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const scrollAnimationRef = useRef<number | null>(null)
 
   useEffect(() => {
     const fetchLyrics = async () => {
@@ -59,11 +68,42 @@ export default function LyricsModal() {
 
   const activeLineIndex = useMemo(() => {
     if (!lyrics?.isSynced) return -1
-    return getActiveLineIndex(lyrics.lines, currentTime)
+    return getActiveLineIndex(lyrics.lines, currentTime + LINE_LEAD_SECONDS)
   }, [lyrics, currentTime])
+
+  const cancelScrollAnimation = useCallback(() => {
+    if (scrollAnimationRef.current !== null) {
+      cancelAnimationFrame(scrollAnimationRef.current)
+      scrollAnimationRef.current = null
+    }
+  }, [])
+
+  const animateScrollTo = useCallback((container: HTMLDivElement, target: number) => {
+    cancelScrollAnimation()
+    const maxScroll = container.scrollHeight - container.clientHeight
+    const end = Math.max(0, Math.min(target, maxScroll))
+    const start = container.scrollTop
+    const distance = end - start
+    if (Math.abs(distance) < 1) return
+
+    const startTime = performance.now()
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / SCROLL_DURATION_MS)
+      container.scrollTop = start + distance * easeInOutCubic(progress)
+      if (progress < 1) {
+        scrollAnimationRef.current = requestAnimationFrame(step)
+      } else {
+        scrollAnimationRef.current = null
+      }
+    }
+    scrollAnimationRef.current = requestAnimationFrame(step)
+  }, [cancelScrollAnimation])
+
+  useEffect(() => cancelScrollAnimation, [cancelScrollAnimation])
 
   // Pause auto-scroll when user manually scrolls
   const handleUserScroll = useCallback(() => {
+    cancelScrollAnimation()
     userScrollingRef.current = true
     if (userScrollTimeoutRef.current) {
       clearTimeout(userScrollTimeoutRef.current)
@@ -72,7 +112,7 @@ export default function LyricsModal() {
     userScrollTimeoutRef.current = setTimeout(() => {
       userScrollingRef.current = false
     }, 4000)
-  }, [])
+  }, [cancelScrollAnimation])
 
   // Attach wheel/touch listeners to detect manual scrolling
   useEffect(() => {
@@ -108,11 +148,8 @@ export default function LyricsModal() {
     const targetScrollTop =
       lineEl.offsetTop - container.offsetTop - containerRect.height * 0.45 + lineEl.offsetHeight / 2
 
-    container.scrollTo({
-      top: targetScrollTop,
-      behavior: 'smooth',
-    })
-  }, [activeLineIndex, lyrics?.isSynced])
+    animateScrollTo(container, targetScrollTop)
+  }, [activeLineIndex, lyrics?.isSynced, animateScrollTo])
 
   const setLineRef = useCallback((index: number, el: HTMLDivElement | null) => {
     if (el) {
