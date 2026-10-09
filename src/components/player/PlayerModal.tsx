@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, type CSSProperties } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
@@ -7,6 +7,7 @@ import Image from '../shared/Image'
 import QueueView from './QueueView'
 import QueueList from './QueueList'
 import LyricsModal from './LyricsModal'
+import { getBlurredArtUrl } from '../../utils/blurredArt'
 import VolumeControl from '../layout/VolumeControl'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus, Moon } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
@@ -22,6 +23,13 @@ interface PlayerModalProps {
   onClose: () => void
   onClosingStart?: () => void
   closeRef?: React.MutableRefObject<(() => void) | null>
+}
+
+// Pre-blurred art needs no CSS filter; fall back to one if blurring failed (e.g. CORS)
+function backgroundBlurStyle(url: string): CSSProperties {
+  return url.startsWith('data:')
+    ? { transform: 'scale(1.2)' }
+    : { filter: 'blur(100px)', transform: 'scale(1.2)' }
 }
 
 export default function PlayerModal({ onClose, onClosingStart, closeRef }: PlayerModalProps) {
@@ -74,6 +82,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   const [imageError, setImageError] = useState(false)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
   const [prevBackgroundUrl, setPrevBackgroundUrl] = useState<string | null>(null)
+  const rawBackgroundUrlRef = useRef<string | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
@@ -210,35 +219,33 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     setImageError(false)
   }, [displayTrack?.Id])
 
-  // Preload background image and crossfade to prevent flash
+  // Pre-blur the background art and crossfade to prevent flash
   useEffect(() => {
     if (!displayTrack) return
 
     const newUrl = jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)
+    if (newUrl === rawBackgroundUrlRef.current) return
 
-    // If no background yet, set it immediately
-    if (!backgroundUrl) {
-      setBackgroundUrl(newUrl)
-      return
+    let cancelled = false
+    getBlurredArtUrl(newUrl).then((blurred) => {
+      if (cancelled) return
+      const nextUrl = blurred ?? newUrl
+      rawBackgroundUrlRef.current = newUrl
+      setBackgroundUrl((current) => {
+        if (current) {
+          // Save current as previous for crossfade
+          setPrevBackgroundUrl(current)
+          // Clear previous after animation completes (1s animation + buffer)
+          setTimeout(() => {
+            setPrevBackgroundUrl(null)
+          }, 1100)
+        }
+        return nextUrl
+      })
+    })
+    return () => {
+      cancelled = true
     }
-
-    // If URL is the same, no need to preload
-    if (newUrl === backgroundUrl) return
-
-    // Preload the new image before switching
-    const img = new window.Image()
-    const handleLoaded = () => {
-      // Save current as previous for crossfade
-      setPrevBackgroundUrl(backgroundUrl)
-      setBackgroundUrl(newUrl)
-      // Clear previous after animation completes (1s animation + buffer)
-      setTimeout(() => {
-        setPrevBackgroundUrl(null)
-      }, 1100)
-    }
-    img.onload = handleLoaded
-    img.onerror = handleLoaded
-    img.src = newUrl
   }, [displayTrack?.Id, displayTrack?.AlbumId])
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -527,8 +534,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   className="absolute inset-0 bg-cover bg-center"
                   style={{
                     backgroundImage: `url(${prevBackgroundUrl})`,
-                    filter: 'blur(100px)',
-                    transform: 'scale(1.2)',
+                    ...backgroundBlurStyle(prevBackgroundUrl),
                   }}
                 />
                 {/* Edge gradients for previous background */}
@@ -543,8 +549,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   className="absolute inset-0 bg-cover bg-center"
                   style={{
                     backgroundImage: `url(${backgroundUrl})`,
-                    filter: 'blur(100px)',
-                    transform: 'scale(1.2)',
+                    ...backgroundBlurStyle(backgroundUrl),
                   }}
                 />
                 {/* Edge gradients for current background */}

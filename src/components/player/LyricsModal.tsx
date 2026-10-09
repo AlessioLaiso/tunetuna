@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -43,6 +43,8 @@ export default function LyricsModal() {
   const userScrollingRef = useRef(false)
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const scrollAnimationRef = useRef<number | null>(null)
+  // Lyrics already placed at the active line; new lyrics jump there instead of animating from the top
+  const positionedLyricsRef = useRef<LyricsResult | null>(null)
 
   useEffect(() => {
     const fetchLyrics = async () => {
@@ -134,13 +136,21 @@ export default function LyricsModal() {
     }
   }, [handleUserScroll])
 
-  // Auto-scroll to active line
-  useEffect(() => {
-    if (!lyrics?.isSynced || activeLineIndex < 0 || userScrollingRef.current) return
+  // Auto-scroll to active line. Layout effect so freshly shown lyrics are positioned before paint.
+  useLayoutEffect(() => {
+    if (!lyrics?.isSynced || isLoading) return
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const isInitial = positionedLyricsRef.current !== lyrics
+    if (activeLineIndex < 0) {
+      positionedLyricsRef.current = lyrics
+      return
+    }
+    if (!isInitial && userScrollingRef.current) return
 
     const lineEl = lineRefs.current.get(activeLineIndex)
-    const container = scrollContainerRef.current
-    if (!lineEl || !container) return
+    if (!lineEl) return
 
     const containerRect = container.getBoundingClientRect()
 
@@ -148,8 +158,14 @@ export default function LyricsModal() {
     const targetScrollTop =
       lineEl.offsetTop - container.offsetTop - containerRect.height * 0.45 + lineEl.offsetHeight / 2
 
-    animateScrollTo(container, targetScrollTop)
-  }, [activeLineIndex, lyrics?.isSynced, animateScrollTo])
+    if (isInitial) {
+      cancelScrollAnimation()
+      container.scrollTop = targetScrollTop
+      positionedLyricsRef.current = lyrics
+    } else {
+      animateScrollTo(container, targetScrollTop)
+    }
+  }, [activeLineIndex, lyrics, isLoading, animateScrollTo, cancelScrollAnimation])
 
   const setLineRef = useCallback((index: number, el: HTMLDivElement | null) => {
     if (el) {
