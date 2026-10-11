@@ -807,7 +807,7 @@ export default function SettingsPage() {
             {/* Local URL field — hidden when locked via Docker */}
             {!localUrlLocked && (
               <div className="p-3 border-t border-zinc-800">
-                <label className="text-white font-medium block mb-1">LAN Address</label>
+                <label className="text-white font-medium block mb-1">LAN address</label>
                 <p className="text-xs text-gray-400 mb-2">
                   For faster access on your local network (e.g. http://192.168.1.10:8096)
                 </p>

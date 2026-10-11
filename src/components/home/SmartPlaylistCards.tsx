@@ -183,7 +183,7 @@ export default function SmartPlaylistCards() {
       if (bpmAlbumId) usedAlbumIds.add(bpmAlbumId)
       items.push({
         id: 'bpm',
-        name: 'BPM Mixes',
+        name: 'BPM mixes',
         description: 'Browse by tempo',
         route: '/smart/picker/bpm',
         albumId: bpmAlbumId,

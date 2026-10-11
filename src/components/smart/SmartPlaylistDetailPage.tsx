@@ -91,7 +91,7 @@ export default function SmartPlaylistDetailPage() {
       const decadeMatch = smartId.match(/^decade-(\d{4})$/)
       if (decadeMatch) {
         const decade = parseInt(decadeMatch[1])
-        setTitle(`${decadeLabel(decade)} Mix`)
+        setTitle(`${decadeLabel(decade)} mix`)
         setSubtitle('')
         const result = getDecadeSongs(decade, songs)
         setTracks(result.map(toBaseItemDto))

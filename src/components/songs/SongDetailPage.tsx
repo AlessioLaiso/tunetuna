@@ -407,7 +407,7 @@ export default function SongDetailPage() {
             {song.IndexNumber != null && (
               <MetadataRow
                 icon={Hash}
-                label={song.ParentIndexNumber != null && song.ParentIndexNumber > 1 ? `Disc ${song.ParentIndexNumber}, Track` : 'Track'}
+                label={song.ParentIndexNumber != null && song.ParentIndexNumber > 1 ? `Disc ${song.ParentIndexNumber}, track` : 'Track'}
                 value={String(song.IndexNumber)}
               />
             )}

@@ -75,7 +75,7 @@ export default function SmartPickerPage() {
       case 'year-throwback': return 'Year throwback'
       case 'moods': return 'Mood mixes'
       case 'languages': return 'Language mixes'
-      case 'bpm': return 'BPM Mixes'
+      case 'bpm': return 'BPM mixes'
       default: return ''
     }
   }, [pickerId])

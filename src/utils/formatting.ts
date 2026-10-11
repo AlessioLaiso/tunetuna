@@ -138,13 +138,12 @@ export function getSongReleaseType(tags: string[] | undefined): string | null {
 }
 
 /**
- * Formats a release type value for display: "live-album" -> "Live Albums".
- * The value is capitalized and hyphens become spaces; plural "s" is appended
+ * Formats a release type value for display: "live-album" -> "Live albums".
+ * The first letter is capitalized and hyphens become spaces; plural "s" is appended
  * unless the value already ends in "s".
  */
 export function formatReleaseTypeLabel(value: string): string {
-  const words = value.replace(/-/g, ' ').split(' ')
-  const label = words.map(w => capitalizeFirst(w)).join(' ')
+  const label = capitalizeFirst(value.replace(/-/g, ' '))
   return /s$/i.test(label) ? label : `${label}s`
 }
 

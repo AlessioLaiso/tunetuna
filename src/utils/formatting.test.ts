@@ -35,7 +35,7 @@ describe('getSongReleaseType', () => {
 
 describe('formatReleaseTypeLabel', () => {
   it('formats custom release types as plural titles', () => {
-    expect(formatReleaseTypeLabel('live-album')).toBe('Live Albums')
+    expect(formatReleaseTypeLabel('live-album')).toBe('Live albums')
     expect(formatReleaseTypeLabel('compilation')).toBe('Compilations')
   })
 

@@ -427,7 +427,7 @@ export default function CollectionDetailPage() {
     if (hasMultipleDiscs) {
       for (const [discLabel] of tracksByDisc) {
         if (discLabel) {
-          actions.push({ id: `logStreamDisc:${discLabel}`, label: `Log ${discLabel} to Stats`, icon: BarChart3 })
+          actions.push({ id: `logStreamDisc:${discLabel}`, label: `Log ${discLabel} to stats`, icon: BarChart3 })
         }
       }
     }
