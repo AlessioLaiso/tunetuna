@@ -3,7 +3,9 @@
 // is ready, the <audio> element keeps playing muted as the master clock (position,
 // seeking, media session) and the separated stems are scheduled back to back through
 // Web Audio, with the vocal stem's gain controlled by the slider. Whenever the playhead
-// reaches audio that isn't separated yet, playback falls back to the element.
+// reaches audio that isn't separated yet, playback falls back to the element, except at
+// the very start of a track, where playback is held until the first segment is ready.
+// The next tracks in the queue are separated ahead of time.
 
 import { create } from 'zustand'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -29,7 +31,8 @@ interface Segment {
 }
 
 interface TrackStems {
-  mix: AudioBuffer
+  // Dropped once every segment is separated
+  mix: AudioBuffer | null
   segmentCount: number
   segments: Map<number, Segment>
 }
@@ -39,7 +42,9 @@ const SYNC_INTERVAL_MS = 100
 const MAX_DRIFT_SECONDS = 0.05
 const START_DELAY_SECONDS = 0.03
 const LOOKAHEAD_SECONDS = 2
-const TRACK_CACHE_SIZE = 2
+const PREPARE_AHEAD_TRACKS = 2
+// Playback is held (rather than starting with vocals) when it's this close to a track's start
+const HOLD_WINDOW_SECONDS = 1
 
 export const isVocalRemoverSupported = () =>
   typeof navigator !== 'undefined' && 'gpu' in navigator && !isIOS()
@@ -64,11 +69,34 @@ let sources: AudioBufferSourceNode[] = []
 let timeline = { contextTime: 0, position: 0 }
 let nextSegmentToSchedule = 0
 let scheduledUntil = 0
+// Element frozen at the start of a track (playbackRate 0) while its first segment is separated
+let heldElement: HTMLAudioElement | null = null
 
 function getCurrentTrackId(): string | null {
   const { songs, currentIndex } = usePlayerStore.getState()
   return songs[currentIndex]?.Id ?? null
 }
+
+// Current track followed by the next ones in play order
+function getUpcomingTrackIds(): string[] {
+  const { songs, currentIndex, repeat } = usePlayerStore.getState()
+  const ids: string[] = []
+  for (let k = 0; k <= PREPARE_AHEAD_TRACKS && currentIndex >= 0; k++) {
+    let index = currentIndex + k
+    if (index >= songs.length) {
+      if (repeat !== 'all') break
+      index %= songs.length
+    }
+    const id = songs[index]?.Id
+    if (id && !ids.includes(id)) ids.push(id)
+  }
+  return ids
+}
+
+const isComplete = (stems: TrackStems | undefined) =>
+  stems !== undefined && stems.segments.size >= stems.segmentCount
+
+const segmentIndexAt = (seconds: number) => Math.floor((seconds * MDX_SAMPLE_RATE) / SEGMENT_LENGTH)
 
 function setStatus(status: Status, progress = 0) {
   const state = useVocalRemoverStore.getState()
@@ -110,8 +138,23 @@ function stopStems() {
     source.disconnect()
   }
   sources = []
-  if (usingStems && followedElement) followedElement.muted = false
+  if (usingStems && followedElement && followedElement !== heldElement) followedElement.muted = false
   usingStems = false
+}
+
+function hold(element: HTMLAudioElement) {
+  if (heldElement === element) return
+  release()
+  heldElement = element
+  element.playbackRate = 0
+  element.muted = true
+}
+
+function release() {
+  if (!heldElement) return
+  heldElement.playbackRate = 1
+  if (!usingStems || heldElement !== followedElement) heldElement.muted = false
+  heldElement = null
 }
 
 // Schedules ready segments up to the lookahead; returns false if playback is about to hit a gap
@@ -151,7 +194,7 @@ function startStems(element: HTMLAudioElement, stems: TrackStems) {
     contextTime: context.currentTime + START_DELAY_SECONDS,
     position: element.currentTime + START_DELAY_SECONDS,
   }
-  nextSegmentToSchedule = Math.floor((timeline.position * MDX_SAMPLE_RATE) / SEGMENT_LENGTH)
+  nextSegmentToSchedule = segmentIndexAt(timeline.position)
   scheduledUntil = timeline.contextTime
   usingStems = true
   element.muted = true
@@ -167,6 +210,7 @@ function follow(element: HTMLAudioElement, trackId: string) {
 }
 
 function unfollow() {
+  release()
   stopStems()
   if (followedElement) {
     for (const name of ELEMENT_EVENTS) followedElement.removeEventListener(name, onElementEvent)
@@ -214,13 +258,21 @@ function sync() {
   // Follow the element's volume (user volume and pause fades)
   master.gain.setTargetAtTime(element.volume, context.currentTime, 0.01)
 
+  scheduleSeparation()
+
   const stems = tracks.get(trackId)
-  const complete = stems !== undefined && stems.segments.size >= stems.segmentCount
-  if (!complete && !failedTrackIds.has(trackId) && job?.trackId !== trackId) {
-    void startSeparation(trackId, element.currentTime)
+  const complete = isComplete(stems)
+  const failed = failedTrackIds.has(trackId)
+  const playing = !element.paused && !element.ended
+  const segmentReady = stems?.segments.has(segmentIndexAt(element.currentTime)) ?? false
+
+  // Rather than starting a track with vocals, wait for its first segment
+  if (playing && !segmentReady && !failed && element.currentTime < HOLD_WINDOW_SECONDS) {
+    hold(element)
+  } else {
+    release()
   }
 
-  const playing = !element.paused && !element.ended
   if (!stems || !playing) {
     stopStems()
   } else if (usingStems) {
@@ -229,12 +281,11 @@ function sync() {
       stopStems()
     }
   }
-  if (stems && playing && !usingStems) {
-    const index = Math.floor((element.currentTime * MDX_SAMPLE_RATE) / SEGMENT_LENGTH)
-    if (stems.segments.has(index)) startStems(element, stems)
+  if (stems && playing && !usingStems && segmentReady) {
+    startStems(element, stems)
   }
 
-  if (failedTrackIds.has(trackId)) {
+  if (failed) {
     setStatus('error')
   } else if (usingStems || complete) {
     setStatus('active')
@@ -252,7 +303,19 @@ function cancelJob() {
   job = null
 }
 
-async function startSeparation(trackId: string, position: number) {
+// Keeps the worker busy with the current track first, then the next ones in the queue
+function scheduleSeparation() {
+  const upcoming = getUpcomingTrackIds()
+  for (const cachedId of tracks.keys()) {
+    if (!upcoming.includes(cachedId)) tracks.delete(cachedId)
+  }
+  const target = upcoming.find((id) => !isComplete(tracks.get(id)) && !failedTrackIds.has(id))
+  if (job?.trackId === target) return
+  cancelJob()
+  if (target) void startSeparation(target)
+}
+
+async function startSeparation(trackId: string) {
   cancelJob()
   const abort = new AbortController()
   const id = nextJobId++
@@ -267,12 +330,11 @@ async function startSeparation(trackId: string, position: number) {
       if (job?.id !== id) return
       stems = { mix, segmentCount: Math.max(1, Math.ceil(mix.length / SEGMENT_LENGTH)), segments: new Map() }
       tracks.set(trackId, stems)
-      for (const cachedId of tracks.keys()) {
-        if (tracks.size <= TRACK_CACHE_SIZE) break
-        if (cachedId !== trackId) tracks.delete(cachedId)
-      }
     }
     const { mix } = stems
+    if (!mix) return
+    // Start from the playhead for the current track (read now, after the download)
+    const position = trackId === followedTrackId && followedElement ? followedElement.currentTime : 0
     const left = mix.getChannelData(0).slice()
     const right = mix.getChannelData(Math.min(1, mix.numberOfChannels - 1)).slice()
     getWorker().postMessage(
@@ -298,6 +360,7 @@ async function startSeparation(trackId: string, position: number) {
 function addSegment(stems: TrackStems, index: number, vocalsLeft: Float32Array<ArrayBuffer>, vocalsRight: Float32Array<ArrayBuffer>) {
   const { context } = getAudioGraph()
   const { mix } = stems
+  if (!mix) return
   const length = vocalsLeft.length
   const start = index * SEGMENT_LENGTH
   const vocals = context.createBuffer(2, length, MDX_SAMPLE_RATE)
@@ -312,6 +375,7 @@ function addSegment(stems: TrackStems, index: number, vocalsLeft: Float32Array<A
     instrumental.copyToChannel(instrumentalChannel, channel)
   }
   stems.segments.set(index, { vocals, instrumental })
+  if (isComplete(stems)) stems.mix = null
 }
 
 function handleWorkerMessage(message: WorkerResponse) {
@@ -331,6 +395,7 @@ function handleWorkerMessage(message: WorkerResponse) {
     }
     case 'done':
       job = null
+      sync()
       return
     case 'error':
       logger.error('[VocalRemover] Separation failed:', message.message)
@@ -364,3 +429,11 @@ export const useVocalRemoverStore = create<VocalRemoverState>((set) => ({
     set({ level: 1, status: 'idle', progress: 0 })
   },
 }))
+
+// React to track changes straight away (e.g. hold a new track before it plays with vocals)
+usePlayerStore.subscribe((state, prev) => {
+  if (!syncTimer) return
+  if (state.audioElement !== prev.audioElement || state.currentIndex !== prev.currentIndex || state.songs !== prev.songs) {
+    sync()
+  }
+})
