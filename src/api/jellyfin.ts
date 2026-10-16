@@ -1414,6 +1414,9 @@ class JellyfinClient {
   async fetchAudio(itemId: string, signal?: AbortSignal): Promise<ArrayBuffer> {
     const response = await fetch(`${this.baseUrl}/Audio/${itemId}/stream?static=true`, {
       headers: { 'Authorization': this.getAuthHeader() },
+      // The <audio> element's copy is cached without CORS headers (Jellyfin only sends
+      // them when the request has an Origin, and doesn't Vary on it), so bypass the cache
+      cache: 'no-store',
       signal,
     })
     if (!response.ok) {
