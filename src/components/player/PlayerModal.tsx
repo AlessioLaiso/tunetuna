@@ -9,6 +9,8 @@ import QueueList from './QueueList'
 import LyricsModal from './LyricsModal'
 import { getBlurredArtUrl } from '../../utils/blurredArt'
 import VolumeControl from '../layout/VolumeControl'
+import VocalVolumeControl from './VocalVolumeControl'
+import { isVocalRemoverSupported } from '../../audio/vocalSeparation/vocalRemover'
 import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus, Moon } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import vinylImage from '../../assets/vinyl.png'
@@ -855,6 +857,13 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                     <Repeat className="w-6 h-6" />
                   )}
                 </button>
+
+                {/* Vocal level control while lyrics are shown, mirroring the volume control */}
+                {showLyricsModal && isVocalRemoverSupported() && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex">
+                    <VocalVolumeControl />
+                  </div>
+                )}
 
                 {/* Volume control on 768px+, horizontal variant on the right */}
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex">

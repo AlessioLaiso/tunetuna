@@ -1410,6 +1410,18 @@ class JellyfinClient {
     return result
   }
 
+  // Downloads a track's original audio file for client-side processing
+  async fetchAudio(itemId: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+    const response = await fetch(`${this.baseUrl}/Audio/${itemId}/stream?static=true`, {
+      headers: { 'Authorization': this.getAuthHeader() },
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(`Audio download failed: ${response.status}`)
+    }
+    return response.arrayBuffer()
+  }
+
   private async fetchLyrics(itemId: string): Promise<LyricsResult | null> {
     try {
       // Jellyfin 10.9+ lyrics endpoint; returns 404 when the track has no lyrics

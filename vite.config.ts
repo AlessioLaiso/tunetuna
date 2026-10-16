@@ -11,6 +11,13 @@ export default defineConfig({
     // Make build timestamp available in the app
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
   },
+  // ONNX Runtime Web (vocal remover) loads its own wasm; pre-bundling breaks its asset URLs
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
+  },
+  worker: {
+    format: 'es',
+  },
   server: {
     // Only bind to all interfaces when explicitly enabled (for mobile testing)
     // Default to localhost for security

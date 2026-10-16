@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Volume, Volume1, Volume2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playerStore'
 
 type VolumeControlVariant = 'horizontal' | 'vertical' | 'compact'
@@ -12,10 +13,19 @@ interface VolumeControlProps {
   popoverDirection?: 'up' | 'down'
   className?: string
   onRef?: (element: HTMLElement | null) => void
+  // Controls a custom value instead of the player volume (horizontal variant)
+  value?: number
+  onChange?: (value: number) => void
+  icon?: LucideIcon
+  label?: string
 }
 
-export default function VolumeControl({ variant = 'horizontal', onClose, onOpenPopover, popoverPosition, popoverDirection = 'up', className, onRef }: VolumeControlProps) {
-  const { volume, setVolume } = usePlayerStore()
+export default function VolumeControl({ variant = 'horizontal', onClose, onOpenPopover, popoverPosition, popoverDirection = 'up', className, onRef, value, onChange, icon, label = 'Volume' }: VolumeControlProps) {
+  const playerVolume = usePlayerStore((state) => state.volume)
+  const setPlayerVolume = usePlayerStore((state) => state.setVolume)
+  const isCustom = onChange !== undefined
+  const volume = isCustom ? value ?? 1 : playerVolume
+  const setVolume = onChange ?? setPlayerVolume
   const [isDragging, setIsDragging] = useState(false)
   const [lastNonZeroVolume, setLastNonZeroVolume] = useState(1)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -46,13 +56,14 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
 
   // Track non-zero volume for toggle
   useEffect(() => {
-    if (volume > 0) {
+    if (!isCustom && volume > 0) {
       setLastNonZeroVolume(volume)
       localStorage.setItem('lastNonZeroVolume', volume.toString())
     }
-  }, [volume])
+  }, [volume, isCustom])
 
   const getVolumeIcon = () => {
+    if (icon) return icon
     if (volume === 0) return Volume
     if (volume <= 0.5) return Volume1
     return Volume2
@@ -65,7 +76,8 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
     let clientX: number
     let clientY: number
 
-    if (e instanceof TouchEvent || 'touches' in e) {
+    // No instanceof TouchEvent: desktop Firefox doesn't define it and would throw
+    if ('touches' in e) {
       clientX = (e as TouchEvent).touches[0].clientX
       clientY = (e as TouchEvent).touches[0].clientY
     } else {
@@ -136,6 +148,10 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
 
   const handleIconClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (isCustom) {
+      setVolume(volume > 0 ? 0 : 1)
+      return
+    }
     const currentVolume = usePlayerStore.getState().volume
 
     if (currentVolume > 0) {
@@ -179,7 +195,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
             onOpenPopover()
           }
         }}
-        aria-label="Volume"
+        aria-label={label}
         className={className || "text-white/70 hover:text-zinc-300 transition-colors"}
       >
         <Icon className="w-6 h-6" />
@@ -192,7 +208,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
       <div ref={setContainerRef} className="flex items-center gap-2 px-2 select-none" style={{ width: '120px' }} onClick={handleContainerClick}>
         <button
           onClick={handleIconClick}
-          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+          aria-label={isCustom ? label : volume === 0 ? 'Unmute' : 'Mute'}
           className="text-white/70 hover:text-white hover:bg-zinc-800 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
         >
           <Icon className="w-5 h-5" />
@@ -200,7 +216,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
         <div
           ref={containerRef}
           role="slider"
-          aria-label="Volume"
+          aria-label={label}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(volume * 100)}
@@ -248,7 +264,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           <div
             ref={containerRef}
             role="slider"
-            aria-label="Volume"
+            aria-label={label}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(volume * 100)}
