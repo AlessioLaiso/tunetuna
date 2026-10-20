@@ -84,7 +84,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDrop={handleDrop}
-            className={`group queue-row flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
+            className={`group queue-row select-none flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
                 } ${isCurrent ? 'bg-zinc-900' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
             onClick={isCurrent ? undefined : handleRowClick}
             onContextMenu={handleContextMenu}
@@ -154,6 +154,11 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                 draggable
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onTouchStart={(e) => e.stopPropagation()}
+                                // Android fires contextmenu on long-press; keep it from opening the row menu
+                                onContextMenu={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                }}
                                 onDragStart={(e) => {
                                     e.stopPropagation()
                                     onReorderDragStart(e, index)
@@ -162,7 +167,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                     e.stopPropagation()
                                     onReorderDragEnd()
                                 }}
-                                className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                                className="relative select-none [-webkit-touch-callout:none] before:content-[''] before:absolute before:-left-3 before:right-0 before:-inset-y-5 text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
                                 aria-label="Drag to reorder"
                             >
                                 <GripHorizontal className="w-4 h-4" />
