@@ -807,7 +807,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                     onTouchEnd={handleProgressTouchEnd}
                   >
                     <div
-                      className="h-full bg-[var(--accent-color)] transition-all"
+                      className="h-full bg-[var(--accent-fill)] transition-all"
                       style={{
                         width: `${progressPercent}%`,
                         borderTopLeftRadius: '9999px',

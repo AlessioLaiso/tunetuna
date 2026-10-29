@@ -643,7 +643,7 @@ export default function PlayerBar() {
             {/* Visual bar - positioned at bottom of touch target to align with player bar top edge */}
             <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
               <div
-                className="h-full bg-[var(--accent-color)] transition-all"
+                className="h-full bg-[var(--accent-fill)] transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -910,7 +910,7 @@ export default function PlayerBar() {
               {/* Visual bar - centered within touch target */}
               <div className="absolute left-0 right-0 h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
                 <div
-                  className="h-full bg-[var(--accent-color)] transition-all"
+                  className="h-full bg-[var(--accent-fill)] transition-all"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
