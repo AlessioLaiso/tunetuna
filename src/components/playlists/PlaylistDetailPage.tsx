@@ -313,7 +313,7 @@ export default function PlaylistDetailPage() {
         setTimeout(() => {
           // Re-check playing state
           const ps = usePlayerStore.getState()
-          const stillPlaying = queueMatchesList(ps.songs, tracks.map(t => t.Id)) && ps.isPlaying
+          const stillPlaying = queueMatchesList(ps.songs, tracks.map(t => t.Id), ps.currentIndex) && ps.isPlaying
           if (stillPlaying) {
             setHideCover(true)
           }

@@ -4,7 +4,7 @@ import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import { useIsQueueList } from '../../hooks/useIsQueueList'
+import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
 import { useVinylAnimation } from '../../hooks/useVinylAnimation'
 import Spinner from '../shared/Spinner'
 import VinylArtwork from '../shared/VinylArtwork'
@@ -120,9 +120,11 @@ export default function AlbumDetailPage() {
   // merely turns up during shuffle-all or another queue.
   const isQueueThisAlbum = useIsQueueList(tracks)
   const isCurrentAlbumPlaying = isQueueThisAlbum && isPlaying
+  // The disc spins whenever any of the album's songs is playing.
+  const isDiscSpinning = useIsCurrentTrackInList(tracks) && isPlaying
 
   const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
-    isPlaying: isCurrentAlbumPlaying,
+    isPlaying: isDiscSpinning,
     hasImage,
   })
 
@@ -409,7 +411,7 @@ export default function AlbumDetailPage() {
               hideAlbumArt={hideAlbumArt}
               rotationAngle={rotationAngle}
               shouldSplitRef={shouldSplitRef}
-              isPlaying={isCurrentAlbumPlaying}
+              isPlaying={isDiscSpinning}
               onCoverError={() => setHasImage(false)}
               onDiscImageError={() => setDiscImageUrl(null)}
               onArtistLogoError={() => { setHasArtistLogo(false); setArtistLogoUrl(null) }}

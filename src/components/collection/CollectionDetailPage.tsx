@@ -4,7 +4,7 @@ import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, Li
 import { useCollectionStore } from '../../stores/collectionStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import { useIsQueueList } from '../../hooks/useIsQueueList'
+import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
 import { useStatsStore } from '../../stores/statsStore'
 import { useToastStore } from '../../stores/toastStore'
 import { useLibraryLookup } from '../../hooks/useLibraryLookup'
@@ -354,9 +354,11 @@ export default function CollectionDetailPage() {
   // merely turns up during shuffle-all or another queue.
   const isQueueThisRelease = useIsQueueList(libraryMatches)
   const isPlayingFromCollection = isQueueThisRelease && isPlaying
+  // The disc or cassette spins whenever any of the release's songs is playing.
+  const isDiscSpinning = useIsCurrentTrackInList(libraryMatches) && isPlaying
 
   const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
-    isPlaying: isPlayingFromCollection,
+    isPlaying: isDiscSpinning,
     hasImage,
     enabled: !isCassette,
   })
@@ -543,7 +545,7 @@ export default function CollectionDetailPage() {
               hideAlbumArt={hideAlbumArt}
               rotationAngle={rotationAngle}
               shouldSplitRef={shouldSplitRef}
-              isPlaying={isPlayingFromCollection}
+              isPlaying={isDiscSpinning}
               isCassette={isCassette}
               isCD={isCD}
               onCoverError={() => setHasImage(false)}

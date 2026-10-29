@@ -254,4 +254,10 @@ describe('queueMatchesList', () => {
   it('tolerates duplicate entries on either side', () => {
     expect(queueMatchesList([song('a'), song('a'), song('b')], ['a', 'b', 'b'])).toBe(true)
   })
+
+  it('stops matching once playback has moved on to recommendations', () => {
+    const songs = [song('a'), song('x', 'recommendation')]
+    expect(queueMatchesList(songs, ['a'], 0)).toBe(true)
+    expect(queueMatchesList(songs, ['a'], 1)).toBe(false)
+  })
 })

@@ -308,9 +308,12 @@ export function computeReorderQueue(
  * the queue (recommendations excluded) are the same set of IDs as `ids`. Pages
  * use this to decide whether they are "the thing playing" — a song from an
  * album turning up mid shuffle-all does not make the album page show Pause.
+ * When `currentIndex` is given, the queue also stops matching once playback has
+ * moved past the list into recommendations.
  */
-export function queueMatchesList(songs: readonly QueueSong[], ids: readonly string[]): boolean {
+export function queueMatchesList(songs: readonly QueueSong[], ids: readonly string[], currentIndex?: number): boolean {
   if (ids.length === 0) return false
+  if (currentIndex !== undefined && isPlayingRecommendation(songs, currentIndex)) return false
   const queueIds = new Set<string>()
   for (const s of songs) {
     if (s.source === 'user') queueIds.add(s.Id)
@@ -322,4 +325,9 @@ export function queueMatchesList(songs: readonly QueueSong[], ids: readonly stri
     if (!queueIds.has(id)) return false
   }
   return true
+}
+
+/** True when the current song is an auto-added recommendation, not one the user queued. */
+export function isPlayingRecommendation(songs: readonly QueueSong[], currentIndex: number): boolean {
+  return songs[currentIndex]?.source === 'recommendation'
 }
