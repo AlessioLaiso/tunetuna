@@ -15,10 +15,14 @@ import PlaylistPicker from '../playlists/PlaylistPicker'
 import Image from '../shared/Image'
 import Pagination from '../shared/Pagination'
 import CoverflowView from './CoverflowView'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 const ITEMS_PER_PAGE = 84
 
+const HEADER_FADE = 'linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0) 100%)'
+
 export default function CollectionPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
   const { releases, isLoading, error, loadingProgress, formats, fetchCollection, sortMode, setSortMode, viewMode, setViewMode } = useCollectionStore()
   const { discogsToken } = useSettingsStore()
@@ -202,10 +206,10 @@ export default function CollectionPage() {
   if (!discogsToken) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
-        <p className="text-gray-400 mb-4">Configure your Discogs token to view your physical collection</p>
+        <p className="text-white/60 mb-4">Configure your Discogs token to view your physical collection</p>
         <button
           onClick={() => navigate('/settings')}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-white/15 text-white rounded-lg hover:bg-white/25 transition-colors"
         >
           <Settings className="w-4 h-4" />
           Go to settings
@@ -219,7 +223,7 @@ export default function CollectionPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <div className="w-8 h-8 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin mb-4" />
         {loadingProgress && (
-          <p className="text-gray-400 text-sm">
+          <p className="text-white/60 text-sm">
             Loading page {loadingProgress.page} of {loadingProgress.totalPages}...
           </p>
         )}
@@ -235,7 +239,7 @@ export default function CollectionPage() {
         {isTokenError ? (
           <button
             onClick={() => navigate('/settings')}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-white/15 text-white rounded-lg hover:bg-white/25 transition-colors"
           >
             <Settings className="w-4 h-4" />
             Go to settings
@@ -243,7 +247,7 @@ export default function CollectionPage() {
         ) : (
           <button
             onClick={fetchCollection}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+            className="px-4 py-2 bg-white/15 text-white rounded-lg hover:bg-white/25 transition-colors"
           >
             Retry
           </button>
@@ -255,7 +259,7 @@ export default function CollectionPage() {
   if (releases.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
-        <p className="text-gray-400">Your Discogs collection is empty</p>
+        <p className="text-white/60">Your Discogs collection is empty</p>
       </div>
     )
   }
@@ -281,7 +285,7 @@ export default function CollectionPage() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0) 100%)',
+            background: hasAppBackground ? undefined : HEADER_FADE,
           }}
         />
         <div className="max-w-page mx-auto relative">
@@ -303,7 +307,7 @@ export default function CollectionPage() {
                   const nextIndex = (sortOptions.findIndex(o => o.value === effectiveSortMode) + 1) % sortOptions.length
                   setSortMode(sortOptions[nextIndex].value)
                 }}
-                className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+                className="text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
               >
                 {sortLabel}
                 <ArrowUpDown className="w-4 h-4" />
@@ -313,14 +317,14 @@ export default function CollectionPage() {
                   <select
                     value={formatFilter || ''}
                     onChange={(e) => setFormatFilter(e.target.value || null)}
-                    className="bg-transparent text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors appearance-none pr-5 cursor-pointer focus:outline-none"
+                    className="bg-transparent text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors appearance-none pr-5 cursor-pointer focus:outline-none"
                   >
                     <option value="">All formats</option>
                     {formats.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-white/60" />
                 </div>
               )}
               {viewMode === 'coverflow' && filteredAndSorted.length > 0 && (() => {
@@ -338,7 +342,7 @@ export default function CollectionPage() {
                   }
                 }
                 return (
-                  <span className="ml-auto text-sm text-gray-400 tabular-nums">
+                  <span className="ml-auto text-sm text-white/60 tabular-nums">
                     {contextLabel && <><span className="text-white">{contextLabel}</span><span className="mx-1.5">•</span></>}
                     {coverflowIndex + 1} / {filteredAndSorted.length}
                   </span>
@@ -429,7 +433,7 @@ export default function CollectionPage() {
                       }}
                       className="text-left group"
                     >
-                      <div className={`aspect-square rounded overflow-hidden ${isCassette ? '' : 'bg-zinc-900'} relative flex items-center justify-center mb-1`}>
+                      <div className={`aspect-square rounded overflow-hidden ${isCassette ? '' : 'bg-white/10'} relative flex items-center justify-center mb-1`}>
                         {info.cover_image ? (
                           <Image
                             src={info.cover_image}
@@ -440,15 +444,15 @@ export default function CollectionPage() {
                             loading="lazy"
                           />
                         ) : (
-                          <div className="w-full h-full bg-zinc-900" />
+                          <div className="w-full h-full bg-white/10" />
                         )}
                       </div>
                       <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
                         {info.title}
                       </div>
-                      <div className="text-xs text-gray-400 truncate">{artistName}</div>
+                      <div className="text-xs text-white/60 truncate">{artistName}</div>
                       {(info.year > 0 || (formats.length > 1 && formatName)) && (
-                        <div className="text-xs text-gray-400 truncate flex items-center gap-1">
+                        <div className="text-xs text-white/60 truncate flex items-center gap-1">
                           {info.year > 0 && <span>{info.year}</span>}
                           {info.year > 0 && formats.length > 1 && formatName && <span>•</span>}
                           {formats.length > 1 && formatName && <span>{formatName}</span>}
@@ -475,7 +479,7 @@ export default function CollectionPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
           <div
-            className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 min-w-[200px]"
+            className="fixed z-50 bg-zinc-900 border border-white/25 rounded-lg shadow-2xl py-1 min-w-[200px]"
             style={{
               left: Math.min(menuPosition?.x || 100, window.innerWidth - 250),
               top: Math.min(menuPosition?.y || 100, window.innerHeight - (collectionMenuActions.length * 44 + 8) - 10),
@@ -490,7 +494,7 @@ export default function CollectionPage() {
                   key={action.id}
                   onClick={() => handleMenuAction(action.id)}
                   disabled={!!menuLoading}
-                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
                 >
                   <Icon className="w-4 h-4 text-white flex-shrink-0" />
                   <span className="flex-1 text-sm text-white">{action.label}</span>
@@ -508,7 +512,7 @@ export default function CollectionPage() {
             {menuRelease && (
               <div className="mb-4 ml-4">
                 <div className="text-lg font-semibold text-white break-words">{menuRelease.basic_information.title}</div>
-                <div className="text-sm text-gray-400">{cleanDiscogsArtistName(menuRelease.basic_information.artists[0]?.name || '')}</div>
+                <div className="text-sm text-white/60">{cleanDiscogsArtistName(menuRelease.basic_information.artists[0]?.name || '')}</div>
               </div>
             )}
             <div className="space-y-1">

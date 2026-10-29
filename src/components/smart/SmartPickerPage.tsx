@@ -22,6 +22,7 @@ import {
 } from '../../utils/smartPlaylists'
 import { capitalizeFirst } from '../../utils/formatting'
 import { filterExcludedGenres } from '../../utils/genreFilter'
+import { SurfaceBackdrop } from '../layout/AppBackground'
 
 // ============================================================================
 // Helpers
@@ -181,11 +182,12 @@ export default function SmartPickerPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center gap-4 px-4" style={{ paddingTop: '1.5rem', paddingBottom: '1rem' }}>
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -206,7 +208,7 @@ export default function SmartPickerPage() {
                 onClick={() => navigate(item.route)}
                 className="text-left group"
               >
-                <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center">
+                <div className="aspect-square rounded overflow-hidden bg-white/10 relative flex items-center justify-center">
                   {item.albumId ? (
                     <Image
                       src={jellyfinClient.getAlbumArtUrl(item.albumId, 474)}
@@ -216,7 +218,7 @@ export default function SmartPickerPage() {
                       rounded="rounded"
                     />
                   ) : (
-                    <div className="w-full h-full bg-zinc-900" />
+                    <div className="w-full h-full bg-white/10" />
                   )}
                 </div>
                 <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors mt-1">

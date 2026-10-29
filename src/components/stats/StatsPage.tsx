@@ -32,6 +32,8 @@ import { logger } from '../../utils/logger'
 import ContextMenu from '../shared/ContextMenu'
 import Image from '../shared/Image'
 import { useContextMenu } from '../../hooks/useContextMenu'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 // Month names for display
 const SHORT_MONTH_NAMES = [
@@ -153,15 +155,15 @@ function SectionHeader({ icon: Icon, title, onClick }: { icon: typeof Music; tit
   if (onClick) {
     return (
       <button onClick={onClick} className="flex items-center gap-2 mb-4 mt-8 group">
-        <Icon className="w-5 h-5 text-zinc-400" />
-        <h2 className="text-lg font-semibold text-zinc-300 group-hover:text-[var(--accent-color)] transition-colors">{title}</h2>
+        <Icon className="w-5 h-5 text-white/60" />
+        <h2 className="text-lg font-semibold text-white/80 group-hover:text-[var(--accent-color)] transition-colors">{title}</h2>
       </button>
     )
   }
   return (
     <div className="flex items-center gap-2 mb-4 mt-12">
-      <Icon className="w-5 h-5 text-zinc-400" />
-      <h2 className="text-lg font-semibold text-zinc-300">{title}</h2>
+      <Icon className="w-5 h-5 text-white/60" />
+      <h2 className="text-lg font-semibold text-white/80">{title}</h2>
     </div>
   )
 }
@@ -211,24 +213,24 @@ function TimelineCard({
   return (
     <button
       onClick={onClick}
-      className="group flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors text-left border border-zinc-700"
+      className="group flex items-center gap-3 p-2.5 rounded-xl bg-white/10 hover:bg-white/15 transition-colors text-left border border-white/25"
     >
-      <div className="w-11 h-11 rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 relative">
+      <div className="w-11 h-11 rounded-full bg-white/25 overflow-hidden flex-shrink-0 relative">
         {imageUrl ? (
           <img src={imageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <User className="w-5 h-5 text-zinc-500" />
+            <User className="w-5 h-5 text-white/45" />
           </div>
         )}
         <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-zinc-400">
+        <div className="text-xs font-medium text-white/60">
           {formatMonthShort(month, showYear)}
         </div>
         <div className="font-medium text-white text-sm truncate group-hover:text-[var(--accent-color)] transition-colors">{artistName}</div>
-        <div className={`text-xs flex items-center gap-1 ${isTop ? 'text-[var(--accent-color)]' : 'text-zinc-400'}`}>
+        <div className={`text-xs flex items-center gap-1 ${isTop ? 'text-[var(--accent-color)]' : 'text-white/60'}`}>
           {formatHours(hours)}
           {isTop && <TrendingUp className="w-3 h-3" />}
         </div>
@@ -294,7 +296,7 @@ function TopSongItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group ${leftPadding}`}
       >
         <div className={`${sizeClass} rounded-sm overflow-hidden flex-shrink-0`}>
           <Image
@@ -308,9 +310,9 @@ function TopSongItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{songName}
+            <span className="text-white/45 mr-2 tabular-nums">{rank}</span>{songName}
           </div>
-          <div className="text-zinc-400 text-sm truncate ml-[18px]">
+          <div className="text-white/60 text-sm truncate ml-[18px]">
             {artistId ? (
               <span
                 className="clickable-text"
@@ -327,7 +329,7 @@ function TopSongItem({
             <div className="ml-[18px]"><SingleDayPlaysBadge count={singleDayPlays.count} date={singleDayPlays.date} showYear={showYear} /></div>
           )}
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+        <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
           {plays} streams
         </div>
       </button>
@@ -409,24 +411,24 @@ function TopArtistItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group ${leftPadding}`}
       >
-        <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 relative`}>
+        <div className={`${sizeClass} rounded-full bg-white/25 overflow-hidden flex-shrink-0 relative`}>
           {currentImageUrl ? (
             <img src={currentImageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User className={`${iconSize} text-zinc-500`} />
+              <User className={`${iconSize} text-white/45`} />
             </div>
           )}
           <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{artistName}
+            <span className="text-white/45 mr-2 tabular-nums">{rank}</span>{artistName}
           </div>
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+        <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
           {formatHours(hours)}
         </div>
       </button>
@@ -460,19 +462,19 @@ function HorizontalBar({
 
   const Container = onClick ? 'button' : 'div'
   const containerProps = onClick
-    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group' }
+    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-white/10 rounded-lg py-1 transition-colors group' }
     : { className: 'flex items-center gap-3 mb-2' }
 
   return (
     <Container {...containerProps}>
-      <div className={`w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left ${onClick ? 'group-hover:text-[var(--accent-color)] transition-colors' : ''}`}>{label}</div>
-      <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
+      <div className={`w-44 text-white/80 text-sm truncate flex-shrink-0 text-left ${onClick ? 'group-hover:text-[var(--accent-color)] transition-colors' : ''}`}>{label}</div>
+      <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0">
         <div
           className={`h-full ${color} rounded-full transition-all duration-500`}
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(value)}</div>
+      <div className="w-16 text-white/60 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(value)}</div>
     </Container>
   )
 }
@@ -492,7 +494,7 @@ function MonthPicker({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-zinc-800 text-white rounded-lg px-3 py-2 pr-8 text-sm font-medium cursor-pointer hover:bg-zinc-700 transition-colors"
+        className="appearance-none bg-white/15 text-white rounded-lg px-3 py-2 pr-8 text-sm font-medium cursor-pointer hover:bg-white/25 transition-colors"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -500,7 +502,7 @@ function MonthPicker({
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
     </div>
   )
 }
@@ -509,9 +511,9 @@ function MonthPicker({
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <Music className="w-16 h-16 text-zinc-600 mb-4" />
-      <h2 className="text-xl font-semibold text-zinc-300 mb-2">No listening data yet</h2>
-      <p className="text-zinc-500 max-w-sm">
+      <Music className="w-16 h-16 text-white/30 mb-4" />
+      <h2 className="text-xl font-semibold text-white/80 mb-2">No listening data yet</h2>
+      <p className="text-white/45 max-w-sm">
         Start playing music to see your stats here
       </p>
     </div>
@@ -522,8 +524,8 @@ function EmptyState() {
 function LoadingState() {
   return (
     <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-8 h-8 border-2 border-zinc-600 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-      <p className="text-zinc-500">Loading your stats...</p>
+      <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
+      <p className="text-white/45">Loading your stats...</p>
     </div>
   )
 }
@@ -576,7 +578,7 @@ function TopAlbumItem({
         }}
         onContextMenu={handleContextMenu}
         {...longPressHandlers}
-        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
+        className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group ${leftPadding}`}
       >
         <div className={`${sizeClass} rounded-sm overflow-hidden flex-shrink-0`}>
           <Image
@@ -590,9 +592,9 @@ function TopAlbumItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-            <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{albumName}
+            <span className="text-white/45 mr-2 tabular-nums">{rank}</span>{albumName}
           </div>
-          <div className="text-zinc-400 text-sm truncate ml-[18px]">
+          <div className="text-white/60 text-sm truncate ml-[18px]">
             {artistId ? (
               <span
                 className="clickable-text"
@@ -606,7 +608,7 @@ function TopAlbumItem({
             ) : artistName}
           </div>
         </div>
-        <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+        <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
           {formatHours(hours)}
         </div>
       </button>
@@ -624,6 +626,7 @@ function TopAlbumItem({
 
 // Main component
 export default function StatsPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
   const { fetchEvents, oldestEventTs, initializeOldestTs, pendingEvents, metadataVersion } = useStatsStore()
   const { genres } = useMusicStore()
@@ -750,6 +753,7 @@ export default function StatsPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="p-4 pb-0 sm:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -757,13 +761,13 @@ export default function StatsPage() {
                 <div className="flex items-baseline gap-4">
                   <button
                     onClick={() => setActiveTab('canned')}
-                    className={`text-2xl font-bold transition-colors ${activeTab === 'canned' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                    className={`text-2xl font-bold transition-colors ${activeTab === 'canned' ? 'text-white' : 'text-white/30 hover:text-white/60'}`}
                   >
                     Tunetuna Canned
                   </button>
                   <button
                     onClick={() => setActiveTab('library')}
-                    className={`text-2xl font-bold transition-colors ${activeTab === 'library' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                    className={`text-2xl font-bold transition-colors ${activeTab === 'library' ? 'text-white' : 'text-white/30 hover:text-white/60'}`}
                   >
                     Library
                   </button>
@@ -771,7 +775,7 @@ export default function StatsPage() {
                 {activeTab === 'canned' && (
                   <button
                     onClick={() => setShowCannedModal(true)}
-                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
                     aria-label="Generate shareable stats image"
                   >
                     <ImageIcon className="w-5 h-5" />
@@ -803,7 +807,7 @@ export default function StatsPage() {
                   options={monthOptions}
                   onChange={setFromMonth}
                 />
-                <span className="text-zinc-500 text-sm">to</span>
+                <span className="text-white/45 text-sm">to</span>
                 <MonthPicker
                   value={toMonth}
                   options={monthOptions}
@@ -812,7 +816,7 @@ export default function StatsPage() {
                 {activeTab === 'library' && (
                   <button
                     onClick={() => setLibraryStatsTimeMode(!libraryStatsTimeMode)}
-                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:text-zinc-300 transition-colors"
+                    className="sm:hidden w-8 h-8 flex items-center justify-center text-white hover:text-white/80 transition-colors"
                     aria-label={libraryStatsTimeMode ? 'Switch to songs' : 'Switch to total time'}
                   >
                     {libraryStatsTimeMode ? <Clock3 className="w-5 h-5" /> : <Music className="w-5 h-5" />}
@@ -821,7 +825,7 @@ export default function StatsPage() {
                 {activeTab === 'canned' && (
                   <button
                     onClick={() => setShowCannedModal(true)}
-                    className="hidden sm:flex w-8 h-8 items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                    className="hidden sm:flex w-8 h-8 items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
                     aria-label="Generate shareable stats image"
                   >
                     <ImageIcon className="w-5 h-5" />
@@ -834,13 +838,15 @@ export default function StatsPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'} top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+7rem-8px)] sm:top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+4rem-8px)]`}
-        style={{
-          height: '16px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'} top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+7rem-8px)] sm:top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+4rem-8px)]`}
+          style={{
+            height: '16px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent)'
+          }}
+        />
+      )}
 
       {/* Spacer for fixed header */}
       <div className="h-28 sm:h-16" />
@@ -856,8 +862,8 @@ export default function StatsPage() {
       <div className="px-4">
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+          <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 text-white/60 mb-2">
               <CirclePlay className="w-5 h-5" />
               <span className="text-sm font-medium">Streams</span>
             </div>
@@ -865,8 +871,8 @@ export default function StatsPage() {
               {stats.totalSongs.toLocaleString()}
             </div>
           </div>
-          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+          <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 text-white/60 mb-2">
               <Clock className="w-5 h-5" />
               <span className="text-sm font-medium">Time listened</span>
             </div>
@@ -885,8 +891,8 @@ export default function StatsPage() {
             </div>
           </div>
           {stats.mostListeningDay && (
-            <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-              <div className="flex items-center gap-2 text-zinc-400 mb-2">
+            <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+              <div className="flex items-center gap-2 text-white/60 mb-2">
                 <TrendingUp className="w-5 h-5" />
                 <span className="text-sm font-medium">
                   Top day: {new Date(stats.mostListeningDay.date).toLocaleDateString('en-US', {
@@ -910,8 +916,8 @@ export default function StatsPage() {
               </div>
             </div>
           )}
-          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+          <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 text-white/60 mb-2">
               <Music className="w-5 h-5" />
               <span className="text-sm font-medium">Songs</span>
             </div>
@@ -919,8 +925,8 @@ export default function StatsPage() {
               {stats.uniqueSongs.toLocaleString()}
             </div>
           </div>
-          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+          <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 text-white/60 mb-2">
               <User className="w-5 h-5" />
               <span className="text-sm font-medium">Artists</span>
             </div>
@@ -928,8 +934,8 @@ export default function StatsPage() {
               {stats.uniqueArtists.toLocaleString()}
             </div>
           </div>
-          <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-            <div className="flex items-center gap-2 text-zinc-400 mb-2">
+          <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-2 text-white/60 mb-2">
               <Disc className="w-5 h-5" />
               <span className="text-sm font-medium">Albums</span>
             </div>
@@ -1182,7 +1188,7 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose }: { stats: Comput
       >
         <button
           onClick={handleDownloadClick}
-          className="flex items-center gap-2 px-3 h-10 mr-2 text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors"
+          className="flex items-center gap-2 px-3 h-10 mr-2 text-white bg-white/10 hover:bg-white/10 backdrop-blur-md rounded-full transition-colors"
           aria-label="Download image"
         >
           <Download className="w-5 h-5" />
@@ -1190,7 +1196,7 @@ function StatsImageModal({ stats, fromMonth, toMonth, onClose }: { stats: Comput
         </button>
         <button
           onClick={onClose}
-          className="w-10 h-10 flex items-center justify-center text-white bg-zinc-800/50 hover:bg-zinc-700/50 backdrop-blur-md rounded-full transition-colors"
+          className="w-10 h-10 flex items-center justify-center text-white bg-white/10 hover:bg-white/10 backdrop-blur-md rounded-full transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />

@@ -13,6 +13,8 @@ import { useState } from 'react'
 import { Play, Pause, SkipForward, Shuffle, SkipBack, Repeat, Repeat1, ListVideo } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { isIOS, formatTime } from '../../utils/formatting'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { BOTTOM_BAR_TINT, useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 export default function PlayerBar() {
   const {
@@ -44,6 +46,7 @@ export default function PlayerBar() {
 
   const currentTrack = useCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
+  const hasAppBackground = useAppBackgroundActive()
 
   const [showModal, setShowModal] = useState(false)
   // Write-only: setter drives modal close animation timing via effects below.
@@ -597,7 +600,7 @@ export default function PlayerBar() {
     <>
       <div
         ref={playerBarRef}
-        className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40 cursor-pointer bottom-[calc(4rem-8px)] lg:bottom-0"
+        className={`fixed left-0 right-0 bg-zinc-900 ${hasAppBackground ? '' : 'border-t border-white/15'} z-40 cursor-pointer bottom-[calc(4rem-8px)] lg:bottom-0`}
         style={{
           paddingBottom: 'env(safe-area-inset-bottom)'
         }}
@@ -610,6 +613,7 @@ export default function PlayerBar() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
+        <SurfaceBackdrop tint={BOTTOM_BAR_TINT} />
         {/* Seek bar at top for desktop - positioned absolutely to not affect layout */}
         {displayTrack && (
           <div
@@ -651,7 +655,7 @@ export default function PlayerBar() {
           {/* Left: Album art + song info with max width to prevent overlap */}
           <div className="flex items-center gap-3 min-w-0 max-w-[37%]" onContextMenu={handleSongContextMenu}>
             {!imageError && (
-              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
+              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10">
                 <Image
                   key={currentTrack?.Id || displayTrack.Id}
                   src={jellyfinClient.getAlbumArtUrl(
@@ -670,7 +674,7 @@ export default function PlayerBar() {
               <div className="text-sm font-medium text-white truncate">
                 {(currentTrack || displayTrack).Name}
               </div>
-              <div className="text-xs text-gray-400 truncate flex items-center gap-1.5 min-w-0">
+              <div className="text-xs text-white/60 truncate flex items-center gap-1.5 min-w-0">
                 {(currentTrack || displayTrack).ArtistItems?.[0]?.Id ? (
                   <span
                     className="clickable-text truncate"
@@ -699,7 +703,7 @@ export default function PlayerBar() {
                 toggleShuffle()
               }}
               aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                 }`}
             >
               <Shuffle className="w-5 h-5" />
@@ -715,8 +719,8 @@ export default function PlayerBar() {
               disabled={!hasPrevious}
               aria-label="Previous track"
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${hasPrevious
-                ? 'text-white hover:bg-zinc-800'
-                : 'text-gray-600 cursor-not-allowed'
+                ? 'text-white hover:bg-white/15'
+                : 'text-white/30 cursor-not-allowed'
                 }`}
             >
               <SkipBack className="w-5 h-5" />
@@ -737,7 +741,7 @@ export default function PlayerBar() {
                 }
               }}
               aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
-              className="w-10 h-10 mx-2 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-color)] hover:opacity-90"
+              className="w-10 h-10 mx-2 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-fill)] hover:opacity-90"
             >
               {isPlaying && currentTrack ? (
                 <Pause className="w-5 h-5" />
@@ -756,8 +760,8 @@ export default function PlayerBar() {
               disabled={!hasNext}
               aria-label="Next track"
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${hasNext
-                ? 'text-white hover:bg-zinc-800'
-                : 'text-gray-600 cursor-not-allowed'
+                ? 'text-white hover:bg-white/15'
+                : 'text-white/30 cursor-not-allowed'
                 }`}
             >
               <SkipForward className="w-5 h-5" />
@@ -769,7 +773,7 @@ export default function PlayerBar() {
                 toggleRepeat()
               }}
               aria-label={repeat === 'off' ? 'Enable repeat' : repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                 }`}
             >
               {repeat === 'one' ? (
@@ -790,7 +794,7 @@ export default function PlayerBar() {
                     e.stopPropagation()
                     toggleQueueSidebar()
                   }}
-                  className="text-gray-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center justify-center w-10 h-10 rounded-full"
+                  className="text-white/60 hover:text-white hover:bg-white/15 transition-colors flex items-center justify-center w-10 h-10 rounded-full"
                   title="Open queue"
                   aria-label="Open queue"
                 >
@@ -808,7 +812,7 @@ export default function PlayerBar() {
                   variant="compact"
                   onOpenPopover={handleOpenVolumePopover}
                   onRef={setVolumeButtonElement}
-                  className="w-10 h-10 flex items-center justify-center text-white hover:text-zinc-300 hover:bg-zinc-800 rounded-full transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-white hover:text-white/80 hover:bg-white/15 rounded-full transition-colors"
                 />
               )}
             </div>
@@ -820,7 +824,7 @@ export default function PlayerBar() {
           {/* Animated content: album art + text */}
           <div ref={mobileContentRef} className="flex items-center gap-3 flex-1 min-w-0" onContextMenu={handleSongContextMenu}>
             {!imageError && (
-              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900">
+              <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10">
                 <Image
                   key={currentTrack?.Id || displayTrack.Id}
                   src={jellyfinClient.getAlbumArtUrl(
@@ -839,7 +843,7 @@ export default function PlayerBar() {
               <div className="text-sm font-medium text-white truncate">
                 {(currentTrack || displayTrack).Name}
               </div>
-              <div className="text-xs text-gray-400 truncate">
+              <div className="text-xs text-white/60 truncate">
                 {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}
               </div>
             </div>
@@ -851,7 +855,7 @@ export default function PlayerBar() {
                 variant="compact"
                 onOpenPopover={handleOpenVolumePopover}
                 onRef={setMobileVolumeButtonElement}
-                className="text-white hover:text-zinc-300 transition-colors"
+                className="text-white hover:text-white/80 transition-colors"
               />
             )}
             <button
@@ -866,7 +870,7 @@ export default function PlayerBar() {
                 }
               }}
               aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
-              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
             >
               {isPlaying && currentTrack ? (
                 <Pause className="w-5 h-5" />

@@ -305,25 +305,25 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
                 }
               }}
               disabled={isShuffling}
-              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors disabled:opacity-50"
               aria-label="Shuffle all songs"
             >
               {isShuffling ? (
-                <div className="w-5 h-5 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
+                <div className="w-5 h-5 border-2 border-white/60 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <Shuffle className="w-5 h-5" />
               )}
             </button>
             <button
               onClick={openSearch}
-              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
               aria-label="Search"
             >
               <Search className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/settings')}
-              className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+              className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
               aria-label="Settings"
             >
               <Settings className="w-5 h-5" />

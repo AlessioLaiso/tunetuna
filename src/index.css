@@ -43,6 +43,8 @@
   -moz-osx-font-smoothing: grayscale;
 
   --accent-color: #3b82f6;
+  /* Filled controls with white content; differs from --accent-color only for the artwork accent */
+  --accent-fill: var(--accent-color);
   --sidebar-width: 320px;
 }
 
@@ -298,11 +300,14 @@ input[type="range"].slider::-moz-range-thumb {
 
   .clickable-text:hover {
     color: var(--accent-color);
+    --icon-color: var(--accent-color);
+    --icon-alpha: 1;
   }
 
   /* When hovering a clickable subtitle, revert the title back to white */
   .group:has(.clickable-text:hover) .group-hover\:text-\[var\(--accent-color\)\] {
     color: white;
+    --icon-color: white;
   }
 }
 
@@ -320,3 +325,46 @@ input[type="range"].slider::-moz-range-thumb {
 
 
 
+
+/* Blurred album art app background: every copy is viewport-sized so they line up */
+.app-bg-layer {
+  width: 100vw;
+  height: 100vh;
+  height: 100lvh;
+}
+
+@keyframes appBgFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Instant on smaller screens, matching the player's background */
+@media (min-width: 1280px) and (prefers-reduced-motion: no-preference) {
+  .app-bg-fade-in {
+    animation: appBgFadeIn 1.5s ease-out;
+  }
+}
+
+/* Queue sidebar on artwork: the current track is marked by its row highlight, not the accent,
+   unless it opts back in with .keep-accent */
+.queue-xl-container .text-\[var\(--accent-color\)\]:not(.keep-accent) {
+  color: white;
+  --icon-color: white;
+}
+
+/* Icons: draw in the opaque text color and apply its alpha to the whole icon, so translucent
+   colors don't render darker where strokes overlap. Variables come from the text color utilities
+   (see tailwind.config.js). */
+svg.lucide {
+  color: var(--icon-color, currentColor);
+}
+
+/* Zero specificity so opacity utilities on an icon still win */
+:where(svg.lucide) {
+  opacity: var(--icon-alpha, 1);
+}
+
+/* The alpha now lives in opacity, so color transitions must animate it too or icons flash */
+svg.lucide.transition-colors {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity;
+}

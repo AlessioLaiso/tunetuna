@@ -73,10 +73,10 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
         }}
         autoFocus={autoFocus}
         placeholder={placeholder}
-        className="w-full px-4 py-2 pl-10 pr-10 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+        className="w-full px-4 py-2 pl-10 pr-10 bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/45 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
       />
       <svg
-        className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500"
+        className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/45"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -101,7 +101,7 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(({
         }}
         className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-opacity ${
           showClearButton && localValue
-            ? 'text-gray-400 hover:text-white opacity-100 pointer-events-auto'
+            ? 'text-white/60 hover:text-white opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none'
         }`}
         aria-label="Clear search"

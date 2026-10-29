@@ -39,7 +39,7 @@ function M3uResultText({ result }: { result: M3UImportResult }) {
   )
 
   if (result.matched.length === 0 && skipped === 0) {
-    return <span className="text-sm text-gray-400 text-center">No songs matched</span>
+    return <span className="text-sm text-white/60 text-center">No songs matched</span>
   }
 
   return (
@@ -50,7 +50,7 @@ function M3uResultText({ result }: { result: M3UImportResult }) {
       {result.matched.length > 0 && skipped > 0 && '. '}
       {skipped > 0 && (
         <span
-          className="relative text-zinc-400 cursor-help"
+          className="relative text-white/60 cursor-help"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
           onClick={(e) => {
@@ -61,7 +61,7 @@ function M3uResultText({ result }: { result: M3UImportResult }) {
           {result.matched.length === 0 && 'No songs matched. '}
           {skipped} skipped
           {showTooltip && (
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-xs text-zinc-300 text-left shadow-lg z-50">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 max-h-48 overflow-y-auto bg-zinc-900 border border-white/25 rounded-lg p-2 text-xs text-white/80 text-left shadow-lg z-50">
               {skippedNames.map((name, i) => (
                 <span key={i} className="block truncate py-0.5">{name}</span>
               ))}
@@ -284,7 +284,7 @@ export default function PlaylistFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
-              className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+              className="w-full bg-white/15 text-white rounded-lg px-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45"
               placeholder="Playlist name"
               autoFocus
               disabled={saving}
@@ -312,15 +312,15 @@ export default function PlaylistFormModal({
           <div>
             <div className="text-base font-medium text-white mb-1">Add from M3U (Optional)</div>
             {duplicateSongCount != null && duplicateSongCount > 0 && (
-              <div className="text-sm text-gray-400 mb-2">
+              <div className="text-sm text-white/60 mb-2">
                 {duplicateSongCount} {duplicateSongCount === 1 ? 'song' : 'songs'} will be added from the original playlist
               </div>
             )}
             {m3uImporting ? (
-              <div className="relative rounded-lg border-2 border-dashed border-zinc-700 bg-zinc-800/50">
+              <div className="relative rounded-lg border-2 border-dashed border-white/25 bg-white/10">
                 <div className="flex flex-col items-center justify-center gap-2 py-8 px-4">
                   <Loader2 className="w-6 h-6 text-[var(--accent-color)] animate-spin" />
-                  <span className="text-sm text-gray-400 text-center">Matching songs...</span>
+                  <span className="text-sm text-white/60 text-center">Matching songs...</span>
                 </div>
                 <button
                   onClick={handleM3uClear}
@@ -330,7 +330,7 @@ export default function PlaylistFormModal({
                 </button>
               </div>
             ) : m3uResult ? (
-              <div className="relative rounded-lg border-2 border-dashed border-zinc-700 bg-zinc-800/50">
+              <div className="relative rounded-lg border-2 border-dashed border-white/25 bg-white/10">
                 <div className="flex flex-col items-center justify-center gap-2 py-8 px-4">
                   <FileText className="w-6 h-6 text-[var(--accent-color)]" />
                   <M3uResultText result={m3uResult} />
@@ -361,7 +361,7 @@ export default function PlaylistFormModal({
             <button
               onClick={handleSave}
               disabled={saving || m3uImporting || !name.trim()}
-              className="flex-1 py-3 bg-[var(--accent-color)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
+              className="flex-1 py-3 bg-[var(--accent-fill)] text-white font-semibold rounded-full transition-colors disabled:opacity-50"
             >
               {saving || m3uImporting
                 ? (isEditMode ? 'Saving...' : 'Creating...')

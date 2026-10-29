@@ -196,7 +196,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           }
         }}
         aria-label={label}
-        className={className || "text-white/70 hover:text-zinc-300 transition-colors"}
+        className={className || "text-white/70 hover:text-white/80 transition-colors"}
       >
         <Icon className="w-6 h-6" />
       </button>
@@ -209,7 +209,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
         <button
           onClick={handleIconClick}
           aria-label={isCustom ? label : volume === 0 ? 'Unmute' : 'Mute'}
-          className="text-white/70 hover:text-white hover:bg-zinc-800 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
+          className="text-white/70 hover:text-white hover:bg-white/15 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors"
         >
           <Icon className="w-5 h-5" />
         </button>
@@ -227,7 +227,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
         >
           <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gray-400 rounded-full transition-all duration-100"
+              className="h-full bg-white/60 rounded-full transition-all duration-100"
               style={{ width: `${volume * 100}%` }}
             />
           </div>
@@ -257,7 +257,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
         onTouchMove={(e) => e.preventDefault()}
       />
       <div
-        className="relative z-10 bg-zinc-900 rounded-lg py-4 px-0 shadow-xl border border-zinc-700"
+        className="relative z-10 bg-zinc-900 rounded-lg py-4 px-0 shadow-xl border border-white/25"
         style={popoverStyle}
       >
         <div className="h-[200px] w-[38px] cursor-pointer group relative touch-none mx-auto">
@@ -276,7 +276,7 @@ export default function VolumeControl({ variant = 'horizontal', onClose, onOpenP
           {/* Visual bar - narrow and centered */}
           <div className="h-full w-1 bg-white/10 rounded-full relative flex flex-col justify-end mx-auto">
             <div
-              className="w-full bg-gray-400 rounded-full transition-all"
+              className="w-full bg-white/60 rounded-full transition-all"
               style={{ height: `${volume * 100}%` }}
             />
             <div

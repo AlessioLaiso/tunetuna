@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
-import { useSettingsStore } from '../../stores/settingsStore'
+import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useToastStore } from '../../stores/toastStore'
@@ -12,9 +12,12 @@ import { useStatsStore } from '../../stores/statsStore'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import { isServerUrlLocked, isLocalServerUrlLocked, getLockedLocalServerUrl } from '../../utils/config'
 import { probeAndUpdateServerUrl } from '../../utils/serverUrl'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 const tailwindColors = [
-  { name: 'zinc', hex: '#71717a' },
+  // Derived from the current album art
+  { name: ARTWORK_ACCENT, hex: 'conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ec4899, #ef4444)' },
   { name: 'red', hex: '#ef4444' },
   { name: 'orange', hex: '#f97316' },
   { name: 'amber', hex: '#f59e0b' },
@@ -35,8 +38,9 @@ const tailwindColors = [
 ]
 
 export default function SettingsPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted, genres: allGenres } = useMusicStore()
@@ -329,11 +333,12 @@ export default function SettingsPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate('/')}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -362,19 +367,21 @@ export default function SettingsPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.75rem)`,
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.75rem)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       <div className="p-4 space-y-8" style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
         {/* Page Visibility Section */}
         <section>
-          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+          <div className="bg-white/10 rounded-lg divide-y divide-white/15">
             <h2 className="text-lg font-bold text-white p-3">Page visibility</h2>
             {(['artists', 'albums', 'songs', 'genres', 'playlists', 'collection', 'stats'] as const).map((page) => (
               <div
@@ -385,7 +392,7 @@ export default function SettingsPage() {
                   <label className="text-white capitalize font-medium">{page}</label>
                   <button
                     onClick={() => togglePage(page)}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${pageVisibility[page] ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
+                    className={`relative w-12 h-6 rounded-full transition-colors ${pageVisibility[page] ? 'bg-[var(--accent-fill)]' : 'bg-white/30'
                       }`}
                   >
                     <span
@@ -396,7 +403,7 @@ export default function SettingsPage() {
                 </div>
                 {page === 'collection' && pageVisibility.collection && (
                   <div className="mt-3">
-                    <p className="text-xs text-gray-400 mb-2">
+                    <p className="text-xs text-white/60 mb-2">
                       Track your physical collection on{' '}
                       <a
                         href="https://www.discogs.com"
@@ -413,7 +420,7 @@ export default function SettingsPage() {
                       value={discogsToken}
                       onChange={(e) => setDiscogsToken(e.target.value)}
                       placeholder="Personal access token"
-                      className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                      className="w-full bg-white/15 text-white rounded-lg px-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45"
                     />
                   </div>
                 )}
@@ -424,21 +431,21 @@ export default function SettingsPage() {
 
         {/* Home Section */}
         <section>
-          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+          <div className="bg-white/10 rounded-lg divide-y divide-white/15">
             <h2 className="text-lg font-bold text-white p-3">Home</h2>
             <div className="p-3">
               <div className="flex items-center justify-between">
                 <label className="text-white font-medium">Mixes</label>
                 <button
                   onClick={() => setShowMoodCards(!showMoodCards)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${showMoodCards ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showMoodCards ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showMoodCards ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-white/60 mt-2">
                 Some mixes require logging listening stats and the <a href="https://github.com/jyourstone/jellyfin-musictags-plugin" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">Jellyfin MusicTags Plugin</a>, set to extract 'grouping,GRP1,TIT1,BPM'. For moods, set the <a href="https://github.com/AlessioLaiso/music-mood-tagger" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-color)] hover:underline">grouping tag</a> of your songs to 'mood_value1; mood_value2'. For languages, set grouping as 'language_value1'. You can also set tags like 'release_ep' to differentiate release types in the artist detail page.
               </p>
             </div>
@@ -447,7 +454,7 @@ export default function SettingsPage() {
               <label className="text-white font-medium">Recently played</label>
               <button
                 onClick={() => setShowRecentlyPlayed(!showRecentlyPlayed)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${showRecentlyPlayed ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                className={`relative w-12 h-6 rounded-full transition-colors ${showRecentlyPlayed ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
               >
                 <span
                   className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showRecentlyPlayed ? 'translate-x-6' : 'translate-x-0'}`}
@@ -467,7 +474,7 @@ export default function SettingsPage() {
                         setIsTop10Spinning(true)
                         setTimeout(() => setIsTop10Spinning(false), 500)
                       }}
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className="text-white/60 hover:text-white transition-colors"
                     >
                       <RefreshCw className={`w-4 h-4 ${isTop10Spinning ? 'spin-once' : ''}`} />
                     </button>
@@ -475,7 +482,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => setShowTop10(!showTop10)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${showTop10 ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showTop10 ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showTop10 ? 'translate-x-6' : 'translate-x-0'}`}
@@ -484,7 +491,7 @@ export default function SettingsPage() {
               </div>
               {showTop10 && (
                 <div className="mt-3">
-                  <p className="text-xs text-gray-400 mb-2">
+                  <p className="text-xs text-white/60 mb-2">
                     Country for Apple Music Top 10 chart
                   </p>
                   <select
@@ -494,7 +501,7 @@ export default function SettingsPage() {
                       setFeedTopSongs([])
                       setFeedLastUpdated(0)
                     }}
-                    className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 pr-8 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] appearance-none"
+                    className="w-full bg-white/15 text-white rounded-lg px-3 py-2 pr-8 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] appearance-none"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                   >
                     <option value="au">Australia</option>
@@ -534,7 +541,7 @@ export default function SettingsPage() {
                         setIsNewReleasesSpinning(true)
                         setTimeout(() => setIsNewReleasesSpinning(false), 500)
                       }}
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className="text-white/60 hover:text-white transition-colors"
                     >
                       <RefreshCw className={`w-4 h-4 ${isNewReleasesSpinning ? 'spin-once' : ''}`} />
                     </button>
@@ -542,7 +549,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => setShowNewReleases(!showNewReleases)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${showNewReleases ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${showNewReleases ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showNewReleases ? 'translate-x-6' : 'translate-x-0'}`}
@@ -551,7 +558,7 @@ export default function SettingsPage() {
               </div>
               {showNewReleases && (
                 <div className="mt-3">
-                  <p className="text-xs text-gray-400 mb-2">
+                  <p className="text-xs text-white/60 mb-2">
                     Get your RSS feed URL from{' '}
                     <a
                       href="https://muspy.com"
@@ -573,7 +580,7 @@ export default function SettingsPage() {
                       }
                     }}
                     placeholder="https://muspy.com/feed?id=..."
-                    className="w-full bg-zinc-800 text-white rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                    className="w-full bg-white/15 text-white rounded-lg px-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45"
                   />
                 </div>
               )}
@@ -583,7 +590,7 @@ export default function SettingsPage() {
 
         {/* Preferences Section */}
         <section>
-          <div className="bg-zinc-900 rounded-lg divide-y divide-zinc-800">
+          <div className="bg-white/10 rounded-lg divide-y divide-white/15">
             <h2 className="text-lg font-bold text-white p-3">Preferences</h2>
 
             <div className="p-3">
@@ -592,7 +599,7 @@ export default function SettingsPage() {
                 className="w-full flex items-center justify-between"
               >
                 <label className="text-white font-medium">Accent color</label>
-                <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
               </button>
               {showColorPicker && (
                 <div className="grid grid-cols-6 md:grid-cols-9 gap-3 mt-3">
@@ -607,8 +614,8 @@ export default function SettingsPage() {
                         ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
                         : 'hover:scale-105'
                         }`}
-                      style={{ backgroundColor: color.hex }}
-                      aria-label={`Select ${color.name} color`}
+                      style={{ background: color.hex }}
+                      aria-label={color.name === ARTWORK_ACCENT ? 'Use a color from the album art' : `Select ${color.name} color`}
                     />
                   ))}
                 </div>
@@ -617,17 +624,31 @@ export default function SettingsPage() {
 
             <div className="p-3">
               <div className="flex items-center justify-between">
+                <label className="text-white font-medium">Album art background</label>
+                <button
+                  onClick={() => setBlurredBackground(!blurredBackground)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${blurredBackground ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${blurredBackground ? 'translate-x-6' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3">
+              <div className="flex items-center justify-between">
                 <label className="text-white font-medium">Log listening stats</label>
                 <button
                   onClick={() => setStatsTrackingEnabled(!statsTrackingEnabled)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
-              <div className="text-xs text-gray-400 mt-2">
+              <div className="text-xs text-white/60 mt-2">
                 {pendingEvents.length > 0 && (
                   <button
                     onClick={handleSyncStats}
@@ -684,10 +705,11 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setShowClearStatsConfirm(true)}
                   disabled={isClearing || !statsExist}
-                  className="flex-1 px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+                  aria-label="Clear stats"
+                  className="flex-1 max-[429px]:flex-none px-4 py-3 bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
                 >
                   <Trash2 className="w-5 h-5" />
-                  <span>Clear</span>
+                  <span className="hidden-narrow">Clear</span>
                 </button>
               </div>
               <input
@@ -701,7 +723,7 @@ export default function SettingsPage() {
 
             <div className="p-3">
               <label className="text-white font-medium block mb-1">Excluded genres</label>
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-white/60 mb-3">
                 Songs from these genres won't appear in shuffle all and mixes.
               </p>
 
@@ -711,7 +733,7 @@ export default function SettingsPage() {
                     <button
                       key={genre}
                       onClick={() => setExcludedGenres(excludedGenres.filter(g => g !== genre))}
-                      className="flex items-center gap-1 px-2 py-1 bg-zinc-700 text-white text-sm rounded-md hover:bg-zinc-600 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 bg-white/25 text-white text-sm rounded-md hover:bg-white/30 transition-colors"
                     >
                       <span>{genre}</span>
                       <X className="w-3 h-3" />
@@ -722,7 +744,7 @@ export default function SettingsPage() {
 
               <div className="relative" ref={genreDropdownRef}>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/45" />
                   <input
                     type="text"
                     value={genreSearch}
@@ -732,11 +754,11 @@ export default function SettingsPage() {
                     }}
                     onFocus={() => setGenreDropdownOpen(true)}
                     placeholder="Search genres to exclude..."
-                    className="w-full bg-zinc-800 text-white rounded-lg pl-8 pr-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500 text-sm"
+                    className="w-full bg-white/15 text-white rounded-lg pl-8 pr-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45 text-sm"
                   />
                 </div>
                 {genreDropdownOpen && filteredGenres.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg">
+                  <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-zinc-800 border border-white/25 rounded-lg shadow-lg">
                     {filteredGenres.map(genre => {
                       const isExcluded = excludedGenres.includes(genre)
                       return (
@@ -750,10 +772,10 @@ export default function SettingsPage() {
                             }
                             setGenreSearch('')
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-700 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/25 transition-colors"
                         >
                           <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                            isExcluded ? 'bg-[var(--accent-color)] border-[var(--accent-color)]' : 'border-zinc-500'
+                            isExcluded ? 'bg-[var(--accent-fill)] border-[var(--accent-fill)]' : 'border-white/45'
                           }`}>
                             {isExcluded && (
                               <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -774,17 +796,17 @@ export default function SettingsPage() {
 
         {/* Jellyfin Library Section */}
         <section>
-          <div className="bg-zinc-900 rounded-lg">
+          <div className="bg-white/10 rounded-lg">
             <div className="p-3">
               <h2 className="text-lg font-bold text-white">Jellyfin library</h2>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-white/60 mt-1">
                 <button
                   type="button"
                   onClick={handleCopyServerUrl}
                   disabled={!serverUrl}
                   className={`text-left break-all transition-colors flex items-center gap-1 ${serverUrl
                     ? 'hover:text-[var(--accent-color)] cursor-pointer'
-                    : 'text-gray-600 cursor-not-allowed'
+                    : 'text-white/30 cursor-not-allowed'
                     }`}
                 >
                   {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
@@ -806,9 +828,9 @@ export default function SettingsPage() {
 
             {/* Local URL field — hidden when locked via Docker */}
             {!localUrlLocked && (
-              <div className="p-3 border-t border-zinc-800">
+              <div className="p-3 border-t border-white/15">
                 <label className="text-white font-medium block mb-1">LAN address</label>
-                <p className="text-xs text-gray-400 mb-2">
+                <p className="text-xs text-white/60 mb-2">
                   For faster access on your local network (e.g. http://192.168.1.10:8096)
                 </p>
                 <input
@@ -816,7 +838,7 @@ export default function SettingsPage() {
                   value={localServerUrl}
                   onChange={(e) => setLocalServerUrl(e.target.value)}
                   placeholder="Local URL (optional)"
-                  className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                  className="w-full bg-white/15 text-white text-sm rounded-lg px-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45"
                 />
                 {localServerUrl && window.location.protocol === 'https:' && localServerUrl.startsWith('http://') && (
                   <p className="text-xs text-amber-400 mt-2">
@@ -865,7 +887,7 @@ export default function SettingsPage() {
               <div className="text-lg font-semibold text-white">
                 Sync
               </div>
-              <div className="text-sm text-gray-400 mt-1">
+              <div className="text-sm text-white/60 mt-1">
                 Cache song metadata to speed up search and loading times
               </div>
             </div>
@@ -907,7 +929,7 @@ export default function SettingsPage() {
                 <div className="text-lg font-semibold text-white">
                   Clear all stats?
                 </div>
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="text-sm text-white/60 mt-1">
                   This will permanently delete all your listening history, both locally and from the server. This action cannot be undone.
                 </div>
               </div>
@@ -952,13 +974,13 @@ export default function SettingsPage() {
                 <div className="text-lg font-semibold text-white">
                   Library mismatch detected
                 </div>
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="text-sm text-white/60 mt-1">
                   {mismatchCount} of {mismatchTotal} events reference songs not in your current library.
                 </div>
               </div>
               <button
                 onClick={() => setShowMismatchModal(false)}
-                className="text-gray-400 hover:text-white p-1 flex-shrink-0"
+                className="text-white/60 hover:text-white p-1 flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -977,8 +999,8 @@ export default function SettingsPage() {
                 {showAutoMatchList && (
                   <div className="p-3 bg-white/5 rounded-xl max-h-[20vh] overflow-y-auto">
                     {autoMatchable.map((song, i) => (
-                      <div key={i} className="text-sm text-gray-300 py-0.5">
-                        {song.songName} - {song.artistName} <span className="text-gray-500">({song.eventCount})</span>
+                      <div key={i} className="text-sm text-white/80 py-0.5">
+                        {song.songName} - {song.artistName} <span className="text-white/45">({song.eventCount})</span>
                       </div>
                     ))}
                   </div>
@@ -1007,9 +1029,9 @@ export default function SettingsPage() {
                       return (
                         <div key={songKey} className="text-sm">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="text-gray-300 min-w-0 flex-1">
+                            <div className="text-white/80 min-w-0 flex-1">
                               <span className="truncate block">{song.songName} - {song.artistName}</span>
-                              <span className="text-gray-500 text-xs">({song.eventCount} event{song.eventCount !== 1 ? 's' : ''})</span>
+                              <span className="text-white/45 text-xs">({song.eventCount} event{song.eventCount !== 1 ? 's' : ''})</span>
                             </div>
                             {mappedSong ? (
                               <div className="flex items-center gap-1 flex-shrink-0">
@@ -1020,7 +1042,7 @@ export default function SettingsPage() {
                                     next.delete(songKey)
                                     setManualMappings(next)
                                   }}
-                                  className="text-gray-400 hover:text-white p-0.5"
+                                  className="text-white/60 hover:text-white p-0.5"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -1047,10 +1069,10 @@ export default function SettingsPage() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search your library..."
                                 autoFocus
-                                className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 border border-zinc-700 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-zinc-500"
+                                className="w-full bg-white/15 text-white text-sm rounded-lg px-3 py-2 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] placeholder:text-white/45"
                               />
                               {searchQuery.length >= 2 && (
-                                <div className="mt-1 max-h-[150px] overflow-y-auto bg-zinc-800 rounded-lg border border-zinc-700">
+                                <div className="mt-1 max-h-[150px] overflow-y-auto bg-white/15 rounded-lg border border-white/25">
                                   {(() => {
                                     const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean)
                                     const results = songs.filter(s => {
@@ -1058,7 +1080,7 @@ export default function SettingsPage() {
                                       return terms.every(t => haystack.includes(t))
                                     }).sort((a, b) => a.Name.localeCompare(b.Name)).slice(0, 20)
                                     if (results.length === 0) {
-                                      return <div className="text-sm text-gray-500 p-2">No results</div>
+                                      return <div className="text-sm text-white/45 p-2">No results</div>
                                     }
                                     return results.map(s => (
                                       <button
@@ -1073,7 +1095,7 @@ export default function SettingsPage() {
                                         className="w-full text-left px-3 py-2 hover:bg-white/10 text-sm transition-colors"
                                       >
                                         <div className="text-white truncate">{s.Name}</div>
-                                        <div className="text-gray-400 text-xs truncate">{s.AlbumArtist || s.ArtistItems?.[0]?.Name || 'Unknown'} - {s.Album || 'Unknown'}</div>
+                                        <div className="text-white/60 text-xs truncate">{s.AlbumArtist || s.ArtistItems?.[0]?.Name || 'Unknown'} - {s.Album || 'Unknown'}</div>
                                       </button>
                                     ))
                                   })()}
@@ -1095,7 +1117,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleRemapEvents}
                   disabled={isRemapping || isRemoving}
-                  className="w-full flex flex-col items-center gap-1 py-3 bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
+                  className="w-full flex flex-col items-center gap-1 py-3 bg-[var(--accent-fill)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors"
                 >
                   {isRemapping ? (
                     <div className="flex items-center gap-2">

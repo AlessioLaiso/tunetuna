@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
+import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackground'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -106,6 +108,8 @@ export default function SongDetailPage() {
   const { genres } = useMusicStore()
 
   const [song, setSong] = useState<BaseItemDto | null>(null)
+  const hasAppBackground = useAppBackgroundActive()
+  usePageBackgroundArt(song ? song.AlbumId || song.Id : null)
   const [loading, setLoading] = useState(true)
   const [lyrics, setLyrics] = useState<string[] | null>(null)
   const [lyricsLoading, setLyricsLoading] = useState(true)
@@ -241,7 +245,7 @@ export default function SongDetailPage() {
   if (!song) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen text-white/60">
           <p>Song not found</p>
         </div>
       </div>
@@ -262,7 +266,7 @@ export default function SongDetailPage() {
           <div className="relative flex items-center justify-between gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors z-10"
+              className="text-white hover:text-white/80 transition-colors z-10"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -281,7 +285,7 @@ export default function SongDetailPage() {
                 }
                 setContextMenuOpen(true)
               }}
-              className="text-white hover:text-zinc-300 transition-colors z-10"
+              className="text-white hover:text-white/80 transition-colors z-10"
             >
               <MoreHorizontal className="w-6 h-6" />
             </button>
@@ -298,8 +302,11 @@ export default function SongDetailPage() {
       >
         {hasBackdrop && artistId && (
           <div
-            className="relative w-full min-h-64 md:min-h-80 bg-black"
-            style={{ paddingTop: `env(safe-area-inset-top)` }}
+            className={`relative w-full min-h-64 md:min-h-80 ${hasAppBackground ? '' : 'bg-black'}`}
+            style={{
+              paddingTop: `env(safe-area-inset-top)`,
+              ...(hasAppBackground && { maskImage: HERO_FADE_MASK, WebkitMaskImage: HERO_FADE_MASK }),
+            }}
           >
             {/* Mobile: album art as backdrop */}
             <div className="w-full flex items-center justify-center md:hidden min-[600px]:aspect-[4/3] min-[600px]:overflow-hidden">
@@ -311,7 +318,7 @@ export default function SongDetailPage() {
                   onError={() => setHasBackdrop(false)}
                 />
               ) : (
-                <div className="w-full h-64 bg-zinc-900" />
+                <div className="w-full h-64 bg-white/10" />
               )}
             </div>
 
@@ -325,7 +332,9 @@ export default function SongDetailPage() {
               />
             </div>
 
-            <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
+            {!hasAppBackground && (
+              <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
+            )}
           </div>
         )}
 
@@ -335,7 +344,7 @@ export default function SongDetailPage() {
             {/* Album art (desktop/tablet: on the left; mobile: hidden since backdrop is album art) */}
             {hasImage && song.AlbumId && (
               <div className="hidden md:block flex-shrink-0 w-[calc((768px-2rem-2rem)/3)]">
-                <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
+                <div className="aspect-square rounded overflow-hidden bg-white/10 flex items-center justify-center">
                   <Image
                     src={jellyfinClient.getAlbumArtUrl(song.AlbumId)}
                     alt={song.Name}
@@ -416,8 +425,8 @@ export default function SongDetailPage() {
             )}
             {song.Genres && song.Genres.length > 0 && (
               <>
-                <Guitar className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>
+                <Guitar className="w-4 h-4 text-white/60 flex-shrink-0 mt-1" />
+                <span className="text-white/60 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>
                   {song.Genres.length === 1 ? 'Genre' : 'Genres'}
                 </span>
                 <div className="flex flex-wrap gap-x-1">
@@ -461,8 +470,8 @@ export default function SongDetailPage() {
                 const GroupingIcon = getGroupingIcon(key)
                 return (
                   <React.Fragment key={key}>
-                    <GroupingIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                    <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{category}</span>
+                    <GroupingIcon className="w-4 h-4 text-white/60 flex-shrink-0 mt-1" />
+                    <span className="text-white/60 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{category}</span>
                     <div className="flex flex-wrap gap-x-1">
                       {values.map((v, i) => (
                         <span key={v.raw}>
@@ -493,8 +502,8 @@ export default function SongDetailPage() {
 
               return (
                 <React.Fragment>
-                  <TagIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                  <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>Tag</span>
+                  <TagIcon className="w-4 h-4 text-white/60 flex-shrink-0 mt-1" />
+                  <span className="text-white/60 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>Tag</span>
                   <div className="flex flex-wrap gap-x-1">
                     {booleanTags.map((tag, i) => (
                       <span key={tag.key}>
@@ -514,8 +523,8 @@ export default function SongDetailPage() {
             {/* Stream count */}
             {pageVisibility.stats && (
               <>
-                <BarChart3 className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-                <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>Streams</span>
+                <BarChart3 className="w-4 h-4 text-white/60 flex-shrink-0 mt-1" />
+                <span className="text-white/60 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>Streams</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-base text-white">
                     {streamCount !== null ? `${streamCount}` : '...'}
@@ -525,7 +534,7 @@ export default function SongDetailPage() {
                       <select
                         value={fromMonth}
                         onChange={(e) => setFromMonth(e.target.value)}
-                        className="appearance-none bg-zinc-800 text-white rounded-lg px-2 py-1 pr-6 text-xs font-medium cursor-pointer hover:bg-zinc-700 transition-colors"
+                        className="appearance-none bg-white/15 text-white rounded-lg px-2 py-1 pr-6 text-xs font-medium cursor-pointer hover:bg-white/25 transition-colors"
                       >
                         {monthOptions.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -533,14 +542,14 @@ export default function SongDetailPage() {
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />
                     </div>
-                    <span className="text-zinc-400 text-xs">to</span>
+                    <span className="text-white/60 text-xs">to</span>
                     <div className="relative">
                       <select
                         value={toMonth}
                         onChange={(e) => setToMonth(e.target.value)}
-                        className="appearance-none bg-zinc-800 text-white rounded-lg px-2 py-1 pr-6 text-xs font-medium cursor-pointer hover:bg-zinc-700 transition-colors"
+                        className="appearance-none bg-white/15 text-white rounded-lg px-2 py-1 pr-6 text-xs font-medium cursor-pointer hover:bg-white/25 transition-colors"
                       >
                         {monthOptions.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -548,7 +557,7 @@ export default function SongDetailPage() {
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />
                     </div>
                   </div>
                 </div>
@@ -585,8 +594,8 @@ export default function SongDetailPage() {
             {(lyricsLoading || lyrics) && (
               <>
                 {/* Desktop: icon + label + lyrics inline in grid */}
-                <MicVocal className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1 hidden md:block" />
-                <span className="text-gray-400 text-base flex-shrink-0 truncate hidden md:block" style={{ maxWidth: '128px' }}>Lyrics</span>
+                <MicVocal className="w-4 h-4 text-white/60 flex-shrink-0 mt-1 hidden md:block" />
+                <span className="text-white/60 text-base flex-shrink-0 truncate hidden md:block" style={{ maxWidth: '128px' }}>Lyrics</span>
                 <div className="hidden md:block">
                   {lyricsLoading ? (
                     <span className="text-base text-white/50">Loading...</span>
@@ -603,8 +612,8 @@ export default function SongDetailPage() {
                 {/* Mobile: icon + label on one line, lyrics below, spanning all columns */}
                 <div className="md:hidden" style={{ gridColumn: '1 / -1' }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <MicVocal className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-400 text-base">Lyrics</span>
+                    <MicVocal className="w-4 h-4 text-white/60 flex-shrink-0" />
+                    <span className="text-white/60 text-base">Lyrics</span>
                   </div>
                   {lyricsLoading ? (
                     <div className="text-base text-white/50 pl-7">Loading...</div>
@@ -640,8 +649,8 @@ export default function SongDetailPage() {
 function MetadataRow({ icon: Icon, label, value, onClick }: { icon: LucideIcon; label: string; value: string; onClick?: () => void }) {
   return (
     <>
-      <Icon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
-      <span className="text-gray-400 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{label}</span>
+      <Icon className="w-4 h-4 text-white/60 flex-shrink-0 mt-1" />
+      <span className="text-white/60 text-base flex-shrink-0 truncate" style={{ maxWidth: '128px' }}>{label}</span>
       {onClick ? (
         <button
           onClick={onClick}

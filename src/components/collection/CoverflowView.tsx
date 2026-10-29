@@ -195,7 +195,7 @@ const CoverflowItem = memo(function CoverflowItem({
 
       {/* Cover art — the 3D-transformed element */}
       <button
-        className={`absolute top-0 left-0 rounded overflow-hidden ${showCassette ? '' : 'bg-zinc-900'} block`}
+        className={`absolute top-0 left-0 rounded overflow-hidden ${showCassette ? '' : 'bg-white/10'} block`}
         style={{
           width: coverSize,
           height: coverSize,
@@ -253,10 +253,10 @@ const CoverflowItem = memo(function CoverflowItem({
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+          <div className="w-full h-full bg-white/10 flex items-center justify-center">
             <div className="text-center px-4">
-              <div className="text-sm font-medium text-zinc-400 truncate">{info.title}</div>
-              <div className="text-xs text-zinc-500 truncate">{artistName}</div>
+              <div className="text-sm font-medium text-white/60 truncate">{info.title}</div>
+              <div className="text-xs text-white/45 truncate">{artistName}</div>
             </div>
           </div>
         )}
@@ -662,7 +662,7 @@ export default function CoverflowView({
                 const artistId = findArtistImageUrl(artistName)
                 return (
                   <div
-                    className="absolute left-0 right-0 flex items-baseline justify-center transition-opacity duration-300 text-gray-400"
+                    className="absolute left-0 right-0 flex items-baseline justify-center transition-opacity duration-300 text-white/60"
                     style={{
                       top: coverSize + 4,
                       opacity: isSnapped ? 1 : 0,
@@ -671,16 +671,16 @@ export default function CoverflowView({
                     }}
                   >
                     <span className="text-sm text-white font-medium truncate min-w-0 shrink">{info.title}</span>
-                    <span className="text-sm text-gray-400 mx-1.5 shrink-0">•</span>
+                    <span className="text-sm text-white/60 mx-1.5 shrink-0">•</span>
                     {artistId ? (
                       <button
-                        className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors cursor-pointer truncate min-w-0 shrink"
+                        className="text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors cursor-pointer truncate min-w-0 shrink"
                         onClick={() => navigate(`/artist/${artistId}`)}
                       >
                         {artistName}
                       </button>
                     ) : (
-                      <span className="text-sm text-gray-400 truncate min-w-0 shrink">{artistName}</span>
+                      <span className="text-sm text-white/60 truncate min-w-0 shrink">{artistName}</span>
                     )}
                   </div>
                 )

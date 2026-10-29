@@ -21,6 +21,9 @@ import Image from '../shared/Image'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
 import type { BaseItemDto } from '../../api/types'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 const ITEMS_PER_PAGE = 50
 
@@ -56,7 +59,7 @@ function ArtistTopSongDetailRow({
         onContextMenu(song, 'desktop', { x: e.clientX, y: e.clientY })
       }}
       {...longPressHandlers}
-      className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+      className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group"
     >
       <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0">
         <Image
@@ -68,12 +71,12 @@ function ArtistTopSongDetailRow({
           fallbackIcon={Music}
         />
       </div>
-      <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+      <span className="text-white/45 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
           {song.songName}
         </div>
-        <div className="text-zinc-400 text-sm truncate flex items-center gap-1 min-w-0">
+        <div className="text-white/60 text-sm truncate flex items-center gap-1 min-w-0">
           {song.primaryArtistName && (
             song.primaryArtistId ? (
               <span
@@ -115,7 +118,7 @@ function ArtistTopSongDetailRow({
           )}
         </div>
       </div>
-      <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+      <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
         {song.plays} streams
       </div>
     </button>
@@ -123,6 +126,7 @@ function ArtistTopSongDetailRow({
 }
 
 export default function ArtistTopSongsDetailPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
@@ -235,6 +239,7 @@ export default function ArtistTopSongsDetailPage() {
 
   const totalPages = Math.ceil(allTopSongs.length / ITEMS_PER_PAGE)
   const pageItems = allTopSongs.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
+  usePageBackgroundArt(allTopSongs[0]?.albumId)
 
   const subtitle = useMemo(
     () => formatRangeSubtitle(range.fromMonth, range.toMonth),
@@ -266,8 +271,8 @@ export default function ArtistTopSongsDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-zinc-600 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-        <p className="text-zinc-500">Loading...</p>
+        <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
+        <p className="text-white/45">Loading...</p>
       </div>
     )
   }
@@ -275,8 +280,8 @@ export default function ArtistTopSongsDetailPage() {
   if (allTopSongs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Music className="w-16 h-16 text-zinc-600 mb-4" />
-        <h2 className="text-xl font-semibold text-zinc-300 mb-2">No data</h2>
+        <Music className="w-16 h-16 text-white/30 mb-4" />
+        <h2 className="text-xl font-semibold text-white/80 mb-2">No data</h2>
       </div>
     )
   }
@@ -288,11 +293,12 @@ export default function ArtistTopSongsDetailPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center justify-between gap-3 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -301,14 +307,16 @@ export default function ArtistTopSongsDetailPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       {/* Spacer */}
       <div className="h-20" />
@@ -317,7 +325,7 @@ export default function ArtistTopSongsDetailPage() {
       <div className="px-4 mb-6">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{title}</h1>
         {subtitle && (
-          <p className="text-gray-400">{subtitle}</p>
+          <p className="text-white/60">{subtitle}</p>
         )}
       </div>
 

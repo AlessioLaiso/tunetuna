@@ -64,8 +64,8 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
 
   if (showIcon) {
     return (
-      <div className="relative w-full h-full bg-zinc-800 flex items-center justify-center">
-        {FallbackIcon && <FallbackIcon className="w-1/3 h-1/3 text-zinc-600" />}
+      <div className="relative w-full h-full bg-white/15 flex items-center justify-center">
+        {FallbackIcon && <FallbackIcon className="w-1/3 h-1/3 text-white/30" />}
       </div>
     )
   }
@@ -74,8 +74,8 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
     <div className="relative w-full h-full">
       {/* The icon placeholder while loading; the image fades in over it */}
       {FallbackIcon && !loaded && (
-        <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
-          <FallbackIcon className="w-1/3 h-1/3 text-zinc-600" />
+        <div className="absolute inset-0 bg-white/15 flex items-center justify-center">
+          <FallbackIcon className="w-1/3 h-1/3 text-white/30" />
         </div>
       )}
       <img

@@ -5,8 +5,11 @@ import { jellyfinClient } from '../../api/jellyfin'
 import GenreItem from './GenreItem'
 import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 export default function GenresPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const { genres, setGenres, setLoading, loading } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
 
@@ -43,6 +46,7 @@ export default function GenresPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="p-4 min-[780px]:px-[0.66rem]">
             {/* Header with title and loading indicator */}
@@ -60,18 +64,20 @@ export default function GenresPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 6rem - 16px)`,
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 6rem - 16px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       <div className="pb-4" style={{ paddingTop: `calc(env(safe-area-inset-top) + 6rem)` }}>
         {genres.length === 0 && !loading.genres && (
-          <div className="flex items-center justify-center py-8 text-gray-400">
+          <div className="flex items-center justify-center py-8 text-white/60">
             <p>No genres found</p>
           </div>
         )}

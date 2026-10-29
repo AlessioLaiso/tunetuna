@@ -31,7 +31,7 @@ export default function StatusBar({ message, backgroundColor = 'bg-zinc-800', ac
         {action && (
           <button
             onClick={action.onClick}
-            className="text-white text-sm font-medium hover:text-zinc-300 transition-colors ml-8"
+            className="text-white text-sm font-medium hover:text-white/80 transition-colors ml-8"
           >
             {action.label}
           </button>

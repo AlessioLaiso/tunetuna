@@ -32,8 +32,8 @@ function formatHours(hours: number): string {
 function SectionHeader({ icon: Icon, title }: { icon: typeof Music; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-4 mt-8">
-      <Icon className="w-5 h-5 text-zinc-400" />
-      <h2 className="text-lg font-semibold text-zinc-300">{title}</h2>
+      <Icon className="w-5 h-5 text-white/60" />
+      <h2 className="text-lg font-semibold text-white/80">{title}</h2>
     </div>
   )
 }
@@ -59,8 +59,8 @@ function SummaryCard({
   }
 
   return (
-    <div className="bg-zinc-800/50 rounded-2xl p-5 border border-zinc-700/50">
-      <div className="flex items-center gap-2 text-zinc-400 mb-2">
+    <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
+      <div className="flex items-center gap-2 text-white/60 mb-2">
         <Icon className="w-5 h-5" />
         <span className="text-sm font-medium">{label}</span>
       </div>
@@ -104,13 +104,13 @@ function StackedBar({
 
   const Container = onClick ? 'button' : 'div'
   const containerProps = onClick
-    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors' }
+    ? { onClick, className: 'flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-white/10 rounded-lg py-1 transition-colors' }
     : { className: 'flex items-center gap-3 mb-2' }
 
   return (
     <Container {...containerProps}>
-      <div className="w-28 min-[464px]:w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left">{label}</div>
-      <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0 relative">
+      <div className="w-28 min-[464px]:w-44 text-white/80 text-sm truncate flex-shrink-0 text-left">{label}</div>
+      <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0 relative">
         {timeMode ? (
           <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${playedWidthPct}%`, backgroundColor: `var(--accent-color)` }} />
         ) : overplayed ? (
@@ -135,14 +135,14 @@ function StackedBar({
         {badge && badgeOpacity !== undefined ? (
           <>
             {timeMode ? (
-              <div className="w-16 text-sm text-right tabular-nums text-zinc-400 flex-shrink-0">
+              <div className="w-16 text-sm text-right tabular-nums text-white/60 flex-shrink-0">
                 {formatHours(total)}
               </div>
             ) : (
               <div className="w-24 text-sm text-right tabular-nums flex-shrink-0">
-                <span className="text-zinc-400">{played.toLocaleString()}</span>
-                <span className="text-zinc-600"> / </span>
-                <span className="text-zinc-300">{total.toLocaleString()}</span>
+                <span className="text-white/60">{played.toLocaleString()}</span>
+                <span className="text-white/30"> / </span>
+                <span className="text-white/80">{total.toLocaleString()}</span>
               </div>
             )}
             <BadgeWithTooltip
@@ -154,9 +154,9 @@ function StackedBar({
           </>
         ) : (
           <div className="w-24 text-sm text-right tabular-nums flex-shrink-0">
-            <span className="text-zinc-400">{played.toLocaleString()}</span>
-            <span className="text-zinc-600"> / </span>
-            <span className="text-zinc-300">{total.toLocaleString()}</span>
+            <span className="text-white/60">{played.toLocaleString()}</span>
+            <span className="text-white/30"> / </span>
+            <span className="text-white/80">{total.toLocaleString()}</span>
           </div>
         )}
       </div>
@@ -228,27 +228,27 @@ function ArtistRow({
   return (
     <button
       onClick={() => navigate(`/artist/${artistId}`)}
-      className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group ${leftPadding}`}
+      className={`flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group ${leftPadding}`}
     >
-      <div className={`${sizeClass} rounded-full bg-zinc-700 overflow-hidden flex-shrink-0 relative`}>
+      <div className={`${sizeClass} rounded-full bg-white/25 overflow-hidden flex-shrink-0 relative`}>
         {currentImageUrl ? (
           <img src={currentImageUrl} alt={artistName} className="w-full h-full object-cover" onError={handleImageError} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <User className={`${iconSize} text-zinc-500`} />
+            <User className={`${iconSize} text-white/45`} />
           </div>
         )}
         <div className="absolute inset-0 pointer-events-none border rounded-full" style={{ borderColor: 'rgba(117, 117, 117, 0.3)', borderWidth: '1px' }} />
       </div>
       <div className="flex-1 min-w-0">
         <div className={`font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors ${rank === 1 ? 'md:text-lg' : ''}`}>
-          <span className="text-zinc-500 mr-2 tabular-nums">{rank}</span>{artistName}
+          <span className="text-white/45 mr-2 tabular-nums">{rank}</span>{artistName}
         </div>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {timeMode && multiplier !== undefined ? (
           <>
-            <div className="text-sm whitespace-nowrap tabular-nums text-zinc-400">
+            <div className="text-sm whitespace-nowrap tabular-nums text-white/60">
               {formatHours(owned)}
             </div>
             <BadgeWithTooltip
@@ -260,9 +260,9 @@ function ArtistRow({
         ) : (
           <>
             <div className="text-sm whitespace-nowrap tabular-nums">
-              <span className="text-zinc-400">{played}</span>
-              <span className="text-zinc-500"> / </span>
-              <span className="text-zinc-300">{owned}</span>
+              <span className="text-white/60">{played}</span>
+              <span className="text-white/45"> / </span>
+              <span className="text-white/80">{owned}</span>
             </div>
             {coverage !== undefined && (
               <BadgeWithTooltip
@@ -311,7 +311,7 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
   if (!loaded) {
     return (
       <div className="px-4 flex flex-col items-center justify-center py-20 text-center">
-        <Loader2 className="w-8 h-8 text-zinc-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-white/45 animate-spin" />
       </div>
     )
   }
@@ -319,9 +319,9 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
   if (!snapshot) {
     return (
       <div className="px-4 flex flex-col items-center justify-center py-20 text-center">
-        <Music className="w-16 h-16 text-zinc-600 mb-4" />
-        <h2 className="text-xl font-semibold text-zinc-300 mb-2">No library snapshot yet</h2>
-        <p className="text-zinc-500 max-w-sm">Sync your library to capture a library snapshot</p>
+        <Music className="w-16 h-16 text-white/30 mb-4" />
+        <h2 className="text-xl font-semibold text-white/80 mb-2">No library snapshot yet</h2>
+        <p className="text-white/45 max-w-sm">Sync your library to capture a library snapshot</p>
       </div>
     )
   }

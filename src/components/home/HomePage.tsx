@@ -6,8 +6,11 @@ import { Top10Section, NewReleasesSection, RecentlyPlayedSection } from './FeedS
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 export default function HomePage() {
+  const hasAppBackground = useAppBackgroundActive()
   const [isSearchActive, setIsSearchActive] = useState(false)
   const { recentlyAdded, loading } = useMusicStore()
   const { showTop10, showNewReleases, showRecentlyPlayed, muspyRssUrl } = useSettingsStore()
@@ -39,20 +42,23 @@ export default function HomePage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page w-full mx-auto">
           <SearchBar onSearchStateChange={setIsSearchActive} />
         </div>
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4.5rem - 2px)`,
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4.5rem - 2px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       <div className={isSearchActive ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''} style={{ paddingTop: `calc(env(safe-area-inset-top) + 4.5rem + 24px)` }}>
         <div className="w-full">
@@ -96,7 +102,7 @@ export default function HomePage() {
 
           {/* Show empty state overlay only if both have finished loading and both are empty */}
           {showEmptyState && (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-white/60">
               <p>No music found</p>
             </div>
           )}

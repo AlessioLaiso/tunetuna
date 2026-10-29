@@ -32,9 +32,9 @@ function useRecentlyAddedCount() {
 function SkeletonAlbumItem() {
   return (
     <div>
-      <div className="aspect-square rounded bg-zinc-800 mb-2" />
-      <div className="h-3.5 bg-zinc-800 rounded w-3/4 mb-1.5" />
-      <div className="h-3 bg-zinc-800 rounded w-1/2" />
+      <div className="aspect-square rounded bg-white/15 mb-2" />
+      <div className="h-3.5 bg-white/15 rounded w-3/4 mb-1.5" />
+      <div className="h-3 bg-white/15 rounded w-1/2" />
     </div>
   )
 }

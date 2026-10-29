@@ -3,19 +3,18 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
-import Image from '../shared/Image'
 import QueueView from './QueueView'
-import QueueList from './QueueList'
+import QueueSidebarPanel from './QueueSidebarPanel'
 import LyricsModal from './LyricsModal'
-import { getBlurredArtUrl } from '../../utils/blurredArt'
+import { useBlurredArt } from '../../hooks/useBlurredArt'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import VolumeControl from '../layout/VolumeControl'
 import VocalVolumeControl from './VocalVolumeControl'
 import { isVocalRemoverSupported } from '../../audio/vocalSeparation/vocalRemover'
-import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, X, ListPlus, Moon } from 'lucide-react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, ListPlus, Moon } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import vinylImage from '../../assets/vinyl.png'
 import SleepTimerPicker from './SleepTimerPicker'
-import QueueMenu from './QueueMenu'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { useNavigate } from 'react-router-dom'
 import { isIOS, formatTime } from '../../utils/formatting'
@@ -32,6 +31,61 @@ function backgroundBlurStyle(url: string): CSSProperties {
   return url.startsWith('data:')
     ? { transform: 'scale(1.2)' }
     : { filter: 'blur(100px)', transform: 'scale(1.2)' }
+}
+
+/** How long to keep showing the previous art while the next one loads before giving up on it */
+const ART_LOAD_TIMEOUT_MS = 5000
+
+interface PlayerArtworkProps {
+  src: string
+  alt: string
+  /** Called when the art fails to load or takes too long */
+  onError: () => void
+}
+
+/**
+ * Album art that keeps the previous image on screen until the next one has loaded, then fades
+ * straight to it instead of passing through the empty placeholder.
+ */
+function PlayerArtwork({ src, alt, onError }: PlayerArtworkProps) {
+  const [art, setArt] = useState<{ current: string | null; prev: string | null }>({ current: null, prev: null })
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
+
+  useEffect(() => {
+    let settled = false
+    const preload = new window.Image()
+    const settle = (loaded: boolean) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      if (loaded) {
+        setArt(a => (a.current === src ? a : { current: src, prev: a.current }))
+      } else {
+        onErrorRef.current()
+      }
+    }
+    const timeout = setTimeout(() => settle(false), ART_LOAD_TIMEOUT_MS)
+    preload.onload = () => settle(true)
+    preload.onerror = () => settle(false)
+    preload.src = src
+    if (preload.complete && preload.naturalWidth > 0) settle(true)
+    return () => {
+      settled = true
+      clearTimeout(timeout)
+      preload.onload = null
+      preload.onerror = null
+    }
+  }, [src])
+
+  return (
+    <div className="relative w-full h-full">
+      {art.prev && <img src={art.prev} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />}
+      {art.current && (
+        <img key={art.current} src={art.current} alt={alt} className="relative block w-full h-full object-cover player-art-fade-in" />
+      )}
+    </div>
+  )
 }
 
 export default function PlayerModal({ onClose, onClosingStart, closeRef }: PlayerModalProps) {
@@ -82,9 +136,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   const [isClosing, setIsClosing] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
-  const [prevBackgroundUrl, setPrevBackgroundUrl] = useState<string | null>(null)
-  const rawBackgroundUrlRef = useRef<string | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef<number | null>(null)
   const touchStartTime = useRef<number | null>(null)
@@ -223,33 +274,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   // Pre-blur the background art and crossfade to prevent flash
   const backgroundArtItemId = displayTrack ? displayTrack.AlbumId || displayTrack.Id : null
-  useEffect(() => {
-    if (!backgroundArtItemId) return
-
-    const newUrl = jellyfinClient.getAlbumArtUrl(backgroundArtItemId)
-    if (newUrl === rawBackgroundUrlRef.current) return
-
-    let cancelled = false
-    getBlurredArtUrl(newUrl).then((blurred) => {
-      if (cancelled) return
-      const nextUrl = blurred ?? newUrl
-      rawBackgroundUrlRef.current = newUrl
-      setBackgroundUrl((current) => {
-        if (current) {
-          // Save current as previous for crossfade
-          setPrevBackgroundUrl(current)
-          // Clear previous after animation completes (1s animation + buffer)
-          setTimeout(() => {
-            setPrevBackgroundUrl(null)
-          }, 1100)
-        }
-        return nextUrl
-      })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [backgroundArtItemId])
+  const { url: backgroundUrl, prevUrl: prevBackgroundUrl } = useBlurredArt(backgroundArtItemId)
+  // While open, the playing track also drives the app's artwork accent
+  usePageBackgroundArt(backgroundArtItemId)
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
 
@@ -482,13 +509,21 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         .lg\\:max-w-\\[864px\\] { max-width: 864px; }
       }
 
-      /* Queue sidebar in player modal - transparent backgrounds (exclude fixed elements like context menus) */
-      .queue-xl-container .bg-zinc-900:not([style*="position: fixed"]):not(.fixed) { background-color: transparent; }
-      .queue-xl-container .hover\\:bg-zinc-900:hover:not([style*="position: fixed"]):not(.fixed) { background-color: rgba(255, 255, 255, 0.1); }
-      .queue-xl-container .hover\\:bg-zinc-800:hover { background-color: rgba(255, 255, 255, 0.1); }
-      .queue-xl-container .text-\\[var\\(--accent-color\\)\\] { color: white; }
-
       /* Background crossfade animation - only on large screens */
+      /* Album art crossfade when the track changes */
+      @keyframes playerArtFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .player-art-fade-in {
+        animation: playerArtFadeIn 300ms ease-out;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .player-art-fade-in {
+          animation: none;
+        }
+      }
+
       @keyframes bgFadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -498,7 +533,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
       }
       @media (min-width: 1280px) {
         .bg-fade-in {
-          animation: bgFadeIn 1s ease-out forwards;
+          animation: bgFadeIn 1.5s ease-out forwards;
         }
       }
 
@@ -565,7 +600,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
         {/* Overlay - always visible */}
         <div className={showQueue ? 'hidden xl:contents' : 'contents'}>
-          <div className="absolute inset-0 bg-black/40 z-[1] pointer-events-none" />
+          <div className="absolute inset-0 bg-black/45 z-[1] pointer-events-none" />
         </div>
 
         {/* Main content area - z-[2] to be above overlays */}
@@ -575,7 +610,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               <button
                 onClick={handleClose}
                 aria-label="Close player"
-                className="text-white hover:text-zinc-300 transition-colors z-10 flex-shrink-0"
+                className="text-white hover:text-white/80 transition-colors z-10 flex-shrink-0"
               >
                 <ChevronDown className="w-8 h-8" />
               </button>
@@ -614,7 +649,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                     variant="compact"
                     onOpenPopover={() => handleOpenVolumePopover('down')}
                     onRef={setVolumeHeaderButtonElement}
-                    className="text-white hover:text-zinc-300 hover:bg-white/10 rounded-full transition-colors p-2"
+                    className="text-white hover:text-white/80 hover:bg-white/10 rounded-full transition-colors p-2"
                   />
                 )}
               </div>
@@ -712,11 +747,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                           />
                         </div>
                       ) : (
-                        <Image
+                        <PlayerArtwork
                           src={jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id)}
                           alt={displayTrack.Name}
-                          className="w-full h-full object-cover"
-                          rounded="rounded"
                           onError={() => setImageError(true)}
                         />
                       )}
@@ -806,7 +839,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   disabled={!hasPrevious}
                   aria-label="Previous track"
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasPrevious
-                    ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
+                    ? 'text-white hover:bg-white/5 active:bg-white/5'
                     : 'text-white/30 cursor-not-allowed'
                     }`}
                 >
@@ -823,7 +856,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                     }
                   }}
                   aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
-                  className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-color)] text-white hover:opacity-90"
+                  className="w-16 h-16 flex items-center justify-center rounded-full transition-colors aspect-square bg-[var(--accent-fill)] text-white hover:opacity-90"
                 >
                   {isPlaying && currentTrack ? (
                     <Pause className="w-8 h-8" />
@@ -838,7 +871,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   disabled={!hasNext}
                   aria-label="Next track"
                   className={`w-12 h-12 flex-shrink-0 aspect-square flex items-center justify-center rounded-full transition-colors ${hasNext
-                    ? 'text-white hover:bg-zinc-800/35 active:bg-zinc-800/35'
+                    ? 'text-white hover:bg-white/5 active:bg-white/5'
                     : 'text-white/30 cursor-not-allowed'
                     }`}
                 >
@@ -895,29 +928,12 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             className="flex flex-col h-full flex-shrink-0"
             style={{ width: 'var(--sidebar-width)' }}
           >
-            <div className={`border-l border-white/20 flex-shrink-0 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/20 flex-shrink-0">
-                <h2 className="text-base font-bold text-white tracking-wider">Queue</h2>
-                <div className="flex items-center">
-                  <QueueMenu
-                    buttonClassName="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
-                  />
-                  <button
-                    onClick={toggleQueueSidebar}
-                    aria-label="Close queue sidebar"
-                    className="text-white/70 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 relative z-20"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className={`flex-1 overflow-y-auto min-h-0 border-l border-white/20 queue-xl-container [&_.text-gray-400]:text-white/60 [&_.text-gray-500]:text-white/50 [&_.text-gray-300]:text-white/70 [&_.border-zinc-800]:border-white/20 [&_.bg-zinc-600]:bg-white/30 transition-opacity duration-300 ${isQueueSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-              <QueueList
-                onNavigateFromContextMenu={handleClose}
-                contentPaddingBottom="2rem"
-              />
-            </div>
+            <QueueSidebarPanel
+              isOpen={isQueueSidebarOpen}
+              onClose={toggleQueueSidebar}
+              onNavigateFromContextMenu={handleClose}
+              contentPaddingBottom="2rem"
+            />
           </div>
         </div>
       </div>

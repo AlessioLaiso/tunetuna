@@ -17,6 +17,8 @@ import { useSearchHandlers } from '../../hooks/useSearchHandlers'
 import { useSortChangeLoading } from '../../hooks/useSortChangeLoading'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 // Section configuration for ArtistsPage: Artists (all), Albums (12), Playlists, Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -32,6 +34,7 @@ const INITIAL_VISIBLE_ARTISTS = 45
 const VISIBLE_INCREMENT = 45
 
 export default function ArtistsPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const { artists, setArtists, sortPreferences, setSortPreference, setLoading, loading, genres } = useMusicStore()
   const { isSearchOpen, setIsSearchOpen, openSearch, proxyInputProps } = useSearchOpen()
   const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
@@ -158,6 +161,7 @@ export default function ArtistsPage() {
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
+          <SurfaceBackdrop />
           <div className="max-w-page mx-auto">
             <div className="p-4 min-[780px]:px-[0.66rem]">
               {/* Header with title and search icon */}
@@ -165,7 +169,7 @@ export default function ArtistsPage() {
                 <h1 className="text-2xl font-bold text-white">Artists</h1>
                 <button
                   onClick={openSearch}
-                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
                   aria-label="Search"
                 >
                   <svg
@@ -188,7 +192,7 @@ export default function ArtistsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={() => setSortPreference('artists', sortOrder === 'RecentlyAdded' ? 'Alphabetical' : 'RecentlyAdded')}
-                    className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+                    className="text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
                     {sortOrder === 'RecentlyAdded' ? 'Recently added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
@@ -205,19 +209,21 @@ export default function ArtistsPage() {
         </div>
 
         {/* Gradient overlay below top bar */}
-        <div
-          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-          style={{
-            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7rem - 8px)`,
-            height: '24px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-          }}
-        />
+        {!hasAppBackground && (
+          <div
+            className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+            style={{
+              top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 7rem - 8px)`,
+              height: '24px',
+              background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+            }}
+          />
+        )}
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
             {artists.length === 0 && !loading.artists && (
-              <div className="flex items-center justify-center py-8 text-gray-400">
+              <div className="flex items-center justify-center py-8 text-white/60">
                 <p>No artists found</p>
               </div>
             )}

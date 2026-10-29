@@ -95,8 +95,8 @@ export default function UploadDropZone({ label, accept = 'image/*', value, onCha
         isDragging
           ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10'
           : (preview || (value && !isImage))
-            ? 'border-zinc-700 bg-zinc-800/50'
-            : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-500'
+            ? 'border-white/25 bg-white/10'
+            : 'border-white/25 bg-white/10 hover:border-white/45'
       }`}
     >
       <input
@@ -130,8 +130,8 @@ export default function UploadDropZone({ label, accept = 'image/*', value, onCha
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-2 py-8 px-4">
-          <Upload className="w-6 h-6 text-gray-400" />
-          <span className="text-sm text-gray-400 text-center">{label}</span>
+          <Upload className="w-6 h-6 text-white/60" />
+          <span className="text-sm text-white/60 text-center">{label}</span>
         </div>
       )}
     </div>

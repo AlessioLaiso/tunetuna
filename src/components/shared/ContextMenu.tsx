@@ -649,7 +649,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
             <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
               <div className="text-lg font-semibold text-white">Delete playlist?</div>
-              <div className="text-sm text-gray-400 mt-1">
+              <div className="text-sm text-white/60 mt-1">
                 &ldquo;{deleteTargetName}&rdquo; will be permanently deleted. This cannot be undone.
               </div>
             </div>
@@ -885,7 +885,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         {/* Floating Context Menu */}
         <div
           ref={desktopMenuRef}
-          className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 min-w-[200px]"
+          className="fixed z-50 bg-zinc-900 border border-white/25 rounded-lg shadow-2xl py-1 min-w-[200px]"
           style={{
             left: menuX,
             top: menuY,
@@ -904,7 +904,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
                   key={action.id}
                   onClick={() => handleAction(action.id)}
                   disabled={loading}
-                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
                 >
                   <Icon className="w-4 h-4 text-white flex-shrink-0" />
                   <span className="flex-1 text-sm text-white">

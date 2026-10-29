@@ -1,5 +1,6 @@
-import { ReactNode, useEffect, useRef } from 'react'
+import { ReactNode, useEffect, useMemo, useRef } from 'react'
 import TabBar from './TabBar'
+import AppBackground, { SurfaceBackdrop } from './AppBackground'
 import PlayerBar from '../player/PlayerBar'
 import SyncStatusBar from '../shared/SyncStatusBar'
 import SleepTimerBar from '../shared/SleepTimerBar'
@@ -7,12 +8,17 @@ import ConnectionStatusBar from '../shared/ConnectionStatusBar'
 import { useConnectionStatus } from '../../hooks/useConnectionStatus'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
-import { useSettingsStore } from '../../stores/settingsStore'
+import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useBackgroundArtStore, selectArtItemId } from '../../stores/backgroundArtStore'
+import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
+import { useBlurredArt } from '../../hooks/useBlurredArt'
+import { AppBackgroundContext, BOTTOM_BAR_TINT } from '../../hooks/useAppBackground'
 import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
@@ -52,7 +58,7 @@ export default function Layout({ children }: LayoutProps) {
 
   useRecommendations()
   useLibraryChanged()
-  const { accentColor } = useSettingsStore()
+  const { accentColor, blurredBackground } = useSettingsStore()
   const genres = useMusicStore(s => s.genres)
   const songs = useMusicStore(s => s.songs)
   const genreSongs = useMusicStore(s => s.genreSongs)
@@ -65,10 +71,36 @@ export default function Layout({ children }: LayoutProps) {
   const { isQueueSidebarOpen } = usePlayerStore()
   const autoSyncTriggered = useRef(false)
 
+  // Blurred background art and artwork accent: the page's own item, else the track shown in the player bar
+  const currentTrack = useCurrentTrack()
+  const lastPlayedTrack = useLastPlayedTrack()
+  const firstQueueTrack = usePlayerStore(s => s.songs[0] ?? null)
+  const pageArtItemId = useBackgroundArtStore(selectArtItemId)
+  const playerBarTrack = currentTrack || lastPlayedTrack || firstQueueTrack
+  const playerBarArtItemId = playerBarTrack ? playerBarTrack.AlbumId || playerBarTrack.Id : null
+  const usesArtworkAccent = accentColor === ARTWORK_ACCENT
+  const blurredArt = useBlurredArt(
+    blurredBackground || usesArtworkAccent ? pageArtItemId ?? playerBarArtItemId : null,
+    pageArtItemId ? playerBarArtItemId : null
+  )
+  const appBackground = useMemo(
+    () => (blurredBackground ? blurredArt : null),
+    [blurredBackground, blurredArt]
+  )
+
+  // --accent-fill is for filled controls with white content; presets use the accent itself
+  const artAccent = usesArtworkAccent ? blurredArt.accent : null
   useEffect(() => {
-    const colorHex = colorMap[accentColor] || colorMap.blue
-    document.documentElement.style.setProperty('--accent-color', colorHex)
-  }, [accentColor])
+    const root = document.documentElement.style
+    if (artAccent) {
+      root.setProperty('--accent-color', artAccent.text)
+      root.setProperty('--accent-fill', artAccent.fill)
+    } else {
+      // Artwork accent falls back to the default until art has loaded
+      root.setProperty('--accent-color', colorMap[accentColor] || colorMap.blue)
+      root.removeProperty('--accent-fill')
+    }
+  }, [accentColor, artAccent])
 
   // Update header offset when status bars change
   const isSyncActive = syncState !== 'idle'
@@ -240,7 +272,8 @@ export default function Layout({ children }: LayoutProps) {
   const topOffset = nextBarOffset > 0 ? `${nextBarOffset}px` : '0px'
 
   return (
-    <>
+    <AppBackgroundContext.Provider value={appBackground}>
+      <AppBackground />
       {/* Fixed overlay to hide content behind status bar */}
       <div
         className="fixed top-0 right-0 bg-black z-50 pointer-events-none left-0 lg:left-8"
@@ -248,7 +281,9 @@ export default function Layout({ children }: LayoutProps) {
           height: `env(safe-area-inset-top)`,
           top: topOffset
         }}
-      />
+      >
+        <SurfaceBackdrop />
+      </div>
       {isConnectionBarVisible && (
         <ConnectionStatusBar state={connection.state} dismiss={connection.dismiss} topOffset={connectionBarOffset} />
       )}
@@ -258,14 +293,18 @@ export default function Layout({ children }: LayoutProps) {
       <div
         className="fixed bottom-0 left-0 right-0 bg-zinc-900 z-40 pointer-events-none lg:hidden"
         style={{ height: `calc(4rem + env(safe-area-inset-bottom) - 8px)` }}
-      />
+      >
+        <SurfaceBackdrop tint={BOTTOM_BAR_TINT} />
+      </div>
       {/* Fixed overlay to hide content behind vertical TabBar - only on desktop */}
       <div
         className="fixed top-0 left-0 bottom-0 bg-black z-30 pointer-events-none hidden lg:block"
         style={{ width: '4rem' }}
-      />
+      >
+        <SurfaceBackdrop />
+      </div>
       <div
-        className={`main-scrollable bg-black text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
+        className={`main-scrollable ${appBackground ? '' : 'bg-black'} text-white lg:pl-16 transition-[padding] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-padding' : ''}`}
         style={{
           height: '100dvh',
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
@@ -287,7 +326,7 @@ export default function Layout({ children }: LayoutProps) {
         <TabBar />
       </div>
       <QueueSidebar />
-    </>
+    </AppBackgroundContext.Provider>
   )
 }
 

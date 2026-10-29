@@ -32,7 +32,7 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
         {...longPressHandlers}
         className="text-left group"
       >
-        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center">
+        <div className="aspect-square rounded overflow-hidden bg-white/10 relative flex items-center justify-center">
           <Image
             src={jellyfinClient.getAlbumArtUrl(playlist.Id, 474)}
             alt={playlist.Name}
@@ -43,7 +43,7 @@ export default function PlaylistItem({ playlist }: PlaylistItemProps) {
           />
         </div>
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{playlist.Name}</div>
-        <div className="text-xs text-gray-400 truncate">
+        <div className="text-xs text-white/60 truncate">
           {playlist.ChildCount ? `${playlist.ChildCount} songs` : 'Playlist'}
         </div>
       </button>

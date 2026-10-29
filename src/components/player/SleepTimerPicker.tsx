@@ -50,7 +50,7 @@ export default function SleepTimerPicker({ isOpen, onClose }: SleepTimerPickerPr
               className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-sm ${
                 isActive(option.value)
                   ? 'bg-white/10 text-[var(--accent-color)]'
-                  : 'text-white hover:bg-zinc-800'
+                  : 'text-white hover:bg-white/15'
               }`}
             >
               {option.label}

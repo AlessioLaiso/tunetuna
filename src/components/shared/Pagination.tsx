@@ -20,7 +20,7 @@ export default function Pagination({
   if (totalPages <= 1) {
     return (
       <div className="flex items-center py-4">
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-white/60">
           Showing {totalItems} item{totalItems !== 1 ? 's' : ''}
         </div>
       </div>
@@ -32,14 +32,14 @@ export default function Pagination({
 
   return (
     <div className="flex items-center justify-between py-4">
-      <div className="text-sm text-gray-400">
+      <div className="text-sm text-white/60">
         Showing {startItem}-{endItem} of {totalItems}
       </div>
       <div className="flex items-center gap-2">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 0}
-          className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Previous page"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -50,7 +50,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages - 1}
-          className="w-10 h-10 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Next page"
         >
           <ChevronRight className="w-5 h-5" />

@@ -13,6 +13,8 @@ import ContextMenu from '../shared/ContextMenu'
 import Pagination from '../shared/Pagination'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
 import { logger } from '../../utils/logger'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
@@ -23,6 +25,7 @@ const VISIBLE_SONGS_INCREMENT = 45
 type SongSortOrder = 'Alphabetical' | 'Newest' | 'Oldest'
 
 export default function GenreSongsPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const { id: rawId } = useParams<{ id: string }>()
   const id = rawId ? decodeURIComponent(rawId) : undefined
   const navigate = useNavigate()
@@ -348,11 +351,12 @@ export default function GenreSongsPage() {
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
+          <SurfaceBackdrop />
           <div className="max-w-page mx-auto">
             <div className="flex items-center gap-4 py-4 pl-3 pr-4">
               <button
                 onClick={() => navigate(-1)}
-                className="text-white hover:text-zinc-300 transition-colors"
+                className="text-white hover:text-white/80 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
@@ -364,7 +368,7 @@ export default function GenreSongsPage() {
           </div>
         </div>
         <div className="pt-20">
-          <div className="flex items-center justify-center h-screen text-gray-400">
+          <div className="flex items-center justify-center h-screen text-white/60">
           </div>
         </div>
       </div>
@@ -378,11 +382,12 @@ export default function GenreSongsPage() {
           className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
           style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
         >
+          <SurfaceBackdrop />
           <div className="max-w-page mx-auto">
             <div className="flex items-center gap-4 py-4 pl-3 pr-4">
               <button
                 onClick={() => navigate(-1)}
-                className="text-white hover:text-zinc-300 transition-colors"
+                className="text-white hover:text-white/80 transition-colors"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
@@ -391,7 +396,7 @@ export default function GenreSongsPage() {
           </div>
         </div>
         <div className="pt-20">
-          <div className="flex items-center justify-center h-screen text-gray-400">
+          <div className="flex items-center justify-center h-screen text-white/60">
             <p>Genre not found or no songs available</p>
           </div>
         </div>
@@ -405,11 +410,12 @@ export default function GenreSongsPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -417,11 +423,11 @@ export default function GenreSongsPage() {
             <button
               onClick={handleShufflePlay}
               disabled={isShufflingGenre}
-              className="w-8 h-8 flex items-center justify-center text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors disabled:opacity-50"
               aria-label="Shuffle genre songs"
             >
               {isShufflingGenre ? (
-                <div className="w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <Shuffle className="w-5 h-5" />
               )}
@@ -431,14 +437,16 @@ export default function GenreSongsPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5rem - 16px)`,
-          height: '24px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 5rem - 16px)`,
+            height: '24px',
+              background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 5rem)` }}>
         {/* Albums section */}
@@ -506,7 +514,7 @@ export default function GenreSongsPage() {
                 <button
                   type="button"
                   onClick={cycleSongSortOrder}
-                  className={`text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1 ${sortedSongs.length <= 1 ? 'hidden' : ''}`}
+                  className={`text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1 ${sortedSongs.length <= 1 ? 'hidden' : ''}`}
                 >
                   {songSortOrder}
                   <ArrowUpDown className="w-4 h-4" />

@@ -5,6 +5,8 @@ import { useSyncStore } from '../../stores/syncStore'
 import VolumeControl from './VolumeControl'
 import { useState } from 'react'
 import { isIOS } from '../../utils/formatting'
+import { SurfaceBackdrop } from './AppBackground'
+import { BOTTOM_BAR_TINT } from '../../hooks/useAppBackground'
 
 const allTabs = [
   { path: '/', label: 'Home', icon: Home, key: 'home' },
@@ -48,9 +50,10 @@ export default function TabBar() {
     <>
       {/* Mobile horizontal layout */}
       <nav
-        className="fixed left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-40 lg:hidden"
+        className="fixed left-0 right-0 bg-zinc-900 border-t border-white/15 z-40 lg:hidden"
         style={{ bottom: `calc(env(safe-area-inset-bottom) - 8px)` }}
       >
+        <SurfaceBackdrop tint={BOTTOM_BAR_TINT} />
         <div className="relative h-16">
           <div className="max-w-[600px] mx-auto h-full">
             <div className="flex justify-around items-center h-full">
@@ -63,7 +66,7 @@ export default function TabBar() {
                     to={tab.path}
                     onClick={(e) => handleTabClick(e, tab.path)}
                     className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                      isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                      isActive ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                     }`}
                   >
                     <Icon className={`w-5 h-5 ${hideLabels ? 'mb-0 narrow-icon-nudge' : 'mb-1'}`} />
@@ -91,7 +94,8 @@ export default function TabBar() {
           top: syncState !== 'idle' ? '28px' : '0px'
         }}
       >
-        <div className={`absolute inset-0 flex flex-col items-center justify-center ${isArtistDetailPage ? 'border-r border-zinc-800' : ''}`}>
+        <SurfaceBackdrop />
+        <div className={`absolute inset-0 flex flex-col items-center justify-center ${isArtistDetailPage ? 'border-r border-white/15' : ''}`}>
           {tabs.map((tab, index) => {
             const isActive = location.pathname === tab.path
             const Icon = tab.icon
@@ -101,7 +105,7 @@ export default function TabBar() {
                 to={tab.path}
                 onClick={(e) => handleTabClick(e, tab.path)}
                 className={`flex flex-col items-center justify-center py-5 transition-colors ${
-                  isActive ? 'text-[var(--accent-color)]' : 'text-gray-400 hover:text-zinc-300'
+                  isActive ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                 } ${index < tabs.length - 1 ? 'mb-0' : ''}`}
                 style={{ marginBottom: index < tabs.length - 1 ? '0px' : '0' }}
               >

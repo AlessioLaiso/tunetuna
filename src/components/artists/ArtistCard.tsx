@@ -75,15 +75,15 @@ export default function ArtistCard({ artist, showImage = true, onContextMenu, co
         {...longPressHandlers}
         className={`w-full flex items-center gap-4 hover:bg-white/10 transition-colors group px-4 h-[72px] ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
       >
-        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-900 flex items-center justify-center relative">
+        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center relative">
           {!showImage ? (
-            <div className="w-full h-full bg-zinc-900" />
+            <div className="w-full h-full bg-white/10" />
           ) : (
             <>
               {/* The icon shows until the image loads; the image stays hidden
                   until then, so the browser doesn't draw its alt text meanwhile */}
               {(!imageUrl || imageError || loadedImageUrl !== imageUrl) && (
-                <User className="w-6 h-6 text-gray-500" />
+                <User className="w-6 h-6 text-white/45" />
               )}
               {imageUrl && !imageError && (
                 <img

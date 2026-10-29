@@ -29,6 +29,7 @@ import {
   bpmBucketLabel,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
+import { SurfaceBackdrop } from '../layout/AppBackground'
 
 // Cassette animation constants (same as PlaylistDetailPage)
 const WHEEL_SIZE_PERCENT = (712 / 1233) * 100
@@ -172,11 +173,12 @@ export default function SmartPlaylistDetailPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center gap-4 px-4" style={{ paddingTop: '1.5rem', paddingBottom: '1rem' }}>
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -246,7 +248,7 @@ export default function SmartPlaylistDetailPage() {
           <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{title}</h2>
           {tracks.length > 0 && (
             <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400 text-sm">
+              <div className="text-white/60 text-sm">
                 {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}{subtitle && ` • ${subtitle}`}
               </div>
               <button
@@ -271,7 +273,7 @@ export default function SmartPlaylistDetailPage() {
 
         {tracks.length === 0 ? (
           <div className="flex items-center justify-center px-8 pt-24">
-            <p className="text-gray-400 text-center">Not enough songs to generate this playlist</p>
+            <p className="text-white/60 text-center">Not enough songs to generate this playlist</p>
           </div>
         ) : (
           <div className="space-y-0">
@@ -341,7 +343,7 @@ function SmartTrackItem({
       onContextMenu={handleContextMenu}
       {...longPressHandlers}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center">
         <Image
           src={jellyfinClient.getAlbumArtUrl(track.AlbumId || track.Id, 96)}
           alt={track.Name}
@@ -357,7 +359,7 @@ function SmartTrackItem({
         }`}>
           {track.Name}
         </div>
-        <div className="text-xs text-gray-400 truncate">
+        <div className="text-xs text-white/60 truncate">
           {track.ArtistItems?.[0]?.Id ? (
             <span
               className="clickable-text"
@@ -396,7 +398,7 @@ function SmartTrackItem({
         </div>
       </div>
       {track.RunTimeTicks && (
-        <div className="text-xs text-gray-500 flex-shrink-0 text-right">
+        <div className="text-xs text-white/45 flex-shrink-0 text-right">
           {formatDuration(track.RunTimeTicks)}
         </div>
       )}

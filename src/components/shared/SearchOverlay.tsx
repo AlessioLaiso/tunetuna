@@ -11,6 +11,8 @@ import { formatDuration } from '../../utils/formatting'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import type { LucideIcon } from 'lucide-react'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 // Section configuration for customizing which sections appear and in what order
 export type SearchSectionType = 'artists' | 'albums' | 'songs' | 'playlists'
@@ -155,7 +157,7 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
       {...longPressHandlers}
     >
       {showImage && (
-        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center">
           <Image
             src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
             alt={song.Name}
@@ -170,7 +172,7 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
           {song.Name}
         </div>
-        <div className="text-xs text-gray-400 truncate">
+        <div className="text-xs text-white/60 truncate">
           {song.ArtistItems?.[0]?.Id ? (
             <span
               className="clickable-text"
@@ -188,7 +190,7 @@ function SearchSongItem({ song, onClick, onArtistClick, onContextMenu, contextMe
         </div>
       </div>
       {song.RunTimeTicks && (
-        <div className="text-xs text-gray-500 flex-shrink-0">
+        <div className="text-xs text-white/45 flex-shrink-0">
           {formatDuration(song.RunTimeTicks)}
         </div>
       )}
@@ -223,7 +225,7 @@ function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemPr
       className="w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3"
       {...longPressHandlers}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center">
         <Image
           src={jellyfinClient.getAlbumArtUrl(playlist.Id, 96)}
           alt={playlist.Name}
@@ -237,7 +239,7 @@ function SearchPlaylistItem({ playlist, onClick, onContextMenu }: PlaylistItemPr
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
           {playlist.Name}
         </div>
-        <div className="text-xs text-gray-400 truncate">
+        <div className="text-xs text-white/60 truncate">
           {playlist.ChildCount ? `${playlist.ChildCount} tracks` : 'Playlist'}
         </div>
       </div>
@@ -286,6 +288,9 @@ export default function SearchOverlay({
 
   // Animation state for backdrop fade
   const [isVisible, setIsVisible] = useState(false)
+  const hasAppBackground = useAppBackgroundActive()
+  // The fullscreen overlay paints the app background itself, so its inner surfaces stay clear
+  const mobileSurfaceBg = hasAppBackground ? '' : 'bg-black'
   const [shouldRender, setShouldRender] = useState(false)
 
   // Handle open/close with animation
@@ -493,7 +498,7 @@ export default function SearchOverlay({
             onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('genre'); }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
               filterState.selectedGenres.length > 0
-                ? 'bg-[var(--accent-color)] text-white'
+                ? 'bg-[var(--accent-fill)] text-white'
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
             aria-label="Filter by genre"
@@ -507,7 +512,7 @@ export default function SearchOverlay({
             onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('year') }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
               filterState.yearRange.min !== null || filterState.yearRange.max !== null
-                ? 'bg-[var(--accent-color)] text-white'
+                ? 'bg-[var(--accent-fill)] text-white'
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
             aria-label="Filter by year"
@@ -521,7 +526,7 @@ export default function SearchOverlay({
             onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenFilterSheet('bpm') }}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
               filterState.bpmRange?.min !== null || filterState.bpmRange?.max !== null
-                ? 'bg-[var(--accent-color)] text-white'
+                ? 'bg-[var(--accent-fill)] text-white'
                 : 'bg-white/10 text-white hover:bg-white/20'
             }`}
             aria-label="Filter by BPM"
@@ -539,7 +544,7 @@ export default function SearchOverlay({
               onClick={() => { (document.activeElement as HTMLElement)?.blur(); onOpenGroupingFilterSheet?.(category) }}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 hasSelection
-                  ? 'bg-[var(--accent-color)] text-white'
+                  ? 'bg-[var(--accent-fill)] text-white'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
               aria-label={`Filter by ${category.name}`}
@@ -556,13 +561,13 @@ export default function SearchOverlay({
   // Render loading state
   const renderLoading = () => (
     <div className="flex items-center justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-800 border-t-[var(--accent-color)]"></div>
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/15 border-t-[var(--accent-color)]"></div>
     </div>
   )
 
   // Render no results
   const renderNoResults = () => (
-    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+    <div className="flex flex-col items-center justify-center py-16 text-white/60">
       <div className="text-lg mb-2">No results found</div>
       <div className="text-sm">Try a different search term</div>
     </div>
@@ -571,7 +576,7 @@ export default function SearchOverlay({
   // Render results content
   const renderContent = (isMobile: boolean) => {
     if (isLoading) return renderLoading()
-    if (!results) return <div className="flex flex-col items-center justify-center py-16 text-gray-400" />
+    if (!results) return <div className="flex flex-col items-center justify-center py-16 text-white/60" />
     if (!hasResults) return renderNoResults()
 
     return (
@@ -595,14 +600,14 @@ export default function SearchOverlay({
       <div
         className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-0 right-0 lg:left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
       >
-        <div className="w-full max-w-page max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-zinc-800 flex flex-col overflow-hidden">
+        <div className="w-full max-w-page max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-white/15 flex flex-col overflow-hidden">
           {/* Desktop header - sticky */}
-          <div className="sticky top-0 bg-zinc-900 z-10 px-4 pt-4 pb-4 border-b border-zinc-800 flex-shrink-0">
+          <div className="sticky top-0 bg-zinc-900 z-10 px-4 pt-4 pb-4 border-b border-white/15 flex-shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="text-lg font-semibold text-white">{title}</div>
               <button
                 onClick={onClose}
-                className="p-1.5 text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                className="p-1.5 text-white hover:bg-white/15 rounded-lg transition-colors"
                 aria-label="Close search"
               >
                 <X className="w-5 h-5" />
@@ -636,14 +641,15 @@ export default function SearchOverlay({
 
       {/* Mobile: fullscreen */}
       <div className="fixed inset-0 bg-black z-[9999] flex flex-col p-0 m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden">
+        <SurfaceBackdrop />
         {/* Fixed overlay to hide content behind status bar */}
         <div
-          className="fixed top-0 left-0 right-0 bg-black z-50 pointer-events-none"
+          className={`fixed top-0 left-0 right-0 ${mobileSurfaceBg} z-50 pointer-events-none`}
           style={{ height: `env(safe-area-inset-top)`, top: `var(--header-offset, 0px)` }}
         />
 
         {/* Sticky search header with close button */}
-        <div className="sticky top-0 left-0 right-0 bg-black z-10 pt-0 pb-0 w-full m-0" style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+        <div className={`sticky top-0 left-0 right-0 ${mobileSurfaceBg} z-10 pt-0 pb-0 w-full m-0`} style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
           <div className="max-w-page mx-auto w-full">
             <div className="flex items-center gap-3 pl-2 pr-4 pt-4 pb-4">
               <div className="flex-1">
@@ -658,7 +664,7 @@ export default function SearchOverlay({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-white hover:text-zinc-300 transition-colors flex-shrink-0"
+                className="p-2 text-white hover:text-white/80 transition-colors flex-shrink-0"
                 aria-label="Close search"
               >
                 <X className="w-6 h-6" />
@@ -672,7 +678,7 @@ export default function SearchOverlay({
           <div className="max-w-page mx-auto w-full">
             {/* Filter icons - scrolls below header */}
             {hasFilters && (
-              <div className="bg-black pt-3 pb-4">
+              <div className={`${mobileSurfaceBg} pt-3 pb-4`}>
                 <div className="flex flex-wrap items-center gap-3 max-[380px]:gap-2 pl-2 pr-4">
                   {renderFilters()}
                 </div>

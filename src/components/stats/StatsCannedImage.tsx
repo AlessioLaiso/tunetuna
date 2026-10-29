@@ -84,8 +84,8 @@ function StatsArtistImage({ artistId, alt, size, className, rounded = 'rounded-m
 
   if (!src) {
     return (
-      <div className={`w-full h-full flex items-center justify-center bg-zinc-800 ${rounded}`}>
-        <User className="w-12 h-12 text-zinc-600" />
+      <div className={`w-full h-full flex items-center justify-center bg-white/15 ${rounded}`}>
+        <User className="w-12 h-12 text-white/30" />
       </div>
     )
   }
@@ -194,7 +194,7 @@ export default function StatsCannedImage({
         {/* Image grid */}
         <div className="grid grid-cols-4 gap-6 mb-10 content-start">
           {/* Top Artists #1 - Spans 2x2 */}
-          <div className="col-span-2 row-span-2 aspect-square rounded-[6px] overflow-hidden bg-zinc-800">
+          <div className="col-span-2 row-span-2 aspect-square rounded-[6px] overflow-hidden bg-white/15">
             {topArtists[0] ? (
               <StatsArtistImage
                 artistId={topArtists[0].artistId}
@@ -204,14 +204,14 @@ export default function StatsCannedImage({
                 rounded="rounded-[6px]"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                <User className="w-24 h-24 text-zinc-600" />
+              <div className="w-full h-full flex items-center justify-center bg-white/15">
+                <User className="w-24 h-24 text-white/30" />
               </div>
             )}
           </div>
 
           {/* Top Artist #2 */}
-          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-zinc-800">
+          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-white/15">
             {topArtists[1] ? (
               <StatsArtistImage
                 artistId={topArtists[1].artistId}
@@ -221,8 +221,8 @@ export default function StatsCannedImage({
                 rounded="rounded-[6px]"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                <User className="w-12 h-12 text-zinc-600" />
+              <div className="w-full h-full flex items-center justify-center bg-white/15">
+                <User className="w-12 h-12 text-white/30" />
               </div>
             )}
           </div>
@@ -231,7 +231,7 @@ export default function StatsCannedImage({
           <div className="col-span-1"></div>
 
           {/* Album #1 */}
-          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-zinc-800">
+          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-white/15">
             {topAlbums[0] ? (
               <img
                 src={jellyfinClient.getAlbumArtUrl(topAlbums[0].albumId, 440)}
@@ -240,14 +240,14 @@ export default function StatsCannedImage({
                 crossOrigin="anonymous"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                <Disc className="w-12 h-12 text-zinc-600" />
+              <div className="w-full h-full flex items-center justify-center bg-white/15">
+                <Disc className="w-12 h-12 text-white/30" />
               </div>
             )}
           </div>
 
           {/* Album #2 */}
-          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-zinc-800">
+          <div className="col-span-1 aspect-square rounded-[6px] overflow-hidden bg-white/15">
             {topAlbums[1] ? (
               <img
                 src={jellyfinClient.getAlbumArtUrl(topAlbums[1].albumId, 440)}
@@ -256,8 +256,8 @@ export default function StatsCannedImage({
                 crossOrigin="anonymous"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                <Disc className="w-12 h-12 text-zinc-600" />
+              <div className="w-full h-full flex items-center justify-center bg-white/15">
+                <Disc className="w-12 h-12 text-white/30" />
               </div>
             )}
           </div>
@@ -324,7 +324,7 @@ export default function StatsCannedImage({
         <div className="mt-auto pt-6 flex justify-end">
           <span className="text-white text-2xl">
             <span className="font-bold">Tunetuna</span>
-            <span className="text-zinc-400"> Canned, {formatDateRange(fromMonth, toMonth)}</span>
+            <span className="text-white/60"> Canned, {formatDateRange(fromMonth, toMonth)}</span>
           </span>
         </div>
       </div>

@@ -14,9 +14,9 @@ const ToastItem = memo(function ToastItem({ toast }: { toast: ToastType }) {
 
   // Use zinc-900 to match playerbar style, with red for errors
   const colors = {
-    success: 'bg-zinc-900 border border-zinc-700',
+    success: 'bg-zinc-900 border border-white/25',
     error: 'bg-red-900/90 border border-red-700',
-    info: 'bg-zinc-900 border border-zinc-700',
+    info: 'bg-zinc-900 border border-white/25',
   }
 
   return (

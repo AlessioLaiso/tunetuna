@@ -165,7 +165,7 @@ export default function VinylArtwork({
 
         {/* Album Art */}
         <div
-          className={`absolute inset-0 rounded overflow-hidden ${isCassette ? '' : 'bg-zinc-900'} transition-all duration-500`}
+          className={`absolute inset-0 rounded overflow-hidden ${isCassette ? '' : 'bg-white/10'} transition-all duration-500`}
           style={{
             transform: !isCassette && isPlaying
               ? shouldSplitRef.current
@@ -193,7 +193,7 @@ export default function VinylArtwork({
               onError={onCoverError}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-zinc-600 rounded">
+            <div className="w-full h-full flex items-center justify-center text-white/30 rounded">
               No image
             </div>
           )}

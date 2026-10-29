@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink } from 'lucide-react'
 import { useCollectionStore } from '../../stores/collectionStore'
 import { usePlayerStore } from '../../stores/playerStore'
@@ -19,6 +20,7 @@ import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Spinner from '../shared/Spinner'
 import VinylArtwork from '../shared/VinylArtwork'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 interface MatchedTrack {
   discogsTrack: DiscogsTrack
@@ -81,7 +83,7 @@ function CollectionTrackItem({
       }`}
     >
       <span className={`text-sm text-left flex-shrink-0 mr-4 ${
-        isPlaying ? 'text-[var(--accent-color)]' : isMatched ? 'text-gray-500' : 'text-gray-700'
+        isPlaying ? 'text-[var(--accent-color)]' : isMatched ? 'text-white/45' : 'text-white/20'
       }`} style={{ width: trackNumberWidth }}>
         {trackNumber}
       </span>
@@ -91,21 +93,21 @@ function CollectionTrackItem({
             ? 'text-[var(--accent-color)]'
             : isMatched
               ? 'text-white group-hover:text-[var(--accent-color)]'
-              : 'text-gray-600'
+              : 'text-white/30'
         }`}>
           {track.discogsTrack.title}
         </div>
         {/* Show the Jellyfin artist if it differs from album artist (more than just capitalization) */}
         {isMatched && track.libraryMatch?.ArtistItems?.[0]?.Name &&
           track.libraryMatch.ArtistItems[0].Name.toLowerCase() !== artistName.toLowerCase() && (
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-white/60 truncate">
             {track.libraryMatch.ArtistItems[0].Name}
           </div>
         )}
       </div>
       {track.discogsTrack.duration && (
         <div className={`text-xs flex-shrink-0 text-right mr-4 ${
-          isMatched ? 'text-gray-500' : 'text-gray-700'
+          isMatched ? 'text-white/45' : 'text-white/20'
         }`}>
           {track.discogsTrack.duration}
         </div>
@@ -114,7 +116,10 @@ function CollectionTrackItem({
   )
 }
 
+const HEADER_FADE = 'linear-gradient(to bottom, #000000, transparent)'
+
 export default function CollectionDetailPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const { releaseId } = useParams<{ releaseId: string }>()
   const navigate = useNavigate()
   const { releases, fetchReleaseDetail } = useCollectionStore()
@@ -301,6 +306,7 @@ export default function CollectionDetailPage() {
     () => matchedTracks.filter((t) => t.libraryMatch).map((t) => t.libraryMatch!),
     [matchedTracks]
   )
+  usePageBackgroundArt(libraryMatches[0]?.AlbumId)
 
   // Load disc image and artist logo from Jellyfin when we have matched tracks
   useEffect(() => {
@@ -464,11 +470,11 @@ export default function CollectionDetailPage() {
   if (!detail || loadError) {
     return (
       <div className="pb-20">
-        <div className="flex flex-col items-center justify-center h-screen text-gray-400 px-6 text-center">
+        <div className="flex flex-col items-center justify-center h-screen text-white/60 px-6 text-center">
           <p className="text-red-400 mb-4">{loadError ? 'Failed to load release details' : 'Release not found'}</p>
           <button
             onClick={() => navigate('/collection')}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+            className="px-4 py-2 bg-white/15 text-white rounded-lg hover:bg-white/25 transition-colors"
           >
             Back to collection
           </button>
@@ -490,7 +496,7 @@ export default function CollectionDetailPage() {
         style={{
           height: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)',
           top: 'var(--header-offset, 0px)',
-          background: `linear-gradient(to bottom, #000000, transparent)`
+          background: hasAppBackground ? undefined : HEADER_FADE
         }}
       />
       {/* Header with back button */}
@@ -502,7 +508,7 @@ export default function CollectionDetailPage() {
           <div className="flex items-center justify-between gap-4 py-4 pl-3 pr-4 relative z-10">
             <button
               onClick={() => navigate('/collection')}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -522,7 +528,7 @@ export default function CollectionDetailPage() {
                   }
                   setCollectionMenuOpen(true)
                 }}
-                className="text-white hover:text-zinc-300 transition-colors"
+                className="text-white hover:text-white/80 transition-colors"
               >
                 <MoreHorizontal className="w-6 h-6" />
               </button>
@@ -558,7 +564,7 @@ export default function CollectionDetailPage() {
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{detail.title}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400 min-w-0 flex-1 break-words text-left">
+              <div className="text-white/60 min-w-0 flex-1 break-words text-left">
                 {(() => {
                   const artistId = libraryMatches[0]?.ArtistItems?.[0]?.Id
                   return artistId ? (
@@ -626,7 +632,7 @@ export default function CollectionDetailPage() {
             return (
               <div key={discLabel || 'all'}>
                 {hasMultipleDiscs && discLabel && (
-                  <div className={`px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider ${discIndex > 0 ? 'pt-4' : ''}`}>
+                  <div className={`px-4 py-2 text-xs font-medium text-white/60 uppercase tracking-wider ${discIndex > 0 ? 'pt-4' : ''}`}>
                     {discLabel}
                   </div>
                 )}
@@ -665,7 +671,7 @@ export default function CollectionDetailPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setCollectionMenuOpen(false)} />
           <div
-            className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 min-w-[200px]"
+            className="fixed z-50 bg-zinc-900 border border-white/25 rounded-lg shadow-2xl py-1 min-w-[200px]"
             style={{
               left: Math.min(collectionMenuPosition?.x || 100, window.innerWidth - 250),
               top: Math.min(collectionMenuPosition?.y || 100, window.innerHeight - (collectionMenuActions.length * 44 + 8) - 10),
@@ -680,7 +686,7 @@ export default function CollectionDetailPage() {
                   key={action.id}
                   onClick={() => handleCollectionMenuAction(action.id)}
                   disabled={!!collectionMenuLoading}
-                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
                 >
                   <Icon className="w-4 h-4 text-white flex-shrink-0" />
                   <span className="flex-1 text-sm text-white">{action.label}</span>

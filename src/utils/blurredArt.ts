@@ -1,4 +1,5 @@
 import * as StackBlur from 'stackblur-canvas'
+import { computeArtAccent, type ArtAccent } from './artAccent'
 
 // Large CSS blur filters are rasterized in tiles by Firefox and WebKit, which shows up as
 // moving square seams when content scrolls over them. We blur the art once into a small
@@ -6,18 +7,26 @@ import * as StackBlur from 'stackblur-canvas'
 const CANVAS_SIZE = 96
 const BLUR_RADIUS = 12
 
-const cache = new Map<string, Promise<string | null>>()
+export interface ProcessedArt {
+  /** Data URL of the blurred art */
+  blurredUrl: string
+  /** Accent color picked from the art (sampled before blurring, which would mute it) */
+  accent: ArtAccent
+}
 
-export function getBlurredArtUrl(url: string): Promise<string | null> {
+const cache = new Map<string, Promise<ProcessedArt | null>>()
+
+/** Blurred art and its accent color; null when the image can't be read (missing, CORS) */
+export function getProcessedArt(url: string): Promise<ProcessedArt | null> {
   let pending = cache.get(url)
   if (!pending) {
-    pending = blur(url)
+    pending = process(url)
     cache.set(url, pending)
   }
   return pending
 }
 
-function blur(url: string): Promise<string | null> {
+function process(url: string): Promise<ProcessedArt | null> {
   return new Promise((resolve) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -33,8 +42,9 @@ function blur(url: string): Promise<string | null> {
         const w = img.width * scale
         const h = img.height * scale
         ctx.drawImage(img, (CANVAS_SIZE - w) / 2, (CANVAS_SIZE - h) / 2, w, h)
+        const accent = computeArtAccent(ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE).data)
         StackBlur.canvasRGB(canvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE, BLUR_RADIUS)
-        resolve(canvas.toDataURL('image/jpeg', 0.9))
+        resolve({ blurredUrl: canvas.toDataURL('image/jpeg', 0.9), accent })
       } catch {
         // Tainted canvas (CORS) or other failure; caller falls back to the raw image
         resolve(null)

@@ -12,6 +12,9 @@ interface PageVisibility {
   stats: boolean
 }
 
+/** accentColor value that derives the accent from the current album art */
+export const ARTWORK_ACCENT = 'artwork'
+
 interface SettingsState {
   serverUrl: string
   setServerUrl: (url: string) => void
@@ -19,6 +22,9 @@ interface SettingsState {
   setPageVisibility: (visibility: Partial<PageVisibility>) => void
   accentColor: string
   setAccentColor: (color: string) => void
+  /** Whether to show blurred album art behind the app instead of black */
+  blurredBackground: boolean
+  setBlurredBackground: (enabled: boolean) => void
   showQueueRecommendations: boolean
   setShowQueueRecommendations: (enabled: boolean) => void
   recommendationsQuality: 'good' | 'degraded' | 'failed'
@@ -78,6 +84,8 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       accentColor: 'blue',
       setAccentColor: (color) => set({ accentColor: color }),
+      blurredBackground: false,
+      setBlurredBackground: (enabled) => set({ blurredBackground: enabled }),
       showQueueRecommendations: true,
       setShowQueueRecommendations: (enabled) => set({ showQueueRecommendations: enabled }),
       recommendationsQuality: 'good',

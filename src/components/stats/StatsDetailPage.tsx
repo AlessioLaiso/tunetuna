@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import {
   ArrowLeft,
   Music,
@@ -20,6 +21,8 @@ import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { computeStats } from '../../utils/statsComputer'
 import Pagination from '../shared/Pagination'
 import Image from '../shared/Image'
+import { SurfaceBackdrop } from '../layout/AppBackground'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 const ITEMS_PER_PAGE = 50
 const SHORT_MONTH_NAMES = [
@@ -57,6 +60,7 @@ const CATEGORY_CONFIG: Record<Category, { title: string; icon: typeof Music }> =
 }
 
 export default function StatsDetailPage() {
+  const hasAppBackground = useAppBackgroundActive()
   const { category } = useParams<{ category: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -175,6 +179,13 @@ export default function StatsDetailPage() {
 
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE)
   const pageItems = items.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
+  // Genre rankings have no art, so those keep the player bar track's background
+  const topItemArtId = !stats ? null
+    : cat === 'songs' ? stats.topSongs[0]?.albumId
+    : cat === 'artists' ? stats.topArtists[0]?.artistId
+    : cat === 'albums' ? stats.topAlbums[0]?.albumId
+    : null
+  usePageBackgroundArt(topItemArtId)
 
   // Build subtitle from date range
   const subtitle = fromMonth && toMonth
@@ -186,8 +197,8 @@ export default function StatsDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-zinc-600 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-        <p className="text-zinc-500">Loading...</p>
+        <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
+        <p className="text-white/45">Loading...</p>
       </div>
     )
   }
@@ -195,8 +206,8 @@ export default function StatsDetailPage() {
   if (!stats || items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Music className="w-16 h-16 text-zinc-600 mb-4" />
-        <h2 className="text-xl font-semibold text-zinc-300 mb-2">No data</h2>
+        <Music className="w-16 h-16 text-white/30 mb-4" />
+        <h2 className="text-xl font-semibold text-white/80 mb-2">No data</h2>
       </div>
     )
   }
@@ -208,11 +219,12 @@ export default function StatsDetailPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-[60] lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center justify-between gap-3 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -247,14 +259,16 @@ export default function StatsDetailPage() {
       </div>
 
       {/* Gradient overlay below top bar */}
-      <div
-        className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
-        style={{
-          top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
-          height: '24px',
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
-        }}
-      />
+      {!hasAppBackground && (
+        <div
+          className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
+          style={{
+            top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
+            height: '24px',
+            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+          }}
+        />
+      )}
 
       {/* Spacer */}
       <div className="h-20" />
@@ -263,7 +277,7 @@ export default function StatsDetailPage() {
       <div className="px-4 mb-6">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{config?.title || 'Stats'}</h1>
         {subtitle && (
-          <p className="text-gray-400">{subtitle}</p>
+          <p className="text-white/60">{subtitle}</p>
         )}
       </div>
 
@@ -281,7 +295,7 @@ export default function StatsDetailPage() {
                   <button
                     key={song.songId}
                     onClick={() => handlePlaySong(song.songId)}
-                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group"
                   >
                     <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0">
                       <Image
@@ -293,12 +307,12 @@ export default function StatsDetailPage() {
                         fallbackIcon={Music}
                       />
                     </div>
-                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <span className="text-white/45 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
                         {song.songName}
                       </div>
-                      <div className="text-zinc-400 text-sm truncate">
+                      <div className="text-white/60 text-sm truncate">
                         <span
                           className="clickable-text"
                           onClick={(e) => {
@@ -310,7 +324,7 @@ export default function StatsDetailPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                    <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
                       {song.plays} streams
                     </div>
                   </button>
@@ -333,7 +347,7 @@ export default function StatsDetailPage() {
                   <button
                     key={artist.artistId}
                     onClick={() => navigate(`/artist/${artist.artistId}`)}
-                    className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                    className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group"
                   >
                     <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                       <Image
@@ -345,13 +359,13 @@ export default function StatsDetailPage() {
                         fallbackIcon={User}
                       />
                     </div>
-                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <span className="text-white/45 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
                         {artist.artistName}
                       </div>
                     </div>
-                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                    <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
                       {formatHours(artist.hours)}
                     </div>
                   </button>
@@ -375,7 +389,7 @@ export default function StatsDetailPage() {
                   <button
                     key={album.albumId}
                     onClick={() => navigate(`/album/${album.albumId}`)}
-                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                    className="flex items-start gap-3 w-full py-2 rounded-lg hover:bg-white/10 transition-colors text-left group"
                   >
                     <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0">
                       <Image
@@ -387,12 +401,12 @@ export default function StatsDetailPage() {
                         fallbackIcon={Disc}
                       />
                     </div>
-                    <span className="text-zinc-500 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
+                    <span className="text-white/45 tabular-nums flex-shrink-0" style={{ width: rankItemWidth }}>{rank}</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">
                         {album.albumName}
                       </div>
-                      <div className="text-zinc-400 text-sm truncate">
+                      <div className="text-white/60 text-sm truncate">
                         <span
                           className="clickable-text"
                           onClick={(e) => {
@@ -404,7 +418,7 @@ export default function StatsDetailPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="text-zinc-400 text-sm whitespace-nowrap tabular-nums">
+                    <div className="text-white/60 text-sm whitespace-nowrap tabular-nums">
                       {formatHours(album.hours)}
                     </div>
                   </button>
@@ -428,17 +442,17 @@ export default function StatsDetailPage() {
                   <button
                     key={genre.genre}
                     onClick={genreItem ? () => navigate(`/genre/${encodeURIComponent(genreItem.Id)}`) : undefined}
-                    className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group"
+                    className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-white/10 rounded-lg py-1 transition-colors group"
                   >
-                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
-                    <div className="w-36 text-zinc-300 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{genre.genre}</div>
-                    <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
+                    <div className="w-8 text-white/45 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
+                    <div className="w-36 text-white/80 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{genre.genre}</div>
+                    <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0">
                       <div
                         className="h-full bg-[var(--accent-color)] rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(genre.hours)}</div>
+                    <div className="w-16 text-white/60 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(genre.hours)}</div>
                   </button>
                 )
               })}
@@ -461,17 +475,17 @@ export default function StatsDetailPage() {
                   <button
                     key={`${combo.genre}-${combo.decade}`}
                     onClick={() => navigate(`/?yearMin=${decadeStart}&yearMax=${decadeEnd}&genre=${encodeURIComponent(combo.genre)}`)}
-                    className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-zinc-800/50 rounded-lg py-1 transition-colors group"
+                    className="flex items-center gap-3 mb-2 w-full cursor-pointer hover:bg-white/10 rounded-lg py-1 transition-colors group"
                   >
-                    <div className="w-8 text-zinc-500 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
-                    <div className="w-44 text-zinc-300 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{combo.decade} {combo.genre}</div>
-                    <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden min-w-0">
+                    <div className="w-8 text-white/45 text-sm text-right flex-shrink-0 tabular-nums">{rank}</div>
+                    <div className="w-44 text-white/80 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{combo.decade} {combo.genre}</div>
+                    <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0">
                       <div
                         className="h-full bg-[var(--accent-color)] rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <div className="w-16 text-zinc-400 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(combo.hours)}</div>
+                    <div className="w-16 text-white/60 text-sm text-right flex-shrink-0 tabular-nums">{formatHours(combo.hours)}</div>
                   </button>
                 )
               })}

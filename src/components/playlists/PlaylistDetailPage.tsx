@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
@@ -21,6 +22,7 @@ import cassetteImage from '../../assets/cassette.png'
 import { capitalizeFirst, formatDuration, parseGroupingTag } from '../../utils/formatting'
 import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
+import { SurfaceBackdrop } from '../layout/AppBackground'
 
 // Cassette animation constants
 // Wheel image is 712px on a 1233px cassette — ratio preserved at native size
@@ -94,7 +96,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
       {isDragOver && (
         <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-color)] rounded-full pointer-events-none" />
       )}
-      <div className="playlist-drag-art w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center">
+      <div className="playlist-drag-art w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center">
         <Image
           src={jellyfinClient.getAlbumArtUrl(track.AlbumId || track.Id, 96)}
           alt={track.Name}
@@ -110,7 +112,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
           }`}>
           {track.Name}
         </div>
-        <div className="text-xs text-gray-400 truncate">
+        <div className="text-xs text-white/60 truncate">
           {track.ArtistItems?.[0]?.Id ? (
             <span
               className="clickable-text"
@@ -149,7 +151,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
         </div>
       </div>
       {track.RunTimeTicks && (
-        <div className="text-xs text-gray-500 flex-shrink-0 text-right">
+        <div className="text-xs text-white/45 flex-shrink-0 text-right">
           {formatDuration(track.RunTimeTicks)}
         </div>
       )}
@@ -166,7 +168,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
             e.stopPropagation()
             onReorderDragEnd?.()
           }}
-          className="text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+          className="text-white/45 hover:text-white/80 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
           aria-label="Drag to reorder"
         >
           <GripHorizontal className="w-4 h-4" />
@@ -197,6 +199,8 @@ export default function PlaylistDetailPage() {
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
   const [playlistSortOrder, setPlaylistSortOrder] = useState<PlaylistSortOrder>('PlaylistOrder')
   const [hasImage, setHasImage] = useState(false)
+  // Mood playlists and playlists without a cover keep the art of the song that's playing
+  usePageBackgroundArt(hasImage && playlist ? playlist.Id : null)
   const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const isLargeViewport = useLargeViewport()
@@ -518,7 +522,7 @@ export default function PlaylistDetailPage() {
   if (!playlist) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen text-white/60">
           <p>{isMoodRoute ? 'No songs found for this mood' : 'Playlist not found'}</p>
         </div>
       </div>
@@ -531,11 +535,12 @@ export default function PlaylistDetailPage() {
         className={`fixed top-0 left-0 right-0 bg-black z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'}`}
         style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}
       >
+        <SurfaceBackdrop />
         <div className="max-w-page mx-auto">
           <div className="flex items-center justify-between gap-4 pl-3 pr-4" style={{ paddingTop: '1.5rem', paddingBottom: '1rem' }}>
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -554,7 +559,7 @@ export default function PlaylistDetailPage() {
                 }
                 setPlaylistContextMenuOpen(true)
               }}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <MoreHorizontal className="w-6 h-6" />
             </button>
@@ -645,7 +650,7 @@ export default function PlaylistDetailPage() {
                 {/* Playlist Cover Art — on top, slides away when playing */}
                 {hasImage && (
                   <div
-                    className="absolute inset-0 rounded overflow-hidden bg-zinc-900"
+                    className="absolute inset-0 rounded overflow-hidden bg-white/10"
                     style={{
                       transform: isPlaylistCurrentlyPlaying
                         ? shouldSplitRef.current
@@ -678,7 +683,7 @@ export default function PlaylistDetailPage() {
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{playlist.Name}</h2>
             {sortedTracks.length > 0 && (
               <div className="flex items-center justify-between gap-4 mt-2">
-                <div className="text-gray-400">
+                <div className="text-white/60">
                   {sortedTracks.length} {sortedTracks.length === 1 ? 'song' : 'songs'}
                 </div>
                 <button
@@ -709,7 +714,7 @@ export default function PlaylistDetailPage() {
 
         {sortedTracks.length === 0 ? (
           <div className="flex items-center justify-center px-8 pt-24">
-            <p className="text-gray-400 text-center">Long press or right click on songs and albums to add them to playlists</p>
+            <p className="text-white/60 text-center">Long press or right click on songs and albums to add them to playlists</p>
           </div>
         ) : (
           <>
@@ -718,7 +723,7 @@ export default function PlaylistDetailPage() {
                 <button
                   type="button"
                   onClick={() => setPlaylistSortOrder(s => s === 'PlaylistOrder' ? 'Alphabetical' : 'PlaylistOrder')}
-                  className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+                  className="text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                 >
                   {playlistSortOrder === 'PlaylistOrder' ? 'Playlist order' : 'Alphabetically'}
                   <ArrowUpDown className="w-4 h-4" />

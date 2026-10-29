@@ -69,14 +69,14 @@ export default function LoginForm() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Tunetuna</h1>
-          <p className="text-gray-400">Sign in to your Jellyfin server</p>
+          <p className="text-white/60">Sign in to your Jellyfin server</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Server URL field - hidden when locked by administrator */}
           {!serverLocked && (
             <div>
-              <label htmlFor="serverUrl" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="serverUrl" className="block text-sm font-medium text-white/80 mb-2">
                 Server URL
               </label>
               <input
@@ -86,7 +86,7 @@ export default function LoginForm() {
                 onChange={(e) => setServerUrl(e.target.value)}
                 placeholder="https://your-server.com"
                 required
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                className="w-full px-4 py-3 bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/45 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
               />
               {isInsecureUrl && (
                 <div className="mt-2 flex items-start gap-2 text-amber-400 text-sm">
@@ -100,7 +100,7 @@ export default function LoginForm() {
           )}
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-white/80 mb-2">
               Username
             </label>
             <input
@@ -110,12 +110,12 @@ export default function LoginForm() {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Your username"
               required
-              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+              className="w-full px-4 py-3 bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/45 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-white/80 mb-2">
               Password
             </label>
             <div className="relative">
@@ -125,13 +125,13 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Your password (leave blank if none)"
-                className="w-full px-4 py-3 pr-12 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
+                className="w-full px-4 py-3 pr-12 bg-white/10 border border-white/15 rounded-lg text-white placeholder-white/45 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -147,7 +147,7 @@ export default function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[var(--accent-color)] hover:brightness-90 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            className="w-full bg-[var(--accent-fill)] hover:brightness-90 disabled:bg-white/25 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>

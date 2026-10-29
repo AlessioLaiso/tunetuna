@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useNavigationType } from 'react-router-dom'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
+import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackground'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
@@ -101,7 +103,7 @@ function ArtistTopSongItem({
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center flex items-center justify-center">
         <Image
           src={jellyfinClient.getAlbumArtUrl(song.albumId || song.songId, 96)}
           alt={song.songName}
@@ -117,7 +119,7 @@ function ArtistTopSongItem({
           }`}>
           {song.songName}
         </div>
-        <div className="text-xs text-gray-400 flex items-center gap-1 min-w-0">
+        <div className="text-xs text-white/60 flex items-center gap-1 min-w-0">
           {song.primaryArtistName && (
             song.primaryArtistId ? (
               <span
@@ -161,7 +163,7 @@ function ArtistTopSongItem({
           )}
         </div>
       </div>
-      <div className="text-sm text-zinc-400 flex-shrink-0 text-right whitespace-nowrap tabular-nums">
+      <div className="text-sm text-white/60 flex-shrink-0 text-right whitespace-nowrap tabular-nums">
         {song.plays} {song.plays === 1 ? 'stream' : 'streams'}
       </div>
     </button>
@@ -189,7 +191,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
       {...longPressHandlers}
       className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
     >
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center flex items-center justify-center">
         {showImage ? (
           <Image
             src={jellyfinClient.getAlbumArtUrl(song.AlbumId || song.Id, 96)}
@@ -199,7 +201,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
             rounded="rounded-sm"
           />
         ) : (
-          <div className="w-full h-full bg-zinc-900" />
+          <div className="w-full h-full bg-white/10" />
         )}
       </div>
       <div className="flex-1 min-w-0 text-left">
@@ -210,7 +212,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
           {song.Name}
         </div>
         {(artistName || album || year) && (
-          <div className="text-xs text-gray-400 flex items-center gap-1 min-w-0">
+          <div className="text-xs text-white/60 flex items-center gap-1 min-w-0">
             {artistName && (
               artistId ? (
                 <span
@@ -256,7 +258,7 @@ function ArtistSongItem({ song, album, year, artistName, artistId, onClick, onCo
         )}
       </div>
       {song.RunTimeTicks && (
-        <div className="text-xs text-gray-500 flex-shrink-0 text-right">
+        <div className="text-xs text-white/45 flex-shrink-0 text-right">
           {formatDuration(song.RunTimeTicks)}
         </div>
       )}
@@ -280,6 +282,8 @@ export default function ArtistDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isBioExpandable, setIsBioExpandable] = useState(true)
   const [hasImage, setHasImage] = useState(true)
+  const hasAppBackground = useAppBackgroundActive()
+  usePageBackgroundArt(hasImage ? id : allOwnAlbums[0]?.Id)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)
@@ -849,7 +853,7 @@ export default function ArtistDetailPage() {
   if (loading) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen text-white/60">
           <Spinner />
         </div>
       </div>
@@ -859,7 +863,7 @@ export default function ArtistDetailPage() {
   if (!artist) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen text-white/60">
           <p>Artist not found on the Jellyfin server</p>
         </div>
       </div>
@@ -877,7 +881,7 @@ export default function ArtistDetailPage() {
           <div className="relative flex items-center justify-between gap-4 py-4 pl-3 pr-4">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors z-10"
+              className="text-white hover:text-white/80 transition-colors z-10"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -892,7 +896,7 @@ export default function ArtistDetailPage() {
                   })
                   setArtistContextMenuOpen(true)
                 }}
-                className="text-white hover:text-zinc-300 transition-colors z-10"
+                className="text-white hover:text-white/80 transition-colors z-10"
               >
                 <MoreHorizontal className="w-6 h-6" />
               </button>
@@ -912,8 +916,11 @@ export default function ArtistDetailPage() {
       >
         {hasImage && (
           <div
-            className="relative w-full min-h-64 md:min-h-80 bg-black"
-            style={{ paddingTop: `env(safe-area-inset-top)` }}
+            className={`relative w-full min-h-64 md:min-h-80 ${hasAppBackground ? '' : 'bg-black'}`}
+            style={{
+              paddingTop: `env(safe-area-inset-top)`,
+              ...(hasAppBackground && { maskImage: HERO_FADE_MASK, WebkitMaskImage: HERO_FADE_MASK }),
+            }}
           >
             {/* Mobile: primary artist image */}
             <div className="w-full flex items-center justify-center md:hidden min-[600px]:aspect-[4/3] min-[600px]:overflow-hidden">
@@ -935,7 +942,9 @@ export default function ArtistDetailPage() {
               />
             </div>
 
-            <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
+            {!hasAppBackground && (
+              <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
+            )}
           </div>
         )}
 
@@ -945,7 +954,7 @@ export default function ArtistDetailPage() {
             {/* Artist image (desktop/tablet only, fixed at 1/3 of 768px width) */}
             {hasImage && (
               <div className="hidden md:block flex-shrink-0 w-[calc((768px-2rem-2rem)/3)]">
-                <div className="aspect-square rounded overflow-hidden bg-zinc-900 flex items-center justify-center">
+                <div className="aspect-square rounded overflow-hidden bg-white/10 flex items-center justify-center">
                   <Image
                     src={jellyfinClient.getArtistImageUrl(artist.Id)}
                     alt={artist.Name}
@@ -961,7 +970,7 @@ export default function ArtistDetailPage() {
               <div className="mb-4 mt-4">
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 break-words">{artist.Name}</h1>
                 <div className="flex items-center justify-between gap-4 mt-2">
-                  <p className="text-sm text-gray-300">
+                  <p className="text-sm text-white/80">
                     {allOwnAlbums.length} {allOwnAlbums.length === 1 ? 'album' : 'albums'} • {sortedSongs.length} {sortedSongs.length === 1 ? 'song' : 'songs'}
                   </p>
                   <button
@@ -1002,7 +1011,7 @@ export default function ArtistDetailPage() {
               {/* Hidden measurement paragraph (left in place for potential future use) */}
               <p
                 ref={bioMeasureRef}
-                className="text-sm text-gray-300 leading-relaxed absolute opacity-0 pointer-events-none -z-10"
+                className="text-sm text-white/80 leading-relaxed absolute opacity-0 pointer-events-none -z-10"
               >
                 {artist.Overview}
               </p>
@@ -1013,13 +1022,13 @@ export default function ArtistDetailPage() {
                     onClick={() => setBioExpanded(true)}
                     className="flex-1 text-left min-w-0"
                   >
-                    <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">
+                    <p className="text-sm text-white/80 leading-relaxed line-clamp-2">
                       {artist.Overview}
                     </p>
                   </button>
                   <button
                     onClick={() => setBioExpanded(true)}
-                    className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                    className="flex-shrink-0 text-white/60 hover:text-white transition-colors"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </button>
@@ -1028,12 +1037,12 @@ export default function ArtistDetailPage() {
 
               {bioExpanded && (
                 <div>
-                  <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                  <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">
                     {artist.Overview}
                   </p>
                   <button
                     onClick={() => setBioExpanded(false)}
-                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors ml-auto"
+                    className="mt-2 flex items-center gap-1 text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors ml-auto"
                   >
                     Show less
                     <ChevronUp className="w-4 h-4" />
@@ -1163,7 +1172,7 @@ export default function ArtistDetailPage() {
                   <button
                     type="button"
                     onClick={cycleSongSortOrder}
-                    className="text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
+                    className="text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors flex items-center gap-1"
                   >
                     {songSortOrder}
                     <ArrowUpDown className="w-4 h-4" />

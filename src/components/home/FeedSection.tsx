@@ -117,9 +117,9 @@ export function HomeListItem({
       className={`w-full flex items-center gap-2 hover:bg-white/10 transition-colors group py-2.5 ${isMenuOpen ? 'bg-white/10' : ''} ${paddingRight ? 'pr-4' : ''}`}
     >
 
-      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+      <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center flex items-center justify-center">
         {imageError ? (
-          <Disc className="w-6 h-6 text-gray-500" />
+          <Disc className="w-6 h-6 text-white/45" />
         ) : (
           <Image
             src={currentUrl}
@@ -133,12 +133,12 @@ export function HomeListItem({
         )}
       </div>
       <div className="flex-1 min-w-0 text-left flex gap-3 items-baseline">
-        {rank !== undefined && <span className="text-zinc-500 text-sm flex-shrink-0 w-5 text-right">{rank}</span>}
+        {rank !== undefined && <span className="text-white/45 text-sm flex-shrink-0 w-5 text-right">{rank}</span>}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate text-white group-hover:text-[var(--accent-color)] transition-colors">
             {title}
           </div>
-          <div className="text-xs text-gray-400 flex items-center gap-1.5 min-w-0">
+          <div className="text-xs text-white/60 flex items-center gap-1.5 min-w-0">
             <span className="truncate">
               {subtitleParts ? subtitleParts.map((part, i) => (
                 part.onClick ? (
@@ -169,7 +169,7 @@ export function HomeListItem({
             e.stopPropagation()
             onExternalClick(e)
           }}
-          className="flex-shrink-0 p-2 text-gray-400 hover:text-white cursor-pointer"
+          className="flex-shrink-0 p-2 text-white/60 hover:text-white cursor-pointer"
         >
           <Ellipsis className="w-4 h-4" />
         </div>
@@ -183,10 +183,10 @@ function FeedSkeleton() {
     <div className="animate-pulse">
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex items-center gap-3 py-2.5">
-          <div className="w-12 h-12 rounded-sm bg-zinc-800" />
+          <div className="w-12 h-12 rounded-sm bg-white/15" />
           <div className="flex-1">
-            <div className="h-4 bg-zinc-800 rounded w-3/4 mb-1.5" />
-            <div className="h-3 bg-zinc-800 rounded w-1/2" />
+            <div className="h-4 bg-white/15 rounded w-3/4 mb-1.5" />
+            <div className="h-3 bg-white/15 rounded w-1/2" />
           </div>
         </div>
       ))}
@@ -360,7 +360,7 @@ export function Top10Section() {
           })}
         </div>
       ) : (
-        <div className="py-8 text-left text-gray-500 text-sm">
+        <div className="py-8 text-left text-white/45 text-sm">
           Could not load charts
         </div>
       )}
@@ -710,11 +710,11 @@ export function NewReleasesSection() {
           })}
         </div>
       ) : !hasMuspyConfigured ? (
-        <div className="py-8 text-center text-gray-500 text-sm">
+        <div className="py-8 text-center text-white/45 text-sm">
           Configure Muspy RSS in settings
         </div>
       ) : (
-        <div className="py-8 text-left text-gray-500 text-sm">
+        <div className="py-8 text-left text-white/45 text-sm">
           {newReleasesError ? 'Failed to load releases' : 'No new releases found'}
         </div>
       )}

@@ -53,7 +53,7 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
         {...longPressHandlers}
         className={`text-left group ${isThisItemMenuOpen ? 'ring-2 ring-blue-500' : ''}`}
       >
-        <div className="aspect-square rounded overflow-hidden bg-zinc-900 relative flex items-center justify-center mb-1">
+        <div className="aspect-square rounded overflow-hidden bg-white/10 relative flex items-center justify-center mb-1">
           {showImage ? (
             <Image
               src={jellyfinClient.getAlbumArtUrl(album.Id, 474)}
@@ -64,14 +64,14 @@ export default function AlbumCard({ album, onContextMenu, contextMenuItemId, sho
               fallbackIcon={Disc}
             />
           ) : (
-            <div className="w-full h-full bg-zinc-900" />
+            <div className="w-full h-full bg-white/10" />
           )}
         </div>
         <div className="text-sm font-medium text-white truncate group-hover:text-[var(--accent-color)] transition-colors">{album.Name}</div>
         {subtitle !== undefined ? (
-          subtitle && <div className="text-xs text-gray-400 truncate">{subtitle}</div>
+          subtitle && <div className="text-xs text-white/60 truncate">{subtitle}</div>
         ) : (
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-white/60 truncate">
             {(album.AlbumArtists?.[0]?.Id || album.ArtistItems?.[0]?.Id) ? (
               <span
                 className="clickable-text"

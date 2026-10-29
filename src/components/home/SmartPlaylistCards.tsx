@@ -368,9 +368,9 @@ export default function SmartPlaylistCards() {
 
 function SkeletonCardItem() {
   return (
-    <div className="bg-zinc-800/50 rounded border border-zinc-700/50 flex items-center w-full h-11 overflow-hidden">
-      <div className="h-full aspect-square bg-zinc-700/50 flex-shrink-0" />
-      <div className="h-3.5 bg-zinc-700/50 rounded w-2/3 ml-3" />
+    <div className="bg-white/10 rounded border border-white/10 flex items-center w-full h-11 overflow-hidden">
+      <div className="h-full aspect-square bg-white/10 flex-shrink-0" />
+      <div className="h-3.5 bg-white/10 rounded w-2/3 ml-3" />
     </div>
   )
 }
@@ -422,9 +422,9 @@ function MixCardItem({ card }: { card: CardItem }) {
   return (
     <button
       onClick={() => navigate(card.route)}
-      className="bg-zinc-800/50 rounded border border-zinc-700/50 hover:bg-zinc-800 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
+      className="bg-white/10 rounded border border-white/10 hover:bg-white/15 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
-      <div className="h-full aspect-square flex-shrink-0 bg-zinc-700/50">
+      <div className="h-full aspect-square flex-shrink-0 bg-white/10">
         {imageSrc && (
           <Image
             src={imageSrc}

@@ -62,9 +62,9 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
         className={`w-full flex items-center gap-3 hover:bg-white/10 transition-colors group px-4 py-3 ${isThisItemMenuOpen ? 'bg-white/10' : ''}`}
         {...longPressHandlers}
       >
-        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-zinc-900 self-center flex items-center justify-center">
+        <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center flex items-center justify-center">
           {imageError ? (
-            <Disc className="w-6 h-6 text-gray-500" />
+            <Disc className="w-6 h-6 text-white/45" />
           ) : showImage ? (
             <Image
               src={imageUrl}
@@ -75,7 +75,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-zinc-900" />
+            <div className="w-full h-full bg-white/10" />
           )}
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -85,7 +85,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
             }`}>
             {song.Name}
           </div>
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-white/60 truncate">
             {song.ArtistItems?.[0]?.Id ? (
               <span
                 className="clickable-text"
@@ -122,7 +122,7 @@ const SongItem = memo(function SongItem({ song, showImage = true, playQueue, onC
           </div>
         </div>
         {song.RunTimeTicks && (
-          <div className="text-xs text-gray-500 flex-shrink-0 text-right">
+          <div className="text-xs text-white/45 flex-shrink-0 text-right">
             {formatDuration(song.RunTimeTicks)}
           </div>
         )}

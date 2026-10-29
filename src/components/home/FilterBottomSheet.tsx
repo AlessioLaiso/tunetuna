@@ -331,7 +331,7 @@ export default function FilterBottomSheet({
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className="flex-1 relative">
-                  <div className="text-center text-sm text-gray-400 mb-2">From</div>
+                  <div className="text-center text-sm text-white/60 mb-2">From</div>
                   <div
                     ref={minBpmRef}
                     className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
@@ -348,9 +348,9 @@ export default function FilterBottomSheet({
                             disabled={isDisabled}
                             className={`w-full py-3 px-4 text-center snap-center transition-colors ${
                               isSelected
-                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                ? 'bg-[var(--accent-fill)] text-white font-semibold rounded-lg'
                                 : isDisabled
-                                ? 'text-gray-500 cursor-not-allowed'
+                                ? 'text-white/45 cursor-not-allowed'
                                 : 'text-white hover:bg-white/10'
                             }`}
                           >
@@ -359,7 +359,7 @@ export default function FilterBottomSheet({
                         )
                       })
                     ) : (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-white/60">
                         <div className="text-sm">No BPM data available</div>
                       </div>
                     )}
@@ -368,7 +368,7 @@ export default function FilterBottomSheet({
                   <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none" />
                 </div>
                 <div className="flex-1 relative">
-                  <div className="text-center text-sm text-gray-400 mb-2">To</div>
+                  <div className="text-center text-sm text-white/60 mb-2">To</div>
                   <div
                     ref={maxBpmRef}
                     className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
@@ -385,9 +385,9 @@ export default function FilterBottomSheet({
                             disabled={isDisabled}
                             className={`w-full py-3 px-4 text-center snap-center transition-colors ${
                               isSelected
-                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                ? 'bg-[var(--accent-fill)] text-white font-semibold rounded-lg'
                                 : isDisabled
-                                ? 'text-gray-500 cursor-not-allowed'
+                                ? 'text-white/45 cursor-not-allowed'
                                 : 'text-white hover:bg-white/10'
                             }`}
                           >
@@ -396,7 +396,7 @@ export default function FilterBottomSheet({
                         )
                       })
                     ) : (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-white/60">
                         <div className="text-sm">No BPM data available</div>
                       </div>
                     )}
@@ -412,7 +412,7 @@ export default function FilterBottomSheet({
               <div className="flex items-center gap-4">
                 {/* Min year picker */}
                 <div className="flex-1 relative">
-                  <div className="text-center text-sm text-gray-400 mb-2">From</div>
+                  <div className="text-center text-sm text-white/60 mb-2">From</div>
                   <div
                     ref={minYearRef}
                     className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
@@ -429,9 +429,9 @@ export default function FilterBottomSheet({
                             disabled={isDisabled}
                             className={`w-full py-3 px-4 text-center snap-center transition-colors ${
                               isSelected
-                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                ? 'bg-[var(--accent-fill)] text-white font-semibold rounded-lg'
                                 : isDisabled
-                                ? 'text-gray-500 cursor-not-allowed'
+                                ? 'text-white/45 cursor-not-allowed'
                                 : 'text-white hover:bg-white/10'
                             }`}
                           >
@@ -440,7 +440,7 @@ export default function FilterBottomSheet({
                         )
                       })
                     ) : (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-white/60">
                         <div className="text-sm">No years available</div>
                       </div>
                     )}
@@ -453,7 +453,7 @@ export default function FilterBottomSheet({
 
                 {/* Max year picker */}
                 <div className="flex-1 relative">
-                  <div className="text-center text-sm text-gray-400 mb-2">To</div>
+                  <div className="text-center text-sm text-white/60 mb-2">To</div>
                   <div
                     ref={maxYearRef}
                     className="h-64 overflow-y-auto scroll-smooth snap-y snap-mandatory py-[calc(50%-1.5rem)] overscroll-contain"
@@ -470,9 +470,9 @@ export default function FilterBottomSheet({
                             disabled={isDisabled}
                             className={`w-full py-3 px-4 text-center snap-center transition-colors ${
                               isSelected
-                                ? 'bg-[var(--accent-color)] text-white font-semibold rounded-lg'
+                                ? 'bg-[var(--accent-fill)] text-white font-semibold rounded-lg'
                                 : isDisabled
-                                ? 'text-gray-500 cursor-not-allowed'
+                                ? 'text-white/45 cursor-not-allowed'
                                 : 'text-white hover:bg-white/10'
                             }`}
                           >
@@ -481,7 +481,7 @@ export default function FilterBottomSheet({
                         )
                       })
                     ) : (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-white/60">
                         <div className="text-sm">No years available</div>
                       </div>
                     )}
@@ -530,7 +530,7 @@ export default function FilterBottomSheet({
                     )
                   })
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-white/60">
                   <div className="text-sm">No genres available</div>
                 </div>
               )}
@@ -620,14 +620,14 @@ export default function FilterBottomSheet({
                     )
                   })
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-white/60">
                     <div className="text-sm">No options available</div>
                   </div>
                 )
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-white/60">
               <div className="text-sm">No options available</div>
             </div>
           )}

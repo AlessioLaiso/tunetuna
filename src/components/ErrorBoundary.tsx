@@ -61,10 +61,10 @@ export class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
-            <p className="text-gray-400 mb-4 text-sm">
+            <p className="text-white/60 mb-4 text-sm">
               The app encountered an unexpected error. You can try reloading, or clear data if the issue persists.
             </p>
-            <div className="bg-zinc-900 rounded-lg p-3 mb-4 text-left">
+            <div className="bg-white/10 rounded-lg p-3 mb-4 text-left">
               <p className="text-red-400 text-sm font-mono break-all">
                 {this.state.error?.message || 'Unknown error'}
               </p>
@@ -72,19 +72,19 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-col gap-2">
               <button
                 onClick={this.handleReload}
-                className="w-full bg-[var(--accent-color)] hover:brightness-90 text-white font-semibold py-3 px-4 rounded-lg transition-all"
+                className="w-full bg-[var(--accent-fill)] hover:brightness-90 text-white font-semibold py-3 px-4 rounded-lg transition-all"
               >
                 Reload app
               </button>
               <button
                 onClick={this.handleClearAndReload}
-                className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                className="w-full bg-white/15 hover:bg-white/25 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
               >
                 Clear data & reload
               </button>
               <button
                 onClick={this.handleCopyError}
-                className="w-full text-gray-400 hover:text-white py-2 px-4 text-sm transition-colors"
+                className="w-full text-white/60 hover:text-white py-2 px-4 text-sm transition-colors"
               >
                 {this.state.showCopied ? '✓ Copied to clipboard' : 'Copy error details'}
               </button>

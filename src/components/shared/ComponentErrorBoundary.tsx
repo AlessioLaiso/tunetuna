@@ -45,14 +45,14 @@ export default class ComponentErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex flex-col items-center justify-center p-6 text-center bg-zinc-900/50 rounded-lg border border-zinc-800">
+        <div className="flex flex-col items-center justify-center p-6 text-center bg-white/5 rounded-lg border border-white/15">
           <AlertCircle className="w-8 h-8 text-red-400 mb-3" />
-          <p className="text-sm text-gray-300 mb-3">
+          <p className="text-sm text-white/80 mb-3">
             Something went wrong{this.props.componentName ? ` in ${this.props.componentName}` : ''}.
           </p>
           <button
             onClick={this.handleReset}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/15 hover:bg-white/25 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
           >
             <RefreshCw className="w-4 h-4" />
             Try again

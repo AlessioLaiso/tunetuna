@@ -14,6 +14,8 @@ import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { logger } from '../../utils/logger'
 import { formatDuration } from '../../utils/formatting'
+import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 
 interface AlbumTrackItemProps {
   track: BaseItemDto
@@ -54,7 +56,7 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
     >
       <span className={`text-sm text-left flex-shrink-0 mr-4 ${isCurrent
         ? 'text-[var(--accent-color)]'
-        : 'text-gray-500'
+        : 'text-white/45'
         }`} style={{ width: trackNumberWidth }}>{trackNumber && trackNumber > 0 ? trackNumber : '-'}</span>
       <div className="flex-1 min-w-0 text-left">
         <div className={`text-sm font-medium truncate transition-colors ${isCurrent
@@ -64,7 +66,7 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
           {track.Name}
         </div>
         {track.ArtistItems?.[0] && track.ArtistItems[0].Name !== albumArtist && (
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-white/60 truncate">
             <span
               className="clickable-text"
               onPointerDown={(e) => e.stopPropagation()}
@@ -86,7 +88,7 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
         )}
       </div>
       {track.RunTimeTicks && (
-        <div className="text-xs text-gray-500 flex-shrink-0 text-right mr-4">
+        <div className="text-xs text-white/45 flex-shrink-0 text-right mr-4">
           {formatDuration(track.RunTimeTicks)}
         </div>
       )}
@@ -94,9 +96,24 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
   )
 }
 
+// Fades the page out under the status bar and header
+const HEADER_FADE = `linear-gradient(to bottom,
+    #000000 0%,
+    #000000 calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
+    rgba(0, 0, 0, 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
+    rgba(0, 0, 0, 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
+    rgba(0, 0, 0, 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
+    rgba(0, 0, 0, 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
+    rgba(0, 0, 0, 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
+    rgba(0, 0, 0, 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
+    rgba(0, 0, 0, 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
+  )`
+
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const hasAppBackground = useAppBackgroundActive()
+  usePageBackgroundArt(id)
   const { playAlbum, isPlaying, play, pause } = usePlayerStore()
   const playSongWithQueue = usePlaySongWithQueue()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
@@ -324,7 +341,7 @@ export default function AlbumDetailPage() {
   if (!album || tracks.length === 0) {
     return (
       <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen text-white/60">
           <p>Album not found</p>
         </div>
       </div>
@@ -348,17 +365,7 @@ export default function AlbumDetailPage() {
         style={{
           height: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)`,
           top: `var(--header-offset, 0px)`,
-          background: `linear-gradient(to bottom,
-            #000000 0%,
-            #000000 calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
-            rgba(0, 0, 0, 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
-            rgba(0, 0, 0, 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
-            rgba(0, 0, 0, 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
-            rgba(0, 0, 0, 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
-            rgba(0, 0, 0, 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
-            rgba(0, 0, 0, 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
-            rgba(0, 0, 0, 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
-          )`
+          background: hasAppBackground ? undefined : HEADER_FADE
         }}
       />
       <div
@@ -369,7 +376,7 @@ export default function AlbumDetailPage() {
           <div className="flex items-center justify-between gap-4 py-4 pl-3 pr-4 relative z-10">
             <button
               onClick={() => navigate(-1)}
-              className="text-white hover:text-zinc-300 transition-colors"
+              className="text-white hover:text-white/80 transition-colors"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
@@ -389,7 +396,7 @@ export default function AlbumDetailPage() {
                   }
                   setAlbumContextMenuOpen(true)
                 }}
-                className="text-white hover:text-zinc-300 transition-colors"
+                className="text-white hover:text-white/80 transition-colors"
               >
                 <MoreHorizontal className="w-6 h-6" />
               </button>
@@ -420,7 +427,7 @@ export default function AlbumDetailPage() {
           <div className="w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{album.Name}</h2>
             <div className="flex items-center justify-between gap-4 mt-2">
-              <div className="text-gray-400 min-w-0 flex-1 break-words text-left">
+              <div className="text-white/60 min-w-0 flex-1 break-words text-left">
                 {getArtistName() && (
                   <>
                     <button
@@ -485,13 +492,13 @@ export default function AlbumDetailPage() {
                     onClick={() => setBioExpanded(true)}
                     className="flex-1 text-left min-w-0"
                   >
-                    <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">
+                    <p className="text-sm text-white/80 leading-relaxed line-clamp-2">
                       {album.Overview}
                     </p>
                   </button>
                   <button
                     onClick={() => setBioExpanded(true)}
-                    className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                    className="flex-shrink-0 text-white/60 hover:text-white transition-colors"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </button>
@@ -500,12 +507,12 @@ export default function AlbumDetailPage() {
 
               {bioExpanded && (
                 <div>
-                  <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                  <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">
                     {album.Overview}
                   </p>
                   <button
                     onClick={() => setBioExpanded(false)}
-                    className="mt-2 flex items-center gap-1 text-sm text-gray-400 hover:text-[var(--accent-color)] transition-colors ml-auto"
+                    className="mt-2 flex items-center gap-1 text-sm text-white/60 hover:text-[var(--accent-color)] transition-colors ml-auto"
                   >
                     Show less
                     <ChevronUp className="w-4 h-4" />
@@ -545,7 +552,7 @@ export default function AlbumDetailPage() {
                 return (
                   <div key={discNumber}>
                     {hasMultipleDiscs && (
-                      <div className={`px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider ${discNumber > 1 ? 'pt-4' : ''}`}>
+                      <div className={`px-4 py-2 text-xs font-medium text-white/60 uppercase tracking-wider ${discNumber > 1 ? 'pt-4' : ''}`}>
                         Disc {discNumber}
                       </div>
                     )}

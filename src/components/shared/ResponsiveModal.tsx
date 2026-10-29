@@ -69,7 +69,7 @@ export default function ResponsiveModal({ isOpen, onClose, children, zIndex = 11
         onClick={onClose}
       >
         <div
-          className={`bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-700/50 w-full max-w-[480px] max-h-[80vh] overflow-y-auto transform transition-transform duration-300 ease-out ${
+          className={`bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 w-full max-w-[480px] max-h-[80vh] overflow-y-auto transform transition-transform duration-300 ease-out ${
             isVisible ? 'scale-100' : 'scale-95'
           }`}
           onClick={(e) => e.stopPropagation()}

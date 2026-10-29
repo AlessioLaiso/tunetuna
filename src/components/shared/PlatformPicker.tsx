@@ -69,8 +69,8 @@ function PlatformSkeleton() {
     <div className="animate-pulse space-y-0">
       {[...Array(4)].map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-          <div className="w-5 h-5 rounded bg-zinc-700" />
-          <div className="h-4 bg-zinc-700 rounded w-24" />
+          <div className="w-5 h-5 rounded bg-white/25" />
+          <div className="h-4 bg-white/25 rounded w-24" />
         </div>
       ))}
     </div>
@@ -171,7 +171,7 @@ export default function PlatformPicker({
           style={{ zIndex: zIndex - 1 }}
         />
         <div
-          className="fixed bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-2 min-w-[200px]"
+          className="fixed bg-zinc-900 border border-white/25 rounded-lg shadow-2xl py-2 min-w-[200px]"
           style={{
             left: menuX,
             top: menuY,
@@ -179,7 +179,7 @@ export default function PlatformPicker({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 pb-2 mb-1 border-b border-zinc-700">
+          <div className="px-4 pb-2 mb-1 border-b border-white/25">
             <div className="text-sm font-medium text-white truncate">{title}</div>
           </div>
           {showSkeleton ? (
@@ -189,7 +189,7 @@ export default function PlatformPicker({
               {showJellyfinFirst && (
                 <button
                   onClick={() => handlePlatformClick('jellyfin')}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/15 transition-colors text-left"
                 >
                   <span className="text-white flex-shrink-0">{platformIcons.jellyfin}</span>
                   <span className="flex-1 text-sm text-white">Jellyfin</span>
@@ -199,7 +199,7 @@ export default function PlatformPicker({
                 <button
                   key={platform.id}
                   onClick={() => handlePlatformClick(platform.id)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/15 transition-colors text-left"
                 >
                   <span className="text-white flex-shrink-0">
                     {platformIcons[platform.id] || <span className="w-5 h-5 flex items-center justify-center text-xs">🎵</span>}
@@ -226,8 +226,8 @@ export default function PlatformPicker({
           <div className="animate-pulse space-y-1">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="flex items-center gap-4 pl-4 pr-4 py-3">
-                <div className="w-5 h-5 rounded bg-zinc-700" />
-                <div className="h-4 bg-zinc-700 rounded w-28" />
+                <div className="w-5 h-5 rounded bg-white/25" />
+                <div className="h-4 bg-white/25 rounded w-28" />
               </div>
             ))}
           </div>

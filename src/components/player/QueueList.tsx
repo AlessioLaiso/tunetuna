@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../../stores/playerStore'
-import { useSettingsStore } from '../../stores/settingsStore'
+import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
 import Spinner from '../shared/Spinner'
@@ -46,6 +46,8 @@ const QueueTrackItem = memo(function QueueTrackItem({
     onDragEnterRow,
 }: QueueTrackItemProps) {
     const navigate = useNavigate()
+    // With both art options on, the current title keeps the artwork accent's lighter (text) shade
+    const titleUsesArtAccent = useSettingsStore(s => s.accentColor === ARTWORK_ACCENT && s.blurredBackground)
 
     const { handleContextMenu, longPressHandlers, shouldSuppressClick } = useContextMenu({
         item: track,
@@ -84,8 +86,8 @@ const QueueTrackItem = memo(function QueueTrackItem({
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDrop={handleDrop}
-            className={`group queue-row select-none flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-zinc-900 cursor-pointer' : 'cursor-pointer'
-                } ${isCurrent ? 'bg-zinc-900' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
+            className={`group queue-row select-none flex items-center gap-3 p-3 ${!isCurrent ? 'hover:bg-white/10 cursor-pointer' : 'cursor-pointer'
+                } ${isCurrent ? 'bg-white/10' : ''} relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-inset`}
             onClick={isCurrent ? undefined : handleRowClick}
             onContextMenu={handleContextMenu}
             tabIndex={0}
@@ -107,12 +109,12 @@ const QueueTrackItem = memo(function QueueTrackItem({
             </div>
             <div className="flex-1 min-w-0">
                 <div
-                    className={`text-sm font-medium truncate transition-colors ${isCurrent ? 'text-[var(--accent-color)]' : 'text-white group-hover:text-[var(--accent-color)]'
+                    className={`text-sm font-medium truncate transition-colors ${isCurrent ? `text-[var(--accent-color)] ${titleUsesArtAccent ? 'keep-accent' : ''}` : 'text-white group-hover:text-[var(--accent-color)]'
                         }`}
                 >
                     {track.Name}
                 </div>
-                <div className="text-xs text-gray-400 truncate">
+                <div className="text-xs text-white/60 truncate">
                     {track.ArtistItems?.[0]?.Id ? (
                         <span
                             className="clickable-text"
@@ -137,7 +139,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                         e.stopPropagation()
                         onClick()
                     }}
-                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                    className="text-white/60 hover:text-white/80 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
                     aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
                     {isPlaying ? (
@@ -167,7 +169,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                     e.stopPropagation()
                                     onReorderDragEnd()
                                 }}
-                                className="relative select-none [-webkit-touch-callout:none] before:content-[''] before:absolute before:-left-3 before:right-0 before:-inset-y-5 text-gray-500 hover:text-zinc-300 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                                className="relative select-none [-webkit-touch-callout:none] before:content-[''] before:absolute before:-left-3 before:right-0 before:-inset-y-5 text-white/45 hover:text-white/80 transition-colors p-2 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
                                 aria-label="Drag to reorder"
                             >
                                 <GripHorizontal className="w-4 h-4" />
@@ -178,7 +180,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
                                         e.stopPropagation()
                                         onRemove()
                                     }}
-                                    className="text-gray-400 hover:text-zinc-300 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
+                                    className="text-white/60 hover:text-white/80 transition-colors p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
                                     aria-label="Remove from queue"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,7 +397,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                 <div className="max-w-[864px] mx-auto w-full">
                     {header}
                     {songs.length === 0 && !currentTrack ? (
-                        <div className="flex items-center justify-center h-full text-gray-400 py-10">
+                        <div className="flex items-center justify-center h-full text-white/60 py-10">
                             <p>Queue is empty</p>
                         </div>
                     ) : (
@@ -409,7 +411,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                         </div>
                                         <button
                                             onClick={() => setShowPrevious(false)}
-                                            className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
+                                            className="text-xs font-semibold text-white/80 hover:opacity-80 transition-opacity tracking-wider"
                                         >
                                             Hide
                                         </button>
@@ -447,7 +449,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                         {visiblePreviouslyPlayed.length > 0 && !showPrevious && (
                                             <button
                                                 onClick={() => setShowPrevious(true)}
-                                                className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
+                                                className="text-xs font-semibold text-white/80 hover:opacity-80 transition-opacity tracking-wider"
                                             >
                                                 Show previous
                                             </button>
@@ -495,7 +497,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                                     shuffleOrder: newSongs.filter(s => s.source === 'user').map(s => s.Id),
                                                 })
                                             }}
-                                            className="text-xs font-semibold text-gray-300 hover:opacity-80 transition-opacity tracking-wider"
+                                            className="text-xs font-semibold text-white/80 hover:opacity-80 transition-opacity tracking-wider"
                                         >
                                             Clear
                                         </button>
@@ -524,7 +526,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                     {isLoadingMoreSongs && (
                                         <div className="flex items-center justify-center py-4">
                                             <Spinner />
-                                            <span className="ml-2 text-sm text-gray-400">Loading more songs...</span>
+                                            <span className="ml-2 text-sm text-white/60">Loading more songs...</span>
                                         </div>
                                     )}
                                 </div>
@@ -559,7 +561,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                                 })
                                             }
                                         }}
-                                        className={`relative w-12 h-6 rounded-full transition-colors ${showQueueRecommendations && repeat === 'off' ? 'bg-[var(--accent-color)]' : 'bg-zinc-600'
+                                        className={`relative w-12 h-6 rounded-full transition-colors ${showQueueRecommendations && repeat === 'off' ? 'bg-[var(--accent-fill)]' : 'bg-white/30'
                                             } ${repeat !== 'off' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <span
@@ -571,19 +573,19 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                 {/* Status messages below header */}
                                 <div className="px-4 pb-2">
                                     {repeat !== 'off' && (
-                                        <span className="text-xs text-gray-400 font-normal block mb-1">
+                                        <span className="text-xs text-white/60 font-normal block mb-1">
                                             Disabled when repeat mode is active
                                         </span>
                                     )}
                                     {(showSyncingMessage || recommendationsQuality === 'failed') && (
                                         <>
                                             {showSyncingMessage && (
-                                                <span className="text-xs text-gray-400 font-normal block">
+                                                <span className="text-xs text-white/60 font-normal block">
                                                     Syncing genres...
                                                 </span>
                                             )}
                                             {!isFetchingRecommendations && recommendationsQuality === 'failed' && (
-                                                <span className="text-xs text-gray-400 font-normal block">
+                                                <span className="text-xs text-white/60 font-normal block">
                                                     Sync library in settings
                                                 </span>
                                             )}
