@@ -23,18 +23,39 @@ export function getDailySeed(key: string): number {
   return hashCode(`${dateStr}-${key}`)
 }
 
-/** Pick a daily-stable album ID from a song list, avoiding already-used albums. */
-export function pickAlbumForCard(
+/**
+ * Pick a daily-stable song from a song list to provide the card's cover art,
+ * avoiding songs whose album is already used by another card.
+ */
+export function pickSongForCard(
   key: string,
   songs: LightweightSong[],
   usedAlbumIds: Set<string>,
-): string | null {
+): LightweightSong | null {
   const withAlbum = songs.filter(s => s.AlbumId)
   if (withAlbum.length === 0) return null
   let candidates = withAlbum.filter(s => !usedAlbumIds.has(s.AlbumId!))
   if (candidates.length === 0) candidates = withAlbum
   const seed = getDailySeed(key)
-  return candidates[Math.abs(seed) % candidates.length].AlbumId!
+  return candidates[Math.abs(seed) % candidates.length]
+}
+
+/** Navigation state passed from a mix card so the cover's song leads the list. */
+export interface MixRouteState {
+  topSongId?: string
+}
+
+/** Move the song with the given ID to the top of the list, if present. */
+export function moveSongToTop<T extends { Id: string }>(songs: T[], songId: string | undefined): T[] {
+  if (!songId) return songs
+  const index = songs.findIndex(s => s.Id === songId)
+  if (index <= 0) return songs
+  return [songs[index], ...songs.slice(0, index), ...songs.slice(index + 1)]
+}
+
+/** Format a decade as a label, e.g. "1990s" */
+export function decadeLabel(decade: number): string {
+  return `${decade}s`
 }
 
 export interface SmartPlaylist {

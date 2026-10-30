@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -27,6 +27,9 @@ import {
   getLanguageSongs,
   getBpmBucketSongs,
   bpmBucketLabel,
+  decadeLabel,
+  moveSongToTop,
+  type MixRouteState,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 import { SurfaceBackdrop } from '../layout/AppBackground'
@@ -40,14 +43,10 @@ const WHEEL_RIGHT_CENTER_X_PERCENT = 71
 const INITIAL_VISIBLE_TRACKS = 45
 const VISIBLE_TRACKS_INCREMENT = 45
 
-function decadeLabel(decade: number): string {
-  if (decade < 2000) return `${decade - 1900}s`
-  return `${decade}s`
-}
-
 export default function SmartPlaylistDetailPage() {
   const { smartId } = useParams<{ smartId: string }>()
   const navigate = useNavigate()
+  const topSongId = (useLocation().state as MixRouteState | null)?.topSongId
   const allSongs = useMusicStore(s => s.songs)
   const { statsTrackingEnabled, excludedGenres } = useSettingsStore()
   const songs = useMemo(() => filterExcludedGenres(allSongs, excludedGenres), [allSongs, excludedGenres])
@@ -84,7 +83,7 @@ export default function SmartPlaylistDetailPage() {
         setTitle(`Your top songs ${year}`)
         setSubtitle(`Your most played tracks from ${year}.`)
         const result = getYearThrowbackSongs(year, songs, events)
-        setTracks(result.map(toBaseItemDto))
+        setTracks(moveSongToTop(result, topSongId).map(toBaseItemDto))
         setLoading(false)
         return
       }
@@ -95,7 +94,7 @@ export default function SmartPlaylistDetailPage() {
         setTitle(`${decadeLabel(decade)} mix`)
         setSubtitle('')
         const result = getDecadeSongs(decade, songs)
-        setTracks(result.map(toBaseItemDto))
+        setTracks(moveSongToTop(result, topSongId).map(toBaseItemDto))
         setLoading(false)
         return
       }
@@ -106,7 +105,7 @@ export default function SmartPlaylistDetailPage() {
         setTitle(`${capitalizeFirst(lang)}`)
         setSubtitle('')
         const result = getLanguageSongs(lang, songs)
-        setTracks(result.map(toBaseItemDto))
+        setTracks(moveSongToTop(result, topSongId).map(toBaseItemDto))
         setLoading(false)
         return
       }
@@ -117,7 +116,7 @@ export default function SmartPlaylistDetailPage() {
         setTitle(bpmBucketLabel(bucket))
         setSubtitle('')
         const result = getBpmBucketSongs(bucket, songs)
-        setTracks(result.map(toBaseItemDto))
+        setTracks(moveSongToTop(result, topSongId).map(toBaseItemDto))
         setLoading(false)
         return
       }
@@ -127,14 +126,14 @@ export default function SmartPlaylistDetailPage() {
         setTitle(sp.name)
         setSubtitle(sp.subtitle)
         const result = sp.getSongs(songs, events)
-        setTracks(result.map(toBaseItemDto))
+        setTracks(moveSongToTop(result, topSongId).map(toBaseItemDto))
       }
 
       setLoading(false)
     }
 
     load()
-  }, [smartId, songs, statsTrackingEnabled, fetchEvents, oldestEventTs])
+  }, [smartId, songs, statsTrackingEnabled, fetchEvents, oldestEventTs, topSongId])
 
   useEffect(() => {
     setVisibleTracksCount(INITIAL_VISIBLE_TRACKS)

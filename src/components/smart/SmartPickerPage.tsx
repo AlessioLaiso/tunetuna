@@ -18,7 +18,9 @@ import {
   getAvailableBpmBuckets,
   getBpmBucketSongs,
   bpmBucketLabel,
-  pickAlbumForCard,
+  pickSongForCard,
+  decadeLabel,
+  type MixRouteState,
 } from '../../utils/smartPlaylists'
 import { capitalizeFirst } from '../../utils/formatting'
 import { filterExcludedGenres } from '../../utils/genreFilter'
@@ -27,11 +29,6 @@ import { SurfaceBackdrop } from '../layout/AppBackground'
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function decadeLabel(decade: number): string {
-  if (decade < 2000) return `${decade - 1900}s`
-  return `${decade}s`
-}
 
 // ============================================================================
 // Picker Page
@@ -42,6 +39,8 @@ interface PickerItem {
   name: string
   route: string
   albumId: string | null
+  /** Song providing the cover art; shown first in the opened playlist */
+  topSongId?: string
 }
 
 export default function SmartPickerPage() {
@@ -89,13 +88,15 @@ export default function SmartPickerPage() {
       const decades = getAvailableDecades(songs)
       return decades.map(decade => {
         const decadeSongs = getDecadeSongs(decade, songs)
-        const albumId = pickAlbumForCard(`decade-${decade}`, decadeSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(`decade-${decade}`, decadeSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `decade-${decade}`,
-          name: `${decadeLabel(decade)}`,
+          name: decadeLabel(decade),
           route: `/smart/decade-${decade}`,
           albumId,
+          topSongId: coverSong?.Id,
         }
       })
     }
@@ -104,13 +105,15 @@ export default function SmartPickerPage() {
       const years = getAvailableThrowbackYears(events)
       return years.map(year => {
         const yearSongs = getYearThrowbackSongs(year, songs, events)
-        const albumId = pickAlbumForCard(`year-${year}`, yearSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(`year-${year}`, yearSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `year-${year}`,
           name: `${year}`,
           route: `/smart/year-throwback-${year}`,
           albumId,
+          topSongId: coverSong?.Id,
         }
       })
     }
@@ -123,13 +126,15 @@ export default function SmartPickerPage() {
         const moodSongs = songs.filter(s =>
           s.Grouping?.some(g => g.toLowerCase() === `mood_${value.toLowerCase()}`)
         )
-        const albumId = pickAlbumForCard(`mood-${value}`, moodSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(`mood-${value}`, moodSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `mood-${value}`,
           name: capitalizeFirst(value),
           route: `/mood/${encodeURIComponent(value.toLowerCase())}`,
           albumId,
+          topSongId: coverSong?.Id,
         }
       })
     }
@@ -138,13 +143,15 @@ export default function SmartPickerPage() {
       const languages = getAvailableLanguages(songs)
       return languages.map(lang => {
         const langSongs = getLanguageSongs(lang, songs)
-        const albumId = pickAlbumForCard(`language-${lang}`, langSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(`language-${lang}`, langSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `language-${lang}`,
           name: capitalizeFirst(lang),
           route: `/smart/language-${encodeURIComponent(lang)}`,
           albumId,
+          topSongId: coverSong?.Id,
         }
       })
     }
@@ -153,13 +160,15 @@ export default function SmartPickerPage() {
       const buckets = getAvailableBpmBuckets(songs)
       return buckets.map(bucket => {
         const bucketSongs = getBpmBucketSongs(bucket, songs)
-        const albumId = pickAlbumForCard(`bpm-${bucket}`, bucketSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(`bpm-${bucket}`, bucketSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         return {
           id: `bpm-${bucket}`,
           name: bpmBucketLabel(bucket),
           route: `/smart/bpm-${bucket}`,
           albumId,
+          topSongId: coverSong?.Id,
         }
       })
     }
@@ -205,7 +214,7 @@ export default function SmartPickerPage() {
             {items.map(item => (
               <button
                 key={item.id}
-                onClick={() => navigate(item.route)}
+                onClick={() => navigate(item.route, { state: { topSongId: item.topSongId } satisfies MixRouteState })}
                 className="text-left group"
               >
                 <div className="aspect-square rounded overflow-hidden bg-white/10 relative flex items-center justify-center">

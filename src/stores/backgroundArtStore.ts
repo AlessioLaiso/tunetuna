@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 
-interface ArtClaim {
+export type ArtImageType = 'Primary' | 'Backdrop'
+
+export interface ArtClaim {
   token: symbol
   itemId: string
+  imageType: ArtImageType
 }
 
 interface BackgroundArtState {
@@ -18,7 +21,7 @@ export const useBackgroundArtStore = create<BackgroundArtState>()((set) => ({
   removeClaim: (token) => set((state) => ({ claims: state.claims.filter((c) => c.token !== token) })),
 }))
 
-/** The item whose art should be shown; null falls back to the player bar track */
-export function selectArtItemId(state: BackgroundArtState) {
-  return state.claims.length > 0 ? state.claims[state.claims.length - 1].itemId : null
+/** The claim whose art should be shown; null falls back to the player bar track */
+export function selectArtClaim(state: BackgroundArtState) {
+  return state.claims.length > 0 ? state.claims[state.claims.length - 1] : null
 }

@@ -17,7 +17,8 @@ import {
   getAvailableBpmBuckets,
   getBpmBucketSongs,
   getDailySeed,
-  pickAlbumForCard,
+  pickSongForCard,
+  type MixRouteState,
 } from '../../utils/smartPlaylists'
 import { filterExcludedGenres } from '../../utils/genreFilter'
 import { chunkArray, seededShuffle } from '../../utils/array'
@@ -32,6 +33,8 @@ interface CardItem {
   description: string
   route: string
   albumId: string | null
+  /** Song providing the cover art; shown first in the opened playlist */
+  topSongId?: string
   /** When set, this card is an artist filler — use artist image instead of album art */
   artistFiller?: { artistId: string }
 }
@@ -50,7 +53,7 @@ function pickAlbumFromSubItems(
   const subItemUsed = new Set<string>()
   const subItemAlbumIds: string[] = []
   for (const item of subItems) {
-    const albumId = pickAlbumForCard(item.key, item.songs, subItemUsed)
+    const albumId = pickSongForCard(item.key, item.songs, subItemUsed)?.AlbumId
     if (albumId) {
       subItemUsed.add(albumId)
       subItemAlbumIds.push(albumId)
@@ -213,7 +216,8 @@ export default function SmartPlaylistCards() {
       const available = getAvailableSmartPlaylists(songs, events, statsTrackingEnabled)
       for (const sp of available) {
         const spSongs = sp.getSongs(songs, events)
-        const albumId = pickAlbumForCard(sp.id, spSongs, usedAlbumIds)
+        const coverSong = pickSongForCard(sp.id, spSongs, usedAlbumIds)
+        const albumId = coverSong?.AlbumId ?? null
         if (albumId) usedAlbumIds.add(albumId)
         items.push({
           id: sp.id,
@@ -221,6 +225,7 @@ export default function SmartPlaylistCards() {
           description: sp.description,
           route: `/smart/${sp.id}`,
           albumId,
+          topSongId: coverSong?.Id,
         })
       }
     }
@@ -229,7 +234,7 @@ export default function SmartPlaylistCards() {
     if (eventsLoaded && statsTrackingEnabled) {
       const years = getAvailableThrowbackYears(events)
       if (years.length > 0) {
-        const yearAlbumId = pickAlbumForCard('year-throwback', songs, usedAlbumIds)
+        const yearAlbumId = pickSongForCard('year-throwback', songs, usedAlbumIds)?.AlbumId ?? null
         if (yearAlbumId) usedAlbumIds.add(yearAlbumId)
         items.push({
           id: 'year-throwback',
@@ -421,7 +426,7 @@ function MixCardItem({ card }: { card: CardItem }) {
 
   return (
     <button
-      onClick={() => navigate(card.route)}
+      onClick={() => navigate(card.route, { state: { topSongId: card.topSongId } satisfies MixRouteState })}
       className="bg-white/10 rounded border border-white/10 hover:bg-white/15 transition-colors group text-left flex items-center w-full h-11 overflow-hidden"
     >
       <div className="h-full aspect-square flex-shrink-0 bg-white/10">

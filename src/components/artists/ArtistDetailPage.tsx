@@ -30,6 +30,8 @@ const INITIAL_VISIBLE_ALBUMS = 45
 const VISIBLE_ALBUMS_INCREMENT = 45
 const INITIAL_VISIBLE_SONGS = 45
 const VISIBLE_SONGS_INCREMENT = 45
+/** Matches Tailwind's md breakpoint, where the hero switches from the artist image to the backdrop */
+const BACKDROP_MEDIA_QUERY = '(min-width: 768px)'
 
 // Release time for ordering: the full PremiereDate when it agrees with the
 // displayed year (ProductionYear wins for display), else Jan 1 of that year.
@@ -283,7 +285,15 @@ export default function ArtistDetailPage() {
   const [isBioExpandable, setIsBioExpandable] = useState(true)
   const [hasImage, setHasImage] = useState(true)
   const hasAppBackground = useAppBackgroundActive()
-  usePageBackgroundArt(hasImage ? id : allOwnAlbums[0]?.Id)
+  // From md up the hero shows the artist's backdrop, so the blurred background uses it too
+  const [showsBackdrop, setShowsBackdrop] = useState(() => window.matchMedia(BACKDROP_MEDIA_QUERY).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(BACKDROP_MEDIA_QUERY)
+    const onChange = () => setShowsBackdrop(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+  usePageBackgroundArt(hasImage ? id : allOwnAlbums[0]?.Id, hasImage && showsBackdrop ? 'Backdrop' : 'Primary')
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuMode, setContextMenuMode] = useState<'mobile' | 'desktop'>('mobile')
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null)

@@ -20,6 +20,7 @@ import { logger } from '../../utils/logger'
 import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
 import { capitalizeFirst, formatDuration, parseGroupingTag } from '../../utils/formatting'
+import { moveSongToTop, type MixRouteState } from '../../utils/smartPlaylists'
 import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
 import { SurfaceBackdrop } from '../layout/AppBackground'
@@ -356,6 +357,7 @@ export default function PlaylistDetailPage() {
 
   // Detect if this is a mood route
   const isMoodRoute = location.pathname.startsWith('/mood/')
+  const topSongId = (location.state as MixRouteState | null)?.topSongId
 
   // Refresh playlist data when playlists are updated elsewhere (rename, etc.)
   useEffect(() => {
@@ -416,8 +418,10 @@ export default function PlaylistDetailPage() {
       } as BaseItemDto)
 
       // Convert to BaseItemDto format, sorted by name
-      const sortedTracks = [...moodSongs]
-        .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+      const sortedTracks = moveSongToTop(
+        [...moodSongs].sort((a, b) => (a.Name || '').localeCompare(b.Name || '')),
+        topSongId,
+      )
         .map(song => ({
           Id: song.Id,
           Name: song.Name,
@@ -466,7 +470,7 @@ export default function PlaylistDetailPage() {
     }
 
     loadPlaylistData()
-  }, [id, isMoodRoute, moodValue, recordMoodAccess, songs])
+  }, [id, isMoodRoute, moodValue, recordMoodAccess, songs, topSongId])
 
   // Reset visible tracks window when tracks change
   useEffect(() => {

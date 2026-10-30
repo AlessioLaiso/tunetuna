@@ -14,7 +14,7 @@ import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { usePlayerStore } from '../../stores/playerStore'
-import { useBackgroundArtStore, selectArtItemId } from '../../stores/backgroundArtStore'
+import { useBackgroundArtStore, selectArtClaim } from '../../stores/backgroundArtStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { useBlurredArt } from '../../hooks/useBlurredArt'
@@ -75,13 +75,15 @@ export default function Layout({ children }: LayoutProps) {
   const currentTrack = useCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
   const firstQueueTrack = usePlayerStore(s => s.songs[0] ?? null)
-  const pageArtItemId = useBackgroundArtStore(selectArtItemId)
+  const pageArtClaim = useBackgroundArtStore(selectArtClaim)
+  const pageArtItemId = pageArtClaim?.itemId ?? null
   const playerBarTrack = currentTrack || lastPlayedTrack || firstQueueTrack
   const playerBarArtItemId = playerBarTrack ? playerBarTrack.AlbumId || playerBarTrack.Id : null
   const usesArtworkAccent = accentColor === ARTWORK_ACCENT
   const blurredArt = useBlurredArt(
     blurredBackground || usesArtworkAccent ? pageArtItemId ?? playerBarArtItemId : null,
-    pageArtItemId ? playerBarArtItemId : null
+    pageArtItemId ? playerBarArtItemId : null,
+    pageArtClaim?.imageType
   )
   const appBackground = useMemo(
     () => (blurredBackground ? blurredArt : null),
