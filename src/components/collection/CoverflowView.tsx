@@ -279,7 +279,7 @@ const CoverflowItem = memo(function CoverflowItem({
 
       {/* Cover art — the 3D-transformed element */}
       <button
-        className={`absolute top-0 left-0 rounded overflow-hidden ${showCassette ? '' : 'bg-white/10'} block`}
+        className={`absolute top-0 left-0 rounded overflow-hidden ${showCassette ? '' : 'bg-zinc-800'} block`}
         style={{
           width: coverSize,
           height: coverSize,
