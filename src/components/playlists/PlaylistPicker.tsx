@@ -5,6 +5,7 @@ import { useToastStore } from '../../stores/toastStore'
 import type { BaseItemDto } from '../../api/types'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import Image from '../shared/Image'
+import { SkeletonRows } from '../shared/Skeleton'
 
 interface PlaylistPickerProps {
   isOpen: boolean
@@ -15,7 +16,8 @@ interface PlaylistPickerProps {
 
 export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: PlaylistPickerProps) {
   const [playlists, setPlaylists] = useState<BaseItemDto[]>([])
-  const [loading, setLoading] = useState(false)
+  // Starts true: the first paint after opening comes before the effect that starts the load
+  const [loading, setLoading] = useState(true)
   const [showCreateInput, setShowCreateInput] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -125,9 +127,7 @@ export default function PlaylistPicker({ isOpen, onClose, itemIds, zIndex }: Pla
 
         {/* Playlist List */}
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          </div>
+          <SkeletonRows count={4} />
         ) : (
           <div className="max-h-[50vh] overflow-y-auto">
             {playlists.map((playlist) => (

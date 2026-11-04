@@ -529,9 +529,9 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         to { opacity: 1; }
       }
       .bg-fade-in {
-        animation: none; /* Instant on smaller screens */
+        animation: none; /* Instant on phones */
       }
-      @media (min-width: 1280px) {
+      @media (min-width: 768px) {
         .bg-fade-in {
           animation: bgFadeIn 1.5s ease-out forwards;
         }

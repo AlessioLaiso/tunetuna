@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { ImgHTMLAttributes, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { useImageFade } from '../../hooks/useImageFade'
 
 interface ImageProps {
   src: string
@@ -12,36 +13,26 @@ interface ImageProps {
   rounded?: string
   loading?: 'lazy' | 'eager'
   onError?: () => void
+  /** A longer fade for large images */
+  slowFade?: boolean
 }
 
-export default function Image({ src, alt, className = '', fallback, fallbackIcon: FallbackIcon, style, showOutline, rounded = 'rounded', loading = 'lazy', onError }: ImageProps) {
+export default function Image({ src, alt, className = '', fallback, fallbackIcon: FallbackIcon, style, showOutline, rounded = 'rounded', loading = 'lazy', onError, slowFade }: ImageProps) {
   const [imgSrc, setImgSrc] = useState(src)
+  const [propSrc, setPropSrc] = useState(src)
   const [error, setError] = useState(false)
   const [shouldHide, setShouldHide] = useState(false)
   const [showIcon, setShowIcon] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [needsFade, setNeedsFade] = useState(true)
-  const imgRef = useRef<HTMLImageElement>(null)
+  const { ref, isOpaque, fadeClassName, onLoad, onTransitionEnd } = useImageFade(imgSrc, slowFade)
 
-  // Update imgSrc when src prop changes
-  useEffect(() => {
+  // Reset during render so a new image never paints a frame with the previous image's state
+  if (src !== propSrc) {
+    setPropSrc(src)
     setImgSrc(src)
     setError(false)
     setShouldHide(false)
     setShowIcon(false)
-    setLoaded(false)
-    setNeedsFade(true)
-  }, [src])
-
-  // If the image is already cached, skip fade
-  useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setLoaded(true)
-      setNeedsFade(false)
-    }
-  }, [imgSrc])
-
-  const handleLoad = useCallback(() => setLoaded(true), [])
+  }
 
   const handleError = () => {
     if (!error && fallback) {
@@ -72,19 +63,19 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
 
   return (
     <div className="relative w-full h-full">
-      {/* The icon placeholder while loading; the image fades in over it */}
-      {FallbackIcon && !loaded && (
-        <div className="absolute inset-0 bg-white/15 flex items-center justify-center">
-          <FallbackIcon className="w-1/3 h-1/3 text-white/30" />
-        </div>
+      {/* A plain tile while loading. It stays until the image is opaque so the fade never dips
+          through to the page; the icon is only for images that failed. */}
+      {FallbackIcon && !isOpaque && (
+        <div className="absolute inset-0 bg-white/15" />
       )}
       <img
-        ref={imgRef}
+        ref={ref}
         src={imgSrc}
         alt={alt}
-        className={`relative block ${needsFade ? `transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}` : ''} ${className}`}
+        className={`relative block ${fadeClassName} ${className}`}
         onError={handleError}
-        onLoad={handleLoad}
+        onLoad={onLoad}
+        onTransitionEnd={onTransitionEnd}
         loading={loading}
         style={style}
       />
@@ -98,8 +89,17 @@ export default function Image({ src, alt, className = '', fallback, fallbackIcon
   )
 }
 
-
-
-
-
-
+/** A plain <img> that fades in like Image, for layouts that can't take Image's wrapper element */
+export function FadeImage({ src, className = '', slowFade, ...props }: ImgHTMLAttributes<HTMLImageElement> & { src: string; slowFade?: boolean }) {
+  const { ref, fadeClassName, onLoad, onTransitionEnd } = useImageFade(src, slowFade)
+  return (
+    <img
+      {...props}
+      ref={ref}
+      src={src}
+      className={`${fadeClassName} ${className}`}
+      onLoad={onLoad}
+      onTransitionEnd={onTransitionEnd}
+    />
+  )
+}

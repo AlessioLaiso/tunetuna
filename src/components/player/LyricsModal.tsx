@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import type { LyricsResult } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
+import { SkeletonTextLines } from '../shared/Skeleton'
 
 // Highlight the next line slightly before its timestamp so it feels in sync with the vocals
 const LINE_LEAD_SECONDS = 0.5
@@ -200,8 +201,8 @@ export default function LyricsModal() {
     >
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 py-4 relative">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full px-6">
-            <div className="text-white/50">Loading lyrics...</div>
+          <div className="max-w-[768px] lg:max-w-[864px] mx-auto px-6 pt-8">
+            <SkeletonTextLines count={10} centered />
           </div>
         ) : lyrics && lyrics.lines.length > 0 ? (
           <div className="max-w-[768px] lg:max-w-[864px] mx-auto pb-8 pl-8 pr-4">

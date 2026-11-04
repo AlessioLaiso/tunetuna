@@ -13,6 +13,7 @@ import type { BaseItemDto, GroupingCategory } from '../../api/types'
 import type { LucideIcon } from 'lucide-react'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonRows } from './Skeleton'
 
 // Section configuration for customizing which sections appear and in what order
 export type SearchSectionType = 'artists' | 'albums' | 'songs' | 'playlists'
@@ -559,11 +560,7 @@ export default function SearchOverlay({
   }
 
   // Render loading state
-  const renderLoading = () => (
-    <div className="flex items-center justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/15 border-t-[var(--accent-color)]"></div>
-    </div>
-  )
+  const renderLoading = () => <SkeletonRows count={6} />
 
   // Render no results
   const renderNoResults = () => (

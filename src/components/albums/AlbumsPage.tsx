@@ -21,6 +21,7 @@ import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonCardGrid } from '../shared/Skeleton'
 
 // Section configuration for AlbumsPage: Albums first (no limit), then Artists (5), Playlists, Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -48,6 +49,8 @@ export default function AlbumsPage() {
   const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
+  // Set by this page's own load: the store's loading flag is shared and can render ahead of the data
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [visibleAlbumsCount, setVisibleAlbumsCount] = useState(INITIAL_VISIBLE_ALBUMS)
   const [searchParams, setSearchParams] = useSearchParams()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -197,6 +200,7 @@ export default function AlbumsPage() {
       setAlbums([])
       setTotalCount(0)
     } finally {
+      setHasLoaded(true)
       setLoading('albums', false)
       clearSortLoading()
     }
@@ -254,7 +258,7 @@ export default function AlbumsPage() {
                         'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
-                  {loading.albums && !isInitialLoad.current && (
+                  {loading.albums && !isInitialLoad.current && albums.length > 0 && (
                     <div className="flex items-center">
                       <Spinner />
                     </div>
@@ -287,13 +291,17 @@ export default function AlbumsPage() {
             onContextMenu={() => {
             }}
           >
-            {albums.length === 0 && !loading.albums ? (
+            {albums.length === 0 && !hasLoaded ? (
+              <div className="p-4">
+                <SkeletonCardGrid />
+              </div>
+            ) : albums.length === 0 ? (
               <div className="flex items-center justify-center py-16 text-white/60">
                 <p>No albums found</p>
               </div>
             ) : (
               <>
-                <div className="p-4">
+                <div className="p-4 content-reveal">
                   <div
                     className="grid grid-cols-3 md:grid-cols-4 gap-3"
                     onContextMenu={() => {

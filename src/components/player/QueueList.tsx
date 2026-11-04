@@ -4,7 +4,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
-import Spinner from '../shared/Spinner'
+import { SkeletonRows } from '../shared/Skeleton'
 import { Play, Pause, GripHorizontal } from 'lucide-react'
 import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
@@ -96,7 +96,7 @@ const QueueTrackItem = memo(function QueueTrackItem({
             {...longPressHandlers}
         >
             {isDragOver && !isCurrent && (
-                <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-color)] rounded-full pointer-events-none" />
+                <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-fill)] rounded-full pointer-events-none" />
             )}
             <div className="queue-drag-art w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 ml-1">
                 <Image
@@ -524,10 +524,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                         )
                                     })}
                                     {isLoadingMoreSongs && (
-                                        <div className="flex items-center justify-center py-4">
-                                            <Spinner />
-                                            <span className="ml-2 text-sm text-white/60">Loading more songs...</span>
-                                        </div>
+                                        <SkeletonRows count={3} />
                                     )}
                                 </div>
                             )}
@@ -616,9 +613,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                             )
                                         })}
                                         {showSyncingMessage && (
-                                            <div className="px-4 pt-4 pb-6 flex justify-center">
-                                                <Spinner />
-                                            </div>
+                                            <SkeletonRows count={3} />
                                         )}
                                     </>
                                 )}

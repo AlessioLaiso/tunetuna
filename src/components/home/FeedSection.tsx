@@ -178,15 +178,19 @@ export function HomeListItem({
   )
 }
 
+function isFeedStale(lastUpdated: number | null) {
+  return !lastUpdated || Date.now() - lastUpdated >= FEED_COOLDOWN_MS
+}
+
 function FeedSkeleton() {
   return (
-    <div className="animate-pulse">
+    <div className="skeleton-soft">
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex items-center gap-3 py-2.5">
-          <div className="w-12 h-12 rounded-sm bg-white/15" />
+          <div className="w-12 h-12 rounded-sm bg-white/10" />
           <div className="flex-1">
-            <div className="h-4 bg-white/15 rounded w-3/4 mb-1.5" />
-            <div className="h-3 bg-white/15 rounded w-1/2" />
+            <div className="h-4 bg-white/10 rounded w-3/4 mb-1.5" />
+            <div className="h-3 bg-white/10 rounded w-1/2" />
           </div>
         </div>
       ))}
@@ -199,7 +203,7 @@ function FeedSkeleton() {
 export function Top10Section() {
   const navigate = useNavigate()
   const playSongWithQueue = usePlaySongWithQueue()
-  const { feedTopSongs, feedLastUpdated, loading, setFeedTopSongs, setFeedLastUpdated, setLoading } = useMusicStore()
+  const { feedTopSongs, feedLastUpdated, setFeedTopSongs, setFeedLastUpdated, setLoading } = useMusicStore()
   const { feedCountry, showTop10 } = useSettingsStore()
   const { findSong } = useLibraryLookup()
 
@@ -209,6 +213,8 @@ export function Top10Section() {
   const [selectedOdesliData, setSelectedOdesliData] = useState<OdesliResponse | null>(null)
   const [loadingOdesli, setLoadingOdesli] = useState(false)
   const [topSongsError, setTopSongsError] = useState(false)
+  // Local: the store's feed flag is shared with the other feed section, which can finish first
+  const [isFetching, setIsFetching] = useState(() => isFeedStale(feedLastUpdated))
   const [selectedSongTitle, setSelectedSongTitle] = useState<string | null>(null)
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null)
 
@@ -225,6 +231,7 @@ export function Top10Section() {
     }
 
     setLoading('feed', true)
+    setIsFetching(true)
     setTopSongsError(false)
 
     try {
@@ -235,15 +242,14 @@ export function Top10Section() {
       console.error('Failed to fetch top songs:', error)
       setTopSongsError(true)
     } finally {
+      setIsFetching(false)
       setLoading('feed', false)
     }
   }, [feedCountry, feedLastUpdated, setFeedTopSongs, setFeedLastUpdated, setLoading])
 
   useEffect(() => {
     if (showTop10) {
-      const now = Date.now()
-      const isStale = !feedLastUpdated || (now - feedLastUpdated) >= FEED_COOLDOWN_MS
-      if (isStale) {
+      if (isFeedStale(feedLastUpdated)) {
         fetchTopSongs(true)
       }
     }
@@ -294,8 +300,7 @@ export function Top10Section() {
   if (!showTop10) return null
 
   const hasTopSongs = feedTopSongs.length > 0
-  const isLoading = loading.feed
-  const showSkeleton = isLoading && !hasTopSongs && !topSongsError
+  const showSkeleton = isFetching && !hasTopSongs && !topSongsError
 
   return (
     <div className="mb-8">
@@ -303,7 +308,7 @@ export function Top10Section() {
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasTopSongs ? (
-        <div className="space-y-0">
+        <div className="space-y-0 content-reveal">
           {feedTopSongs.map((song, index) => {
             const matchedSong = findSong(song.name, song.artistName)
             const isInLibrary = matchedSong !== null
@@ -390,7 +395,7 @@ export function Top10Section() {
 export function NewReleasesSection() {
   const navigate = useNavigate()
   const playSongWithQueue = usePlaySongWithQueue()
-  const { feedNewReleases, feedLastUpdated, loading, setFeedNewReleases, setFeedLastUpdated, setLoading } = useMusicStore()
+  const { feedNewReleases, feedLastUpdated, setFeedNewReleases, setFeedLastUpdated, setLoading } = useMusicStore()
   const { showNewReleases, muspyRssUrl } = useSettingsStore()
   const { findAlbum, findSong, findArtistImageUrl } = useLibraryLookup()
 
@@ -400,6 +405,8 @@ export function NewReleasesSection() {
   const [selectedOdesliData, setSelectedOdesliData] = useState<OdesliResponse | null>(null)
   const [loadingOdesli, setLoadingOdesli] = useState(false)
   const [newReleasesError, setNewReleasesError] = useState(false)
+  // Local: the store's feed flag is shared with the other feed section, which can finish first
+  const [isFetching, setIsFetching] = useState(() => isFeedStale(feedLastUpdated))
   const [selectedReleaseTitle, setSelectedReleaseTitle] = useState<string | null>(null)
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
 
@@ -418,6 +425,7 @@ export function NewReleasesSection() {
     }
 
     setLoading('feed', true)
+    setIsFetching(true)
     setNewReleasesError(false)
 
     try {
@@ -428,15 +436,14 @@ export function NewReleasesSection() {
       console.error('Failed to fetch Muspy releases:', error)
       setNewReleasesError(true)
     } finally {
+      setIsFetching(false)
       setLoading('feed', false)
     }
   }, [muspyRssUrl, feedLastUpdated, setFeedNewReleases, setFeedLastUpdated, setLoading])
 
   useEffect(() => {
     if (showNewReleases && muspyRssUrl) {
-      const now = Date.now()
-      const isStale = !feedLastUpdated || (now - feedLastUpdated) >= FEED_COOLDOWN_MS
-      if (isStale) {
+      if (isFeedStale(feedLastUpdated)) {
         fetchReleases(true)
       }
     }
@@ -572,9 +579,8 @@ export function NewReleasesSection() {
   if (!showNewReleases || !muspyRssUrl) return null
 
   const hasNewReleases = feedNewReleases.length > 0
-  const isLoading = loading.feed
   const hasMuspyConfigured = !!muspyRssUrl
-  const showSkeleton = isLoading && !hasNewReleases && !newReleasesError && hasMuspyConfigured
+  const showSkeleton = isFetching && !hasNewReleases && !newReleasesError && hasMuspyConfigured
 
   return (
     <div className="mb-8">
@@ -582,7 +588,7 @@ export function NewReleasesSection() {
       {showSkeleton ? (
         <FeedSkeleton />
       ) : hasNewReleases ? (
-        <div className="space-y-0">
+        <div className="space-y-0 content-reveal">
           {feedNewReleases.map((release) => {
             // For singles, try song match; otherwise match album
             const isSingle = release.type === 'Single'

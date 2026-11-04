@@ -32,16 +32,16 @@ function useRecentlyAddedCount() {
 function SkeletonAlbumItem() {
   return (
     <div>
-      <div className="aspect-square rounded bg-white/15 mb-2" />
-      <div className="h-3.5 bg-white/15 rounded w-3/4 mb-1.5" />
-      <div className="h-3 bg-white/15 rounded w-1/2" />
+      <div className="aspect-square rounded bg-white/10 mb-2" />
+      <div className="h-3.5 bg-white/10 rounded w-3/4 mb-1.5" />
+      <div className="h-3 bg-white/10 rounded w-1/2" />
     </div>
   )
 }
 
 function RecentlyAddedSkeleton() {
   return (
-    <div className="px-4 mb-8 animate-pulse">
+    <div className="px-4 mb-8 skeleton-soft">
       <h2 className="text-xl font-bold mb-4">Recently added</h2>
       {/* Mobile: 3-col, 2-row grid */}
       <div className="md:hidden">
@@ -119,7 +119,7 @@ export default function RecentlyAdded() {
   )
 
   return (
-    <div className="px-4 mb-8">
+    <div className="px-4 mb-8 content-reveal">
       <h2 className="text-xl font-bold mb-4">Recently added</h2>
       {/* Small screens (<768px): 3-col, 2-row with arrow navigation */}
       <div className="md:hidden">

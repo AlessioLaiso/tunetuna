@@ -14,7 +14,7 @@ import type { BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import { capitalizeFirst, formatDuration } from '../../utils/formatting'
 import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
@@ -158,11 +158,7 @@ export default function SmartPlaylistDetailPage() {
   const wheelRotation = useCassetteWheelAnimation(isListPlaying)
 
   if (loading) {
-    return (
-      <div className="pb-20 flex items-center justify-center h-screen">
-        <Spinner />
-      </div>
-    )
+    return <SkeletonDetailPage variant="art" />
   }
 
   return (
@@ -185,7 +181,7 @@ export default function SmartPlaylistDetailPage() {
         </div>
       </div>
 
-      <div className="pt-11">
+      <div className="pt-11 content-reveal">
         <div className="mb-6 px-4 pt-4">
           {/* Cassette */}
           <div className="flex justify-center mb-6">

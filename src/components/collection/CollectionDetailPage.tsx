@@ -18,7 +18,7 @@ import type { LightweightSong, BaseItemDto } from '../../api/types'
 import ContextMenu from '../shared/ContextMenu'
 import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import VinylArtwork from '../shared/VinylArtwork'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
@@ -458,13 +458,7 @@ export default function CollectionDetailPage() {
     || ''
 
   if (loading) {
-    return (
-      <div className="pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <Spinner />
-        </div>
-      </div>
-    )
+    return <SkeletonDetailPage variant="art" />
   }
 
   if (!detail || loadError) {
@@ -537,7 +531,7 @@ export default function CollectionDetailPage() {
         </div>
       </div>
 
-      <div className="pt-11">
+      <div className="pt-11 content-reveal">
         {/* Album art + disc animation */}
         <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (

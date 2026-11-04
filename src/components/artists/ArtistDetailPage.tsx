@@ -7,13 +7,13 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
-import Image from '../shared/Image'
+import Image, { FadeImage } from '../shared/Image'
 import { ArrowLeft, Shuffle, Pause, ChevronDown, ChevronUp, MoreHorizontal, ArrowUpDown, ListEnd } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
 import AlbumCard from '../albums/AlbumCard'
 import ContextMenu from '../shared/ContextMenu'
 import { useLongPress } from '../../hooks/useLongPress'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import { logger } from '../../utils/logger'
 import { formatDuration, getSongReleaseType, formatReleaseTypeLabel } from '../../utils/formatting'
 import { useMusicStore, getFeaturedArtistData } from '../../stores/musicStore'
@@ -528,7 +528,10 @@ export default function ArtistDetailPage() {
         }
 
         setArtist(currentArtist)
-        setHasImage(true) // Reset image state when artist changes
+        // Artists known to have no backdrop skip the hero up front. Waiting for the request to fail
+        // would show the hero's space and then collapse it.
+        const hasNoBackdrop = currentArtist.BackdropImageTags?.length === 0
+        setHasImage(!(hasNoBackdrop && window.matchMedia(BACKDROP_MEDIA_QUERY).matches))
 
         // Get artist items. The album-artist query runs alongside it because
         // ArtistIds also matches track-artist credits, which would otherwise
@@ -861,13 +864,7 @@ export default function ArtistDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="pb-20">
-        <div className="flex items-center justify-center h-screen text-white/60">
-          <Spinner />
-        </div>
-      </div>
-    )
+    return <SkeletonDetailPage variant="hero" />
   }
 
   if (!artist) {
@@ -938,16 +935,18 @@ export default function ArtistDetailPage() {
                 src={jellyfinClient.getArtistImageUrl(artist.Id)}
                 alt={artist.Name}
                 className="w-full h-auto object-contain min-[600px]:h-full min-[600px]:object-cover"
+                slowFade
                 onError={() => setHasImage(false)}
               />
             </div>
 
             {/* Desktop: backdrop image, edge-to-edge */}
             <div className="hidden md:block w-full h-80 [@media((min-width:1500px)_and_(min-height:1000px))]:h-[440px]">
-              <img
+              <FadeImage
                 src={jellyfinClient.getArtistBackdropUrl(artist.Id, 1920)}
                 alt={artist.Name}
                 className="w-full h-full object-cover object-[center_20%]"
+                slowFade
                 onError={() => setHasImage(false)}
               />
             </div>
@@ -959,7 +958,7 @@ export default function ArtistDetailPage() {
         )}
 
         {/* Artist info overlay */}
-        <div className={`left-0 right-0 ${hasImage ? 'absolute' : 'relative'} ${hasImage ? 'pt-16' : 'pt-12'}`} style={hasImage ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
+        <div className={`content-reveal left-0 right-0 ${hasImage ? 'absolute' : 'relative'} ${hasImage ? 'pt-16' : 'pt-12'}`} style={hasImage ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
           <div className="max-w-page mx-auto px-4 flex items-end gap-4">
             {/* Artist image (desktop/tablet only, fixed at 1/3 of 768px width) */}
             {hasImage && (
@@ -1013,7 +1012,7 @@ export default function ArtistDetailPage() {
       </div>
 
       {/* Content section */}
-      <div className="pt-3 md:pt-7">
+      <div className="pt-3 md:pt-7 content-reveal">
         {/* Bio section - always collapsed by default with chevron, regardless of length */}
         {artist.Overview && (
           <div className="mb-6 px-4">

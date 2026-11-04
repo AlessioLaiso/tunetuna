@@ -33,6 +33,7 @@ export interface BaseItemDto {
   ProductionYear?: number
   Overview?: string
   ChildCount?: number
+  BackdropImageTags?: string[]
   ImageTags?: {
     Primary?: string
     Logo?: string

@@ -330,7 +330,7 @@ export default function SmartPlaylistCards() {
   }
 
   return (
-    <div className="px-4 mb-12">
+    <div className="px-4 mb-12 content-reveal">
       {/* Narrow screens (<620px): 2-col, 2-row with arrow navigation */}
       <div className="min-[620px]:hidden">
         <HorizontalScrollContainer gap={8}>
@@ -382,7 +382,7 @@ function SkeletonCardItem() {
 
 function SmartPlaylistCardsSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="px-4 mb-12 animate-pulse">
+    <div className="px-4 mb-12 skeleton-soft">
       {/* Narrow (<620px): 2-col */}
       <div className="min-[620px]:hidden">
         <div className="grid grid-cols-2 gap-2">

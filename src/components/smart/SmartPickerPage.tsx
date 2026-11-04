@@ -7,7 +7,7 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { ArrowLeft } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import {
   getAvailableDecades,
   getDecadeSongs,
@@ -177,11 +177,7 @@ export default function SmartPickerPage() {
   }, [pickerId, songs, events, eventsLoaded])
 
   if (!eventsLoaded) {
-    return (
-      <div className="pb-20 flex items-center justify-center h-screen">
-        <Spinner />
-      </div>
-    )
+    return <SkeletonDetailPage variant="grid" />
   }
 
   return (
@@ -204,7 +200,7 @@ export default function SmartPickerPage() {
         </div>
       </div>
 
-      <div className="pt-11">
+      <div className="pt-11 content-reveal">
         <div className="mb-6 px-4 pt-4">
           <h2 className="text-4xl md:text-5xl font-bold mb-0.5 text-left break-words">{title}</h2>
         </div>

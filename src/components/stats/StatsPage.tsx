@@ -34,6 +34,7 @@ import Image from '../shared/Image'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonStats } from '../shared/Skeleton'
 
 // Month names for display
 const SHORT_MONTH_NAMES = [
@@ -449,7 +450,7 @@ function HorizontalBar({
   label,
   value,
   maxValue,
-  color = 'bg-[var(--accent-color)]',
+  color = 'bg-[var(--accent-fill)]',
   onClick,
 }: {
   label: string
@@ -522,12 +523,7 @@ function EmptyState() {
 
 // Loading state
 function LoadingState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-      <p className="text-white/45">Loading your stats...</p>
-    </div>
-  )
+  return <SkeletonStats />
 }
 
 // Top album item component
@@ -676,11 +672,8 @@ export default function StatsPage() {
 
   // Fetch events when range changes or metadata updates
   useEffect(() => {
-    if (!fromMonth || !toMonth) {
-      setLoading(false)
-      setEvents([])
-      return
-    }
+    // The default range is set by the effect above, so this page is still loading
+    if (!fromMonth || !toMonth) return
 
     const fetchData = async () => {
       setLoading(true)
@@ -859,7 +852,7 @@ export default function StatsPage() {
       {activeTab === 'canned' && !loading && (!stats || events.length === 0) && <EmptyState />}
 
       {activeTab === 'canned' && !loading && stats && events.length > 0 && (
-      <div className="px-4">
+      <div className="px-4 content-reveal">
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-white/10 rounded-2xl p-5 border border-white/10">

@@ -4,8 +4,10 @@ import { useAuthStore } from './stores/authStore'
 import { useSettingsStore } from './stores/settingsStore'
 import LoginForm from './components/auth/LoginForm'
 import Layout from './components/layout/Layout'
+import PageTransition from './components/layout/PageTransition'
 import ScrollToTop from './ScrollToTop'
 import ToastContainer from './components/shared/Toast'
+import { SkeletonPage } from './components/shared/Skeleton'
 import ComponentErrorBoundary from './components/shared/ComponentErrorBoundary'
 import { useServerUrlResolver } from './hooks/useServerUrlResolver'
 import { jellyfinClient } from './api/jellyfin'
@@ -34,15 +36,6 @@ const ArtistTopSongsDetailPage = lazy(() => import('./components/stats/ArtistTop
 const SongDetailPage = lazy(() => import('./components/songs/SongDetailPage'))
 const SmartPlaylistDetailPage = lazy(() => import('./components/smart/SmartPlaylistDetailPage'))
 const SmartPickerPage = lazy(() => import('./components/smart/SmartPickerPage'))
-
-// Loading fallback component
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="w-8 h-8 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
-}
 
 // Wrapper to add error boundary to pages
 function withErrorBoundary(element: ReactNode, name: string) {
@@ -94,57 +87,59 @@ function App() {
   return (
     <>
       <BrowserRouter>
-        <ScrollToTop />
         <Layout>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
-              <Route path="/song/:id" element={withErrorBoundary(<SongDetailPage />, 'Song')} />
-              <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
-              <Route path="/smart/picker/:pickerId" element={withErrorBoundary(<SmartPickerPage />, 'Smart picker')} />
-              <Route path="/smart/:smartId" element={withErrorBoundary(<SmartPlaylistDetailPage />, 'Smart playlist')} />
-              <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
-              {pageVisibility.artists && (
-                <>
-                  <Route path="/artists" element={withErrorBoundary(<ArtistsPage />, 'Artists')} />
-                  <Route path="/artist/:id" element={withErrorBoundary(<ArtistDetailPage />, 'Artist')} />
-                </>
-              )}
-              {pageVisibility.albums && (
-                <>
-                  <Route path="/albums" element={withErrorBoundary(<AlbumsPage />, 'Albums')} />
-                  <Route path="/album/:id" element={withErrorBoundary(<AlbumDetailPage />, 'Album')} />
-                </>
-              )}
-              {pageVisibility.songs && <Route path="/songs" element={withErrorBoundary(<SongsPage />, 'Songs')} />}
-              {pageVisibility.genres && (
-                <>
-                  <Route path="/genres" element={withErrorBoundary(<GenresPage />, 'Genres')} />
-                  <Route path="/genre/:id" element={withErrorBoundary(<GenreSongsPage />, 'Genre')} />
-                </>
-              )}
-              {pageVisibility.playlists && (
-                <>
-                  <Route path="/playlists" element={withErrorBoundary(<PlaylistsPage />, 'Playlists')} />
-                  <Route path="/playlist/:id" element={withErrorBoundary(<PlaylistDetailPage />, 'Playlist')} />
-                </>
-              )}
-              {pageVisibility.collection && (
-                <>
-                  <Route path="/collection" element={withErrorBoundary(<CollectionPage />, 'Collection')} />
-                  <Route path="/collection/:releaseId" element={withErrorBoundary(<CollectionDetailPage />, 'Collection detail')} />
-                </>
-              )}
-              {pageVisibility.stats && (
-                <>
-                  <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
-                  <Route path="/stats/artist/songs" element={withErrorBoundary(<ArtistTopSongsDetailPage />, 'Artist top songs')} />
-                  <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats detail')} />
-                </>
-              )}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+          <PageTransition>
+            <ScrollToTop />
+            <Suspense fallback={<SkeletonPage />}>
+              <Routes>
+                <Route path="/" element={withErrorBoundary(<HomePage />, 'Home')} />
+                <Route path="/song/:id" element={withErrorBoundary(<SongDetailPage />, 'Song')} />
+                <Route path="/mood/:moodValue" element={withErrorBoundary(<PlaylistDetailPage />, 'Mood')} />
+                <Route path="/smart/picker/:pickerId" element={withErrorBoundary(<SmartPickerPage />, 'Smart picker')} />
+                <Route path="/smart/:smartId" element={withErrorBoundary(<SmartPlaylistDetailPage />, 'Smart playlist')} />
+                <Route path="/settings" element={withErrorBoundary(<SettingsPage />, 'Settings')} />
+                {pageVisibility.artists && (
+                  <>
+                    <Route path="/artists" element={withErrorBoundary(<ArtistsPage />, 'Artists')} />
+                    <Route path="/artist/:id" element={withErrorBoundary(<ArtistDetailPage />, 'Artist')} />
+                  </>
+                )}
+                {pageVisibility.albums && (
+                  <>
+                    <Route path="/albums" element={withErrorBoundary(<AlbumsPage />, 'Albums')} />
+                    <Route path="/album/:id" element={withErrorBoundary(<AlbumDetailPage />, 'Album')} />
+                  </>
+                )}
+                {pageVisibility.songs && <Route path="/songs" element={withErrorBoundary(<SongsPage />, 'Songs')} />}
+                {pageVisibility.genres && (
+                  <>
+                    <Route path="/genres" element={withErrorBoundary(<GenresPage />, 'Genres')} />
+                    <Route path="/genre/:id" element={withErrorBoundary(<GenreSongsPage />, 'Genre')} />
+                  </>
+                )}
+                {pageVisibility.playlists && (
+                  <>
+                    <Route path="/playlists" element={withErrorBoundary(<PlaylistsPage />, 'Playlists')} />
+                    <Route path="/playlist/:id" element={withErrorBoundary(<PlaylistDetailPage />, 'Playlist')} />
+                  </>
+                )}
+                {pageVisibility.collection && (
+                  <>
+                    <Route path="/collection" element={withErrorBoundary(<CollectionPage />, 'Collection')} />
+                    <Route path="/collection/:releaseId" element={withErrorBoundary(<CollectionDetailPage />, 'Collection detail')} />
+                  </>
+                )}
+                {pageVisibility.stats && (
+                  <>
+                    <Route path="/stats" element={withErrorBoundary(<StatsPage />, 'Stats')} />
+                    <Route path="/stats/artist/songs" element={withErrorBoundary(<ArtistTopSongsDetailPage />, 'Artist top songs')} />
+                    <Route path="/stats/:category" element={withErrorBoundary(<StatsDetailPage />, 'Stats detail')} />
+                  </>
+                )}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </PageTransition>
         </Layout>
       </BrowserRouter>
       <ToastContainer />

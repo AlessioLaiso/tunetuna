@@ -14,8 +14,9 @@ import ResponsiveModal from '../shared/ResponsiveModal'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import Image from '../shared/Image'
 import Pagination from '../shared/Pagination'
-import CoverflowView from './CoverflowView'
+import CoverflowView, { CoverflowSkeleton } from './CoverflowView'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonCardGrid } from '../shared/Skeleton'
 
 const ITEMS_PER_PAGE = 84
 
@@ -49,11 +50,14 @@ export default function CollectionPage() {
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint } = useLibraryLookup()
 
+  // Only once per visit: an empty collection would otherwise refetch forever
+  const [hasRequested, setHasRequested] = useState(false)
   useEffect(() => {
-    if (discogsToken && releases.length === 0 && !isLoading && !error) {
+    if (discogsToken && releases.length === 0 && !isLoading && !error && !hasRequested) {
+      setHasRequested(true)
       fetchCollection()
     }
-  }, [discogsToken, releases.length, isLoading, error, fetchCollection])
+  }, [discogsToken, releases.length, isLoading, error, hasRequested, fetchCollection])
 
   // Reset grid page when sort/filter changes
   useEffect(() => { setGridPage(0) }, [sortMode, formatFilter])
@@ -218,18 +222,8 @@ export default function CollectionPage() {
     )
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-2 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin mb-4" />
-        {loadingProgress && (
-          <p className="text-white/60 text-sm">
-            Loading page {loadingProgress.page} of {loadingProgress.totalPages}...
-          </p>
-        )}
-      </div>
-    )
-  }
+  // Includes the first paint, before the effect above has started the fetch
+  const showLoading = isLoading || (releases.length === 0 && !error && !hasRequested)
 
   if (error) {
     const isTokenError = error.includes('401') || error.includes('identity')
@@ -256,7 +250,7 @@ export default function CollectionPage() {
     )
   }
 
-  if (releases.length === 0) {
+  if (releases.length === 0 && !showLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
         <p className="text-white/60">Your Discogs collection is empty</p>
@@ -327,7 +321,13 @@ export default function CollectionPage() {
                   <ChevronDown className="w-3.5 h-3.5 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-white/60" />
                 </div>
               )}
-              {viewMode === 'coverflow' && filteredAndSorted.length > 0 && (() => {
+              {/* A big collection takes a while to page through, so show how far along it is */}
+              {showLoading && loadingProgress && (
+                <span className="ml-auto text-sm text-white/60 tabular-nums whitespace-nowrap content-reveal">
+                  Loading page {loadingProgress.page} of {loadingProgress.totalPages}...
+                </span>
+              )}
+              {!showLoading && viewMode === 'coverflow' && filteredAndSorted.length > 0 && (() => {
                 const current = filteredAndSorted[coverflowIndex]
                 let contextLabel = ''
                 if (current) {
@@ -353,7 +353,15 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {viewMode === 'coverflow' ? (
+      {showLoading ? (
+        viewMode === 'coverflow' ? (
+          <CoverflowSkeleton />
+        ) : (
+          <div className="p-4" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
+            <SkeletonCardGrid />
+          </div>
+        )
+      ) : viewMode === 'coverflow' ? (
         <CoverflowView
           releases={filteredAndSorted}
           onSnappedIndexChange={setCoverflowIndex}
@@ -385,7 +393,7 @@ export default function CollectionPage() {
       ) : (
         <>
           {/* Grid content */}
-          <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
+          <div className="content-reveal" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
             <div className="p-4">
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredAndSorted.slice(gridPage * ITEMS_PER_PAGE, (gridPage + 1) * ITEMS_PER_PAGE).map((release) => {

@@ -80,16 +80,16 @@ export default function ArtistCard({ artist, showImage = true, onContextMenu, co
             <div className="w-full h-full bg-white/10" />
           ) : (
             <>
-              {/* The icon shows until the image loads; the image stays hidden
-                  until then, so the browser doesn't draw its alt text meanwhile */}
-              {(!imageUrl || imageError || loadedImageUrl !== imageUrl) && (
+              {/* The image stays hidden until it loads, so the browser doesn't draw its alt text
+                  meanwhile, then fades in over the tile. The icon is for artists without one. */}
+              {(!imageUrl || imageError) && (
                 <User className="w-6 h-6 text-white/45" />
               )}
               {imageUrl && !imageError && (
                 <img
                   src={imageUrl}
                   alt={artist.Name}
-                  className={`absolute inset-0 w-full h-full object-cover ${loadedImageUrl === imageUrl ? '' : 'opacity-0'}`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${loadedImageUrl === imageUrl ? 'opacity-100' : 'opacity-0'}`}
                   onLoad={() => setLoadedImageUrl(imageUrl)}
                   onError={() => setImageError(true)}
                   loading="lazy"

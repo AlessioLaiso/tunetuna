@@ -6,7 +6,7 @@ import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
 import { useVinylAnimation } from '../../hooks/useVinylAnimation'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import VinylArtwork from '../shared/VinylArtwork'
 import { ArrowLeft, Play, Pause, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
 import type { BaseItemDto } from '../../api/types'
@@ -196,6 +196,9 @@ export default function AlbumDetailPage() {
           }
         }
 
+        // Everything visible is ready; the logo only matters once the disc slides out
+        setLoading(false)
+
         // Load artist logo if available (skip for "Various Artists" — show album art instead)
         const isVariousArtists = (currentAlbum?.AlbumArtist || '').toLowerCase() === 'various artists'
         const artistId = getArtistIdFromTracks(tracksList, currentAlbum)
@@ -329,13 +332,7 @@ export default function AlbumDetailPage() {
 
 
   if (loading) {
-    return (
-      <div className="pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <Spinner />
-        </div>
-      </div>
-    )
+    return <SkeletonDetailPage variant="art" />
   }
 
   if (!album || tracks.length === 0) {
@@ -405,7 +402,7 @@ export default function AlbumDetailPage() {
         </div>
       </div>
 
-      <div className="pt-11">
+      <div className="pt-11 content-reveal">
         <div className="mb-6 px-4 pt-4" style={{ overflow: 'visible' }}>
           {hasImage && (
             <VinylArtwork

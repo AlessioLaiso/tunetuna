@@ -8,8 +8,8 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useStatsStore } from '../../stores/statsStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
-import Image from '../shared/Image'
-import Spinner from '../shared/Spinner'
+import Image, { FadeImage } from '../shared/Image'
+import { SkeletonDetailPage, SkeletonTextLines } from '../shared/Skeleton'
 import ContextMenu from '../shared/ContextMenu'
 import { ArrowLeft, MoreHorizontal, Play, Pause, ChevronDown, User, Disc, Hash, Clock, Calendar, Guitar, Tag, FolderOpen, BarChart3, MicVocal, Globe, Smile, Piano, FileAudio, Metronome } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -233,13 +233,7 @@ export default function SongDetailPage() {
   }, [song?.Grouping, song?.Tags])
 
   if (loading) {
-    return (
-      <div className="pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <Spinner />
-        </div>
-      </div>
-    )
+    return <SkeletonDetailPage variant="hero" />
   }
 
   if (!song) {
@@ -311,10 +305,11 @@ export default function SongDetailPage() {
             {/* Mobile: album art as backdrop */}
             <div className="w-full flex items-center justify-center md:hidden min-[600px]:aspect-[4/3] min-[600px]:overflow-hidden">
               {hasImage && song.AlbumId ? (
-                <img
+                <FadeImage
                   src={jellyfinClient.getAlbumArtUrl(song.AlbumId)}
                   alt=""
                   className="w-full h-auto object-contain min-[600px]:h-full min-[600px]:object-cover"
+                  slowFade
                   onError={() => setHasBackdrop(false)}
                 />
               ) : (
@@ -324,10 +319,11 @@ export default function SongDetailPage() {
 
             {/* Desktop: artist backdrop image */}
             <div className="hidden md:block w-full h-80 [@media((min-width:1500px)_and_(min-height:1000px))]:h-[440px]">
-              <img
+              <FadeImage
                 src={jellyfinClient.getArtistBackdropUrl(artistId, 1920)}
                 alt=""
                 className="w-full h-full object-cover object-[center_20%]"
+                slowFade
                 onError={() => setHasBackdrop(false)}
               />
             </div>
@@ -339,7 +335,7 @@ export default function SongDetailPage() {
         )}
 
         {/* Song info overlay */}
-        <div className={`left-0 right-0 ${hasBackdrop && artistId ? 'absolute' : 'relative'} ${hasBackdrop && artistId ? 'pt-16' : 'pt-12'}`} style={hasBackdrop && artistId ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
+        <div className={`content-reveal left-0 right-0 ${hasBackdrop && artistId ? 'absolute' : 'relative'} ${hasBackdrop && artistId ? 'pt-16' : 'pt-12'}`} style={hasBackdrop && artistId ? { bottom: '-28px', paddingBottom: '1.5rem' } : {}}>
           <div className="max-w-page mx-auto px-4 flex items-end gap-4">
             {/* Album art (desktop/tablet: on the left; mobile: hidden since backdrop is album art) */}
             {hasImage && song.AlbumId && (
@@ -393,7 +389,7 @@ export default function SongDetailPage() {
       </div>
 
       {/* Content section */}
-      <div className={`${hasBackdrop && artistId ? 'pt-3 md:pt-7' : 'pt-3'}`}>
+      <div className={`content-reveal ${hasBackdrop && artistId ? 'pt-3 md:pt-7' : 'pt-3'}`}>
         {/* Metadata section */}
         <div className="px-4 mt-2">
           <div className="grid gap-x-3 gap-y-6 items-start" style={{ gridTemplateColumns: 'auto auto 1fr' }}>
@@ -598,7 +594,7 @@ export default function SongDetailPage() {
                 <span className="text-white/60 text-base flex-shrink-0 truncate hidden md:block" style={{ maxWidth: '128px' }}>Lyrics</span>
                 <div className="hidden md:block">
                   {lyricsLoading ? (
-                    <span className="text-base text-white/50">Loading...</span>
+                    <SkeletonTextLines count={4} />
                   ) : lyrics ? (
                     <div className="text-white whitespace-pre-line text-base">
                       {lyrics.map((line, index) => (
@@ -616,7 +612,7 @@ export default function SongDetailPage() {
                     <span className="text-white/60 text-base">Lyrics</span>
                   </div>
                   {lyricsLoading ? (
-                    <div className="text-base text-white/50 pl-7">Loading...</div>
+                    <div className="pl-7"><SkeletonTextLines count={4} /></div>
                   ) : lyrics ? (
                     <div className="text-white whitespace-pre-line text-base pl-7">
                       {lyrics.map((line, index) => (

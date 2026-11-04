@@ -23,6 +23,7 @@ import Pagination from '../shared/Pagination'
 import Image from '../shared/Image'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 
 const ITEMS_PER_PAGE = 50
 const SHORT_MONTH_NAMES = [
@@ -195,12 +196,7 @@ export default function StatsDetailPage() {
     : ''
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-        <p className="text-white/45">Loading...</p>
-      </div>
-    )
+    return <SkeletonDetailPage variant="list" />
   }
 
   if (!stats || items.length === 0) {
@@ -274,14 +270,14 @@ export default function StatsDetailPage() {
       <div className="h-20" />
 
       {/* Title section - matching album detail page style */}
-      <div className="px-4 mb-6">
+      <div className="px-4 mb-6 content-reveal">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{config?.title || 'Stats'}</h1>
         {subtitle && (
           <p className="text-white/60">{subtitle}</p>
         )}
       </div>
 
-      <div className="px-4">
+      <div className="px-4 content-reveal">
         {/* Songs */}
         {cat === 'songs' && (() => {
           return (
@@ -448,7 +444,7 @@ export default function StatsDetailPage() {
                     <div className="w-36 text-white/80 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{genre.genre}</div>
                     <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0">
                       <div
-                        className="h-full bg-[var(--accent-color)] rounded-full transition-all duration-500"
+                        className="h-full bg-[var(--accent-fill)] rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -481,7 +477,7 @@ export default function StatsDetailPage() {
                     <div className="w-44 text-white/80 text-sm truncate flex-shrink-0 text-left group-hover:text-[var(--accent-color)] transition-colors">{combo.decade} {combo.genre}</div>
                     <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0">
                       <div
-                        className="h-full bg-[var(--accent-color)] rounded-full transition-all duration-500"
+                        className="h-full bg-[var(--accent-fill)] rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>

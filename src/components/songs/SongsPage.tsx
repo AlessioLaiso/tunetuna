@@ -22,6 +22,7 @@ import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonRows } from '../shared/Skeleton'
 
 // Section configuration for SongsPage: Songs first (no limit), then Artists (5), Albums (12), Playlists
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -49,6 +50,8 @@ export default function SongsPage() {
   const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
+  // Set by this page's own load: the store's loading flag is shared and can render ahead of the data
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   // Filter sheet state
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
@@ -236,6 +239,7 @@ export default function SongsPage() {
       setPageSongs([])
       setTotalCount(0)
     } finally {
+      setHasLoaded(true)
       setLoading('songs', false)
       clearSortLoading()
     }
@@ -285,7 +289,7 @@ export default function SongsPage() {
                     {sortOrder === 'RecentlyAdded' ? 'Recently added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
-                  {loading.songs && !isInitialLoad.current && (
+                  {loading.songs && !isInitialLoad.current && pageSongs.length > 0 && (
                     <div className="flex items-center">
                       <Spinner />
                     </div>
@@ -310,13 +314,15 @@ export default function SongsPage() {
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
-            {pageSongs.length === 0 && !loading.songs ? (
+            {pageSongs.length === 0 && !hasLoaded ? (
+              <SkeletonRows />
+            ) : pageSongs.length === 0 ? (
               <div className="flex items-center justify-center py-16 text-white/60">
                 <p>No songs found</p>
               </div>
             ) : (
               <>
-                <div className="space-y-0">
+                <div className="space-y-0 content-reveal">
                   {pageSongs.map((song, index) => (
                     <SongItem
                       key={song.Id}

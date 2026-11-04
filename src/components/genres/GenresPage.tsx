@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMusicStore } from '../../stores/musicStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -7,11 +7,14 @@ import Spinner from '../shared/Spinner'
 import { logger } from '../../utils/logger'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonGroup } from '../shared/Skeleton'
 
 export default function GenresPage() {
   const hasAppBackground = useAppBackgroundActive()
   const { genres, setGenres, setLoading, loading } = useMusicStore()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
+  // Set by this page's own load: the store's loading flag is shared and can render ahead of the data
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   useEffect(() => {
     // Use persisted genres from store immediately if available
@@ -33,6 +36,7 @@ export default function GenresPage() {
         logger.error('Failed to load genres:', error)
         setGenres([])
       } finally {
+        setHasLoaded(true)
         setLoading('genres', false)
       }
     }
@@ -52,12 +56,12 @@ export default function GenresPage() {
             {/* Header with title and loading indicator */}
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-white">Genres</h1>
-              {loading.genres && (
+              {loading.genres && genres.length > 0 && (
                 <div className="w-10 h-10 flex items-center justify-center">
                   <Spinner />
                 </div>
               )}
-              {!loading.genres && <div className="w-10 h-10" />}
+              {!(loading.genres && genres.length > 0) && <div className="w-10 h-10" />}
             </div>
           </div>
         </div>
@@ -76,13 +80,23 @@ export default function GenresPage() {
       )}
 
       <div className="pb-4" style={{ paddingTop: `calc(env(safe-area-inset-top) + 6rem)` }}>
-        {genres.length === 0 && !loading.genres && (
+        {genres.length === 0 && hasLoaded && (
           <div className="flex items-center justify-center py-8 text-white/60">
             <p>No genres found</p>
           </div>
         )}
+        {genres.length === 0 && !hasLoaded && (
+          <SkeletonGroup>
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3 h-12 px-4 mb-2">
+                <div className="w-5 h-5 rounded bg-white/10" />
+                <div className="h-4 rounded bg-white/10 w-1/3" />
+              </div>
+            ))}
+          </SkeletonGroup>
+        )}
         {genres.length > 0 && (
-          <>
+          <div className="content-reveal">
             {/* List view for screens < 1024px */}
             <div className="space-y-2 lg:hidden">
               {[...genres].sort((a, b) =>
@@ -100,7 +114,7 @@ export default function GenresPage() {
                 <GenreItem key={genre.Id} genre={genre} isCard />
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

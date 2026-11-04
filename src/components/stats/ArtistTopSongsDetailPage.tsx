@@ -24,6 +24,7 @@ import type { BaseItemDto } from '../../api/types'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 
 const ITEMS_PER_PAGE = 50
 
@@ -140,7 +141,6 @@ export default function ArtistTopSongsDetailPage() {
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<PlayEvent[]>([])
   const [page, setPage] = useState(0)
-  const [allTopSongs, setAllTopSongs] = useState<ArtistTopSong[]>([])
 
   // Context menu state (song rows)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -229,12 +229,10 @@ export default function ArtistTopSongsDetailPage() {
 
   // All streamed songs by this artist in the last 6 months, ranked by streams,
   // with unplayed catalog songs appended at the end
-  useEffect(() => {
-    if (loading || events.length === 0 || (aliasIds.length === 0 && !artistNameParam)) {
-      setAllTopSongs([])
-      return
-    }
-    setAllTopSongs(computeArtistTopSongs(events, aliasIds, artistNameParam, songLookup, Infinity, unplayedSongs))
+  // Computed during render: from an effect, "No data" would paint for a frame once loading ended
+  const allTopSongs = useMemo<ArtistTopSong[]>(() => {
+    if (loading || events.length === 0 || (aliasIds.length === 0 && !artistNameParam)) return []
+    return computeArtistTopSongs(events, aliasIds, artistNameParam, songLookup, Infinity, unplayedSongs)
   }, [events, aliasIds, artistNameParam, songLookup, loading, unplayedSongs])
 
   const totalPages = Math.ceil(allTopSongs.length / ITEMS_PER_PAGE)
@@ -269,12 +267,7 @@ export default function ArtistTopSongsDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/30 border-t-[var(--accent-color)] rounded-full animate-spin mb-4" />
-        <p className="text-white/45">Loading...</p>
-      </div>
-    )
+    return <SkeletonDetailPage variant="list" />
   }
 
   if (allTopSongs.length === 0) {
@@ -322,14 +315,14 @@ export default function ArtistTopSongsDetailPage() {
       <div className="h-20" />
 
       {/* Title section */}
-      <div className="px-4 mb-6">
+      <div className="px-4 mb-6 content-reveal">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{title}</h1>
         {subtitle && (
           <p className="text-white/60">{subtitle}</p>
         )}
       </div>
 
-      <div className="px-4">
+      <div className="px-4 content-reveal">
         <div className="space-y-1">
           {pageItems.map((song, i) => {
             const rank = page * ITEMS_PER_PAGE + i + 1

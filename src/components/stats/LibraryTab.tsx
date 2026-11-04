@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Music, User, Disc, Guitar, Clock, Clock3, Repeat2, Loader2 } from 'lucide-react'
+import { Music, User, Disc, Guitar, Clock, Clock3, Repeat2 } from 'lucide-react'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useMusicStore } from '../../stores/musicStore'
 import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { computeLibraryStats } from '../../utils/libraryStatsComputer'
 import { BadgeWithTooltip } from './BadgeWithTooltip'
+import { SkeletonStats } from '../shared/Skeleton'
 
 interface Props {
   events: PlayEvent[]
@@ -112,10 +113,10 @@ function StackedBar({
       <div className="w-28 min-[464px]:w-44 text-white/80 text-sm truncate flex-shrink-0 text-left">{label}</div>
       <div className="flex-1 h-3 bg-white/15 rounded-full overflow-hidden min-w-0 relative">
         {timeMode ? (
-          <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${playedWidthPct}%`, backgroundColor: `var(--accent-color)` }} />
+          <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${playedWidthPct}%`, backgroundColor: `var(--accent-fill)` }} />
         ) : overplayed ? (
           <>
-            <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${playedWidthPct}%`, backgroundColor: `var(--accent-color)` }} />
+            <div className="h-full transition-all duration-500 rounded-full" style={{ width: `${playedWidthPct}%`, backgroundColor: `var(--accent-fill)` }} />
             {total > 0 && (
               <div
                 className="absolute top-0 bottom-0"
@@ -126,8 +127,8 @@ function StackedBar({
           </>
         ) : (
           <div className="h-full transition-all duration-500 flex rounded-full" style={{ width: `${totalWidthPct}%` }}>
-            <div className="h-full transition-all duration-500 rounded-l-full" style={{ width: `${total > 0 ? (played / total) * 100 : 0}%`, backgroundColor: `var(--accent-color)` }} />
-            <div className="h-full transition-all duration-500 rounded-r-full" style={{ width: `${total > 0 ? ((total - played) / total) * 100 : 0}%`, backgroundColor: `var(--accent-color)`, opacity: 0.6 }} />
+            <div className="h-full transition-all duration-500 rounded-l-full" style={{ width: `${total > 0 ? (played / total) * 100 : 0}%`, backgroundColor: `var(--accent-fill)` }} />
+            <div className="h-full transition-all duration-500 rounded-r-full" style={{ width: `${total > 0 ? ((total - played) / total) * 100 : 0}%`, backgroundColor: `var(--accent-fill)`, opacity: 0.6 }} />
           </div>
         )}
       </div>
@@ -309,11 +310,7 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
   }, [events, fromDate, toDate, snapshot, artists, metadataVersion])
 
   if (!loaded) {
-    return (
-      <div className="px-4 flex flex-col items-center justify-center py-20 text-center">
-        <Loader2 className="w-8 h-8 text-white/45 animate-spin" />
-      </div>
-    )
+    return <SkeletonStats />
   }
 
   if (!snapshot) {
@@ -370,7 +367,7 @@ export default function LibraryTab({ events, fromMonth, toMonth }: Props) {
   const getDecadeCoverageOpacity = makeOpacityFn(decadeCoverage)
 
   return (
-    <div className="px-4">
+    <div className="px-4 content-reveal">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
         <SummaryCard

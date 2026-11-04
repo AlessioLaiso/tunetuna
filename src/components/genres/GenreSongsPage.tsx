@@ -8,7 +8,7 @@ import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import SongItem from '../songs/SongItem'
 import AlbumCard from '../albums/AlbumCard'
 import { ArrowLeft, Shuffle, ArrowUpDown, Play, ListEnd } from 'lucide-react'
-import Spinner from '../shared/Spinner'
+import { SkeletonRows } from '../shared/Skeleton'
 import ContextMenu from '../shared/ContextMenu'
 import Pagination from '../shared/Pagination'
 import type { BaseItemDto, LightweightSong } from '../../api/types'
@@ -361,15 +361,11 @@ export default function GenreSongsPage() {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <h1 className="text-xl font-bold flex-1 truncate">{genre?.Name || ''}</h1>
-              <div className="flex items-center">
-                <Spinner />
-              </div>
             </div>
           </div>
         </div>
         <div className="pt-20">
-          <div className="flex items-center justify-center h-screen text-white/60">
-          </div>
+          <SkeletonRows count={8} />
         </div>
       </div>
     )
@@ -448,7 +444,7 @@ export default function GenreSongsPage() {
         />
       )}
 
-      <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 5rem)` }}>
+      <div className="content-reveal" style={{ paddingTop: `calc(env(safe-area-inset-top) + 5rem)` }}>
         {/* Albums section */}
         {albums.length > 0 && (
           <div className="mb-10 px-4 pt-4">

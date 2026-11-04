@@ -16,6 +16,7 @@ import { useSearch } from '../../hooks/useSearch'
 import { useSearchHandlers } from '../../hooks/useSearchHandlers'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonCardGrid } from '../shared/Skeleton'
 
 // Section configuration for PlaylistsPage: Playlists first (all), then Artists (5), Albums (12), Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -164,7 +165,7 @@ export default function PlaylistsPage() {
                     {sortOrder === 'RecentlyAdded' ? 'Recently added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
-                  {loading && !isInitialLoad.current && (
+                  {loading && !isInitialLoad.current && playlists.length > 0 && (
                     <div className="flex items-center">
                       <Spinner />
                     </div>
@@ -189,12 +190,16 @@ export default function PlaylistsPage() {
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
-            {playlists.length === 0 && !loading ? (
+            {playlists.length === 0 && loading ? (
+              <div className="p-4">
+                <SkeletonCardGrid />
+              </div>
+            ) : playlists.length === 0 ? (
               <div className="flex items-center justify-center py-16 text-white/60">
                 <p>No playlists found</p>
               </div>
             ) : (
-              <div className="p-4">
+              <div className="p-4 content-reveal">
                 <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                   {playlists.map((playlist) => (
                     <PlaylistItem key={playlist.Id} playlist={playlist} />

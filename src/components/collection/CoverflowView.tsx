@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, memo } from 'react'
+import { SkeletonGroup } from '../shared/Skeleton'
 import { useNavigate } from 'react-router-dom'
 import { cleanDiscogsArtistName } from '../../api/discogs'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -8,6 +9,89 @@ import Image from '../shared/Image'
 import vinylImage from '../../assets/vinyl.png'
 import cdImage from '../../assets/cd.png'
 import cassetteImage from '../../assets/cassette.png'
+
+/**
+ * Cover size: max 500, fit within the container minus 32px left/right margins, and the viewport
+ * height minus 96px top/bottom margins and the player/tab bars.
+ */
+function getCoverSize(containerWidth: number) {
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+  const isDesktop = window.matchMedia('(min-width: 1024px)').matches
+  const marginTop = 96
+  const marginBottom = 96 + (isDesktop ? 4 * rem : 6 * rem)
+  const maxW = Math.min(500, containerWidth - 64)
+  const maxH = window.innerHeight - marginTop - marginBottom
+  return Math.max(0, Math.floor(Math.min(maxW, maxH)))
+}
+
+/** How a cover sits in the stack, `offset` positions away from the centered one */
+function getItemStyle(offset: number, coverSize: number, rem: number) {
+  const absOffset = Math.abs(offset)
+  const rawRotateX = offset * -35
+  const rotateX = Math.max(-75, Math.min(75, rawRotateX))
+  const scale = offset < 0
+    ? 1 - Math.min(absOffset, 3) * 0.15
+    : 1 - Math.min(absOffset, 3) * 0.08
+  const translateZ = -absOffset * 40
+  const extraTop = offset > 0 ? offset * coverSize * 0.55 + rem : 0
+
+  // Items fade by distance
+  const opacity = absOffset > 1.5 ? Math.max(0, 1 - (absOffset - 1.5) / 1.5) : 1
+
+  let zIndex: number
+  if (offset > 0) {
+    zIndex = 100 + Math.round((3 - absOffset) * 10)
+  } else if (absOffset < 0.1) {
+    zIndex = 50
+  } else {
+    zIndex = 40 - Math.round(absOffset * 10)
+  }
+
+  return { transform: `perspective(1200px) translateY(${extraTop}px) rotateX(${rotateX}deg) scale(${Math.max(scale, 0.5)}) translateZ(${translateZ}px)`, opacity, zIndex }
+}
+
+/** The coverflow stack while the collection loads, built from the same size and transforms */
+export function CoverflowSkeleton() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [coverSize, setCoverSize] = useState(() => getCoverSize(window.innerWidth))
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+  const itemSpacing = coverSize * 0.5
+  const verticalPadding = (window.innerHeight - coverSize) / 2
+
+  useLayoutEffect(() => {
+    const measure = () => setCoverSize(getCoverSize(containerRef.current?.clientWidth || window.innerWidth))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  return (
+    <div ref={containerRef} className="relative z-0 overflow-hidden" style={{ height: '100vh' }}>
+      <SkeletonGroup>
+        {[0, 1, 2].map((offset) => (
+          <div
+            key={offset}
+            className="absolute rounded bg-zinc-800"
+            style={{
+              left: '50%',
+              marginLeft: -coverSize / 2,
+              top: verticalPadding + offset * itemSpacing,
+              width: coverSize,
+              height: coverSize,
+              boxShadow: '0 0 12px 4px rgba(0,0,0,0.45)',
+              ...getItemStyle(offset, coverSize, rem),
+            }}
+          />
+        ))}
+        {/* Where the centered release's title and artist go */}
+        <div
+          className="absolute h-3.5 w-48 rounded bg-white/10"
+          style={{ left: '50%', marginLeft: '-6rem', top: verticalPadding + coverSize + 7, zIndex: 200 }}
+        />
+      </SkeletonGroup>
+    </div>
+  )
+}
 
 const VINYL_FORMATS = new Set(['Vinyl'])
 const CD_FORMATS = new Set(['CD', 'CDr', 'SACD', 'DVD', 'Blu-ray', 'Laserdisc'])
@@ -305,21 +389,10 @@ export default function CoverflowView({
   }, [onSnappedIndexChange])
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Calculate cover size: max 500, fit within container minus 32px left/right margins,
-  // and viewport height minus 96px top/bottom margins and player/tab bars.
-  const calculateSize = useCallback(() => {
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches
-    const marginTop = 96
-    const marginBottom = 96 + (isDesktop ? 4 * rem : 6 * rem)
-    const containerW = containerRef.current?.clientWidth || window.innerWidth
-    const maxW = Math.min(500, containerW - 64)
-    const maxH = window.innerHeight - marginTop - marginBottom
-    return {
-      coverSize: Math.max(0, Math.floor(Math.min(maxW, maxH))),
-      showDisc: window.innerWidth >= 768,
-    }
-  }, [])
+  const calculateSize = useCallback(() => ({
+    coverSize: getCoverSize(containerRef.current?.clientWidth || window.innerWidth),
+    showDisc: window.innerWidth >= 768,
+  }), [])
 
   const [showDiscSlide, setShowDiscSlide] = useState(() => window.innerWidth >= 768)
   // Initialize coverSize synchronously so the container renders on the first paint
@@ -395,22 +468,6 @@ export default function CoverflowView({
       }
       child.style.display = ''
 
-      const rawRotateX = offset * -35
-      const rotateX = Math.max(-75, Math.min(75, rawRotateX))
-      const scale = offset < 0
-        ? 1 - Math.min(absOffset, 3) * 0.15
-        : 1 - Math.min(absOffset, 3) * 0.08
-      const translateZ = -absOffset * 40
-      const extraTop = offset > 0 ? offset * coverSize * 0.55 + rem : 0
-
-      // Opacity: items fade by distance. Overlay: 20% black on non-snapped items at rest.
-      let opacity: number
-      if (absOffset > 1.5) {
-        opacity = Math.max(0, 1 - (absOffset - 1.5) / 1.5)
-      } else {
-        opacity = 1
-      }
-
       // Black overlay: 20% on items above and the first item below when at rest
       let overlayOpacity = 0
       if (atRest && absOffset > 0.1) {
@@ -419,16 +476,8 @@ export default function CoverflowView({
         }
       }
 
-      let zIndex: number
-      if (offset > 0) {
-        zIndex = 100 + Math.round((3 - absOffset) * 10)
-      } else if (absOffset < 0.1) {
-        zIndex = 50
-      } else {
-        zIndex = 40 - Math.round(absOffset * 10)
-      }
-
-      child.style.transform = `perspective(1200px) translateY(${extraTop}px) rotateX(${rotateX}deg) scale(${Math.max(scale, 0.5)}) translateZ(${translateZ}px)`
+      const { transform, opacity, zIndex } = getItemStyle(offset, coverSize, rem)
+      child.style.transform = transform
       child.style.opacity = String(opacity)
       child.style.zIndex = String(zIndex)
 
@@ -605,7 +654,7 @@ export default function CoverflowView({
   return (
     <div
       ref={containerRef}
-      className="coverflow-container overflow-y-auto relative z-0 coverflow-no-scrollbar"
+      className="coverflow-container content-reveal overflow-y-auto relative z-0 coverflow-no-scrollbar"
       style={{
         height: '100vh',
         WebkitOverflowScrolling: 'touch',

@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
@@ -15,7 +14,7 @@ import ContextMenu from '../shared/ContextMenu'
 import { useToastStore } from '../../stores/toastStore'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
-import Spinner from '../shared/Spinner'
+import { SkeletonDetailPage } from '../shared/Skeleton'
 import { logger } from '../../utils/logger'
 import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
@@ -95,7 +94,7 @@ function PlaylistTrackItem({ track, index, tracks, onClick, onContextMenu, conte
       } : {})}
     >
       {isDragOver && (
-        <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-color)] rounded-full pointer-events-none" />
+        <div className="absolute left-3 right-3 top-0 h-0.5 bg-[var(--accent-fill)] rounded-full pointer-events-none" />
       )}
       <div className="playlist-drag-art w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10 self-center">
         <Image
@@ -200,8 +199,6 @@ export default function PlaylistDetailPage() {
   const [visibleTracksCount, setVisibleTracksCount] = useState(INITIAL_VISIBLE_TRACKS)
   const [playlistSortOrder, setPlaylistSortOrder] = useState<PlaylistSortOrder>('PlaylistOrder')
   const [hasImage, setHasImage] = useState(false)
-  // Mood playlists and playlists without a cover keep the art of the song that's playing
-  usePageBackgroundArt(hasImage && playlist ? playlist.Id : null)
   const [imageCacheBust, setImageCacheBust] = useState(0)
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const isLargeViewport = useLargeViewport()
@@ -514,13 +511,7 @@ export default function PlaylistDetailPage() {
   const isPlaylistPlaying = () => isQueueThisPlaylist
 
   if (loading) {
-    return (
-      <div className="pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <Spinner />
-        </div>
-      </div>
-    )
+    return <SkeletonDetailPage variant="art" />
   }
 
   if (!playlist) {
@@ -571,7 +562,7 @@ export default function PlaylistDetailPage() {
         </div>
       </div>
 
-      <div className="pt-11">
+      <div className="pt-11 content-reveal">
         <div className="mb-6 px-4 pt-4">
           <div className="flex justify-center mb-6">
               <div

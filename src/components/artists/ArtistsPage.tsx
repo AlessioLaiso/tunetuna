@@ -19,6 +19,7 @@ import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import { logger } from '../../utils/logger'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
+import { SkeletonRows } from '../shared/Skeleton'
 
 // Section configuration for ArtistsPage: Artists (all), Albums (12), Playlists, Songs
 const SEARCH_SECTIONS: SearchSectionConfig[] = [
@@ -40,6 +41,8 @@ export default function ArtistsPage() {
   const { contextMenuOpen, contextMenuItem, contextMenuItemType, contextMenuMode, contextMenuPosition, openContextMenu, closeContextMenu } = usePageContextMenu()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
+  // Set by this page's own load: the store's loading flag is shared and can render ahead of the data
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [visibleArtistsCount, setVisibleArtistsCount] = useState(INITIAL_VISIBLE_ARTISTS)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
@@ -119,6 +122,7 @@ export default function ArtistsPage() {
       setArtists([])
       setTotalCount(0)
     } finally {
+      setHasLoaded(true)
       setLoading('artists', false)
       clearSortLoading()
     }
@@ -197,7 +201,7 @@ export default function ArtistsPage() {
                     {sortOrder === 'RecentlyAdded' ? 'Recently added' : 'Alphabetically'}
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
-                  {loading.artists && !isInitialLoad.current && (
+                  {loading.artists && !isInitialLoad.current && artists.length > 0 && (
                     <div className="flex items-center">
                       <Spinner />
                     </div>
@@ -222,14 +226,15 @@ export default function ArtistsPage() {
 
         <div style={{ paddingTop: `calc(env(safe-area-inset-top) + 7rem)` }}>
           <div className={`${isLoadingSortChange ? 'opacity-50 pointer-events-none' : ''} ${isSearchOpen ? 'hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:block' : ''}`}>
-            {artists.length === 0 && !loading.artists && (
+            {artists.length === 0 && !hasLoaded && <SkeletonRows round />}
+            {artists.length === 0 && hasLoaded && (
               <div className="flex items-center justify-center py-8 text-white/60">
                 <p>No artists found</p>
               </div>
             )}
             {artists.length > 0 && (
               <>
-                <div className="space-y-0">
+                <div className="space-y-0 content-reveal">
                   {artists.map((artist, index) => (
                     <ArtistCard
                       key={artist.Id}

@@ -338,10 +338,43 @@ input[type="range"].slider::-moz-range-thumb {
   to { opacity: 1; }
 }
 
-/* Instant on smaller screens, matching the player's background */
-@media (min-width: 1280px) and (prefers-reduced-motion: no-preference) {
+/* Instant on phones, matching the player's background */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
   .app-bg-fade-in {
     animation: appBgFadeIn 1.5s ease-out;
+  }
+}
+
+/* Loading placeholders: only for slow loads, so anything ready within a second just fades in */
+@keyframes skeletonAppear {
+  from { opacity: 0; }
+}
+
+@keyframes skeletonPulse {
+  50% { opacity: 0.55; }
+}
+
+.skeleton-soft {
+  animation:
+    skeletonAppear 300ms ease-out 1s backwards,
+    skeletonPulse 2.4s ease-in-out 1.3s infinite;
+}
+
+/* Loaded content taking over from a skeleton. Keep this off elements containing the page's
+   position: fixed headers, so they don't fade along with it. */
+@keyframes contentReveal {
+  from { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .content-reveal {
+    animation: contentReveal 220ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-soft {
+    animation: skeletonAppear 1ms linear 1s backwards;
   }
 }
 
