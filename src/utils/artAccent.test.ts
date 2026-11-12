@@ -60,7 +60,7 @@ describe('computeArtAccent', () => {
   })
 
   it('still picks yellow when it dominates', () => {
-    const [r, g, b] = channels(accentOf(pixels([240, 200, 20, 200], [30, 30, 30, 100])).text)
+    const [, g, b] = channels(accentOf(pixels([240, 200, 20, 200], [30, 30, 30, 100])).text)
     expect(g).toBeGreaterThan(b + 60)
   })
 
