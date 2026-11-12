@@ -22,6 +22,8 @@ interface SettingsState {
   setPageVisibility: (visibility: Partial<PageVisibility>) => void
   accentColor: string
   setAccentColor: (color: string) => void
+  /** Preset used by the artwork accent when the art has no color; the one picked before it */
+  artworkAccentFallback: string
   /** Whether to show blurred album art behind the app instead of black */
   blurredBackground: boolean
   setBlurredBackground: (enabled: boolean) => void
@@ -83,7 +85,15 @@ export const useSettingsStore = create<SettingsState>()(
           pageVisibility: { ...state.pageVisibility, ...visibility },
         })),
       accentColor: 'blue',
-      setAccentColor: (color) => set({ accentColor: color }),
+      setAccentColor: (color) =>
+        set((state) => ({
+          accentColor: color,
+          artworkAccentFallback:
+            color === ARTWORK_ACCENT && state.accentColor !== ARTWORK_ACCENT
+              ? state.accentColor
+              : state.artworkAccentFallback,
+        })),
+      artworkAccentFallback: 'blue',
       blurredBackground: false,
       setBlurredBackground: (enabled) => set({ blurredBackground: enabled }),
       showQueueRecommendations: true,

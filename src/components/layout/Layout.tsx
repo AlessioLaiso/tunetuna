@@ -18,6 +18,7 @@ import { useBackgroundArtStore, selectArtClaim } from '../../stores/backgroundAr
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { useBlurredArt } from '../../hooks/useBlurredArt'
+import { useAccentFade } from '../../hooks/useAccentFade'
 import { AppBackgroundContext, BOTTOM_BAR_TINT } from '../../hooks/useAppBackground'
 import QueueSidebar from '../player/QueueSidebar'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -58,7 +59,7 @@ export default function Layout({ children }: LayoutProps) {
 
   useRecommendations()
   useLibraryChanged()
-  const { accentColor, blurredBackground } = useSettingsStore()
+  const { accentColor, artworkAccentFallback, blurredBackground } = useSettingsStore()
   const genres = useMusicStore(s => s.genres)
   const songs = useMusicStore(s => s.songs)
   const genreSongs = useMusicStore(s => s.genreSongs)
@@ -90,19 +91,14 @@ export default function Layout({ children }: LayoutProps) {
     [blurredBackground, blurredArt]
   )
 
-  // --accent-fill is for filled controls with white content; presets use the accent itself
+  // --accent-fill is for filled controls with white content; presets use the accent itself.
+  // The artwork accent uses the preset picked before it until art has loaded, and for colorless art.
+  const presetColor = colorMap[usesArtworkAccent ? artworkAccentFallback : accentColor] || colorMap.blue
   const artAccent = usesArtworkAccent ? blurredArt.accent : null
-  useEffect(() => {
-    const root = document.documentElement.style
-    if (artAccent) {
-      root.setProperty('--accent-color', artAccent.text)
-      root.setProperty('--accent-fill', artAccent.fill)
-    } else {
-      // Artwork accent falls back to the default until art has loaded
-      root.setProperty('--accent-color', colorMap[accentColor] || colorMap.blue)
-      root.removeProperty('--accent-fill')
-    }
-  }, [accentColor, artAccent])
+  useAccentFade(
+    artAccent ?? { text: presetColor, fill: presetColor },
+    usesArtworkAccent ? blurredArt.changedAt : null
+  )
 
   // Update header offset when status bars change
   const isSyncActive = syncState !== 'idle'
