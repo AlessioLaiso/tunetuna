@@ -44,6 +44,7 @@
   --c-overlay: 255 255 255;
   --c-surface: 24 24 27;
   --c-surface-2: 39 39 42;
+  --c-knob: 255 255 255;
   /* Opacity of the overlay on the album art background (behind content, behind the bottom bars) */
   --art-tint: 0.65;
   --art-tint-bar: 0.75;
@@ -439,6 +440,11 @@ input[type="range"].slider::-moz-range-thumb {
 :root[data-fill-on-bg] .bg-\[var\(--accent-fill\)\][class*="disabled:bg-"]:disabled,
 :root[data-fill-on-bg] .bg-red-500[class*="disabled:bg-"]:disabled {
   --c-fg: inherit;
+}
+
+/* Toggle knobs keep one color whether the toggle is on (accent fill) or off */
+.toggle-knob.toggle-knob {
+  background-color: rgb(var(--c-knob));
 }
 
 /* Content drawn on fixed dark artwork (e.g. the shareable stats image) keeps the default dark

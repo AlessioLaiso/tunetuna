@@ -562,7 +562,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                             } ${repeat !== 'off' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <span
-                                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showQueueRecommendations && repeat === 'off' ? 'translate-x-6' : 'translate-x-0'
+                                            className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showQueueRecommendations && repeat === 'off' ? 'translate-x-6' : 'translate-x-0'
                                                 }`}
                                         />
                                     </button>

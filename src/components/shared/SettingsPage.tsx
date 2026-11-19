@@ -439,7 +439,7 @@ export default function SettingsPage() {
                       }`}
                   >
                     <span
-                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
+                      className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${pageVisibility[page] ? 'translate-x-6' : 'translate-x-0'
                         }`}
                     />
                   </button>
@@ -484,7 +484,7 @@ export default function SettingsPage() {
                   className={`relative w-12 h-6 rounded-full transition-colors ${showMoodCards ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showMoodCards ? 'translate-x-6' : 'translate-x-0'}`}
+                    className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showMoodCards ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                 className={`relative w-12 h-6 rounded-full transition-colors ${showRecentlyPlayed ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
               >
                 <span
-                  className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showRecentlyPlayed ? 'translate-x-6' : 'translate-x-0'}`}
+                  className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showRecentlyPlayed ? 'translate-x-6' : 'translate-x-0'}`}
                 />
               </button>
             </div>
@@ -528,7 +528,7 @@ export default function SettingsPage() {
                   className={`relative w-12 h-6 rounded-full transition-colors ${showTop10 ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showTop10 ? 'translate-x-6' : 'translate-x-0'}`}
+                    className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showTop10 ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
@@ -595,7 +595,7 @@ export default function SettingsPage() {
                   className={`relative w-12 h-6 rounded-full transition-colors ${showNewReleases ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showNewReleases ? 'translate-x-6' : 'translate-x-0'}`}
+                    className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showNewReleases ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
@@ -792,7 +792,7 @@ export default function SettingsPage() {
                   className={`relative w-12 h-6 rounded-full transition-colors ${blurredBackground ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${blurredBackground ? 'translate-x-6' : 'translate-x-0'}`}
+                    className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${blurredBackground ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>
@@ -841,7 +841,7 @@ export default function SettingsPage() {
                   className={`relative w-12 h-6 rounded-full transition-colors ${statsTrackingEnabled ? 'bg-[var(--accent-fill)]' : 'bg-white/30'}`}
                 >
                   <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
+                    className={`toggle-knob absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${statsTrackingEnabled ? 'translate-x-6' : 'translate-x-0'}`}
                   />
                 </button>
               </div>

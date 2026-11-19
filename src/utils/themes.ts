@@ -540,6 +540,9 @@ export function applyTheme(id: string, customColors = '') {
   const isDefault = theme.id === DEFAULT_THEME
   root.style.setProperty('--c-bg', channels(hexToRgb(theme.background)))
   root.style.setProperty('--c-fg', channels(hexToRgb(theme.foreground)))
+  // Toggle knobs stay the theme's light color whether the toggle is on or off (filled controls
+  // otherwise switch their white content to the background on pastel and light themes)
+  root.style.setProperty('--c-knob', channels(hexToRgb(theme.light ? theme.background : theme.foreground)))
   const overlay = theme.overlay ?? theme.foreground
   root.style.setProperty('--c-overlay', channels(hexToRgb(overlay)))
   // Raised surfaces (Tailwind zinc-900/800); the default theme keeps Tailwind's exact zinc
