@@ -15,8 +15,6 @@ export default function SyncStatusBar({ topOffset = 0 }: SyncStatusBarProps) {
   const cancelSync = useSyncStore(s => s.cancelSync)
   const localServerUrl = useSettingsStore((s) => s.localServerUrl)
 
-  if (state === 'idle') return null
-
   const backgroundColor = state === 'success' ? 'bg-green-800' : state === 'error' ? 'bg-red-800' : 'bg-zinc-800'
 
   // When a local URL is configured, show which server is being used during sync
@@ -33,6 +31,7 @@ export default function SyncStatusBar({ topOffset = 0 }: SyncStatusBarProps) {
       backgroundColor={backgroundColor}
       action={state === 'syncing' ? { label: 'Cancel', onClick: cancelSync } : undefined}
       topOffset={topOffset}
+      visible={state !== 'idle'}
     />
   )
 }

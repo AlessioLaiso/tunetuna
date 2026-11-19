@@ -267,7 +267,6 @@ export default function Layout({ children }: LayoutProps) {
   const syncBarOffset = nextBarOffset
   if (isSyncActive) nextBarOffset += 28
   const sleepTimerBarOffset = nextBarOffset
-  const topOffset = nextBarOffset > 0 ? `${nextBarOffset}px` : '0px'
 
   return (
     <AppBackgroundContext.Provider value={appBackground}>
@@ -277,14 +276,18 @@ export default function Layout({ children }: LayoutProps) {
         className="fixed top-0 right-0 bg-black z-50 pointer-events-none left-0 lg:left-8"
         style={{
           height: `env(safe-area-inset-top)`,
-          top: topOffset
+          // Follows the animated offset so it moves with the content
+          top: 'var(--header-offset, 0px)'
         }}
       >
         <SurfaceBackdrop />
       </div>
-      {isConnectionBarVisible && (
-        <ConnectionStatusBar state={connection.state} dismiss={connection.dismiss} topOffset={connectionBarOffset} />
-      )}
+      <ConnectionStatusBar
+        state={connection.state}
+        dismiss={connection.dismiss}
+        topOffset={connectionBarOffset}
+        visible={isConnectionBarVisible}
+      />
       <SyncStatusBar topOffset={syncBarOffset} />
       <SleepTimerBar topOffset={sleepTimerBarOffset} />
       {/* Fixed overlay to hide content behind TabBar - only on mobile */}
@@ -306,7 +309,7 @@ export default function Layout({ children }: LayoutProps) {
         style={{
           height: '100dvh',
           paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))',
-          paddingTop: topOffset,
+          paddingTop: 'var(--header-offset, 0px)',
           overflowY: 'auto',
           overflowX: 'hidden',
           maxWidth: '100vw',

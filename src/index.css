@@ -46,6 +46,44 @@
   /* Filled controls with white content; differs from --accent-color only for the artwork accent */
   --accent-fill: var(--accent-color);
   --sidebar-width: 320px;
+
+  /* Animate everything positioned off --header-offset when status bars appear/disappear */
+  transition: --header-offset 300ms ease;
+}
+
+/* Registered so the offset is interpolated (unregistered custom properties jump) */
+@property --header-offset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@keyframes statusBarIn {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes statusBarOut {
+  from { transform: translateY(0); }
+  to { transform: translateY(-100%); }
+}
+
+.status-bar-enter {
+  animation: statusBarIn 300ms ease both;
+}
+
+.status-bar-exit {
+  animation: statusBarOut 300ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+  .status-bar-enter,
+  .status-bar-exit {
+    animation: none;
+  }
 }
 
 @media (min-width: 1680px) {

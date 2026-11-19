@@ -86,10 +86,17 @@ export function SurfaceBackdrop({ tint = DEFAULT_TINT }: SurfaceBackdropProps) {
     const observer = new ResizeObserver(scheduleAlign)
     observer.observe(el)
     window.addEventListener('resize', scheduleAlign)
+    // ...and when status bars shift them (the --header-offset transition on :root)
+    const root = document.documentElement
+    const onRootTransitionEnd = (e: TransitionEvent) => {
+      if (e.target === root) scheduleAlign()
+    }
+    root.addEventListener('transitionend', onRootTransitionEnd)
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
       window.removeEventListener('resize', scheduleAlign)
+      root.removeEventListener('transitionend', onRootTransitionEnd)
     }
   }, [isActive])
 

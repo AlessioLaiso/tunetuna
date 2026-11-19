@@ -18,8 +18,6 @@ export default function SleepTimerBar({ topOffset = 0 }: SleepTimerBarProps) {
   const remainingSeconds = useSleepTimerStore(s => s.remainingSeconds)
   const cancel = useSleepTimerStore(s => s.cancel)
 
-  if (mode === 'off') return null
-
   const message = mode === 'end-of-track'
     ? 'Pausing at end of track'
     : remainingSeconds !== null
@@ -31,6 +29,7 @@ export default function SleepTimerBar({ topOffset = 0 }: SleepTimerBarProps) {
       message={message}
       action={{ label: 'Cancel', onClick: cancel }}
       topOffset={topOffset}
+      visible={mode !== 'off'}
     />
   )
 }

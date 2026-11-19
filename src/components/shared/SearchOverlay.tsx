@@ -596,6 +596,8 @@ export default function SearchOverlay({
       {/* Desktop: positioning wrapper */}
       <div
         className={`hidden [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:flex fixed top-0 left-0 right-0 lg:left-16 z-[9999] justify-center pointer-events-none ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : ''}`}
+        // Sit below the status bars instead of being covered by them
+        style={{ top: 'var(--header-offset, 0px)' }}
       >
         <div className="w-full max-w-page max-h-[80vh] bg-zinc-900 rounded-b-xl shadow-2xl pointer-events-auto border-l border-r border-b border-white/15 flex flex-col overflow-hidden">
           {/* Desktop header - sticky */}
@@ -637,7 +639,11 @@ export default function SearchOverlay({
       </div>
 
       {/* Mobile: fullscreen */}
-      <div className="fixed inset-0 bg-black z-[9999] flex flex-col p-0 m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden">
+      {/* Padded (not offset) by the status bars, so the header, filters and results all move together */}
+      <div
+        className="fixed inset-0 bg-black z-[9999] flex flex-col m-0 [@media((hover:hover)_and_(pointer:fine)_and_(min-width:1024px))]:hidden"
+        style={{ paddingTop: 'calc(var(--header-offset, 0px) + env(safe-area-inset-top))' }}
+      >
         <SurfaceBackdrop />
         {/* Fixed overlay to hide content behind status bar */}
         <div
@@ -646,7 +652,7 @@ export default function SearchOverlay({
         />
 
         {/* Sticky search header with close button */}
-        <div className={`sticky top-0 left-0 right-0 ${mobileSurfaceBg} z-10 pt-0 pb-0 w-full m-0`} style={{ top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top))` }}>
+        <div className={`relative flex-shrink-0 ${mobileSurfaceBg} z-10 w-full m-0`}>
           <div className="max-w-page mx-auto w-full">
             <div className="flex items-center gap-3 pl-2 pr-4 pt-4 pb-4">
               <div className="flex-1">
