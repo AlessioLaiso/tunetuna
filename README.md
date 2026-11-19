@@ -12,7 +12,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
 
   - Browse your library by Artists, Albums, Songs, Genres, and Playlists. You can toggle these pages on and off.
   - Tunetuna Canned: your own listening stats synced across devices.
-  - Home screen with recently added and recently played music.Top 10 chart provided by Apple Music and new releases from Muspy.com.
+  - Home screen with recently added and recently played music. Top 10 chart provided by Apple Music and new releases from Muspy.com.
   - Create playlists from M3U files. Even if the file paths don't match, Tunetuna will match the songs by name and save the playlist to Jellyfin.
   - Search by name and filter by genre and year.
   - Queue management with optional recommendations for similar songs.
@@ -30,7 +30,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
 
 | ![Stats](https://github.com/user-attachments/assets/75f906cf-21dd-4d5d-8c18-8c2d5b5ad0a8) | ![Collection](https://github.com/user-attachments/assets/f07257c6-4109-43b0-a495-f6709e789bcd) |
 |:---:|:---:|
-| Get detailed listening stats and library insights any time of the year with Tunetuna ~~Wrapped~~ Canned. | Use the optional Discogs integration to keep track of youe physical music collection. |
+| Get detailed listening stats and library insights any time of the year with Tunetuna ~~Wrapped~~ Canned. | Use the optional Discogs integration to keep track of your physical music collection. |
 
 ## Getting started (Docker)
 
@@ -40,7 +40,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
    docker compose up -d
    ```
 
-   This builds the image and starts the container using the included `docker-compose.yml` file. By default the app is exposed on `http://localhost:8080` (port 8080 on the host maps to port 80 in the container). If you want to change the port, edit the `ports` section in `docker-compose.yml` before running the command.
+   This builds the image and starts the container using the included `docker-compose.yml` file. By default, the app is exposed on `http://localhost:8080` (port 8080 on the host maps to port 80 in the container). If you want to change the port, edit the `ports` section in `docker-compose.yml` before running the command.
 
 2. Open `http://localhost:8080` in your browser, or use the host and port you configured in the `ports` section if you changed it.
 
@@ -50,7 +50,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
 
 5. If you want to add the app to your home screen:
    - On iOS: open Tunetuna in Safari, tap the Share button, then choose “Add to Home Screen”.
-   - On Android: open Tunetuna in your browser, and choose “Add to Home Screen” or “Install app”.
+   - On Android: open Tunetuna in your browser and choose “Add to Home Screen” or “Install app”.
 
 | ![Player](https://github.com/user-attachments/assets/84219fcf-2526-46f9-bdbb-34af7705621c) | ![Lyrics](https://github.com/user-attachments/assets/dde8e372-26f1-4d6f-88fb-991fd9fdeece) |
 |:---:|:---:|
@@ -71,4 +71,4 @@ This project uses:
 - HTML5 Audio API
 - PWA support with a service worker
 
-Third party libraries and assets used in this project are provided under their own licenses, such as MIT or similar permissive licenses. All trademarks and copyrights for third party projects and assets are owned by their respective authors and maintainers.
+Third-party libraries and assets used in this project are provided under their own licenses, such as MIT or similar permissive licenses. All trademarks and copyrights for third party projects and assets are owned by their respective authors and maintainers.
