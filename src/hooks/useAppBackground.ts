@@ -10,7 +10,7 @@ export interface AppBackgroundArt {
 }
 
 /** Extra darkening for the bottom bars so the player bar reads as its own surface */
-export const BOTTOM_BAR_TINT = 'bg-black/75'
+export const BOTTOM_BAR_TINT = 'bg-[rgb(var(--c-bg)/var(--art-tint-bar))]'
 
 /** Fades hero images into the app background, matching the black gradient used without it */
 export const HERO_FADE_MASK =

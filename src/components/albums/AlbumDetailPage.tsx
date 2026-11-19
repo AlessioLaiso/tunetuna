@@ -98,15 +98,15 @@ function AlbumTrackItem({ track, trackNumber, tracks, albumArtist, onClick, onCo
 
 // Fades the page out under the status bar and header
 const HEADER_FADE = `linear-gradient(to bottom,
-    #000000 0%,
-    #000000 calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
-    rgba(0, 0, 0, 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
-    rgba(0, 0, 0, 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
-    rgba(0, 0, 0, 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
-    rgba(0, 0, 0, 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
-    rgba(0, 0, 0, 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
-    rgba(0, 0, 0, 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
-    rgba(0, 0, 0, 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
+    rgb(var(--c-bg)) 0%,
+    rgb(var(--c-bg)) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 0.5rem),
+    rgb(var(--c-bg) / 0.95) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1rem),
+    rgb(var(--c-bg) / 0.85) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 1.5rem),
+    rgb(var(--c-bg) / 0.7) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2rem),
+    rgb(var(--c-bg) / 0.5) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 2.5rem),
+    rgb(var(--c-bg) / 0.3) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3rem),
+    rgb(var(--c-bg) / 0.15) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem),
+    rgb(var(--c-bg) / 0) calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 4rem)
   )`
 
 export default function AlbumDetailPage() {

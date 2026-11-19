@@ -836,7 +836,7 @@ export default function StatsPage() {
           className={`fixed left-0 right-0 z-10 lg:left-16 transition-[left,right] duration-300 ${isQueueSidebarOpen ? 'sidebar-open-right-offset' : 'xl:right-0'} top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+7rem-8px)] sm:top-[calc(var(--header-offset,0px)+env(safe-area-inset-top)+4rem-8px)]`}
           style={{
             height: '16px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent)'
+            background: 'linear-gradient(to bottom, rgb(var(--c-bg) / 0.5), transparent)'
           }}
         />
       )}

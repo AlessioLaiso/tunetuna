@@ -116,7 +116,7 @@ function CollectionTrackItem({
   )
 }
 
-const HEADER_FADE = 'linear-gradient(to bottom, #000000, transparent)'
+const HEADER_FADE = 'linear-gradient(to bottom, rgb(var(--c-bg)), transparent)'
 
 export default function CollectionDetailPage() {
   const hasAppBackground = useAppBackgroundActive()

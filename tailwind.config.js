@@ -6,14 +6,36 @@ import withAlphaVariable from 'tailwindcss/lib/util/withAlphaVariable'
 // Splits a text color into an opaque color and its alpha, e.g. text-white/60 -> white and 0.6.
 // Colors that can't be parsed (CSS variables) count as opaque; inherit/currentColor are left alone.
 function iconColorVars(value) {
+  // Colors with <alpha-value> (the theme colors) arrive as functions; resolve them as opaque
+  if (typeof value === 'function') value = value({ opacityValue: '1' })
   if (typeof value !== 'string' || /^(inherit|currentColor)$/i.test(value)) return {}
   if (value === 'transparent') return { '--icon-alpha': '0' }
+  // Theme colors (see themeColor below): rgb(var(--c-fg) / 0.6)
+  const themed = value.match(/^rgb\((var\(--[\w-]+(?:,[\d ]+)?\))\s*\/\s*(.+)\)$/)
+  if (themed) {
+    const alpha = themed[2].trim()
+    return { '--icon-color': `rgb(${themed[1]})`, '--icon-alpha': alpha }
+  }
   const parsed = parseColor(value)
   if (!parsed) return { '--icon-color': value, '--icon-alpha': '1' }
   return {
     '--icon-color': `${parsed.mode}(${parsed.color.join(' ')})`,
     '--icon-alpha': parsed.alpha === undefined ? '1' : String(parsed.alpha),
   }
+}
+
+// Colors set by the active theme (src/utils/themes.ts), as space-separated RGB channels
+// A name may carry a fallback after a comma, e.g. 'c-red-500, 239 68 68'
+const themeColor = (name) => `rgb(var(--${name}) / <alpha-value>)`
+
+// White in solid form (knobs, white buttons) is the theme's foreground; translucent white (cards,
+// borders, dividers, e.g. bg-white/10) is its overlay color, so a theme can tint surfaces apart
+// from its text. Text keeps the foreground at every opacity (textColor/placeholderColor below).
+function themeWhite({ opacityValue }) {
+  const translucent = opacityValue !== undefined && !String(opacityValue).startsWith('var(') && Number(opacityValue) < 1
+  return translucent
+    ? `rgb(var(--c-overlay) / ${opacityValue})`
+    : `rgb(var(--c-fg) / ${opacityValue ?? 1})`
 }
 
 /** @type {import('tailwindcss').Config} */
@@ -41,9 +63,28 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
         },
-        zinc: {
-          900: '#18181b',
+        // Tailwind's reds by default; themes with their own red override them (src/utils/themes.ts)
+        red: {
+          200: themeColor('c-red-200, 254 202 202'),
+          400: themeColor('c-red-400, 248 113 113'),
+          500: themeColor('c-red-500, 239 68 68'),
+          600: themeColor('c-red-600, 220 38 38'),
+          700: themeColor('c-red-700, 185 28 28'),
+          800: themeColor('c-red-800, 153 27 27'),
+          900: themeColor('c-red-900, 127 29 29'),
         },
+        white: themeWhite,
+        black: themeColor('c-bg'),
+        zinc: {
+          800: themeColor('c-surface-2'),
+          900: themeColor('c-surface'),
+        },
+      },
+      textColor: {
+        white: themeColor('c-fg'),
+      },
+      placeholderColor: {
+        white: themeColor('c-fg'),
       },
       fontFamily: {
         handwritten: ['"Kalam"', 'cursive'],

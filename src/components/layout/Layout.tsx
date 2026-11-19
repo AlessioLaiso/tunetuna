@@ -9,6 +9,7 @@ import { useConnectionStatus } from '../../hooks/useConnectionStatus'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
 import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
+import { getTheme, nearestThemeAccent, resolveThemeAccent, themeAccentColors } from '../../utils/themes'
 import { useMusicStore } from '../../stores/musicStore'
 import { useLibrarySnapshotStore } from '../../stores/librarySnapshotStore'
 import { useSyncStore } from '../../stores/syncStore'
@@ -59,7 +60,7 @@ export default function Layout({ children }: LayoutProps) {
 
   useRecommendations()
   useLibraryChanged()
-  const { accentColor, artworkAccentFallback, blurredBackground } = useSettingsStore()
+  const { accentColor, artworkAccentFallback, blurredBackground, theme } = useSettingsStore()
   const genres = useMusicStore(s => s.genres)
   const songs = useMusicStore(s => s.songs)
   const genreSongs = useMusicStore(s => s.genreSongs)
@@ -93,10 +94,18 @@ export default function Layout({ children }: LayoutProps) {
 
   // --accent-fill is for filled controls with white content; presets use the accent itself.
   // The artwork accent uses the preset picked before it until art has loaded, and for colorless art.
-  const presetColor = colorMap[usesArtworkAccent ? artworkAccentFallback : accentColor] || colorMap.blue
-  const artAccent = usesArtworkAccent ? blurredArt.accent : null
+  // Theme accents go through themeAccentColors: exact on pastel themes, else adjusted like the artwork accent.
+  const presetName = usesArtworkAccent ? artworkAccentFallback : accentColor
+  const themeAccent = resolveThemeAccent(getTheme(theme), presetName)
+  const presetAccent = themeAccent
+    ? themeAccentColors(getTheme(theme), themeAccent)
+    : { text: colorMap[presetName] || colorMap.blue, fill: colorMap[presetName] || colorMap.blue }
+  // Themes with a named palette (Catppuccin) snap the artwork accent to the closest of their accents
+  const artAccentRaw = usesArtworkAccent ? blurredArt.accent : null
+  const snappedArtAccent = artAccentRaw ? nearestThemeAccent(getTheme(theme), artAccentRaw.text) : null
+  const artAccent = snappedArtAccent ? themeAccentColors(getTheme(theme), snappedArtAccent.hex) : artAccentRaw
   useAccentFade(
-    artAccent ?? { text: presetColor, fill: presetColor },
+    artAccent ?? presetAccent,
     usesArtworkAccent ? blurredArt.changedAt : null
   )
 

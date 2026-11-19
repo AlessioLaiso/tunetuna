@@ -34,8 +34,18 @@
   font-weight: 400;
 
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #000000;
+  color: rgb(var(--c-fg) / 0.87);
+  background-color: rgb(var(--c-bg));
+
+  /* Theme colors as RGB channels, set by applyTheme (src/utils/themes.ts); these are the default theme */
+  --c-bg: 0 0 0;
+  --c-fg: 255 255 255;
+  --c-overlay: 255 255 255;
+  --c-surface: 24 24 27;
+  --c-surface-2: 39 39 42;
+  /* Opacity of the overlay on the album art background (behind content, behind the bottom bars) */
+  --art-tint: 0.65;
+  --art-tint-bar: 0.75;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -244,7 +254,7 @@ input[type="range"].slider {
 }
 
 input[type="range"].slider::-webkit-slider-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--c-overlay) / 0.1);
   height: 8px;
   border-radius: 4px;
 }
@@ -252,7 +262,7 @@ input[type="range"].slider::-webkit-slider-track {
 input[type="range"].slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  background: white;
+  background: rgb(var(--c-fg));
   height: 20px;
   width: 20px;
   border-radius: 50%;
@@ -263,13 +273,13 @@ input[type="range"].slider::-webkit-slider-thumb {
 }
 
 input[type="range"].slider::-moz-range-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--c-overlay) / 0.1);
   height: 8px;
   border-radius: 4px;
 }
 
 input[type="range"].slider::-moz-range-thumb {
-  background: white;
+  background: rgb(var(--c-fg));
   height: 20px;
   width: 20px;
   border-radius: 50%;
@@ -290,18 +300,18 @@ input[type="range"].slider::-moz-range-thumb {
 }
 
 .main-scrollable::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgb(var(--c-overlay) / 0.3);
   border-radius: 6px;
 }
 
 .main-scrollable::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgb(var(--c-overlay) / 0.5);
 }
 
 /* Firefox scrollbar */
 .main-scrollable {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  scrollbar-color: rgb(var(--c-overlay) / 0.3) transparent;
 }
 
 /* Hide scrollbars on touch devices */
@@ -344,8 +354,8 @@ input[type="range"].slider::-moz-range-thumb {
 
   /* When hovering a clickable subtitle, revert the title back to white */
   .group:has(.clickable-text:hover) .group-hover\:text-\[var\(--accent-color\)\] {
-    color: white;
-    --icon-color: white;
+    color: rgb(var(--c-fg));
+    --icon-color: rgb(var(--c-fg));
   }
 }
 
@@ -416,11 +426,24 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
+/* Pastel themes fill controls with the exact accent or red, so their content turns dark: white
+   classes inside resolve to the background color */
+:root[data-pastel] .bg-\[var\(--accent-fill\)\],
+:root[data-pastel] .bg-red-500 {
+  --c-fg: var(--c-bg);
+}
+
+/* ...except while disabled controls swap the fill for another (e.g. disabled:bg-white/25) */
+:root[data-pastel] .bg-\[var\(--accent-fill\)\][class*="disabled:bg-"]:disabled,
+:root[data-pastel] .bg-red-500[class*="disabled:bg-"]:disabled {
+  --c-fg: inherit;
+}
+
 /* Queue sidebar on artwork: the current track is marked by its row highlight, not the accent,
    unless it opts back in with .keep-accent */
 .queue-xl-container .text-\[var\(--accent-color\)\]:not(.keep-accent) {
-  color: white;
-  --icon-color: white;
+  color: rgb(var(--c-fg));
+  --icon-color: rgb(var(--c-fg));
 }
 
 /* Icons: draw in the opaque text color and apply its alpha to the whole icon, so translucent

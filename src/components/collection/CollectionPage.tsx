@@ -20,7 +20,7 @@ import { SkeletonCardGrid } from '../shared/Skeleton'
 
 const ITEMS_PER_PAGE = 84
 
-const HEADER_FADE = 'linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0) 100%)'
+const HEADER_FADE = 'linear-gradient(rgb(var(--c-bg)) 0%, rgb(var(--c-bg) / 0.65) 50%, rgb(var(--c-bg) / 0) 100%)'
 
 export default function CollectionPage() {
   const hasAppBackground = useAppBackgroundActive()

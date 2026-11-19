@@ -306,7 +306,7 @@ export default function ArtistTopSongsDetailPage() {
           style={{
             top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.5rem - 8px)`,
             height: '24px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+            background: 'linear-gradient(to bottom, rgb(var(--c-bg) / 0.8), transparent)'
           }}
         />
       )}

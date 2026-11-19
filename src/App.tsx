@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, lazy, Suspense, ReactNode } from 'react'
+import { useEffect, useLayoutEffect, lazy, Suspense, ReactNode } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSettingsStore } from './stores/settingsStore'
 import LoginForm from './components/auth/LoginForm'
@@ -13,6 +13,7 @@ import { useServerUrlResolver } from './hooks/useServerUrlResolver'
 import { jellyfinClient } from './api/jellyfin'
 import { useToastStore } from './stores/toastStore'
 import { probeAndUpdateServerUrl } from './utils/serverUrl'
+import { applyTheme } from './utils/themes'
 
 const SESSION_EXPIRED_KEY = 'tunetuna-session-expired'
 
@@ -45,6 +46,10 @@ function withErrorBoundary(element: ReactNode, name: string) {
 function App() {
   const { isAuthenticated, logout } = useAuthStore()
   const { pageVisibility } = useSettingsStore()
+  const theme = useSettingsStore(s => s.theme)
+
+  // Before paint, so the persisted theme shows without a flash of the default
+  useLayoutEffect(() => applyTheme(theme), [theme])
 
   // Re-probe local/remote server URL on foreground
   useServerUrlResolver()

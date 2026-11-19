@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
-import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
+import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp, Check, Palette } from 'lucide-react'
+import { useSettingsStore, ARTWORK_ACCENT, THEME_ACCENT } from '../../stores/settingsStore'
+import { THEME_CHOICES, getTheme, resolveThemeAccent, themeChoiceName, themeVariants } from '../../utils/themes'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useToastStore } from '../../stores/toastStore'
@@ -40,7 +41,7 @@ const tailwindColors = [
 export default function SettingsPage() {
   const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, theme, setTheme, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted, genres: allGenres } = useMusicStore()
@@ -72,6 +73,36 @@ export default function SettingsPage() {
   const [isTop10Spinning, setIsTop10Spinning] = useState(false)
   const [isNewReleasesSpinning, setIsNewReleasesSpinning] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [showThemePicker, setShowThemePicker] = useState(false)
+  // A theme with named accents (Catppuccin) offers those instead of the presets; one with a single
+  // accent offers it before them
+  const activeTheme = getTheme(theme)
+  const selectedThemeAccent = resolveThemeAccent(activeTheme, accentColor)
+  const presetSwatches = tailwindColors.map((color) => ({
+    name: color.name,
+    hex: color.hex,
+    label: color.name === ARTWORK_ACCENT ? 'Use a color from the album art' : `Select ${color.name} color`,
+    title: undefined as string | undefined,
+    selected: accentColor === color.name,
+  }))
+  const accentSwatches = activeTheme.accents
+    ? [
+      presetSwatches[0],
+      ...activeTheme.accents.map((a) => ({
+        name: `${THEME_ACCENT}:${a.name}`,
+        hex: a.hex,
+        label: `Select ${a.name} color`,
+        title: a.name.charAt(0).toUpperCase() + a.name.slice(1),
+        selected: selectedThemeAccent === a.hex,
+      })),
+    ]
+    : activeTheme.accent
+      ? [
+        presetSwatches[0],
+        { name: THEME_ACCENT, hex: activeTheme.accent, label: "Use the theme's accent color", title: `${activeTheme.name} accent`, selected: accentColor === THEME_ACCENT },
+        ...presetSwatches.slice(1),
+      ]
+      : presetSwatches
   const [genreSearch, setGenreSearch] = useState('')
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false)
   const genreDropdownRef = useRef<HTMLDivElement>(null)
@@ -373,7 +404,7 @@ export default function SettingsPage() {
           style={{
             top: `calc(var(--header-offset, 0px) + env(safe-area-inset-top) + 3.75rem)`,
             height: '24px',
-            background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent)'
+            background: 'linear-gradient(to bottom, rgb(var(--c-bg) / 0.8), transparent)'
           }}
         />
       )}
@@ -588,10 +619,76 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Preferences Section */}
+        {/* Appearance Section */}
         <section>
           <div className="bg-white/10 rounded-lg divide-y divide-white/15">
-            <h2 className="text-lg font-bold text-white p-3">Preferences</h2>
+            <h2 className="text-lg font-bold text-white p-3">Appearance</h2>
+
+            <div className="p-3">
+              <button
+                onClick={() => setShowThemePicker(!showThemePicker)}
+                className="w-full flex items-center justify-between"
+              >
+                <label className="text-white font-medium">Theme</label>
+                <span className="flex items-center gap-2">
+                  <span className="text-white text-sm">{themeChoiceName(activeTheme)}</span>
+                  <ChevronDown className={`w-5 h-5 text-white/60 transition-transform ${showThemePicker ? 'rotate-180' : ''}`} />
+                </span>
+              </button>
+              {showThemePicker && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                  {THEME_CHOICES.map((choice) => {
+                    const t = choice.preview
+                    const isSelected = choice.family ? activeTheme.family === choice.family : theme === choice.id
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => {
+                          // Choosing the family that's already active keeps its current variant
+                          if (!isSelected) setTheme(choice.id)
+                          setShowThemePicker(false)
+                        }}
+                        className={`flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${isSelected ? 'bg-white/15' : 'hover:bg-white/10'}`}
+                        aria-pressed={isSelected}
+                      >
+                        {/* Preview in the theme's own colors, independent of the active theme */}
+                        <span
+                          className="w-12 h-9 rounded-md flex flex-col justify-center gap-1 px-2 shrink-0"
+                          style={{ backgroundColor: t.background, boxShadow: `inset 0 0 0 1px ${t.foreground}26` }}
+                          aria-hidden="true"
+                        >
+                          <span className="h-1 w-6 rounded-full" style={{ backgroundColor: t.foreground }} />
+                          <span className="h-1 w-4 rounded-full" style={{ backgroundColor: t.accent ?? '#3b82f6' }} />
+                        </span>
+                        <span className="flex-1 text-white text-sm">{choice.name}</span>
+                        {isSelected && <Check className="w-4 h-4 text-white/80" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {activeTheme.family && (
+              <div className="p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-white font-medium">{activeTheme.family.variantLabel}</label>
+                  <div className="flex bg-white/10 rounded-lg p-0.5" role="radiogroup" aria-label={activeTheme.family.variantLabel}>
+                    {themeVariants(activeTheme).map((variant) => (
+                      <button
+                        key={variant.id}
+                        onClick={() => setTheme(variant.id)}
+                        role="radio"
+                        aria-checked={theme === variant.id}
+                        className={`px-3 py-1 rounded-md text-sm transition-colors ${theme === variant.id ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+                      >
+                        {variant.variant}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="p-3">
               <button
@@ -603,20 +700,23 @@ export default function SettingsPage() {
               </button>
               {showColorPicker && (
                 <div className="grid grid-cols-6 md:grid-cols-9 gap-3 mt-3">
-                  {tailwindColors.map((color) => (
+                  {accentSwatches.map((color) => (
                     <button
                       key={color.name}
                       onClick={() => {
                         setAccentColor(color.name)
                         setShowColorPicker(false)
                       }}
-                      className={`aspect-square rounded-lg transition-all ${accentColor === color.name
+                      className={`aspect-square rounded-lg transition-all flex items-center justify-center ${color.selected
                         ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110'
                         : 'hover:scale-105'
                         }`}
                       style={{ background: color.hex }}
-                      aria-label={color.name === ARTWORK_ACCENT ? 'Use a color from the album art' : `Select ${color.name} color`}
-                    />
+                      aria-label={color.label}
+                      title={color.title}
+                    >
+                      {color.name === THEME_ACCENT && <Palette className="w-5 h-5 text-black/70" />}
+                    </button>
                   ))}
                 </div>
               )}
@@ -636,7 +736,42 @@ export default function SettingsPage() {
               </div>
             </div>
 
+          </div>
+        </section>
+
+        {/* Library Section */}
+        <section>
+          <div className="bg-white/10 rounded-lg">
             <div className="p-3">
+              <h2 className="text-lg font-bold text-white">Library</h2>
+              <div className="text-xs text-white/60 mt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyServerUrl}
+                  disabled={!serverUrl}
+                  className={`text-left break-all transition-colors flex items-center gap-1 ${serverUrl
+                    ? 'hover:text-[var(--accent-color)] cursor-pointer'
+                    : 'text-white/30 cursor-not-allowed'
+                    }`}
+                >
+                  {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
+                  {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
+                </button>
+                {syncState === 'idle' && lastSyncCompleted && (
+                  <p>
+                    Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+                {localUrlLocked && lockedLocalUrl && (
+                  <span className="text-left break-all flex items-center gap-1">
+                    <Lock className="w-3 h-3 flex-shrink-0" />
+                    Local: {lockedLocalUrl}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-white/15">
               <div className="flex items-center justify-between">
                 <label className="text-white font-medium">Log listening stats</label>
                 <button
@@ -721,7 +856,7 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="p-3">
+            <div className="p-3 border-t border-white/15">
               <label className="text-white font-medium block mb-1">Excluded genres</label>
               <p className="text-xs text-white/60 mb-3">
                 Songs from these genres won't appear in shuffle all and mixes.
@@ -791,41 +926,6 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Jellyfin Library Section */}
-        <section>
-          <div className="bg-white/10 rounded-lg">
-            <div className="p-3">
-              <h2 className="text-lg font-bold text-white">Jellyfin library</h2>
-              <div className="text-xs text-white/60 mt-1">
-                <button
-                  type="button"
-                  onClick={handleCopyServerUrl}
-                  disabled={!serverUrl}
-                  className={`text-left break-all transition-colors flex items-center gap-1 ${serverUrl
-                    ? 'hover:text-[var(--accent-color)] cursor-pointer'
-                    : 'text-white/30 cursor-not-allowed'
-                    }`}
-                >
-                  {serverLocked && <Lock className="w-3 h-3 flex-shrink-0" />}
-                  {serverUrl ? `Server: ${serverUrl}` : 'Server: Not configured'}
-                </button>
-                {syncState === 'idle' && lastSyncCompleted && (
-                  <p>
-                    Last synced: {new Date(lastSyncCompleted).getFullYear()} {new Date(lastSyncCompleted).toLocaleString('default', { month: 'short' })} {new Date(lastSyncCompleted).getDate().toString().padStart(2, '0')} at {new Date(lastSyncCompleted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                )}
-                {localUrlLocked && lockedLocalUrl && (
-                  <span className="text-left break-all flex items-center gap-1">
-                    <Lock className="w-3 h-3 flex-shrink-0" />
-                    Local: {lockedLocalUrl}
-                  </span>
-                )}
-              </div>
-            </div>
-
             {/* Local URL field — hidden when locked via Docker */}
             {!localUrlLocked && (
               <div className="p-3 border-t border-white/15">

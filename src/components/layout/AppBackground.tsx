@@ -1,8 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useAppBackground, type AppBackgroundArt } from '../../hooks/useAppBackground'
 
-/** Darkening over the art; a bit stronger than the player's so library content stays readable */
-const DEFAULT_TINT = 'bg-black/65'
+/**
+ * Darkening over the art; a bit stronger than the player's so library content stays readable.
+ * Its opacity comes from the theme (--art-tint, set by applyTheme in utils/themes.ts).
+ */
+const DEFAULT_TINT = 'bg-[rgb(var(--c-bg)/var(--art-tint))]'
 
 // Only pre-blurred art is used: a live CSS blur this large shows tile seams while content scrolls
 function blurredOnly(url: string | null) {

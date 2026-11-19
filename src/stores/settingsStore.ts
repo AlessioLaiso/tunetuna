@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { STORE_KEYS } from '../utils/constants'
+import { ARTWORK_ACCENT, DEFAULT_THEME, THEME_ACCENT, getTheme } from '../utils/themes'
 
 interface PageVisibility {
   artists: boolean
@@ -12,14 +13,18 @@ interface PageVisibility {
   stats: boolean
 }
 
-/** accentColor value that derives the accent from the current album art */
-export const ARTWORK_ACCENT = 'artwork'
+// Defined with the themes, which need them too; re-exported for existing imports
+export { ARTWORK_ACCENT, THEME_ACCENT }
 
 interface SettingsState {
   serverUrl: string
   setServerUrl: (url: string) => void
   pageVisibility: PageVisibility
   setPageVisibility: (visibility: Partial<PageVisibility>) => void
+  /** Color theme id (see utils/themes.ts) */
+  theme: string
+  /** Switches theme and takes on its default accent; another variant of the same family keeps the accent */
+  setTheme: (theme: string) => void
   accentColor: string
   setAccentColor: (color: string) => void
   /** Preset used by the artwork accent when the art has no color; the one picked before it */
@@ -84,6 +89,20 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           pageVisibility: { ...state.pageVisibility, ...visibility },
         })),
+      theme: DEFAULT_THEME,
+      setTheme: (theme) =>
+        set((state) => {
+          // Another variant of the same family (e.g. Catppuccin flavor) keeps the accent: its named
+          // accents resolve to the new variant's colors
+          const next = getTheme(theme)
+          if (next.family && getTheme(state.theme).family === next.family) return { theme }
+          // A new theme starts from its own accent, not the previous selection
+          return {
+            theme,
+            accentColor: next.defaultAccentSetting ?? THEME_ACCENT,
+            artworkAccentFallback: THEME_ACCENT,
+          }
+        }),
       accentColor: 'blue',
       setAccentColor: (color) =>
         set((state) => ({

@@ -329,7 +329,7 @@ export default function SongDetailPage() {
             </div>
 
             {!hasAppBackground && (
-              <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 20%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.65) 80%, black 100%)' }} />
+              <div className="absolute inset-x-0 top-[35%] bottom-[-1px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--c-bg) / 0.02) 20%, rgb(var(--c-bg) / 0.1) 40%, rgb(var(--c-bg) / 0.3) 60%, rgb(var(--c-bg) / 0.65) 80%, rgb(var(--c-bg)) 100%)' }} />
             )}
           </div>
         )}
