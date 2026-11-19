@@ -25,6 +25,9 @@ interface SettingsState {
   theme: string
   /** Switches theme and takes on its default accent; another variant of the same family keeps the accent */
   setTheme: (theme: string) => void
+  /** The custom theme's colors as the user typed them (see parseCustomColors in utils/themes.ts) */
+  customThemeColors: string
+  setCustomThemeColors: (colors: string) => void
   accentColor: string
   setAccentColor: (color: string) => void
   /** Preset used by the artwork accent when the art has no color; the one picked before it */
@@ -94,15 +97,15 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => {
           // Another variant of the same family (e.g. Catppuccin flavor) keeps the accent: its named
           // accents resolve to the new variant's colors
-          const next = getTheme(theme)
-          if (next.family && getTheme(state.theme).family === next.family) return { theme }
-          // A new theme starts from its own accent, not the previous selection
-          return {
-            theme,
-            accentColor: next.defaultAccentSetting ?? THEME_ACCENT,
-            artworkAccentFallback: THEME_ACCENT,
-          }
+          const next = getTheme(theme, state.customThemeColors)
+          if (next.family && getTheme(state.theme, state.customThemeColors).family === next.family) return { theme }
+          // A new theme starts from its own best-known accent (the default theme: blue), not the
+          // previous selection
+          const accent = next.accent ? THEME_ACCENT : 'blue'
+          return { theme, accentColor: accent, artworkAccentFallback: accent }
         }),
+      customThemeColors: '',
+      setCustomThemeColors: (colors) => set({ customThemeColors: colors }),
       accentColor: 'blue',
       setAccentColor: (color) =>
         set((state) => ({

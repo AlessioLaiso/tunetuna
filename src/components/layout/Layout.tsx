@@ -60,7 +60,7 @@ export default function Layout({ children }: LayoutProps) {
 
   useRecommendations()
   useLibraryChanged()
-  const { accentColor, artworkAccentFallback, blurredBackground, theme } = useSettingsStore()
+  const { accentColor, artworkAccentFallback, blurredBackground, theme, customThemeColors } = useSettingsStore()
   const genres = useMusicStore(s => s.genres)
   const songs = useMusicStore(s => s.songs)
   const genreSongs = useMusicStore(s => s.genreSongs)
@@ -92,18 +92,25 @@ export default function Layout({ children }: LayoutProps) {
     [blurredBackground, blurredArt]
   )
 
-  // --accent-fill is for filled controls with white content; presets use the accent itself.
+  // --accent-fill is for filled controls with foreground-colored content; on the default dark theme
+  // presets use the accent itself.
   // The artwork accent uses the preset picked before it until art has loaded, and for colorless art.
-  // Theme accents go through themeAccentColors: exact on pastel themes, else adjusted like the artwork accent.
+  // Theme accents go through themeAccentColors: exact on pastel themes, else adjusted like the artwork
+  // accent; on light themes the presets are adjusted too, to stay legible on the light background.
+  const activeTheme = getTheme(theme, customThemeColors)
   const presetName = usesArtworkAccent ? artworkAccentFallback : accentColor
-  const themeAccent = resolveThemeAccent(getTheme(theme), presetName)
+  const themeAccent = resolveThemeAccent(activeTheme, presetName)
+  const presetHex = colorMap[presetName] || colorMap.blue
   const presetAccent = themeAccent
-    ? themeAccentColors(getTheme(theme), themeAccent)
-    : { text: colorMap[presetName] || colorMap.blue, fill: colorMap[presetName] || colorMap.blue }
-  // Themes with a named palette (Catppuccin) snap the artwork accent to the closest of their accents
+    ? themeAccentColors(activeTheme, themeAccent)
+    : activeTheme.light ? themeAccentColors(activeTheme, presetHex) : { text: presetHex, fill: presetHex }
+  // Themes with a named palette snap the artwork accent to the closest of their accents; on a light
+  // theme without one, the art accent (made for dark backgrounds) is darkened from its fill shade
   const artAccentRaw = usesArtworkAccent ? blurredArt.accent : null
-  const snappedArtAccent = artAccentRaw ? nearestThemeAccent(getTheme(theme), artAccentRaw.text) : null
-  const artAccent = snappedArtAccent ? themeAccentColors(getTheme(theme), snappedArtAccent.hex) : artAccentRaw
+  const snappedArtAccent = artAccentRaw ? nearestThemeAccent(activeTheme, artAccentRaw.text) : null
+  const artAccent = snappedArtAccent
+    ? themeAccentColors(activeTheme, snappedArtAccent.hex)
+    : artAccentRaw && activeTheme.light ? themeAccentColors(activeTheme, artAccentRaw.fill) : artAccentRaw
   useAccentFade(
     artAccent ?? presetAccent,
     usesArtworkAccent ? blurredArt.changedAt : null

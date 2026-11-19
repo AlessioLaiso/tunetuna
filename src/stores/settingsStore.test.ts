@@ -24,12 +24,23 @@ describe('setTheme', () => {
     useSettingsStore.setState({ accentColor: ARTWORK_ACCENT })
     useSettingsStore.getState().setTheme('nord')
     expect(useSettingsStore.getState().accentColor).toBe(THEME_ACCENT)
+    expect(useSettingsStore.getState().artworkAccentFallback).toBe(THEME_ACCENT)
   })
 
-  it('defaults Catppuccin to the album art accent, falling back to its own accent', () => {
+  it('switches back to blue on the default theme', () => {
+    useSettingsStore.getState().setTheme('nord')
+    useSettingsStore.getState().setTheme('default')
+    expect(useSettingsStore.getState().accentColor).toBe('blue')
+  })
+
+  it('keeps the preset accent when switching the default theme between light and dark', () => {
+    useSettingsStore.getState().setTheme('default-light')
+    expect(useSettingsStore.getState().accentColor).toBe('red')
+  })
+
+  it('defaults Catppuccin to its own accent', () => {
     useSettingsStore.getState().setTheme('catppuccin-mocha')
-    expect(useSettingsStore.getState().accentColor).toBe(ARTWORK_ACCENT)
-    expect(useSettingsStore.getState().artworkAccentFallback).toBe(THEME_ACCENT)
+    expect(useSettingsStore.getState().accentColor).toBe(THEME_ACCENT)
   })
 
   it('keeps the accent when switching Catppuccin flavor', () => {

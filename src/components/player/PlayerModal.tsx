@@ -576,8 +576,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }}
                 />
                 {/* Edge gradients for previous background */}
-                <div className="absolute top-0 left-0 right-0 h-[150px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.08) 60%, transparent 100%)' }} />
-                <div className="absolute bottom-0 left-0 right-0 h-[200px] pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(24,24,27,0.5) 0%, rgba(24,24,27,0.3) 25%, rgba(24,24,27,0.12) 50%, rgba(24,24,27,0.03) 75%, transparent 100%)' }} />
+                <div className="absolute top-0 left-0 right-0 h-[150px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgb(var(--c-bg) / 0.4) 0%, rgb(var(--c-bg) / 0.2) 30%, rgb(var(--c-bg) / 0.08) 60%, transparent 100%)' }} />
+                <div className="absolute bottom-0 left-0 right-0 h-[200px] pointer-events-none" style={{ background: 'linear-gradient(to top, rgb(var(--c-surface) / 0.5) 0%, rgb(var(--c-surface) / 0.3) 25%, rgb(var(--c-surface) / 0.12) 50%, rgb(var(--c-surface) / 0.03) 75%, transparent 100%)' }} />
               </>
             )}
             {/* Current background (fades in on top) */}
@@ -591,8 +591,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   }}
                 />
                 {/* Edge gradients for current background */}
-                <div className="absolute top-0 left-0 right-0 h-[150px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.08) 60%, transparent 100%)' }} />
-                <div className="absolute bottom-0 left-0 right-0 h-[200px] pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(24,24,27,0.5) 0%, rgba(24,24,27,0.3) 25%, rgba(24,24,27,0.12) 50%, rgba(24,24,27,0.03) 75%, transparent 100%)' }} />
+                <div className="absolute top-0 left-0 right-0 h-[150px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgb(var(--c-bg) / 0.4) 0%, rgb(var(--c-bg) / 0.2) 30%, rgb(var(--c-bg) / 0.08) 60%, transparent 100%)' }} />
+                <div className="absolute bottom-0 left-0 right-0 h-[200px] pointer-events-none" style={{ background: 'linear-gradient(to top, rgb(var(--c-surface) / 0.5) 0%, rgb(var(--c-surface) / 0.3) 25%, rgb(var(--c-surface) / 0.12) 50%, rgb(var(--c-surface) / 0.03) 75%, transparent 100%)' }} />
               </div>
             )}
           </div>

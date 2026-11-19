@@ -644,7 +644,7 @@ export default function FilterBottomSheet({
           </button>
           <button
             onClick={handleApply}
-            className="flex-1 px-4 py-3 bg-white text-zinc-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex-1 px-4 py-3 bg-white text-zinc-900 font-medium rounded-lg hover:opacity-90 transition-colors"
           >
             Apply
           </button>

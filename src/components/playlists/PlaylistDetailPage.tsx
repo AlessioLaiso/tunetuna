@@ -628,7 +628,7 @@ export default function PlaylistDetailPage() {
                   />
                   {/* Playlist/mood title on the cassette label */}
                   <div
-                    className="absolute font-handwritten text-black text-center truncate pointer-events-none"
+                    className="absolute font-handwritten text-[#000] text-center truncate pointer-events-none"
                     style={{
                       top: '27%',
                       left: '6%',

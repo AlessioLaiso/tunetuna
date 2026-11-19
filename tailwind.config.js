@@ -63,7 +63,7 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
         },
-        // Tailwind's reds by default; themes with their own red override them (src/utils/themes.ts)
+        // Tailwind's status colors by default; themes with their own override them (src/utils/themes.ts)
         red: {
           200: themeColor('c-red-200, 254 202 202'),
           400: themeColor('c-red-400, 248 113 113'),
@@ -72,6 +72,17 @@ export default {
           700: themeColor('c-red-700, 185 28 28'),
           800: themeColor('c-red-800, 153 27 27'),
           900: themeColor('c-red-900, 127 29 29'),
+        },
+        green: {
+          400: themeColor('c-green-400, 74 222 128'),
+          800: themeColor('c-green-800, 22 101 52'),
+        },
+        amber: {
+          400: themeColor('c-amber-400, 251 191 36'),
+          500: themeColor('c-amber-500, 245 158 11'),
+        },
+        orange: {
+          400: themeColor('c-orange-400, 251 146 60'),
         },
         white: themeWhite,
         black: themeColor('c-bg'),

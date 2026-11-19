@@ -33,6 +33,7 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* applyTheme (src/utils/themes.ts) switches this to light for light themes */
   color-scheme: dark;
   color: rgb(var(--c-fg) / 0.87);
   background-color: rgb(var(--c-bg));
@@ -426,17 +427,29 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
-/* Pastel themes fill controls with the exact accent or red, so their content turns dark: white
-   classes inside resolve to the background color */
-:root[data-pastel] .bg-\[var\(--accent-fill\)\],
-:root[data-pastel] .bg-red-500 {
+/* Pastel themes fill controls with the exact (light) accent or red, and light themes have a dark
+   foreground, so in both the content of filled controls takes the background color: white classes
+   inside resolve to it */
+:root[data-fill-on-bg] .bg-\[var\(--accent-fill\)\],
+:root[data-fill-on-bg] .bg-red-500 {
   --c-fg: var(--c-bg);
 }
 
 /* ...except while disabled controls swap the fill for another (e.g. disabled:bg-white/25) */
-:root[data-pastel] .bg-\[var\(--accent-fill\)\][class*="disabled:bg-"]:disabled,
-:root[data-pastel] .bg-red-500[class*="disabled:bg-"]:disabled {
+:root[data-fill-on-bg] .bg-\[var\(--accent-fill\)\][class*="disabled:bg-"]:disabled,
+:root[data-fill-on-bg] .bg-red-500[class*="disabled:bg-"]:disabled {
   --c-fg: inherit;
+}
+
+/* Content drawn on fixed dark artwork (e.g. the shareable stats image) keeps the default dark
+   theme's colors whatever the theme */
+.theme-default-dark {
+  --c-bg: 0 0 0;
+  --c-fg: 255 255 255;
+  --c-overlay: 255 255 255;
+  --c-surface: 24 24 27;
+  --c-surface-2: 39 39 42;
+  color-scheme: dark;
 }
 
 /* Queue sidebar on artwork: the current track is marked by its row highlight, not the accent,

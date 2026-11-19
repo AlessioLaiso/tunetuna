@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp, Check, Palette } from 'lucide-react'
+import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp, Check } from 'lucide-react'
 import { useSettingsStore, ARTWORK_ACCENT, THEME_ACCENT } from '../../stores/settingsStore'
-import { THEME_CHOICES, getTheme, resolveThemeAccent, themeChoiceName, themeVariants } from '../../utils/themes'
+import { CUSTOM_COLOR_ROLES, CUSTOM_THEME, DEFAULT_THEME, THEME_CHOICES, customColorsFrom, getTheme, parseCustomColors, resolveThemeAccent, themeChoiceName, themeVariants, type Theme } from '../../utils/themes'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useToastStore } from '../../stores/toastStore'
@@ -41,7 +41,7 @@ const tailwindColors = [
 export default function SettingsPage() {
   const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, theme, setTheme, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, theme, setTheme, customThemeColors, setCustomThemeColors, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted, genres: allGenres } = useMusicStore()
@@ -74,9 +74,27 @@ export default function SettingsPage() {
   const [isNewReleasesSpinning, setIsNewReleasesSpinning] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showThemePicker, setShowThemePicker] = useState(false)
-  // A theme with named accents (Catppuccin) offers those instead of the presets; one with a single
-  // accent offers it before them
-  const activeTheme = getTheme(theme)
+  // A theme with named accents offers those instead of the presets; the default theme has the presets
+  const activeTheme = getTheme(theme, customThemeColors)
+  // The custom colors field: edits apply as soon as they parse, the error shows otherwise
+  const [customDraft, setCustomDraft] = useState(customThemeColors)
+  const customParse = parseCustomColors(customDraft)
+  const customError = 'error' in customParse ? customParse.error : null
+  const themePickerChoices: { id: string; name: string; preview: Theme; selected: boolean }[] = [
+    ...THEME_CHOICES.map((choice) => ({
+      id: choice.id,
+      name: choice.name,
+      preview: choice.preview,
+      selected: choice.family ? activeTheme.family === choice.family : theme === choice.id,
+    })),
+    {
+      id: CUSTOM_THEME,
+      name: 'Custom',
+      // Before any custom colors, previews the colors it would start from: the current theme's
+      preview: getTheme(CUSTOM_THEME, customThemeColors || customColorsFrom(activeTheme)),
+      selected: theme === CUSTOM_THEME,
+    },
+  ]
   const selectedThemeAccent = resolveThemeAccent(activeTheme, accentColor)
   const presetSwatches = tailwindColors.map((color) => ({
     name: color.name,
@@ -96,13 +114,7 @@ export default function SettingsPage() {
         selected: selectedThemeAccent === a.hex,
       })),
     ]
-    : activeTheme.accent
-      ? [
-        presetSwatches[0],
-        { name: THEME_ACCENT, hex: activeTheme.accent, label: "Use the theme's accent color", title: `${activeTheme.name} accent`, selected: accentColor === THEME_ACCENT },
-        ...presetSwatches.slice(1),
-      ]
-      : presetSwatches
+    : presetSwatches
   const [genreSearch, setGenreSearch] = useState('')
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false)
   const genreDropdownRef = useRef<HTMLDivElement>(null)
@@ -637,16 +649,23 @@ export default function SettingsPage() {
               </button>
               {showThemePicker && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                  {THEME_CHOICES.map((choice) => {
+                  {themePickerChoices.map((choice) => {
                     const t = choice.preview
-                    const isSelected = choice.family ? activeTheme.family === choice.family : theme === choice.id
+                    const isSelected = choice.selected
                     return (
                       <button
                         key={choice.id}
                         onClick={() => {
                           // Choosing the family that's already active keeps its current variant
-                          if (!isSelected) setTheme(choice.id)
-                          setShowThemePicker(false)
+                          if (!isSelected) {
+                            // The custom theme starts from the current theme's colors
+                            if (choice.id === CUSTOM_THEME && !customThemeColors) {
+                              const start = customColorsFrom(activeTheme)
+                              setCustomThemeColors(start)
+                              setCustomDraft(start)
+                            }
+                            setTheme(choice.id)
+                          }
                         }}
                         className={`flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${isSelected ? 'bg-white/15' : 'hover:bg-white/10'}`}
                         aria-pressed={isSelected}
@@ -668,6 +687,50 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            {theme === CUSTOM_THEME && (
+              <div className="p-3">
+                <label htmlFor="custom-theme-colors" className="text-white font-medium">Custom colors</label>
+                <p className="text-xs text-white/60 mt-1">
+                  Hex colors separated by commas: {CUSTOM_COLOR_ROLES.join(', ')}. Add more colors to choose between more accents.
+                </p>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const colors = customColorsFrom(getTheme(e.target.value))
+                    setCustomThemeColors(colors)
+                    setCustomDraft(colors)
+                  }}
+                  aria-label="Copy colors from a theme"
+                  className="w-full mt-2 bg-white/15 text-white text-sm rounded-lg px-3 py-2 pr-8 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                >
+                  <option value="" disabled>Copy colors from a theme…</option>
+                  {THEME_CHOICES.flatMap((choice) => choice.family ? themeVariants(choice.preview) : [choice.preview]).map((t) => (
+                    <option key={t.id} value={t.id}>{t.id === DEFAULT_THEME ? 'Default Dark' : t.name}</option>
+                  ))}
+                </select>
+                <input
+                  id="custom-theme-colors"
+                  type="text"
+                  value={customDraft}
+                  onChange={(e) => {
+                    setCustomDraft(e.target.value)
+                    if (!('error' in parseCustomColors(e.target.value))) setCustomThemeColors(e.target.value)
+                  }}
+                  placeholder="#1e1e2e, #cdd6f4, #89b4fa"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  className="w-full mt-2 px-3 py-2 bg-white/10 rounded-lg text-white text-sm font-mono placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
+                  aria-invalid={!!customError}
+                  aria-describedby={customError ? 'custom-theme-colors-error' : undefined}
+                />
+                {customError && (
+                  <p id="custom-theme-colors-error" className="text-xs text-red-400 mt-1">{customError}</p>
+                )}
+              </div>
+            )}
 
             {activeTheme.family && (
               <div className="p-3">
@@ -715,7 +778,6 @@ export default function SettingsPage() {
                       aria-label={color.label}
                       title={color.title}
                     >
-                      {color.name === THEME_ACCENT && <Palette className="w-5 h-5 text-black/70" />}
                     </button>
                   ))}
                 </div>

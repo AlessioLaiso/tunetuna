@@ -145,7 +145,8 @@ export default function StatsCannedImage({
   return (
     <div
       id={id}
-      className="relative overflow-hidden"
+      // Always dark, like its background: the exported image doesn't follow the app theme
+      className="theme-default-dark relative overflow-hidden"
       style={{ width: 1015, height: 1350, backgroundColor: '#0a0a0a' }}
     >
       {/* Background with blur and overlay - canvas-based for html2canvas compatibility */}
