@@ -2,6 +2,11 @@
 
 A Jellyfin music client, built as a mobile-first self-hostable progressive web app.
 
+| ![Album](https://github.com/user-attachments/assets/89096d83-37eb-4625-b3be-7eeeadf30786) | ![Home](https://github.com/user-attachments/assets/9be65469-5aff-4094-ae07-539a673e4c36) |
+|:---:|:---:|
+| Album screen, with a spinning disc when the album is playing. | Home screen, with smart mixes and recently added content. |
+
+
 
 ## Key Features
 
@@ -18,6 +23,14 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
   - Genres displayed are the ones actually coming from the metadata in the songs. Genre data is stored locally for faster retrieval after the initial sync.
   - Song lyrics in the player and on-client voice removal from any song.
   - Works on mobile, desktop, and any device with a browser (your fridge?).
+
+| ![Themes](https://github.com/user-attachments/assets/11185d97-157b-4c23-be57-9a9d826316b0) | ![Mobile](https://github.com/user-attachments/assets/b2a92765-3c05-4f0f-8419-706f888c8b9a) |
+|:---:|:---:|
+| Set any color you like in the appearance settings. | Tunetuna works great on mobile too. |
+
+| ![Stats](https://github.com/user-attachments/assets/75f906cf-21dd-4d5d-8c18-8c2d5b5ad0a8) | ![Collection](https://github.com/user-attachments/assets/f07257c6-4109-43b0-a495-f6709e789bcd) |
+|:---:|:---:|
+| Get detailed listening stats and library insights any time of the year with Tunetuna ~~Wrapped~~ Canned. | Use the optional Discogs integration to keep track of youe physical music collection. |
 
 ## Getting started (Docker)
 
@@ -39,6 +52,9 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
    - On iOS: open Tunetuna in Safari, tap the Share button, then choose “Add to Home Screen”.
    - On Android: open Tunetuna in your browser, and choose “Add to Home Screen” or “Install app”.
 
+| ![Player](https://github.com/user-attachments/assets/84219fcf-2526-46f9-bdbb-34af7705621c) | ![Lyrics](https://github.com/user-attachments/assets/dde8e372-26f1-4d6f-88fb-991fd9fdeece) |
+|:---:|:---:|
+| A stunning player with powerful queue controls. | Follow along with synchronized lyrics and remove vocals with a lightweight local model. |
 
 ## Tech stack and licensing
 
