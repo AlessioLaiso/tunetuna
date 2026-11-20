@@ -53,11 +53,6 @@ export interface Theme {
    * names, so a picked accent carries over between variants.
    */
   accents?: ThemeAccent[]
-  /**
-   * Pastel palette: accents are used exactly as given, also for filled controls, which then carry
-   * dark content (the background color) instead of light
-   */
-  pastel?: boolean
   /** Replaces Tailwind's reds (errors, destructive buttons); darker shades are mixed into the background */
   red?: string
   /** Replace Tailwind's greens, ambers and oranges (status text and bars), like red */
@@ -66,6 +61,13 @@ export interface Theme {
   orange?: string
   /** Light background with dark text: sets color-scheme so native controls and scrollbars match */
   light?: boolean
+  /**
+   * Opacity of the background color over the blurred album art background, as a fraction; see
+   * themeArtTint for the default
+   */
+  artTint?: number
+  /** Opacity over the art behind the bottom bar; artTint if unset */
+  artTintBar?: number
 }
 
 function family(id: string, name: string, defaultTheme: string, variantLabel = 'Variant'): ThemeFamily {
@@ -123,7 +125,6 @@ function catppuccin(
     background: base,
     foreground: text,
     ...palette(pairs, 'mauve', { amber: accentHexes[7], orange: accentHexes[6] }),
-    pastel: true,
     ...extra,
   }
 }
@@ -167,6 +168,19 @@ function solarized(id: string, variant: string, background: string, foreground: 
   }
 }
 
+/**
+ * Art background opacity for pure black backgrounds, which darken the art without muddying it, a bit
+ * more behind the bottom bar. Themed backgrounds tint the art with their own color, which reads as
+ * muddy unless it covers the art much more.
+ */
+const BLACK_ART_TINT = { artTint: 0.65, artTintBar: 0.75 }
+const THEMED_ART_TINT = 0.9
+
+/** Opacity of the theme's background over the blurred album art background on every screen but the player */
+export function themeArtTint(theme: Theme) {
+  return theme.artTint ?? THEMED_ART_TINT
+}
+
 /** Tailwind's 600 shades as status colors, legible on light backgrounds */
 const LIGHT_STATUS = { red: '#dc2626', green: '#16a34a', amber: '#d97706', orange: '#ea580c' }
 
@@ -177,9 +191,8 @@ export const THEMES: Theme[] = [
     background: '#ffffff', foreground: '#000000', surface: '#f4f4f5', surface2: '#e4e4e7', accent: null,
     ...LIGHT_STATUS, light: true,
   },
-  { id: DEFAULT_THEME, name: 'Default', family: DEFAULT_FAMILY, variant: 'Dark', background: '#000000', foreground: '#ffffff', accent: null },
-  // Light: filled controls carry the light base on the saturated accents (the pastel rule), and the
-  // raised surfaces are Latte's mantle/crust rather than mixed toward the dark text
+  { id: DEFAULT_THEME, name: 'Default', family: DEFAULT_FAMILY, variant: 'Dark', background: '#000000', foreground: '#ffffff', accent: null, ...BLACK_ART_TINT },
+  // Light: the raised surfaces are Latte's mantle/crust rather than mixed toward the dark text
   catppuccin('latte', 'Latte', '#eff1f5', '#4c4f69', [
     '#dc8a78', '#dd7878', '#ea76cb', '#8839ef', '#d20f39', '#e64553', '#fe640b',
     '#df8e1d', '#40a02b', '#179299', '#04a5e5', '#209fb5', '#1e66f5', '#7287fd',
@@ -196,6 +209,11 @@ export const THEMES: Theme[] = [
     '#f5e0dc', '#f2cdcd', '#f5c2e7', '#cba6f7', '#f38ba8', '#eba0ac', '#fab387',
     '#f9e2af', '#a6e3a1', '#94e2d5', '#89dceb', '#74c7ec', '#89b4fa', '#b4befe',
   ]),
+  // Not an official flavor: Mocha on a pure black background, for OLED screens
+  catppuccin('oled', 'Oledppuccin', '#000000', '#cdd6f4', [
+    '#f5e0dc', '#f2cdcd', '#f5c2e7', '#cba6f7', '#f38ba8', '#eba0ac', '#fab387',
+    '#f9e2af', '#a6e3a1', '#94e2d5', '#89dceb', '#74c7ec', '#89b4fa', '#b4befe',
+  ], BLACK_ART_TINT),
   ayu('light', 'Light', '#f8f9fa', '#5c6166', '#e65050',
     ['#f29718', '#f07171', '#fa8532', '#f2ae49', '#86b300', '#4cbf99', '#399ee6', '#a37acc'], { light: true }),
   ayu('mirage', 'Mirage', '#1f2430', '#cccac2', '#ff6666',
@@ -395,11 +413,14 @@ export function themeVariants(theme: Theme): Theme[] {
   return theme.family ? THEMES.filter((t) => t.family === theme.family) : []
 }
 
-/** The theme with an id; the custom theme is built from the user's colors, the default if they don't parse */
-export function getTheme(id: string, customColors = ''): Theme {
+/**
+ * The theme with an id; the custom theme is built from the user's colors and art background opacity
+ * (the themed default if null), the default theme if the colors don't parse
+ */
+export function getTheme(id: string, customColors = '', customArtTint: number | null = null): Theme {
   if (id === CUSTOM_THEME) {
     const parsed = parseCustomColors(customColors)
-    return 'colors' in parsed ? customTheme(parsed.colors) : getTheme(DEFAULT_THEME)
+    return 'colors' in parsed ? customTheme(parsed.colors, customArtTint) : getTheme(DEFAULT_THEME)
   }
   return THEMES.find((t) => t.id === id) ?? getTheme(DEFAULT_THEME)
 }
@@ -429,7 +450,7 @@ export function parseCustomColors(text: string): { colors: string[] } | { error:
 /** Background lightness (OKLCH) above which a custom theme counts as light */
 const LIGHT_BACKGROUND = 0.6
 
-function customTheme([background, foreground, ...accentHexes]: string[]): Theme {
+function customTheme([background, foreground, ...accentHexes]: string[], artTint: number | null): Theme {
   const light = srgbToOklab(...hexToRgb(background)).L > LIGHT_BACKGROUND
   return {
     id: CUSTOM_THEME,
@@ -440,6 +461,7 @@ function customTheme([background, foreground, ...accentHexes]: string[]): Theme 
     accents: accentHexes.map((hex, i) => ({ name: `accent ${i + 1}`, hex })),
     light,
     ...(light ? LIGHT_STATUS : {}),
+    ...(artTint !== null && { artTint }),
   }
 }
 
@@ -502,13 +524,18 @@ const MAX_TEXT_LIGHTNESS_LIGHT = 0.58
 /** Highest lightness for filled accent controls, so their content (foreground, or the light background) stays legible */
 const MAX_FILL_LIGHTNESS = 0.6
 
+/** Whether the theme is the default light or dark theme, the only ones that adjust their accents */
+export function isDefaultFamily(theme: Theme) {
+  return theme.family === DEFAULT_FAMILY
+}
+
 /**
- * Text and fill accents from an accent color, following the artwork accent's split: on dark themes
- * text is lightened and fills darkened, on light themes both are darkened. Pastel themes use the
- * accent as is for both.
+ * Text and fill accents from an accent color. The default themes follow the artwork accent's split:
+ * on dark text is lightened and fills darkened, on light both are darkened. Every other theme,
+ * custom included, uses its accents exactly as given for both.
  */
 export function themeAccentColors(theme: Theme, hex: string) {
-  if (theme.pastel) return { text: hex, fill: hex }
+  if (!isDefaultFamily(theme)) return { text: hex, fill: hex }
   const { L, a, b } = srgbToOklab(...hexToRgb(hex))
   const C = Math.hypot(a, b)
   const h = Math.atan2(b, a)
@@ -533,15 +560,15 @@ const STATUS_SHADES: Record<'red' | 'green' | 'amber' | 'orange', [number, numbe
 }
 
 /** Sets the theme's color variables on the document root */
-export function applyTheme(id: string, customColors = '') {
-  const theme = getTheme(id, customColors)
+export function applyTheme(id: string, customColors = '', customArtTint: number | null = null) {
+  const theme = getTheme(id, customColors, customArtTint)
   const root = document.documentElement
   // The default dark theme keeps Tailwind's exact zinc surfaces and its lighter art tint
   const isDefault = theme.id === DEFAULT_THEME
   root.style.setProperty('--c-bg', channels(hexToRgb(theme.background)))
   root.style.setProperty('--c-fg', channels(hexToRgb(theme.foreground)))
   // Toggle knobs stay the theme's light color whether the toggle is on or off (filled controls
-  // otherwise switch their white content to the background on pastel and light themes)
+  // otherwise switch their white content to the background on non-default and light themes)
   root.style.setProperty('--c-knob', channels(hexToRgb(theme.light ? theme.background : theme.foreground)))
   const overlay = theme.overlay ?? theme.foreground
   root.style.setProperty('--c-overlay', channels(hexToRgb(overlay)))
@@ -562,15 +589,15 @@ export function applyTheme(id: string, customColors = '') {
       }
     }
   }
-  // Overlay on the blurred album art background: themed backgrounds tint the art with their own
-  // color, which reads as muddy unless it covers the art much more than the default black does
-  root.style.setProperty('--art-tint', isDefault ? '0.65' : '0.88')
-  root.style.setProperty('--art-tint-bar', isDefault ? '0.75' : '0.92')
+  // Overlay on the blurred album art background (see themeArtTint)
+  const artTint = themeArtTint(theme)
+  root.style.setProperty('--art-tint', String(artTint))
+  root.style.setProperty('--art-tint-bar', String(theme.artTintBar ?? artTint))
   root.style.colorScheme = theme.light ? 'light' : 'dark'
   root.dataset.theme = theme.id
-  // Filled controls carry the background color as content: on pastel themes (light fills) and on
-  // light themes (whose foreground is dark)
-  if (theme.pastel || theme.light) root.dataset.fillOnBg = ''
+  // Filled controls carry the background color as content: on non-default themes (their exact,
+  // often light accents) and on light themes (whose foreground is dark)
+  if (!isDefaultFamily(theme) || theme.light) root.dataset.fillOnBg = ''
   else delete root.dataset.fillOnBg
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.background)
 }

@@ -48,9 +48,10 @@ function App() {
   const { pageVisibility } = useSettingsStore()
   const theme = useSettingsStore(s => s.theme)
   const customThemeColors = useSettingsStore(s => s.customThemeColors)
+  const customArtTint = useSettingsStore(s => s.customArtTint)
 
   // Before paint, so the persisted theme shows without a flash of the default
-  useLayoutEffect(() => applyTheme(theme, customThemeColors), [theme, customThemeColors])
+  useLayoutEffect(() => applyTheme(theme, customThemeColors, customArtTint), [theme, customThemeColors, customArtTint])
 
   // Re-probe local/remote server URL on foreground
   useServerUrlResolver()

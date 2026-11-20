@@ -428,8 +428,8 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
-/* Pastel themes fill controls with the exact (light) accent or red, and light themes have a dark
-   foreground, so in both the content of filled controls takes the background color: white classes
+/* Non-default themes fill controls with the exact (often light) accent or red, and light themes
+   have a dark foreground, so in both the content of filled controls takes the background color: white classes
    inside resolve to it */
 :root[data-fill-on-bg] .bg-\[var\(--accent-fill\)\],
 :root[data-fill-on-bg] .bg-red-500 {

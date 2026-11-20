@@ -28,6 +28,12 @@ interface SettingsState {
   /** The custom theme's colors as the user typed them (see parseCustomColors in utils/themes.ts) */
   customThemeColors: string
   setCustomThemeColors: (colors: string) => void
+  /**
+   * The custom theme's album art background opacity (0–1) on every screen but the player; set from the
+   * theme its colors started from, null for the themed default
+   */
+  customArtTint: number | null
+  setCustomArtTint: (tint: number | null) => void
   accentColor: string
   setAccentColor: (color: string) => void
   /** Preset used by the artwork accent when the art has no color; the one picked before it */
@@ -106,6 +112,8 @@ export const useSettingsStore = create<SettingsState>()(
         }),
       customThemeColors: '',
       setCustomThemeColors: (colors) => set({ customThemeColors: colors }),
+      customArtTint: null,
+      setCustomArtTint: (tint) => set({ customArtTint: tint }),
       accentColor: 'blue',
       setAccentColor: (color) =>
         set((state) => ({

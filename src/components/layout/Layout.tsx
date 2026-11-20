@@ -95,8 +95,8 @@ export default function Layout({ children }: LayoutProps) {
   // --accent-fill is for filled controls with foreground-colored content; on the default dark theme
   // presets use the accent itself.
   // The artwork accent uses the preset picked before it until art has loaded, and for colorless art.
-  // Theme accents go through themeAccentColors: exact on pastel themes, else adjusted like the artwork
-  // accent; on light themes the presets are adjusted too, to stay legible on the light background.
+  // Theme accents go through themeAccentColors: adjusted like the artwork accent on the default
+  // themes, exact on all others; on light themes the presets are adjusted too, to stay legible on the light background.
   const activeTheme = getTheme(theme, customThemeColors)
   const presetName = usesArtworkAccent ? artworkAccentFallback : accentColor
   const themeAccent = resolveThemeAccent(activeTheme, presetName)

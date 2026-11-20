@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, HeartHandshake, LogOut, Rabbit, Turtle, Lock, Download, Upload, Trash2, AlertTriangle, Search, X, ChevronDown, ChevronUp, Check } from 'lucide-react'
 import { useSettingsStore, ARTWORK_ACCENT, THEME_ACCENT } from '../../stores/settingsStore'
-import { CUSTOM_COLOR_ROLES, CUSTOM_THEME, DEFAULT_THEME, THEME_CHOICES, customColorsFrom, getTheme, parseCustomColors, resolveThemeAccent, themeChoiceName, themeVariants, type Theme } from '../../utils/themes'
+import { CUSTOM_COLOR_ROLES, CUSTOM_THEME, DEFAULT_THEME, THEME_CHOICES, customColorsFrom, getTheme, parseCustomColors, themeArtTint, resolveThemeAccent, themeChoiceName, themeVariants, type Theme } from '../../utils/themes'
 import { useAuthStore } from '../../stores/authStore'
 import { useSyncStore } from '../../stores/syncStore'
 import { useToastStore } from '../../stores/toastStore'
@@ -41,7 +41,7 @@ const tailwindColors = [
 export default function SettingsPage() {
   const hasAppBackground = useAppBackgroundActive()
   const navigate = useNavigate()
-  const { pageVisibility, setPageVisibility, theme, setTheme, customThemeColors, setCustomThemeColors, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
+  const { pageVisibility, setPageVisibility, theme, setTheme, customThemeColors, setCustomThemeColors, customArtTint, setCustomArtTint, accentColor, setAccentColor, blurredBackground, setBlurredBackground, statsTrackingEnabled, setStatsTrackingEnabled, feedCountry, setFeedCountry, showMoodCards, setShowMoodCards, showTop10, setShowTop10, showNewReleases, setShowNewReleases, showRecentlyPlayed, setShowRecentlyPlayed, muspyRssUrl, setMuspyRssUrl, localServerUrl, setLocalServerUrl, discogsToken, setDiscogsToken, excludedGenres, setExcludedGenres } = useSettingsStore()
   const { setFeedTopSongs, setFeedNewReleases, setFeedLastUpdated } = useMusicStore()
   const { logout, serverUrl } = useAuthStore()
   const { setGenres, lastSyncCompleted, setLastSyncCompleted, genres: allGenres } = useMusicStore()
@@ -75,7 +75,19 @@ export default function SettingsPage() {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showThemePicker, setShowThemePicker] = useState(false)
   // A theme with named accents offers those instead of the presets; the default theme has the presets
-  const activeTheme = getTheme(theme, customThemeColors)
+  const activeTheme = getTheme(theme, customThemeColors, customArtTint)
+  // The custom theme's art background opacity field, in percent: applies whenever it's a whole number
+  // 0–100; shows the applied value except while being typed in
+  const [artTintDraft, setArtTintDraft] = useState<string | null>(null)
+  const artTintPercent = String(Math.round(themeArtTint(activeTheme) * 100))
+  // Custom colors copied from a theme start from its art background opacity too
+  const startCustomFrom = (source: Theme) => {
+    const colors = customColorsFrom(source)
+    setCustomThemeColors(colors)
+    setCustomDraft(colors)
+    setCustomArtTint(themeArtTint(source))
+    setArtTintDraft(null)
+  }
   // The custom colors field: edits apply as soon as they parse, the error shows otherwise
   const [customDraft, setCustomDraft] = useState(customThemeColors)
   const customParse = parseCustomColors(customDraft)
@@ -659,11 +671,7 @@ export default function SettingsPage() {
                           // Choosing the family that's already active keeps its current variant
                           if (!isSelected) {
                             // The custom theme starts from the current theme's colors
-                            if (choice.id === CUSTOM_THEME && !customThemeColors) {
-                              const start = customColorsFrom(activeTheme)
-                              setCustomThemeColors(start)
-                              setCustomDraft(start)
-                            }
+                            if (choice.id === CUSTOM_THEME && !customThemeColors) startCustomFrom(activeTheme)
                             setTheme(choice.id)
                           }
                         }}
@@ -696,11 +704,7 @@ export default function SettingsPage() {
                 </p>
                 <select
                   value=""
-                  onChange={(e) => {
-                    const colors = customColorsFrom(getTheme(e.target.value))
-                    setCustomThemeColors(colors)
-                    setCustomDraft(colors)
-                  }}
+                  onChange={(e) => startCustomFrom(getTheme(e.target.value))}
                   aria-label="Copy colors from a theme"
                   className="w-full mt-2 bg-white/15 text-white text-sm rounded-lg px-3 py-2 pr-8 border border-white/25 focus:outline-none focus:border-[var(--accent-color)] appearance-none"
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
@@ -796,6 +800,34 @@ export default function SettingsPage() {
                   />
                 </button>
               </div>
+              {theme === CUSTOM_THEME && blurredBackground && (
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <label htmlFor="custom-art-tint" className="text-sm text-white/80">
+                    Background opacity over the art
+                  </label>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      id="custom-art-tint"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={artTintDraft ?? artTintPercent}
+                      onChange={(e) => {
+                        setArtTintDraft(e.target.value)
+                        const percent = Number(e.target.value)
+                        if (e.target.value !== '' && Number.isInteger(percent) && percent >= 0 && percent <= 100) {
+                          setCustomArtTint(percent / 100)
+                        }
+                      }}
+                      onBlur={() => setArtTintDraft(null)}
+                      className="w-16 px-2 py-1 bg-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]"
+                    />
+                    <span className="text-sm text-white/60">%</span>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

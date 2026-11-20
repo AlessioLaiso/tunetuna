@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CUSTOM_THEME, customColorsFrom, THEMES, THEME_CHOICES, getTheme, parseCustomColors, nearestThemeAccent, resolveThemeAccent, themeAccentColors, themeVariants } from './themes'
+import { CUSTOM_THEME, customColorsFrom, THEMES, THEME_CHOICES, getTheme, parseCustomColors, nearestThemeAccent, resolveThemeAccent, themeAccentColors, themeArtTint, themeVariants } from './themes'
 import { srgbToOklab } from './artAccent'
 
 const lightness = (hex: string) => srgbToOklab(...([1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number])).L
@@ -34,13 +34,14 @@ describe('Catppuccin flavors', () => {
     const choices = THEME_CHOICES.filter((c) => c.name === 'Catppuccin')
     expect(choices).toHaveLength(1)
     expect(choices[0].id).toBe('catppuccin-mocha')
-    expect(themeVariants(mocha).map((t) => t.variant)).toEqual(['Latte', 'Frappé', 'Macchiato', 'Mocha'])
+    expect(themeVariants(mocha).map((t) => t.variant)).toEqual(['Latte', 'Frappé', 'Macchiato', 'Mocha', 'Oledppuccin'])
   })
 
   it('resolve a named accent to each flavor\'s own color', () => {
     expect(resolveThemeAccent(getTheme('catppuccin-frappe'), 'theme:lavender')).toBe('#babbf1')
     expect(resolveThemeAccent(getTheme('catppuccin-macchiato'), 'theme:lavender')).toBe('#b7bdf8')
     expect(resolveThemeAccent(mocha, 'theme:lavender')).toBe('#b4befe')
+    expect(resolveThemeAccent(getTheme('catppuccin-oled'), 'theme:lavender')).toBe('#b4befe')
   })
 })
 
@@ -59,14 +60,21 @@ describe('variant families', () => {
 })
 
 describe('themeAccentColors', () => {
-  it('darkens light accents for text on light themes', () => {
-    const { text, fill } = themeAccentColors(getTheme('ayu-light'), '#f2ae49')
+  it('darkens light accents for text on the default light theme', () => {
+    const { text, fill } = themeAccentColors(getTheme('default-light'), '#f2ae49')
     expect(lightness(text)).toBeLessThanOrEqual(0.59)
     expect(lightness(fill)).toBeLessThanOrEqual(0.61)
   })
 
-  it('lightens dark accents for text on dark themes', () => {
-    expect(lightness(themeAccentColors(getTheme('rose-pine'), '#31748f').text)).toBeGreaterThanOrEqual(0.71)
+  it('lightens dark accents for text on the default dark theme', () => {
+    expect(lightness(themeAccentColors(getTheme('default'), '#31748f').text)).toBeGreaterThanOrEqual(0.71)
+  })
+
+  it('uses accents as they are on every other theme, custom included', () => {
+    expect(themeAccentColors(getTheme('ayu-light'), '#f2ae49')).toEqual({ text: '#f2ae49', fill: '#f2ae49' })
+    expect(themeAccentColors(getTheme('rose-pine'), '#31748f')).toEqual({ text: '#31748f', fill: '#31748f' })
+    const custom = getTheme(CUSTOM_THEME, '#101010, #eeeeee, #223344')
+    expect(themeAccentColors(custom, '#223344')).toEqual({ text: '#223344', fill: '#223344' })
   })
 })
 
@@ -136,5 +144,18 @@ describe('customColorsFrom', () => {
 
   it('gives the default themes the default blue accent', () => {
     expect(customColorsFrom(getTheme('default-light'))).toBe('#ffffff, #000000, #3b82f6')
+  })
+})
+
+describe('themeArtTint', () => {
+  it('keeps the default dark opacity on black backgrounds, a stronger one on themed ones', () => {
+    expect(themeArtTint(getTheme('default'))).toBe(0.65)
+    expect(themeArtTint(getTheme('catppuccin-oled'))).toBe(0.65)
+    expect(themeArtTint(mocha)).toBe(0.9)
+  })
+
+  it('uses the custom theme\'s own opacity when set', () => {
+    expect(themeArtTint(getTheme(CUSTOM_THEME, '#101010, #eeeeee, #223344'))).toBe(0.9)
+    expect(themeArtTint(getTheme(CUSTOM_THEME, '#101010, #eeeeee, #223344', 0.5))).toBe(0.5)
   })
 })
