@@ -77,6 +77,13 @@ export default function Layout({ children }: LayoutProps) {
   const currentTrack = useCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
   const firstQueueTrack = usePlayerStore(s => s.songs[0] ?? null)
+  const currentTrackName = currentTrack?.Name
+  const isPlaying = usePlayerStore(s => s.isPlaying)
+
+  useEffect(() => {
+    document.title = isPlaying && currentTrackName ? `${currentTrackName} • Tunetuna` : 'Tunetuna'
+  }, [isPlaying, currentTrackName])
+
   const pageArtClaim = useBackgroundArtStore(selectArtClaim)
   const pageArtItemId = pageArtClaim?.itemId ?? null
   const playerBarTrack = currentTrack || lastPlayedTrack || firstQueueTrack
