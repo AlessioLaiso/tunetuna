@@ -37,6 +37,8 @@ export interface Theme {
   family?: ThemeFamily
   /** Name within the family, e.g. "Mocha" */
   variant?: string
+  /** Shorter variant name for the picker on narrow screens, e.g. "Mac" */
+  shortVariant?: string
   /** App background (replaces black) */
   background: string
   /** Text and solid white (replaces white) */
@@ -122,6 +124,7 @@ function catppuccin(
     name: `Catppuccin ${variant}`,
     family: CATPPUCCIN,
     variant,
+    shortVariant: variant.slice(0, 3),
     background: base,
     foreground: text,
     ...palette(pairs, 'mauve', { amber: accentHexes[7], orange: accentHexes[6] }),

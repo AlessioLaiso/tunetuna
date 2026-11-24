@@ -30,15 +30,8 @@ import {
 } from '../utils/constants'
 import { clearPlaybackTrackingState } from '../stores/playerStore'
 
-export interface LyricsLine {
-  text: string
-  startSeconds?: number
-}
-
-export interface LyricsResult {
-  lines: LyricsLine[]
-  isSynced: boolean
-}
+import type { LyricsLine, LyricsResult } from '../utils/lyrics'
+export type { LyricsLine, LyricsResult } from '../utils/lyrics'
 
 class JellyfinClient {
   private baseUrl: string = ''

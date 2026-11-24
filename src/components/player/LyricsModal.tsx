@@ -1,15 +1,22 @@
 import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { FileHeadphone, Globe } from 'lucide-react'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
-import type { LyricsResult } from '../../api/jellyfin'
+import { getLrclibLyrics } from '../../api/lrclib'
+import type { LyricsLine, LyricsResult } from '../../api/jellyfin'
 import { logger } from '../../utils/logger'
 import { SkeletonTextLines } from '../shared/Skeleton'
 
 // Highlight the next line slightly before its timestamp so it feels in sync with the vocals
 const LINE_LEAD_SECONDS = 0.5
 const SCROLL_DURATION_MS = 600
+// Without an end time, the last word of a line fills over this long
+const LAST_WORD_FALLBACK_SECONDS = 0.6
+export const LYRICS_SOURCE_SLOT_ID = 'lyrics-source-slot'
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -29,16 +36,62 @@ function getActiveLineIndex(lines: LyricsResult['lines'], currentTime: number): 
   return active
 }
 
+// Smooth playback time for word highlighting: the store's time only updates a few times per
+// second, so read the audio element every frame while a word-synced line is playing
+function useFrameTime(enabled: boolean, fallback: number): number {
+  const [time, setTime] = useState(fallback)
+  useEffect(() => {
+    if (!enabled) return
+    let frame = requestAnimationFrame(function tick() {
+      const audio = usePlayerStore.getState().audioElement
+      if (audio) setTime(audio.currentTime)
+      frame = requestAnimationFrame(tick)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [enabled])
+  return enabled ? time : fallback
+}
+
+function WordSyncedLine({ line, time }: { line: LyricsLine; time: number }) {
+  const words = line.words!
+  return (
+    <>
+      {words.map((word, i) => {
+        const end = words[i + 1]?.startSeconds
+          ?? Math.max(line.endSeconds ?? 0, word.startSeconds + LAST_WORD_FALLBACK_SECONDS)
+        const progress = Math.min(1, Math.max(0, (time - word.startSeconds) / Math.max(0.01, end - word.startSeconds)))
+        const pct = progress * 100
+        return (
+          <span
+            key={i}
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgb(var(--c-fg)) ${pct}%, rgb(var(--c-fg) / 0.5) ${pct}%)`,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            {word.text}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
 export default function LyricsModal() {
   const currentTrack = useCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
-  const { isQueueSidebarOpen, currentTime } = usePlayerStore()
+  const { isQueueSidebarOpen, currentTime, isPlaying } = usePlayerStore()
 
   // Use lastPlayedTrack as fallback for display, matching PlayerModal behavior
   const displayTrack = currentTrack || lastPlayedTrack
 
-  const [lyrics, setLyrics] = useState<LyricsResult | null>(null)
+  const [fileLyrics, setFileLyrics] = useState<LyricsResult | null>(null)
+  const [webLyrics, setWebLyrics] = useState<LyricsResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const preferredSource = useSettingsStore(s => s.lyricsSource)
+  const setPreferredSource = useSettingsStore(s => s.setLyricsSource)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const userScrollingRef = useRef(false)
@@ -48,32 +101,57 @@ export default function LyricsModal() {
   const positionedLyricsRef = useRef<LyricsResult | null>(null)
 
   const displayTrackId = displayTrack?.Id
+  const displayTrackRef = useRef(displayTrack)
+  displayTrackRef.current = displayTrack
   useEffect(() => {
-    const fetchLyrics = async () => {
-      if (!displayTrackId) {
-        setLyrics(null)
-        return
-      }
-
-      setIsLoading(true)
-      try {
-        const result = await jellyfinClient.getLyrics(displayTrackId)
-        setLyrics(result)
-      } catch (error) {
-        logger.error('Failed to fetch lyrics:', error)
-        setLyrics(null)
-      } finally {
-        setIsLoading(false)
-      }
+    setFileLyrics(null)
+    setWebLyrics(null)
+    const track = displayTrackRef.current
+    if (!displayTrackId || !track) {
+      setIsLoading(false)
+      return
     }
 
-    fetchLyrics()
+    let cancelled = false
+    setIsLoading(true)
+    const filePromise = jellyfinClient.getLyrics(displayTrackId).catch(error => {
+      logger.error('Failed to fetch lyrics:', error)
+      return null
+    })
+    const webPromise = getLrclibLyrics(track)
+
+    filePromise.then(async result => {
+      if (cancelled) return
+      setFileLyrics(result)
+      // Without lyrics in the file, keep loading until the web lookup settles
+      if (!result || result.lines.length === 0) {
+        await webPromise
+        if (cancelled) return
+      }
+      setIsLoading(false)
+    })
+    webPromise.then(result => {
+      if (!cancelled) setWebLyrics(result && result.lines.length > 0 ? result : null)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [displayTrackId])
+
+  const hasFileLyrics = !!fileLyrics && fileLyrics.lines.length > 0
+  const showSourceToggle = hasFileLyrics && !!webLyrics
+  // The remembered choice applies when both exist; otherwise show whichever there is
+  const source = showSourceToggle ? preferredSource : hasFileLyrics ? 'file' : 'web'
+  const lyrics = source === 'web' ? webLyrics : fileLyrics
 
   const activeLineIndex = useMemo(() => {
     if (!lyrics?.isSynced) return -1
     return getActiveLineIndex(lyrics.lines, currentTime + LINE_LEAD_SECONDS)
   }, [lyrics, currentTime])
+
+  const activeLine = activeLineIndex >= 0 ? lyrics?.lines[activeLineIndex] : undefined
+  const wordTime = useFrameTime(!!activeLine?.words && isPlaying, currentTime)
 
   const cancelScrollAnimation = useCallback(() => {
     if (scrollAnimationRef.current !== null) {
@@ -187,9 +265,38 @@ export default function LyricsModal() {
     }
   }, [])
 
+  // PlayerModal renders this slot next to the vocals volume control on md+ screens
+  const [controlsSlot, setControlsSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    setControlsSlot(document.getElementById(LYRICS_SOURCE_SLOT_ID))
+  }, [])
+
   if (!displayTrack) {
     return null
   }
+
+  const sourceToggle = (
+    <div className="pointer-events-auto flex rounded-full bg-black/60 border border-white/10 p-1 backdrop-blur-md" role="radiogroup" aria-label="Lyrics source">
+      {([
+        { value: 'file', label: 'Lyrics from file', Icon: FileHeadphone },
+        { value: 'web', label: 'Lyrics from LRCLIB', Icon: Globe },
+      ] as const).map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          role="radio"
+          aria-checked={source === value}
+          aria-label={label}
+          title={label}
+          onClick={() => setPreferredSource(value)}
+          className={`p-2 rounded-full transition-colors ${
+            source === value ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
+          }`}
+        >
+          <Icon className="w-5 h-5" />
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <div
@@ -205,7 +312,7 @@ export default function LyricsModal() {
             <SkeletonTextLines count={10} centered />
           </div>
         ) : lyrics && lyrics.lines.length > 0 ? (
-          <div className="max-w-[768px] lg:max-w-[864px] mx-auto pb-8 pl-8 pr-4">
+          <div className={`max-w-[768px] lg:max-w-[864px] mx-auto pl-8 pr-4 ${showSourceToggle ? (controlsSlot ? 'pb-24 md:pb-8' : 'pb-24') : 'pb-8'}`}>
             {lyrics.isSynced ? (
               <div className="text-center text-xl lg:text-3xl">
                 {lyrics.lines.map((line, index) => {
@@ -224,7 +331,9 @@ export default function LyricsModal() {
                             : 'text-white/50'
                       }`}
                     >
-                      {line.text || '\u00A0'}
+                      {isActive && line.words
+                        ? <WordSyncedLine line={line} time={wordTime} />
+                        : line.text || '\u00A0'}
                     </div>
                   )
                 })}
@@ -245,6 +354,16 @@ export default function LyricsModal() {
           </div>
         )}
       </div>
+
+      {/* Below md the source selector is pinned to the bottom right of the lyrics; from md up it sits in the player controls */}
+      {showSourceToggle && (
+        <div className={`absolute bottom-3 left-0 right-0 z-10 pointer-events-none ${controlsSlot ? 'md:hidden' : ''}`}>
+          <div className="max-w-[768px] lg:max-w-[864px] mx-auto px-4 flex justify-end">
+            {sourceToggle}
+          </div>
+        </div>
+      )}
+      {showSourceToggle && controlsSlot && createPortal(sourceToggle, controlsSlot)}
 
       {/* Bottom divider */}
       <div className="h-px bg-white/20 flex-shrink-0" />

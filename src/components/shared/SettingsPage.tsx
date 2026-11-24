@@ -747,9 +747,15 @@ export default function SettingsPage() {
                         onClick={() => setTheme(variant.id)}
                         role="radio"
                         aria-checked={theme === variant.id}
+                        aria-label={variant.variant}
                         className={`px-3 py-1 rounded-md text-sm transition-colors ${theme === variant.id ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
                       >
-                        {variant.variant}
+                        {variant.shortVariant ? (
+                          <>
+                            <span className="max-[520px]:hidden">{variant.variant}</span>
+                            <span className="hidden max-[520px]:inline">{variant.shortVariant}</span>
+                          </>
+                        ) : variant.variant}
                       </button>
                     ))}
                   </div>

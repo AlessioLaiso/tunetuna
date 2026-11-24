@@ -78,6 +78,9 @@ interface SettingsState {
   /** Library stats view mode: true = total time, false = songs */
   libraryStatsTimeMode: boolean
   setLibraryStatsTimeMode: (enabled: boolean) => void
+  /** Lyrics shown when both the file and LRCLIB have them */
+  lyricsSource: 'file' | 'web'
+  setLyricsSource: (source: 'file' | 'web') => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -152,6 +155,8 @@ export const useSettingsStore = create<SettingsState>()(
       setExcludedGenres: (genres) => set({ excludedGenres: genres }),
       libraryStatsTimeMode: true,
       setLibraryStatsTimeMode: (enabled) => set({ libraryStatsTimeMode: enabled }),
+      lyricsSource: 'file',
+      setLyricsSource: (source) => set({ lyricsSource: source }),
     }),
     {
       name: STORE_KEYS.settings,

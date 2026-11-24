@@ -3,21 +3,22 @@ import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
+import { getLrclibLyrics } from '../../api/lrclib'
 import QueueView from './QueueView'
 import QueueSidebarPanel from './QueueSidebarPanel'
-import LyricsModal from './LyricsModal'
+import LyricsModal, { LYRICS_SOURCE_SLOT_ID } from './LyricsModal'
 import { useBlurredArt } from '../../hooks/useBlurredArt'
 import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import VolumeControl from '../layout/VolumeControl'
 import VocalVolumeControl from './VocalVolumeControl'
 import { isVocalRemoverSupported } from '../../audio/vocalSeparation/vocalRemover'
-import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, ListPlus, Moon } from 'lucide-react'
+import { ChevronDown, ListVideo, SquarePlay, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, User, Disc, MicVocal, ListPlus, Moon, Loader2 } from 'lucide-react'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import vinylImage from '../../assets/vinyl.png'
 import SleepTimerPicker from './SleepTimerPicker'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { useNavigate } from 'react-router-dom'
-import { isIOS, formatTime } from '../../utils/formatting'
+import { isIOS, formatTime, isInstrumentalTrack } from '../../utils/formatting'
 import { logger } from '../../utils/logger'
 
 interface PlayerModalProps {
@@ -132,7 +133,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [volumeButtonElement, setVolumeButtonElement] = useState<HTMLElement | null>(null)
   const [volumeHeaderButtonElement, setVolumeHeaderButtonElement] = useState<HTMLElement | null>(null)
-  const [hasLyrics, setHasLyrics] = useState(false)
+  // null until the file check finishes, so the button doesn't flash disabled
+  const [hasLyrics, setHasLyrics] = useState<boolean | null>(null)
+  // Looking up a track without lyrics in its file on LRCLIB, started by tapping the disabled button
+  const [webLyricsLookup, setWebLyricsLookup] = useState<'idle' | 'searching' | 'notFound' | 'hidden'>('idle')
   const [isClosing, setIsClosing] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -189,25 +193,62 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
 
   // Check if current song has lyrics
+  const displayTrackId = displayTrack?.Id
   useEffect(() => {
+    let cancelled = false
+    setHasLyrics(null)
+    setWebLyricsLookup('idle')
     const checkLyrics = async () => {
-      if (!displayTrack) {
+      if (!displayTrackId) {
         setHasLyrics(false)
         return
       }
 
       try {
-        const lyrics = await jellyfinClient.getLyrics(displayTrack.Id)
-        const hasLyricsValue = lyrics !== null && lyrics.lines.length > 0
-        setHasLyrics(hasLyricsValue)
+        const lyrics = await jellyfinClient.getLyrics(displayTrackId)
+        if (!cancelled) setHasLyrics(lyrics !== null && lyrics.lines.length > 0)
       } catch (error) {
         logger.warn('[PlayerModal] Lyrics check failed:', error)
-        setHasLyrics(false)
+        if (!cancelled) setHasLyrics(false)
       }
     }
 
     checkLyrics()
-  }, [displayTrack])
+    return () => {
+      cancelled = true
+    }
+    // Keyed on the id: a refreshed copy of the same track must not reset a finished LRCLIB search
+  }, [displayTrackId])
+
+  // Lyrics button: enabled with lyrics in the file; otherwise disabled (tap to search LRCLIB),
+  // unless the track is tagged instrumental or the search found nothing
+  const lyricsButtonState: 'enabled' | 'disabled' | 'searching' | 'notFound' | 'hidden' =
+    showLyricsModal || hasLyrics
+      ? 'enabled'
+      : hasLyrics === null || isInstrumentalTrack(displayTrack)
+        ? 'hidden'
+        : webLyricsLookup === 'idle'
+          ? 'disabled'
+          : webLyricsLookup
+
+  const displayTrackIdRef = useRef(displayTrackId)
+  displayTrackIdRef.current = displayTrackId
+
+  const searchWebLyrics = useCallback(async () => {
+    if (!displayTrack) return
+    const trackId = displayTrack.Id
+    setWebLyricsLookup('searching')
+    const result = await getLrclibLyrics(displayTrack)
+    // Ignore the answer if the track changed while searching
+    if (displayTrackIdRef.current !== trackId) return
+    if (result && result.lines.length > 0) {
+      setHasLyrics(true)
+      setShowQueue(false)
+      setShowLyricsModal(true)
+    } else {
+      setWebLyricsLookup('notFound')
+    }
+  }, [displayTrack, setShowQueue])
 
   useEffect(() => {
     // Get display name: use Name if available, otherwise extract filename from Path
@@ -653,23 +694,45 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   />
                 )}
               </div>
-              {/* Lyrics button - hidden when no lyrics to prevent gap */}
+              {/* Lyrics button - hidden when the track can't have lyrics, to prevent a gap */}
               <button
                 onClick={() => {
-                  if (!hasLyrics && !showLyricsModal) return
+                  if (lyricsButtonState === 'disabled') {
+                    searchWebLyrics()
+                    return
+                  }
+                  if (lyricsButtonState !== 'enabled') return
                   if (showQueue) {
                     setShowQueue(false)
                   }
                   setShowLyricsModal(!showLyricsModal)
                 }}
-                aria-label={showLyricsModal ? 'Show album art' : 'Show lyrics'}
-                className={`transition-colors p-2 rounded-full ${hasLyrics || showLyricsModal
-                  ? 'hover:bg-white/10 text-white'
-                  : 'hidden'
-                  }`}
+                onAnimationEnd={() => {
+                  if (webLyricsLookup === 'notFound') setWebLyricsLookup('hidden')
+                }}
+                aria-label={
+                  showLyricsModal ? 'Show album art'
+                    : lyricsButtonState === 'searching' ? 'Searching for lyrics'
+                      : lyricsButtonState === 'disabled' ? 'Search for lyrics online'
+                        : 'Show lyrics'
+                }
+                aria-busy={lyricsButtonState === 'searching'}
+                className={`transition-colors p-2 rounded-full ${
+                  lyricsButtonState === 'enabled'
+                    ? 'hover:bg-white/10 text-white'
+                    : lyricsButtonState === 'disabled'
+                      ? 'hover:bg-white/10 text-white/30'
+                      : lyricsButtonState === 'searching'
+                        ? 'text-white/60 cursor-default'
+                        : lyricsButtonState === 'notFound'
+                          ? 'text-white/30 shake-no-fade-out cursor-default'
+                          : 'hidden'
+                }`}
               >
                 {showLyricsModal ? (
                   <SquarePlay className="w-6 h-6" />
+                ) : lyricsButtonState === 'searching' ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <MicVocal className="w-6 h-6" />
                 )}
@@ -891,10 +954,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   )}
                 </button>
 
-                {/* Vocal level control while lyrics are shown, mirroring the volume control */}
-                {showLyricsModal && isVocalRemoverSupported() && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex">
-                    <VocalVolumeControl />
+                {/* Vocal level control while lyrics are shown, mirroring the volume control, followed by the lyrics source selector */}
+                {showLyricsModal && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-4">
+                    {isVocalRemoverSupported() && <VocalVolumeControl />}
+                    <div id={LYRICS_SOURCE_SLOT_ID} className="flex" />
                   </div>
                 )}
 

@@ -600,7 +600,7 @@ export default function PlayerBar() {
     <>
       <div
         ref={playerBarRef}
-        className={`fixed left-0 right-0 bg-zinc-900 ${hasAppBackground ? '' : 'border-t border-white/15'} z-40 cursor-pointer bottom-[calc(4rem-8px)] lg:bottom-0`}
+        className={`fixed left-0 right-0 bg-zinc-900 ${hasAppBackground ? 'max-lg:border-t max-lg:border-white/15' : 'border-t border-white/15'} z-40 cursor-pointer bottom-[calc(4rem-8px)] lg:bottom-0`}
         style={{
           paddingBottom: 'env(safe-area-inset-bottom)'
         }}

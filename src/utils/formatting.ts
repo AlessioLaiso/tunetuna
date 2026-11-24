@@ -82,6 +82,13 @@ export function extractGroupingFromTags(tags: string[] | undefined): string[] {
     .map(tag => tag.replace('grouping:', ''))
 }
 
+/** Whether a track carries the "instrumental" grouping tag (from Grouping or MusicTags' Tags) */
+export function isInstrumentalTrack(track: { Grouping?: string[]; Tags?: string[] } | null | undefined): boolean {
+  if (!track) return false
+  const groupings = track.Grouping?.length ? track.Grouping : extractGroupingFromTags(track.Tags)
+  return groupings.some(tag => tag.trim().toLowerCase() === 'instrumental')
+}
+
 export function extractBpmFromTags(tags: string[] | undefined): number | undefined {
   if (!tags || !Array.isArray(tags)) return undefined
   const bpmTag = tags.find(tag => tag.startsWith('BPM:'))
