@@ -84,6 +84,12 @@ export default {
         orange: {
           400: themeColor('c-orange-400, 251 146 60'),
         },
+        // Status bar fills (sync, connection): the theme's exact green and red, or Tailwind's 800
+        // shades behind light text on themes without their own (see applyTheme)
+        status: {
+          success: themeColor('c-status-success, 22 101 52'),
+          error: themeColor('c-status-error, 153 27 27'),
+        },
         white: themeWhite,
         black: themeColor('c-bg'),
         zinc: {

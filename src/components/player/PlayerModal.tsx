@@ -662,6 +662,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               </h2>
             )}
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
+              {/* Lyrics source selector (file / LRCLIB), portaled in by LyricsModal when both exist; first in the group */}
+              {showLyricsModal && <div id={LYRICS_SOURCE_SLOT_ID} className="flex empty:hidden" />}
               {/* Sleep timer and save queue buttons - only on mobile queue view (below xl) */}
               {showQueue && songs.length > 0 && (
                 <>
@@ -954,11 +956,10 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                   )}
                 </button>
 
-                {/* Vocal level control while lyrics are shown, mirroring the volume control, followed by the lyrics source selector */}
-                {showLyricsModal && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-4">
-                    {isVocalRemoverSupported() && <VocalVolumeControl />}
-                    <div id={LYRICS_SOURCE_SLOT_ID} className="flex" />
+                {/* Vocal level control while lyrics are shown, mirroring the volume control */}
+                {showLyricsModal && isVocalRemoverSupported() && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex items-center">
+                    <VocalVolumeControl />
                   </div>
                 )}
 

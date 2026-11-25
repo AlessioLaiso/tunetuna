@@ -382,7 +382,9 @@ export const THEMES: Theme[] = [
     ...palette(
       ['love', 'gold', 'rose', 'pine', 'foam', 'iris'].map((name, i): [string, string] => [name, hexes[i]]),
       'foam',
-      { red: hexes[0], amber: hexes[1] },
+      // Rosé Pine has no green or orange: pine is its color for additions and affirmative signals,
+      // and gold stands in for orange as well as yellow
+      { red: hexes[0], amber: hexes[1], orange: hexes[1], green: hexes[3] },
     ),
   })),
 ]
@@ -590,6 +592,17 @@ export function applyTheme(id: string, customColors = '', customArtTint: number 
       } else {
         root.style.removeProperty(`--c-${name}-${shade}`)
       }
+    }
+  }
+  // Status bar fills: the theme's exact color with background-colored text on it; without one, the
+  // Tailwind fallback in tailwind.config.js (a dark shade) keeps the foreground text
+  for (const [name, color] of [['success', theme.green], ['error', theme.red]] as const) {
+    if (color) {
+      root.style.setProperty(`--c-status-${name}`, channels(hexToRgb(color)))
+      root.style.setProperty(`--c-on-status-${name}`, channels(hexToRgb(theme.background)))
+    } else {
+      root.style.removeProperty(`--c-status-${name}`)
+      root.style.removeProperty(`--c-on-status-${name}`)
     }
   }
   // Overlay on the blurred album art background (see themeArtTint)

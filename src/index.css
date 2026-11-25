@@ -457,6 +457,16 @@ input[type="range"].slider::-moz-range-thumb {
   --c-fg: inherit;
 }
 
+/* Status bars filled with the theme's exact green or red take the background color as text
+   (--c-on-status-* is set by applyTheme only for themes with their own status colors) */
+.bg-status-success {
+  --c-fg: var(--c-on-status-success, 255 255 255);
+}
+
+.bg-status-error {
+  --c-fg: var(--c-on-status-error, 255 255 255);
+}
+
 /* Toggle knobs keep one color whether the toggle is on (accent fill) or off */
 .toggle-knob.toggle-knob {
   background-color: rgb(var(--c-knob));

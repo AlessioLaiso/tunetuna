@@ -12,7 +12,7 @@ export default function ConnectionStatusBar({ state, dismiss, topOffset = 0, vis
   return (
     <StatusBar
       message={state === 'unreachable' ? "Can't reach Jellyfin server" : 'Connection restored'}
-      backgroundColor={state === 'unreachable' ? 'bg-red-800' : 'bg-green-800'}
+      backgroundColor={state === 'unreachable' ? 'bg-status-error' : 'bg-status-success'}
       action={state === 'unreachable' ? { label: 'Dismiss', onClick: dismiss } : undefined}
       topOffset={topOffset}
       visible={visible}

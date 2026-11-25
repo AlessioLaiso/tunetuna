@@ -265,7 +265,7 @@ export default function LyricsModal() {
     }
   }, [])
 
-  // PlayerModal renders this slot next to the vocals volume control on md+ screens
+  // PlayerModal renders this slot in its top bar, left of the lyrics/album art button
   const [controlsSlot, setControlsSlot] = useState<HTMLElement | null>(null)
   useEffect(() => {
     setControlsSlot(document.getElementById(LYRICS_SOURCE_SLOT_ID))
@@ -276,7 +276,7 @@ export default function LyricsModal() {
   }
 
   const sourceToggle = (
-    <div className="pointer-events-auto flex rounded-full bg-black/60 border border-white/10 p-1 backdrop-blur-md" role="radiogroup" aria-label="Lyrics source">
+    <div className="flex rounded-full bg-white/10 p-0.5" role="radiogroup" aria-label="Lyrics source">
       {([
         { value: 'file', label: 'Lyrics from file', Icon: FileHeadphone },
         { value: 'web', label: 'Lyrics from LRCLIB', Icon: Globe },
@@ -288,7 +288,7 @@ export default function LyricsModal() {
           aria-label={label}
           title={label}
           onClick={() => setPreferredSource(value)}
-          className={`p-2 rounded-full transition-colors ${
+          className={`p-1.5 rounded-full transition-colors ${
             source === value ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
           }`}
         >
@@ -312,7 +312,7 @@ export default function LyricsModal() {
             <SkeletonTextLines count={10} centered />
           </div>
         ) : lyrics && lyrics.lines.length > 0 ? (
-          <div className={`max-w-[768px] lg:max-w-[864px] mx-auto pl-8 pr-4 ${showSourceToggle ? (controlsSlot ? 'pb-24 md:pb-8' : 'pb-24') : 'pb-8'}`}>
+          <div className="max-w-[768px] lg:max-w-[864px] mx-auto pl-8 pr-4 pb-8">
             {lyrics.isSynced ? (
               <div className="text-center text-xl lg:text-3xl">
                 {lyrics.lines.map((line, index) => {
@@ -355,14 +355,6 @@ export default function LyricsModal() {
         )}
       </div>
 
-      {/* Below md the source selector is pinned to the bottom right of the lyrics; from md up it sits in the player controls */}
-      {showSourceToggle && (
-        <div className={`absolute bottom-3 left-0 right-0 z-10 pointer-events-none ${controlsSlot ? 'md:hidden' : ''}`}>
-          <div className="max-w-[768px] lg:max-w-[864px] mx-auto px-4 flex justify-end">
-            {sourceToggle}
-          </div>
-        </div>
-      )}
       {showSourceToggle && controlsSlot && createPortal(sourceToggle, controlsSlot)}
 
       {/* Bottom divider */}
