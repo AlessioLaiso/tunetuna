@@ -12,6 +12,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
 
   - Browse your library by Artists, Albums, Songs, Genres, and Playlists. You can toggle these pages on and off.
   - Tunetuna Canned: your own listening stats synced across devices.
+  - Control music playing on multiple devices, even at the same time.
   - Home screen with recently added and recently played music. Top 10 chart provided by Apple Music and new releases from Muspy.com.
   - Create playlists from M3U files. Even if the file paths don't match, Tunetuna will match the songs by name and save the playlist to Jellyfin.
   - Search by name and filter by genre and year.
