@@ -25,9 +25,10 @@ import {
   SAFETY_FETCH_LIMIT,
   VPN_IP_REGEX,
   APP_CLIENT_NAME,
-  APP_DEVICE_TYPE,
   APP_VERSION,
 } from '../utils/constants'
+import { getDeviceName } from '../utils/deviceName'
+import type { PlaybackReport, PlaybackStopReport, SessionInfo } from './sessionTypes'
 import { clearPlaybackTrackingState } from '../stores/playerStore'
 
 import type { LyricsLine, LyricsResult } from '../utils/lyrics'
@@ -77,6 +78,14 @@ class JellyfinClient {
     return this.baseUrl
   }
 
+  get currentUserId(): string {
+    return this.userId
+  }
+
+  get deviceId(): string {
+    return this.getDeviceId()
+  }
+
   setCredentials(baseUrl: string, accessToken: string, userId: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.accessToken = accessToken
@@ -102,7 +111,7 @@ class JellyfinClient {
   // disables the legacy X-Emby-Authorization / X-Emby-Token headers by default;
   // 10.11 accepts both.
   private getAuthHeader(withToken = true): string {
-    const header = `MediaBrowser Client="${APP_CLIENT_NAME}", Device="${APP_DEVICE_TYPE}", DeviceId="${this.getDeviceId()}", Version="${APP_VERSION}"`
+    const header = `MediaBrowser Client="${APP_CLIENT_NAME}", Device="${getDeviceName()}", DeviceId="${this.getDeviceId()}", Version="${APP_VERSION}"`
     return withToken && this.accessToken ? `${header}, Token="${this.accessToken}"` : header
   }
 
@@ -1452,6 +1461,74 @@ class JellyfinClient {
       logger.warn('[getLyrics] Failed to fetch lyrics:', error)
       return null
     }
+  }
+
+  // ==========================================================================
+  // Sessions: playback reporting and remote control
+  // ==========================================================================
+
+  /** Tells the server this session plays audio and accepts remote control. */
+  async postCapabilities(supportedCommands: string[]): Promise<void> {
+    await this.requestVoid('/Sessions/Capabilities/Full', {
+      method: 'POST',
+      body: JSON.stringify({
+        PlayableMediaTypes: ['Audio'],
+        SupportedCommands: supportedCommands,
+        SupportsMediaControl: true,
+        SupportsPersistentIdentifier: true,
+      }),
+    })
+  }
+
+  async reportPlaybackStart(report: PlaybackReport): Promise<void> {
+    await this.requestVoid('/Sessions/Playing', { method: 'POST', body: JSON.stringify(report) })
+  }
+
+  async reportPlaybackProgress(report: PlaybackReport): Promise<void> {
+    await this.requestVoid('/Sessions/Playing/Progress', { method: 'POST', body: JSON.stringify(report) })
+  }
+
+  async reportPlaybackStopped(report: PlaybackStopReport): Promise<void> {
+    await this.requestVoid('/Sessions/Playing/Stopped', { method: 'POST', body: JSON.stringify(report) })
+  }
+
+  /** Sessions this user can remote control (only ones with an open socket qualify). */
+  async getControllableSessions(): Promise<SessionInfo[]> {
+    if (!this.userId) return []
+    const query = new URLSearchParams({ controllableByUserId: this.userId, activeWithinSeconds: '900' })
+    return this.request<SessionInfo[]>(`/Sessions?${query}`)
+  }
+
+  /** Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Stop */
+  async sendPlaystateCommand(sessionId: string, command: string, seekPositionTicks?: number): Promise<void> {
+    const query = seekPositionTicks !== undefined
+      ? `?${new URLSearchParams({ seekPositionTicks: String(Math.round(seekPositionTicks)) })}`
+      : ''
+    await this.requestVoid(`/Sessions/${encodeURIComponent(sessionId)}/Playing/${command}${query}`, { method: 'POST' })
+  }
+
+  async sendGeneralCommand(sessionId: string, name: string, args: Record<string, string> = {}): Promise<void> {
+    await this.requestVoid(`/Sessions/${encodeURIComponent(sessionId)}/Command`, {
+      method: 'POST',
+      body: JSON.stringify({ Name: name, Arguments: args }),
+    })
+  }
+
+  /** Fetches songs by Id, in chunks so the URL stays short. Missing Ids are skipped. */
+  async getItemsByIds(ids: string[]): Promise<BaseItemDto[]> {
+    if (!this.userId || ids.length === 0) return []
+    const CHUNK = 100
+    const results: BaseItemDto[] = []
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const query = new URLSearchParams({
+        UserId: this.userId,
+        Ids: ids.slice(i, i + CHUNK).join(','),
+        Fields: 'Genres',
+      })
+      const page = await this.request<ItemsResult>(`/Items?${query}`)
+      results.push(...(page.Items || []))
+    }
+    return results
   }
 }
 

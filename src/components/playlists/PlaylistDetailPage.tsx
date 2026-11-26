@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
+import { useShownIsPlaying, shownPlayback, getShownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useMusicStore } from '../../stores/musicStore'
@@ -182,7 +183,9 @@ export default function PlaylistDetailPage() {
   const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { playAlbum, isPlaying, shuffleArtist } = usePlayerStore()
+  const { playAlbum, shuffleArtist } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
   const playSongWithQueue = usePlaySongWithQueue()
   const songs = useMusicStore(s => s.songs)
   const recordMoodAccess = useMusicStore(s => s.recordMoodAccess)
@@ -314,7 +317,7 @@ export default function PlaylistDetailPage() {
         reverseCassetteRef.current = true
         setTimeout(() => {
           // Re-check playing state
-          const ps = usePlayerStore.getState()
+          const ps = getShownPlayback()
           const stillPlaying = queueMatchesList(ps.songs, tracks.map(t => t.Id), ps.currentIndex) && ps.isPlaying
           if (stillPlaying) {
             setHideCover(true)
@@ -682,7 +685,7 @@ export default function PlaylistDetailPage() {
                   {sortedTracks.length} {sortedTracks.length === 1 ? 'song' : 'songs'}
                 </div>
                 <button
-                  onClick={isPlaylistPlaying() && isPlaying ? () => usePlayerStore.getState().pauseWithFade() : isMoodRoute ? handleShuffleAll : handlePlayAll}
+                  onClick={isPlaylistPlaying() && isPlaying ? () => shownPlayback.pauseWithFade() : isMoodRoute ? handleShuffleAll : handlePlayAll}
                   className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
                 >
                   {isPlaylistPlaying() && isPlaying ? (

@@ -8,6 +8,7 @@ import ConnectionStatusBar from '../shared/ConnectionStatusBar'
 import { useConnectionStatus } from '../../hooks/useConnectionStatus'
 import { useRecommendations } from '../../hooks/useRecommendations'
 import { useLibraryChanged } from '../../hooks/useLibraryChanged'
+import { useRemotePlayback } from '../../hooks/useRemotePlayback'
 import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { getTheme, nearestThemeAccent, resolveThemeAccent, themeAccentColors } from '../../utils/themes'
 import { useMusicStore } from '../../stores/musicStore'
@@ -16,7 +17,8 @@ import { useSyncStore } from '../../stores/syncStore'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useBackgroundArtStore, selectArtClaim } from '../../stores/backgroundArtStore'
-import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useCurrentTrack, useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useRemoteStore } from '../../remote/remoteStore'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { useBlurredArt } from '../../hooks/useBlurredArt'
 import { useAccentFade } from '../../hooks/useAccentFade'
@@ -60,6 +62,7 @@ export default function Layout({ children }: LayoutProps) {
 
   useRecommendations()
   useLibraryChanged()
+  useRemotePlayback()
   const { accentColor, artworkAccentFallback, blurredBackground, theme, customThemeColors } = useSettingsStore()
   const genres = useMusicStore(s => s.genres)
   const songs = useMusicStore(s => s.songs)
@@ -74,7 +77,11 @@ export default function Layout({ children }: LayoutProps) {
   const autoSyncTriggered = useRef(false)
 
   // Blurred background art and artwork accent: the page's own item, else the track shown in the player bar
-  const currentTrack = useCurrentTrack()
+  // The tab title names what this device plays; the art follows the player bar,
+  // which shows the controlled device while another one is being controlled
+  const currentTrack = useLocalCurrentTrack()
+  const shownTrack = useCurrentTrack()
+  const isRemote = useRemoteStore(s => s.targetSessionId !== null)
   const lastPlayedTrack = useLastPlayedTrack()
   const firstQueueTrack = usePlayerStore(s => s.songs[0] ?? null)
   const currentTrackName = currentTrack?.Name
@@ -86,7 +93,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const pageArtClaim = useBackgroundArtStore(selectArtClaim)
   const pageArtItemId = pageArtClaim?.itemId ?? null
-  const playerBarTrack = currentTrack || lastPlayedTrack || firstQueueTrack
+  const playerBarTrack = isRemote ? shownTrack : currentTrack || lastPlayedTrack || firstQueueTrack
   const playerBarArtItemId = playerBarTrack ? playerBarTrack.AlbumId || playerBarTrack.Id : null
   const usesArtworkAccent = accentColor === ARTWORK_ACCENT
   const blurredArt = useBlurredArt(

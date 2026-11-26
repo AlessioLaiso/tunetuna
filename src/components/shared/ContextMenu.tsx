@@ -94,7 +94,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [duplicateSongIds, setDuplicateSongIds] = useState<string[]>([])
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null)
   const [duplicateHasImage, setDuplicateHasImage] = useState(false)
-  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, shuffleAllSongs } = usePlayerStore()
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
   const genres = useMusicStore(s => s.genres)
@@ -391,28 +391,12 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
         case 'album': {
           if (action === 'play') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
-            // Disable shuffle if it's currently enabled
-            const { shuffle } = usePlayerStore.getState()
-            if (shuffle) {
-              toggleShuffle()
-            }
+            // playAlbum turns shuffle off itself
             playAlbum(tracks)
           } else if (action === 'shuffle') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
-            // Disable shuffle first if it's enabled, then play album, then enable shuffle
-            const { shuffle } = usePlayerStore.getState()
-            if (shuffle) {
-              toggleShuffle()
-            }
-            playAlbum(tracks)
-            // Enable shuffle after playAlbum sets up the queue
-            // Use requestAnimationFrame to ensure state update happens after playAlbum
-            requestAnimationFrame(() => {
-              const { shuffle: currentShuffle } = usePlayerStore.getState()
-              if (!currentShuffle) {
-                toggleShuffle()
-              }
-            })
+            // First track, then the rest shuffled (same as playAlbum + shuffle on)
+            if (tracks.length) playTrack(tracks[0], tracks, { shuffle: true })
           } else if (action === 'playNext') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             playNext(tracks)
@@ -534,29 +518,13 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           if (action === 'play') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             if (tracks.length === 0) break
-            // Disable shuffle if it's currently enabled
-            const { shuffle } = usePlayerStore.getState()
-            if (shuffle) {
-              toggleShuffle()
-            }
+            // playAlbum turns shuffle off itself
             playAlbum(tracks)
           } else if (action === 'shuffle') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             if (tracks.length === 0) break
-            // Disable shuffle first if it's enabled, then play album, then enable shuffle
-            const { shuffle } = usePlayerStore.getState()
-            if (shuffle) {
-              toggleShuffle()
-            }
-            playAlbum(tracks)
-            // Enable shuffle after playAlbum sets up the queue
-            // Use requestAnimationFrame to ensure state update happens after playAlbum
-            requestAnimationFrame(() => {
-              const { shuffle: currentShuffle } = usePlayerStore.getState()
-              if (!currentShuffle) {
-                toggleShuffle()
-              }
-            })
+            // First track, then the rest shuffled (same as playAlbum + shuffle on)
+            if (tracks.length) playTrack(tracks[0], tracks, { shuffle: true })
           } else if (action === 'playNext') {
             const tracks = await jellyfinClient.getAlbumTracks(currentItem.Id)
             if (tracks.length === 0) break
@@ -589,10 +557,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
           const tracks = providedTracks || []
           if (tracks.length === 0) break
           if (action === 'play') {
-            const { shuffle } = usePlayerStore.getState()
-            if (shuffle) {
-              toggleShuffle()
-            }
+            // playAlbum turns shuffle off itself
             playAlbum(tracks)
           } else if (action === 'shuffle') {
             shuffleArtist(tracks)
@@ -611,7 +576,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
       setLoading(false)
       setLoadingAction(null)
     }
-  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, toggleShuffle, shuffleAllSongs, startSync, completeSync, logStream, updateEventMetadata, providedTracks, extraActions, onExtraAction, position])
+  }, [onClose, onNavigate, navigate, fetchedGenreName, getGenreId, playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, shuffleAllSongs, startSync, completeSync, logStream, updateEventMetadata, providedTracks, extraActions, onExtraAction, position])
 
   const handleMoreAction = useCallback((actionId: string) => {
     setMoreActionsOpen(false)

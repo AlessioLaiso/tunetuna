@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, ListPlus, BarChart3, ExternalLink } from 'lucide-react'
 import { useCollectionStore } from '../../stores/collectionStore'
+import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
@@ -123,7 +124,10 @@ export default function CollectionDetailPage() {
   const { releaseId } = useParams<{ releaseId: string }>()
   const navigate = useNavigate()
   const { releases, fetchReleaseDetail } = useCollectionStore()
-  const { playAlbum, isPlaying, play, pause, addToQueueWithToast, playNext, toggleShuffle } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
+  const { play, pause } = shownPlayback
   const { logStream } = useStatsStore()
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint, findLibraryArtistName } = useLibraryLookup()
@@ -379,17 +383,11 @@ export default function CollectionDetailPage() {
     setCollectionMenuLoading(action)
     try {
       if (action === 'play') {
-        const { shuffle } = usePlayerStore.getState()
-        if (shuffle) toggleShuffle()
+        // playAlbum turns shuffle off itself
         playAlbum(libraryMatches)
       } else if (action === 'shuffle') {
-        const { shuffle } = usePlayerStore.getState()
-        if (shuffle) toggleShuffle()
-        playAlbum(libraryMatches)
-        requestAnimationFrame(() => {
-          const { shuffle: cur } = usePlayerStore.getState()
-          if (!cur) toggleShuffle()
-        })
+        // First track, then the rest shuffled (same as playAlbum + shuffle on)
+        if (libraryMatches.length) playTrack(libraryMatches[0], libraryMatches, { shuffle: true })
       } else if (action === 'playNext') {
         playNext(libraryMatches)
       } else if (action === 'addToQueue') {
@@ -421,7 +419,7 @@ export default function CollectionDetailPage() {
     } finally {
       setCollectionMenuLoading(null)
     }
-  }, [libraryMatches, tracksByDisc, numericReleaseId, playAlbum, playNext, addToQueueWithToast, toggleShuffle, logStream, addToast])
+  }, [libraryMatches, tracksByDisc, numericReleaseId, playTrack, playAlbum, playNext, addToQueueWithToast, logStream, addToast])
 
   const collectionMenuActions = useMemo(() => {
     const actions = [

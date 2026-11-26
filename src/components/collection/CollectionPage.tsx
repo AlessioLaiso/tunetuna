@@ -45,7 +45,7 @@ export default function CollectionPage() {
   const suppressClickRef = useRef(false)
 
   const { fetchReleaseDetail, releaseDetailCache } = useCollectionStore()
-  const { playAlbum, addToQueueWithToast, playNext, toggleShuffle } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore()
   const { logStream } = useStatsStore()
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint } = useLibraryLookup()
@@ -166,17 +166,11 @@ export default function CollectionPage() {
         return
       }
       if (action === 'play') {
-        const { shuffle } = usePlayerStore.getState()
-        if (shuffle) toggleShuffle()
+        // playAlbum turns shuffle off itself
         playAlbum(matches)
       } else if (action === 'shuffle') {
-        const { shuffle } = usePlayerStore.getState()
-        if (shuffle) toggleShuffle()
-        playAlbum(matches)
-        requestAnimationFrame(() => {
-          const { shuffle: cur } = usePlayerStore.getState()
-          if (!cur) toggleShuffle()
-        })
+        // First track, then the rest shuffled (same as playAlbum + shuffle on)
+        if (matches.length) playTrack(matches[0], matches, { shuffle: true })
       } else if (action === 'playNext') {
         playNext(matches)
       } else if (action === 'addToQueue') {
@@ -194,7 +188,7 @@ export default function CollectionPage() {
     } finally {
       setMenuLoading(null)
     }
-  }, [menuRelease, getLibraryMatches, playAlbum, playNext, addToQueueWithToast, toggleShuffle, logStream, addToast])
+  }, [menuRelease, getLibraryMatches, playTrack, playAlbum, playNext, addToQueueWithToast, logStream, addToast])
 
   const collectionMenuActions = [
     { id: 'play', label: 'Play', icon: Play },

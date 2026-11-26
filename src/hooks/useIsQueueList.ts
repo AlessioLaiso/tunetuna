@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { usePlayerStore } from '../stores/playerStore'
+import { useShownQueue } from './useShownPlayback'
 import { queueMatchesList, isPlayingRecommendation } from '../stores/queueOps'
 import type { QueueSong } from '../stores/queueOps'
 
@@ -34,8 +34,9 @@ function isQueueList(songs: readonly QueueSong[], list: readonly ListItem[]): bo
  * out of recommendations, not on every playback tick.
  */
 export function useIsQueueList(list: readonly ListItem[] | undefined): boolean {
-  const songs = usePlayerStore(state => state.songs)
-  const onRecommendation = usePlayerStore(state => isPlayingRecommendation(state.songs, state.currentIndex))
+  // Follows the controlled device while another one is being controlled
+  const { songs, currentIndex } = useShownQueue()
+  const onRecommendation = isPlayingRecommendation(songs, currentIndex)
   return useMemo(
     () => (list && !onRecommendation ? isQueueList(songs, list) : false),
     [songs, list, onRecommendation],
@@ -49,7 +50,8 @@ export function useIsQueueList(list: readonly ListItem[] | undefined): boolean {
  * follows useIsQueueList. Re-renders only when the current track changes.
  */
 export function useIsCurrentTrackInList(list: readonly ListItem[] | undefined): boolean {
-  const currentId = usePlayerStore(state => state.songs[state.currentIndex]?.Id)
+  const { songs, currentIndex } = useShownQueue()
+  const currentId = songs[currentIndex]?.Id
   return useMemo(
     () => !!currentId && !!list?.some(item => (typeof item === 'string' ? item : item.Id) === currentId),
     [currentId, list],

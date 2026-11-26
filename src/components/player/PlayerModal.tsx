@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useRef, type CSSProperties } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
-import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
+import { usePlayer } from '../../hooks/usePlayer'
+import { DevicesButton } from './DevicePicker'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import { getLrclibLyrics } from '../../api/lrclib'
@@ -91,7 +93,20 @@ function PlayerArtwork({ src, alt, onError }: PlayerArtworkProps) {
 
 export default function PlayerModal({ onClose, onClosingStart, closeRef }: PlayerModalProps) {
   const navigate = useNavigate()
+  // This device's player, for the lock screen controls
   const {
+    togglePlayPause: localTogglePlayPause,
+    next: localNext,
+    previous: localPrevious,
+    isPlaying: localIsPlaying,
+    playTrack,
+    isQueueSidebarOpen,
+    toggleQueueSidebar,
+  } = usePlayerStore()
+
+  // What the modal shows and controls: this device, or the one being controlled
+  const {
+    isRemote,
     songs,
     currentIndex,
     isPlaying,
@@ -105,16 +120,16 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     seek,
     toggleShuffle,
     toggleRepeat,
-    playTrack,
-    isQueueSidebarOpen,
-    toggleQueueSidebar,
-  } = usePlayerStore()
+    currentTrack: viewTrack,
+  } = usePlayer()
 
-  const currentTrack = useCurrentTrack()
+  const localCurrentTrack = useLocalCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
 
   // Use lastPlayedTrack as fallback for display, matching PlayerBar behavior
-  const displayTrack = currentTrack || lastPlayedTrack
+  const localDisplayTrack = localCurrentTrack || lastPlayedTrack
+  const currentTrack = isRemote ? viewTrack : localCurrentTrack
+  const displayTrack = isRemote ? viewTrack : localDisplayTrack
   const [showQueue, setShowQueue] = useState(false)
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
   const [sleepTimerPickerOpen, setSleepTimerPickerOpen] = useState(false)
@@ -252,7 +267,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
   useEffect(() => {
     // Get display name: use Name if available, otherwise extract filename from Path
-    const getDisplayNameForMetadata = (track: typeof displayTrack) => {
+    const getDisplayNameForMetadata = (track: typeof localDisplayTrack) => {
       if (!track) return 'Unknown'
       if (track.Name && track.Name.trim()) {
         return track.Name
@@ -267,34 +282,37 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     }
 
     // Get artist name if available
-    const getArtistNameForMetadata = (track: typeof displayTrack) => {
+    const getArtistNameForMetadata = (track: typeof localDisplayTrack) => {
       if (!track) return ''
       return track.ArtistItems?.[0]?.Name || track.AlbumArtist || ''
     }
 
-    if ('mediaSession' in navigator && displayTrack) {
+    // The lock screen always shows and controls this device's own playback
+    if ('mediaSession' in navigator && localDisplayTrack) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: getDisplayNameForMetadata(displayTrack),
-        artist: getArtistNameForMetadata(displayTrack),
-        album: displayTrack.Album || '',
+        title: getDisplayNameForMetadata(localDisplayTrack),
+        artist: getArtistNameForMetadata(localDisplayTrack),
+        album: localDisplayTrack.Album || '',
         artwork: [
           {
-            src: jellyfinClient.getAlbumArtUrl(displayTrack.AlbumId || displayTrack.Id, 512),
+            src: jellyfinClient.getAlbumArtUrl(localDisplayTrack.AlbumId || localDisplayTrack.Id, 512),
             sizes: '512x512',
             type: 'image/jpeg',
           },
         ],
       })
 
-      navigator.mediaSession.setActionHandler('play', togglePlayPause)
-      navigator.mediaSession.setActionHandler('pause', togglePlayPause)
-      navigator.mediaSession.setActionHandler('previoustrack', previous)
-      navigator.mediaSession.setActionHandler('nexttrack', next)
+      navigator.mediaSession.setActionHandler('play', localTogglePlayPause)
+      navigator.mediaSession.setActionHandler('pause', localTogglePlayPause)
+      navigator.mediaSession.setActionHandler('previoustrack', localPrevious)
+      navigator.mediaSession.setActionHandler('nexttrack', localNext)
     }
-  }, [displayTrack, isPlaying, togglePlayPause, next, previous])
+  }, [localDisplayTrack, localIsPlaying, localTogglePlayPause, localNext, localPrevious])
 
   // Update Media Session position state to keep notification seek bar in sync (iOS PWA fix)
+  // (PlayerBar keeps it in sync for this device while another one is controlled)
   useEffect(() => {
+    if (isRemote) return
     if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && duration > 0) {
       try {
         navigator.mediaSession.setPositionState({
@@ -306,7 +324,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
         // setPositionState can throw if values are invalid
       }
     }
-  }, [currentTime, duration])
+  }, [currentTime, duration, isRemote])
 
   // Reset image error when track changes
   useEffect(() => {
@@ -664,10 +682,11 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
             <div className="flex items-center gap-2 z-10 flex-shrink-0">
               {/* Lyrics source selector (file / LRCLIB), portaled in by LyricsModal when both exist; first in the group */}
               {showLyricsModal && <div id={LYRICS_SOURCE_SLOT_ID} className="flex empty:hidden" />}
+              <DevicesButton className="hover:bg-white/10 rounded-full transition-colors p-2" iconClassName="w-6 h-6" />
               {/* Sleep timer and save queue buttons - only on mobile queue view (below xl) */}
               {showQueue && songs.length > 0 && (
                 <>
-                  <button
+                  {!isRemote && <button
                     onClick={() => setSleepTimerPickerOpen(true)}
                     aria-label="Pause playback timer"
                     className={`hover:bg-white/10 rounded-full transition-colors p-2 xl:hidden ${
@@ -675,7 +694,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                     }`}
                   >
                     <Moon className="w-6 h-6" />
-                  </button>
+                  </button>}
                   <button
                     onClick={() => setPlaylistPickerOpen(true)}
                     aria-label="Save queue to playlist"
@@ -687,7 +706,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
               )}
               {/* Volume button - shown below 768 normally, below 1280 when in queue */}
               <div className={`${showQueue ? 'xl:hidden' : 'md:hidden'}`}>
-                {!isIOS() && (
+                {!isIOS() && !isRemote && (
                   <VolumeControl
                     variant="compact"
                     onOpenPopover={() => handleOpenVolumePopover('down')}
@@ -957,7 +976,8 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
                 </button>
 
                 {/* Vocal level control while lyrics are shown, mirroring the volume control */}
-                {showLyricsModal && isVocalRemoverSupported() && (
+                {/* Not while controlling another device: it processes this device's audio */}
+                {showLyricsModal && isVocalRemoverSupported() && !isRemote && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex items-center">
                     <VocalVolumeControl />
                   </div>
@@ -965,7 +985,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
 
                 {/* Volume control on 768px+, horizontal variant on the right */}
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:flex">
-                  {!isIOS() && <VolumeControl variant="horizontal" />}
+                  {!isIOS() && !isRemote && <VolumeControl variant="horizontal" />}
                 </div>
               </div>
             </div>
@@ -974,7 +994,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
           {showLyricsModal && (
             <LyricsModal />
           )}
-          {showVolumePopover && volumePopoverPosition && !isIOS() && (
+          {showVolumePopover && volumePopoverPosition && !isIOS() && !isRemote && (
             <VolumeControl
               variant="vertical"
               onClose={() => setShowVolumePopover(false)}

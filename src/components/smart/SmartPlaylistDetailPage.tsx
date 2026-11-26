@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
@@ -52,7 +53,9 @@ export default function SmartPlaylistDetailPage() {
   const songs = useMemo(() => filterExcludedGenres(allSongs, excludedGenres), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
-  const { shuffleArtist, isPlaying } = usePlayerStore()
+  const { shuffleArtist } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const isLargeViewport = useLargeViewport()
 
@@ -247,7 +250,7 @@ export default function SmartPlaylistDetailPage() {
                 {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}{subtitle && ` • ${subtitle}`}
               </div>
               <button
-                onClick={isListPlaying ? () => usePlayerStore.getState().pauseWithFade() : handleShuffleAll}
+                onClick={isListPlaying ? () => shownPlayback.pauseWithFade() : handleShuffleAll}
                 className="bg-white/10 hover:bg-white/20 text-white font-semibold py-1.5 px-3 rounded-full transition-all hover:scale-105 flex items-center gap-1.5 backdrop-blur-sm border border-white/20 flex-shrink-0"
               >
                 {isListPlaying ? (

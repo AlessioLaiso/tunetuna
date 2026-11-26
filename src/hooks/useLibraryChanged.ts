@@ -6,6 +6,7 @@ import { jellyfinClient } from '../api/jellyfin'
 import { storage } from '../utils/storage'
 import { logger } from '../utils/logger'
 import { probeAndUpdateServerUrl } from '../utils/serverUrl'
+import { emitSocketClosed, emitSocketMessage, emitSocketOpen, setSocketSender } from '../api/socketBus'
 
 /** Quiet period after a LibraryChanged event before syncing (bulk edits fire many). */
 const CHANGE_DEBOUNCE_MS = 5_000
@@ -44,9 +45,12 @@ export function useLibraryChanged() {
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null
     let reconnectDelay = RECONNECT_MIN_MS
 
-    const send = (message: object) => {
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message))
+    const send = (message: object): boolean => {
+      if (ws?.readyState !== WebSocket.OPEN) return false
+      ws.send(JSON.stringify(message))
+      return true
     }
+    setSocketSender(send)
 
     const startKeepAlive = (timeoutSeconds: number) => {
       if (keepAliveInterval) clearInterval(keepAliveInterval)
@@ -89,6 +93,7 @@ export function useLibraryChanged() {
         startKeepAlive(DEFAULT_KEEPALIVE_TIMEOUT_S)
         // Anything that changed while we weren't listening never reaches us as an event
         void catchUp()
+        emitSocketOpen()
       }
 
       socket.onmessage = (event) => {
@@ -104,7 +109,11 @@ export function useLibraryChanged() {
           startKeepAlive(timeout)
           return
         }
-        if (message.MessageType !== 'LibraryChanged') return
+        if (message.MessageType !== 'LibraryChanged') {
+          // Remote control commands and session updates
+          emitSocketMessage(message)
+          return
+        }
 
         const data = message.Data as {
           ItemsAdded?: string[]
@@ -129,6 +138,7 @@ export function useLibraryChanged() {
         if (ws !== socket) return
         stopKeepAlive()
         ws = null
+        emitSocketClosed()
         if (disposed) return
         logger.log('[useLibraryChanged] WebSocket closed, reconnecting...')
         scheduleReconnect()
@@ -177,6 +187,8 @@ export function useLibraryChanged() {
 
     return () => {
       disposed = true
+      setSocketSender(null)
+      emitSocketClosed()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (reconnectTimeout) clearTimeout(reconnectTimeout)
       stopKeepAlive()

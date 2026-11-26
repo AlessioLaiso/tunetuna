@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { FileHeadphone, Globe } from 'lucide-react'
-import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
+import { remoteControls, remotePosition, useRemoteStore } from '../../remote/remoteStore'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -36,20 +37,47 @@ function getActiveLineIndex(lines: LyricsResult['lines'], currentTime: number): 
   return active
 }
 
+/** Playback time of the device being controlled, estimated from its last update. */
+function controlledDeviceTime(): number {
+  const remote = useRemoteStore.getState().remote
+  return remote ? remotePosition(remote) : 0
+}
+
 // Smooth playback time for word highlighting: the store's time only updates a few times per
-// second, so read the audio element every frame while a word-synced line is playing
-function useFrameTime(enabled: boolean, fallback: number): number {
+// second, so read the audio element every frame while a word-synced line is playing. While
+// controlling another device, its estimated position is used instead.
+function useFrameTime(enabled: boolean, fallback: number, isRemote: boolean): number {
   const [time, setTime] = useState(fallback)
   useEffect(() => {
     if (!enabled) return
     let frame = requestAnimationFrame(function tick() {
-      const audio = usePlayerStore.getState().audioElement
-      if (audio) setTime(audio.currentTime)
+      if (isRemote) {
+        setTime(controlledDeviceTime())
+      } else {
+        const audio = usePlayerStore.getState().audioElement
+        if (audio) setTime(audio.currentTime)
+      }
       frame = requestAnimationFrame(tick)
     })
     return () => cancelAnimationFrame(frame)
-  }, [enabled])
+  }, [enabled, isRemote])
   return enabled ? time : fallback
+}
+
+// The controlled device's position, refreshed often enough for line changes to land on time
+// (its usual estimate only ticks every 500ms)
+const REMOTE_LINE_TICK_MS = 100
+function useControlledDeviceTime(enabled: boolean): number {
+  const [time, setTime] = useState(controlledDeviceTime)
+  useEffect(() => {
+    if (!enabled) return
+    setTime(controlledDeviceTime())
+    const interval = setInterval(() => setTime(controlledDeviceTime()), REMOTE_LINE_TICK_MS)
+    return () => clearInterval(interval)
+  }, [enabled])
+  // Paused or between updates: follow state changes (seeks, track changes) right away
+  const remote = useRemoteStore(s => s.remote)
+  return enabled ? time : remote ? remotePosition(remote) : 0
 }
 
 function WordSyncedLine({ line, time }: { line: LyricsLine; time: number }) {
@@ -80,12 +108,23 @@ function WordSyncedLine({ line, time }: { line: LyricsLine; time: number }) {
 }
 
 export default function LyricsModal() {
-  const currentTrack = useCurrentTrack()
+  const currentTrack = useLocalCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
-  const { isQueueSidebarOpen, currentTime, isPlaying } = usePlayerStore()
+  const { isQueueSidebarOpen, currentTime: localTime, isPlaying: localPlaying } = usePlayerStore()
+
+  // While controlling another device, follow what plays there
+  const isRemote = useRemoteStore(s => s.targetSessionId !== null)
+  const remoteTrack = useRemoteStore(s => {
+    const remote = s.remote
+    return remote && remote.currentIndex >= 0 ? remote.songs[remote.currentIndex] ?? null : null
+  })
+  const remotePlaying = useRemoteStore(s => s.remote?.isPlaying ?? false)
+  const isPlaying = isRemote ? remotePlaying : localPlaying
+  const remoteTime = useControlledDeviceTime(isRemote && remotePlaying)
+  const currentTime = isRemote ? remoteTime : localTime
 
   // Use lastPlayedTrack as fallback for display, matching PlayerModal behavior
-  const displayTrack = currentTrack || lastPlayedTrack
+  const displayTrack = isRemote ? remoteTrack : currentTrack || lastPlayedTrack
 
   const [fileLyrics, setFileLyrics] = useState<LyricsResult | null>(null)
   const [webLyrics, setWebLyrics] = useState<LyricsResult | null>(null)
@@ -151,7 +190,7 @@ export default function LyricsModal() {
   }, [lyrics, currentTime])
 
   const activeLine = activeLineIndex >= 0 ? lyrics?.lines[activeLineIndex] : undefined
-  const wordTime = useFrameTime(!!activeLine?.words && isPlaying, currentTime)
+  const wordTime = useFrameTime(!!activeLine?.words && isPlaying, currentTime, isRemote)
 
   const cancelScrollAnimation = useCallback(() => {
     if (scrollAnimationRef.current !== null) {
@@ -258,6 +297,10 @@ export default function LyricsModal() {
   // Click a synced line to seek to it
   const handleLineClick = useCallback((startSeconds: number | undefined) => {
     if (startSeconds === undefined) return
+    if (useRemoteStore.getState().targetSessionId) {
+      remoteControls.seek(startSeconds)
+      return
+    }
     const { audioElement } = usePlayerStore.getState()
     if (audioElement) {
       audioElement.currentTime = startSeconds

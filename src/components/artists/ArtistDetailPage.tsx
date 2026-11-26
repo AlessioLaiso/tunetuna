@@ -3,6 +3,7 @@ import { useParams, useNavigate, useNavigationType } from 'react-router-dom'
 import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackground'
 import { jellyfinClient } from '../../api/jellyfin'
+import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList } from '../../hooks/useIsQueueList'
@@ -272,7 +273,10 @@ export default function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const navigationType = useNavigationType()
-  const { isPlaying, pause, addToQueue, shuffleArtist } = usePlayerStore()
+  const { addToQueue, shuffleArtist } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
+  const { pause } = shownPlayback
   const playSongWithQueue = usePlaySongWithQueue()
   const [artist, setArtist] = useState<BaseItemDto | null>(null)
   const [allOwnAlbums, setAllOwnAlbums] = useState<BaseItemDto[]>([])

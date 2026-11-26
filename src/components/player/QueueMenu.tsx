@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MoreHorizontal, ListPlus, Moon } from 'lucide-react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useRemoteStore } from '../../remote/remoteStore'
 import { useSleepTimerStore } from '../../stores/sleepTimerStore'
 import PlaylistPicker from '../playlists/PlaylistPicker'
 import SleepTimerPicker from './SleepTimerPicker'
@@ -14,7 +15,10 @@ export default function QueueMenu({
   buttonClassName = 'text-white/60 hover:text-white transition-colors p-2 rounded-full hover:bg-white/15',
   menuClassName = '',
 }: QueueMenuProps) {
-  const songs = usePlayerStore((s) => s.songs)
+  const localSongs = usePlayerStore((s) => s.songs)
+  // Saving the queue saves the one on screen, which may be another device's
+  const remoteSongs = useRemoteStore((s) => (s.targetSessionId ? s.remote?.songs ?? [] : null))
+  const songs = remoteSongs ?? localSongs
   const sleepTimerMode = useSleepTimerStore((s) => s.mode)
   const [menuOpen, setMenuOpen] = useState(false)
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false)
@@ -66,7 +70,8 @@ export default function QueueMenu({
               <ListPlus className="w-4 h-4 text-white/60" />
               Add queue to playlist
             </button>
-            <button
+            {/* The sleep timer pauses this device, so it's hidden while controlling another one */}
+            {!remoteSongs && <button
               onClick={() => {
                 setMenuOpen(false)
                 setSleepTimerPickerOpen(true)
@@ -75,7 +80,7 @@ export default function QueueMenu({
             >
               <Moon className={`w-4 h-4 ${sleepTimerMode !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/60'}`} />
               Pause playback
-            </button>
+            </button>}
           </div>
         )}
       </div>

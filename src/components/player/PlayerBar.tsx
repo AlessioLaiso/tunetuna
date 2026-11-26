@@ -2,7 +2,10 @@ import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
 import { logger } from '../../utils/logger'
 import { useStatsStore } from '../../stores/statsStore'
-import { useCurrentTrack } from '../../hooks/useCurrentTrack'
+import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
+import { usePlayer } from '../../hooks/usePlayer'
+import { useRemoteStore } from '../../remote/remoteStore'
+import { DevicesButton } from './DevicePicker'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
@@ -17,9 +20,9 @@ import { SurfaceBackdrop } from '../layout/AppBackground'
 import { BOTTOM_BAR_TINT, useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 export default function PlayerBar() {
+  // This device's playback: drives the audio elements and the lock screen controls
   const {
     songs,
-    currentIndex,
     isPlaying,
     currentTime,
     duration,
@@ -30,13 +33,7 @@ export default function PlayerBar() {
     setCurrentTime,
     setDuration,
     playTrack,
-    repeat,
-    shuffle,
-    toggleShuffle,
-    toggleRepeat,
     previous,
-    seek,
-    skipToTrack,
     isQueueSidebarOpen,
     toggleQueueSidebar,
     setNextAudioElement,
@@ -44,7 +41,10 @@ export default function PlayerBar() {
     overlapSwap,
   } = usePlayerStore()
 
-  const currentTrack = useCurrentTrack()
+  const currentTrack = useLocalCurrentTrack()
+  // What the bar shows and controls: this device, or the one being controlled
+  const view = usePlayer()
+  const hasOtherDevices = useRemoteStore(s => s.devices.length > 0)
   const lastPlayedTrack = useLastPlayedTrack()
   const hasAppBackground = useAppBackgroundActive()
 
@@ -437,31 +437,38 @@ export default function PlayerBar() {
     }
   }, [currentTrack, isPlaying, audioElement])
 
-  // Show player bar if there's a current track, last played track, or songs in queue
+  // Show player bar if there's a current track, last played track, or songs in queue.
+  // While controlling another device, show what plays there instead.
   const firstQueueTrack = songs.length > 0 ? songs[0] : null
   const displayTrack = currentTrack || lastPlayedTrack || firstQueueTrack
+  const shownTrack = view.isRemote ? view.currentTrack : displayTrack
 
   // Reset image error when track changes
   useEffect(() => {
     setImageError(false)
-  }, [displayTrack?.Id])
+  }, [shownTrack?.Id])
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+  // Switching (from the player screen) to a device with nothing playing leaves the screen nothing to show
+  useEffect(() => {
+    if (showModal && !shownTrack) handleCloseModal()
+  }, [showModal, shownTrack])
+
+  const progressPercent = view.duration > 0 ? (view.currentTime / view.duration) * 100 : 0
 
   // Check if there's a next song available
-  const hasNext = songs.length > 0 && (
-    currentIndex < 0 || // No current track, but queue has songs
-    currentIndex < songs.length - 1 || // Not at the end of queue
-    repeat !== 'off' // Repeat is enabled
+  const hasNext = view.songs.length > 0 && (
+    view.currentIndex < 0 || // No current track, but queue has songs
+    view.currentIndex < view.songs.length - 1 || // Not at the end of queue
+    view.repeat !== 'off' // Repeat is enabled
   )
 
   // Previous should be active if there are songs before current index, repeat
   // uses wrap-around, or the current track is past 3s (restart-from-0 behavior,
   // which applies even on the first track in the queue).
   const hasPrevious =
-    currentIndex > 0 ||
-    (repeat === 'all' && songs.length > 0) ||
-    (songs.length > 0 && currentIndex >= 0 && currentTime > 3)
+    view.currentIndex > 0 ||
+    (view.repeat === 'all' && view.songs.length > 0) ||
+    (view.songs.length > 0 && view.currentIndex >= 0 && view.currentTime > 3)
 
   // Handle volume popover opening
   const handleOpenVolumePopover = () => {
@@ -552,8 +559,8 @@ export default function PlayerBar() {
 
       setTimeout(() => {
         // Change track
-        if (canSwipeRight) previous()
-        else next()
+        if (canSwipeRight) view.previous()
+        else view.next()
 
         // Position new content from opposite side (no transition)
         el.style.transition = 'none'
@@ -591,10 +598,19 @@ export default function PlayerBar() {
     touchStartTime.current = null
   }
 
-  // Always show the bar if there's a track to display (current or last played)
-  if (!displayTrack) {
+  // Always show the bar if there's a track to display (current or last played),
+  // and while other devices are around so the device picker stays reachable
+  if (!shownTrack && !view.isRemote && !hasOtherDevices) {
     return null
   }
+
+  // Tablet layout right-aligns the controls next to these icons, so leave room for both
+  const tabletRightIcons = (!isIOS() && !view.isRemote ? 1 : 0) + (hasOtherDevices || view.isRemote ? 1 : 0)
+
+  // "On Mac" while controlling another device
+  const remoteLabel = view.isRemote && (
+    <span className="flex-shrink-0 text-[var(--accent-color)]">On {view.remoteDeviceName ?? 'other device'}</span>
+  )
 
   return (
     <>
@@ -605,7 +621,7 @@ export default function PlayerBar() {
           paddingBottom: 'env(safe-area-inset-bottom)'
         }}
         onClick={() => {
-          if (!didSwipeRef.current) {
+          if (!didSwipeRef.current && shownTrack) {
             setShowModal(true)
           }
         }}
@@ -615,30 +631,30 @@ export default function PlayerBar() {
       >
         <SurfaceBackdrop tint={BOTTOM_BAR_TINT} />
         {/* Seek bar at top for desktop - positioned absolutely to not affect layout */}
-        {displayTrack && (
+        {shownTrack && (
           <div
             className="hidden lg:block absolute left-0 right-0 cursor-pointer group"
             style={{ top: '-10px', height: '24px' }}
             onClick={(e) => {
               e.stopPropagation() // Prevent opening the modal
-              if (!duration) return
+              if (!view.duration) return
               const rect = e.currentTarget.getBoundingClientRect()
               const percent = (e.clientX - rect.left) / rect.width
-              seek(Math.max(0, Math.min(1, percent)) * duration)
+              view.seek(Math.max(0, Math.min(1, percent)) * view.duration)
             }}
             onTouchStart={(e) => {
               e.stopPropagation() // Prevent opening the modal
-              if (!duration) return
+              if (!view.duration) return
               const touch = e.touches[0]
               const rect = e.currentTarget.getBoundingClientRect()
               const percent = (touch.clientX - rect.left) / rect.width
-              seek(Math.max(0, Math.min(1, percent)) * duration)
+              view.seek(Math.max(0, Math.min(1, percent)) * view.duration)
             }}
             role="slider"
             aria-label="Seek"
             aria-valuemin={0}
-            aria-valuemax={duration || 100}
-            aria-valuenow={currentTime}
+            aria-valuemax={view.duration || 100}
+            aria-valuenow={view.currentTime}
           >
             {/* Visual bar - positioned at bottom of touch target to align with player bar top edge */}
             <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
@@ -654,15 +670,17 @@ export default function PlayerBar() {
         <div className="hidden md:block md:relative md:px-4 md:pt-3 md:pb-1 lg:pb-3">
           {/* Left: Album art + song info with max width to prevent overlap */}
           <div className="flex items-center gap-3 min-w-0 max-w-[37%]" onContextMenu={handleSongContextMenu}>
-            {!imageError && (
+            {!shownTrack ? (
+              <div className="w-12 h-12 rounded-sm flex-shrink-0 bg-white/10" />
+            ) : !imageError && (
               <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10">
                 <Image
-                  key={currentTrack?.Id || displayTrack.Id}
+                  key={shownTrack.Id}
                   src={jellyfinClient.getAlbumArtUrl(
-                    (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
+                    shownTrack.AlbumId || shownTrack.Id,
                     96
                   )}
-                  alt={(currentTrack || displayTrack).Name}
+                  alt={shownTrack.Name}
                   className="w-full h-full object-cover"
                   showOutline={true}
                   rounded="rounded-sm"
@@ -672,38 +690,44 @@ export default function PlayerBar() {
             )}
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-white truncate">
-                {(currentTrack || displayTrack).Name}
+                {shownTrack ? shownTrack.Name : 'Nothing playing'}
               </div>
               <div className="text-xs text-white/60 truncate flex items-center gap-1.5 min-w-0">
-                {(currentTrack || displayTrack).ArtistItems?.[0]?.Id ? (
+                {remoteLabel}
+                {remoteLabel && shownTrack && <span className="flex-shrink-0">•</span>}
+                {!shownTrack ? null : shownTrack.ArtistItems?.[0]?.Id ? (
                   <span
                     className="clickable-text truncate"
                     onClick={(e) => {
                       if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
                       e.stopPropagation()
-                      navigate(`/artist/${(currentTrack || displayTrack).ArtistItems![0].Id}`)
+                      navigate(`/artist/${shownTrack.ArtistItems![0].Id}`)
                     }}
                   >
-                    {(currentTrack || displayTrack).ArtistItems![0].Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}
+                    {shownTrack.ArtistItems![0].Name || shownTrack.AlbumArtist || 'Unknown artist'}
                   </span>
                 ) : (
-                  <span className="truncate">{(currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}</span>
+                  <span className="truncate">{shownTrack.AlbumArtist || 'Unknown artist'}</span>
                 )}
-                <span className="flex-shrink-0">•</span>
-                <span className="tabular-nums flex-shrink-0">{formatTime(currentTime)}/{formatTime(duration)}</span>
+                {shownTrack && (
+                  <>
+                    <span className="flex-shrink-0">•</span>
+                    <span className="tabular-nums flex-shrink-0">{formatTime(view.currentTime)}/{formatTime(view.duration)}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
           {/* Absolutely centered: Player controls on Desktop, Right aligned on Tablet */}
-          <div className="absolute top-1/2 md:top-[calc(50%+4px)] lg:top-1/2 -translate-y-1/2 md:right-16 md:left-auto md:translate-x-0 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 flex items-center gap-2">
+          <div className={`absolute top-1/2 md:top-[calc(50%+4px)] lg:top-1/2 -translate-y-1/2 ${tabletRightIcons > 1 ? 'md:right-[7.5rem]' : 'md:right-16'} md:left-auto md:translate-x-0 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 flex items-center gap-2`}>
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                toggleShuffle()
+                view.toggleShuffle()
               }}
-              aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${shuffle ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
+              aria-label={view.shuffle ? 'Disable shuffle' : 'Enable shuffle'}
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${view.shuffle ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                 }`}
             >
               <Shuffle className="w-5 h-5" />
@@ -713,7 +737,7 @@ export default function PlayerBar() {
               onClick={(e) => {
                 e.stopPropagation()
                 if (hasPrevious) {
-                  previous()
+                  view.previous()
                 }
               }}
               disabled={!hasPrevious}
@@ -730,20 +754,20 @@ export default function PlayerBar() {
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                if (currentTrack) {
-                  togglePlayPause()
-                } else if (songs.length > 0) {
+                if (view.currentTrack) {
+                  view.togglePlayPause()
+                } else if (view.songs.length > 0) {
                   // Start playing from the beginning of the queue
-                  skipToTrack(0)
-                } else if (displayTrack) {
+                  view.skipToTrack(0)
+                } else if (displayTrack && !view.isRemote) {
                   // Resume last played track
                   playTrack(displayTrack)
                 }
               }}
-              aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
+              aria-label={view.isPlaying && view.currentTrack ? 'Pause' : 'Play'}
               className="w-10 h-10 mx-2 flex items-center justify-center rounded-full transition-colors text-white bg-[var(--accent-fill)] hover:opacity-90"
             >
-              {isPlaying && currentTrack ? (
+              {view.isPlaying && view.currentTrack ? (
                 <Pause className="w-5 h-5" />
               ) : (
                 <Play className="w-5 h-5" />
@@ -754,7 +778,7 @@ export default function PlayerBar() {
               onClick={(e) => {
                 e.stopPropagation()
                 if (hasNext) {
-                  next()
+                  view.next()
                 }
               }}
               disabled={!hasNext}
@@ -770,13 +794,13 @@ export default function PlayerBar() {
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                toggleRepeat()
+                view.toggleRepeat()
               }}
-              aria-label={repeat === 'off' ? 'Enable repeat' : repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
+              aria-label={view.repeat === 'off' ? 'Enable repeat' : view.repeat === 'all' ? 'Repeat one' : 'Disable repeat'}
+              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${view.repeat !== 'off' ? 'text-[var(--accent-color)]' : 'text-white/60 hover:text-white/80'
                 }`}
             >
-              {repeat === 'one' ? (
+              {view.repeat === 'one' ? (
                 <Repeat1 className="w-5 h-5" />
               ) : (
                 <Repeat className="w-5 h-5" />
@@ -803,11 +827,14 @@ export default function PlayerBar() {
               )}
             </div>
 
+            {/* Devices: left of the volume control (tablet and desktop) */}
+            <DevicesButton className="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/15 transition-colors" />
+            {/* Volume is this device's: hidden while controlling another one */}
             <div className="hidden lg:block" onClick={(e) => e.stopPropagation()}>
-              {!isIOS() && <VolumeControl variant="horizontal" />}
+              {!isIOS() && !view.isRemote && <VolumeControl variant="horizontal" />}
             </div>
             <div className="hidden md:block lg:hidden">
-              {!isIOS() && (
+              {!isIOS() && !view.isRemote && (
                 <VolumeControl
                   variant="compact"
                   onOpenPopover={handleOpenVolumePopover}
@@ -823,15 +850,17 @@ export default function PlayerBar() {
         <div className="flex items-center gap-3 pt-3 pb-1 pr-3 pl-4 md:hidden">
           {/* Animated content: album art + text */}
           <div ref={mobileContentRef} className="flex items-center gap-3 flex-1 min-w-0" onContextMenu={handleSongContextMenu}>
-            {!imageError && (
+            {!shownTrack ? (
+              <div className="w-12 h-12 rounded-sm flex-shrink-0 bg-white/10" />
+            ) : !imageError && (
               <div className="w-12 h-12 rounded-sm overflow-hidden flex-shrink-0 bg-white/10">
                 <Image
-                  key={currentTrack?.Id || displayTrack.Id}
+                  key={shownTrack.Id}
                   src={jellyfinClient.getAlbumArtUrl(
-                    (currentTrack || displayTrack).AlbumId || (currentTrack || displayTrack).Id,
+                    shownTrack.AlbumId || shownTrack.Id,
                     96
                   )}
-                  alt={(currentTrack || displayTrack).Name}
+                  alt={shownTrack.Name}
                   className="w-full h-full object-cover"
                   showOutline={true}
                   rounded="rounded-sm"
@@ -841,16 +870,18 @@ export default function PlayerBar() {
             )}
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-white truncate">
-                {(currentTrack || displayTrack).Name}
+                {shownTrack ? shownTrack.Name : 'Nothing playing'}
               </div>
               <div className="text-xs text-white/60 truncate">
-                {(currentTrack || displayTrack).ArtistItems?.[0]?.Name || (currentTrack || displayTrack).AlbumArtist || 'Unknown artist'}
+                {remoteLabel}
+                {remoteLabel && shownTrack && ' • '}
+                {shownTrack && (shownTrack.ArtistItems?.[0]?.Name || shownTrack.AlbumArtist || 'Unknown artist')}
               </div>
             </div>
           </div>
           {/* Mobile layout: Volume + Play/Pause buttons (stay fixed during swipe) */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!isIOS() && (
+            {!isIOS() && !view.isRemote && (
               <VolumeControl
                 variant="compact"
                 onOpenPopover={handleOpenVolumePopover}
@@ -858,21 +889,23 @@ export default function PlayerBar() {
                 className="text-white hover:text-white/80 transition-colors"
               />
             )}
+            {/* Devices: left of the play button (mobile) */}
+            <DevicesButton className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/15 transition-colors" />
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                if (currentTrack) {
-                  togglePlayPause()
-                } else if (songs.length > 0) {
-                  skipToTrack(0)
-                } else if (displayTrack) {
+                if (view.currentTrack) {
+                  view.togglePlayPause()
+                } else if (view.songs.length > 0) {
+                  view.skipToTrack(0)
+                } else if (displayTrack && !view.isRemote) {
                   playTrack(displayTrack)
                 }
               }}
-              aria-label={isPlaying && currentTrack ? 'Pause' : 'Play'}
+              aria-label={view.isPlaying && view.currentTrack ? 'Pause' : 'Play'}
               className="w-10 h-10 flex items-center justify-center text-white hover:bg-white/15 rounded-full transition-colors"
             >
-              {isPlaying && currentTrack ? (
+              {view.isPlaying && view.currentTrack ? (
                 <Pause className="w-5 h-5" />
               ) : (
                 <Play className="w-5 h-5" />
@@ -881,41 +914,41 @@ export default function PlayerBar() {
           </div>
         </div>
         {/* Mobile seek bar - keep at bottom, 24px touch target with 4px visual bar centered */}
+        {/* Always rendered, even with no song (e.g. while another device's state loads):
+            it sets the bar's height, and the bar is pinned by its bottom edge */}
         <div className="lg:hidden" style={{ marginBottom: '-10px' }}>
-          {displayTrack && (
-            <div
-              className="relative cursor-pointer group flex items-center"
-              style={{ height: '24px' }}
-              onClick={(e) => {
-                e.stopPropagation() // Prevent opening the modal
-                if (!duration) return
-                const rect = e.currentTarget.getBoundingClientRect()
-                const percent = (e.clientX - rect.left) / rect.width
-                seek(Math.max(0, Math.min(1, percent)) * duration)
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation() // Prevent opening the modal
-                if (!duration) return
-                const touch = e.touches[0]
-                const rect = e.currentTarget.getBoundingClientRect()
-                const percent = (touch.clientX - rect.left) / rect.width
-                seek(Math.max(0, Math.min(1, percent)) * duration)
-              }}
-              role="slider"
-              aria-label="Seek"
-              aria-valuemin={0}
-              aria-valuemax={duration || 100}
-              aria-valuenow={currentTime}
-            >
-              {/* Visual bar - centered within touch target */}
-              <div className="absolute left-0 right-0 h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
-                <div
-                  className="h-full bg-[var(--accent-fill)] transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
+          <div
+            className={`relative group flex items-center ${shownTrack ? 'cursor-pointer' : ''}`}
+            style={{ height: '24px' }}
+            onClick={(e) => {
+              e.stopPropagation() // Prevent opening the modal
+              if (!shownTrack || !view.duration) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const percent = (e.clientX - rect.left) / rect.width
+              view.seek(Math.max(0, Math.min(1, percent)) * view.duration)
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation() // Prevent opening the modal
+              if (!shownTrack || !view.duration) return
+              const touch = e.touches[0]
+              const rect = e.currentTarget.getBoundingClientRect()
+              const percent = (touch.clientX - rect.left) / rect.width
+              view.seek(Math.max(0, Math.min(1, percent)) * view.duration)
+            }}
+            role="slider"
+            aria-label="Seek"
+            aria-valuemin={0}
+            aria-valuemax={view.duration || 100}
+            aria-valuenow={view.currentTime}
+          >
+            {/* Visual bar - centered within touch target */}
+            <div className="absolute left-0 right-0 h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
+              <div
+                className="h-full bg-[var(--accent-fill)] transition-all"
+                style={{ width: `${shownTrack ? progressPercent : 0}%` }}
+              />
             </div>
-          )}
+          </div>
         </div>
       </div>
       {showModal && (
@@ -925,7 +958,7 @@ export default function PlayerBar() {
           closeRef={closeModalRef}
         />
       )}
-      {showVolumePopover && volumePopoverPosition && !isIOS() && (
+      {showVolumePopover && volumePopoverPosition && !isIOS() && !view.isRemote && (
         <VolumeControl
           variant="vertical"
           onClose={() => setShowVolumePopover(false)}
@@ -933,7 +966,7 @@ export default function PlayerBar() {
         />
       )}
       <ContextMenu
-        item={(currentTrack || displayTrack) as import('../../api/types').BaseItemDto}
+        item={shownTrack as import('../../api/types').BaseItemDto}
         itemType="song"
         isOpen={contextMenuOpen}
         onClose={() => {

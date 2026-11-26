@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
+import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
@@ -114,7 +115,10 @@ export default function AlbumDetailPage() {
   const navigate = useNavigate()
   const hasAppBackground = useAppBackgroundActive()
   usePageBackgroundArt(id)
-  const { playAlbum, isPlaying, play, pause } = usePlayerStore()
+  const { playAlbum } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
+  const { play, pause } = shownPlayback
   const playSongWithQueue = usePlaySongWithQueue()
   const [album, setAlbum] = useState<BaseItemDto | null>(null)
   const [tracks, setTracks] = useState<BaseItemDto[]>([])

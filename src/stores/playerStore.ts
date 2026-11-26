@@ -82,6 +82,43 @@ export function clearPlaybackTrackingState() {
 
 export type { QueueSong }
 
+/**
+ * While this device controls another one, library actions (play an album,
+ * shuffle an artist, add to queue...) go to that device instead. Only actions
+ * a person starts are routed: transport (next, pause, seek) stays local here
+ * because the audio element, lock screen and sleep timer drive it too; the
+ * player UI sends those to the remote device itself.
+ */
+export interface RemotePlaybackDelegate {
+  playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[], options?: { shuffle?: boolean }) => void
+  playAlbum: (tracks: (BaseItemDto | LightweightSong)[], startIndex: number) => void
+  shuffleArtist: (songs: BaseItemDto[]) => void
+  shuffleAllSongs: (prependTracks?: (BaseItemDto | LightweightSong)[]) => void
+  shuffleGenreSongs: (genreId: string, genreName: string) => void
+  addToQueue: (tracks: BaseItemDto[], playNext: boolean) => void
+}
+
+let remoteDelegate: RemotePlaybackDelegate | null = null
+let localOnlyDepth = 0
+
+export function setRemotePlaybackDelegate(delegate: RemotePlaybackDelegate | null) {
+  remoteDelegate = delegate
+}
+
+/** Runs player actions on this device even while it controls another one (used for incoming commands). */
+export function runLocally<T>(fn: () => T): T {
+  localOnlyDepth++
+  try {
+    return fn()
+  } finally {
+    localOnlyDepth--
+  }
+}
+
+function getRemote(): RemotePlaybackDelegate | null {
+  return localOnlyDepth > 0 ? null : remoteDelegate
+}
+
 interface PlayerState {
   // Core queue data
   songs: QueueSong[]  // Single source of truth - all songs in playback order
@@ -139,6 +176,8 @@ interface PlayerState {
   addToQueue: (tracks: BaseItemDto[], playNext?: boolean, source?: 'user' | 'recommendation') => void
   addToQueueWithToast: (tracks: BaseItemDto[]) => void
   removeFromQueue: (index: number) => void
+  clearUpcoming: () => void
+  setQueueRecommendations: (enabled: boolean) => void
   reorderQueue: (fromIndex: number, toIndex: number) => void
 
   // Playback control
@@ -535,6 +574,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addToQueue: (tracks, playNext = false, source = 'user') => {
+        const remote = source === 'user' ? getRemote() : null
+        if (remote) return remote.addToQueue(tracks, playNext)
         get().cancelPreBuffer()
         set((state) => {
           const currentSong = state.currentIndex >= 0 ? state.songs[state.currentIndex] : null
@@ -565,6 +606,37 @@ export const usePlayerStore = create<PlayerState>()(
       reorderQueue: (fromIndex, toIndex) => {
         get().cancelPreBuffer()
         set((state) => computeReorderQueue(state, fromIndex, toIndex) ?? state)
+      },
+
+      // Drops the user-added songs after the current one, keeping recommendations
+      clearUpcoming: () => {
+        get().cancelPreBuffer()
+        set((state) => {
+          const songs = state.songs.filter((song, index) =>
+            index <= state.currentIndex || song.source === 'recommendation'
+          )
+          const userIds = songs.filter(s => s.source === 'user').map(s => s.Id)
+          return {
+            songs,
+            currentIndex: Math.min(state.currentIndex, songs.length - 1),
+            standardOrder: userIds,
+            shuffleOrder: userIds,
+          }
+        })
+      },
+
+      // The queue's Recommendations toggle: turning it off drops upcoming recommendations
+      setQueueRecommendations: (enabled) => {
+        useSettingsStore.getState().setShowQueueRecommendations(enabled)
+        if (enabled) return
+        get().cancelPreBuffer()
+        set((state) => {
+          const songs = state.songs.filter((song, index) =>
+            index <= state.currentIndex || song.source === 'user'
+          )
+          const userIds = songs.filter(s => s.source === 'user').map(s => s.Id)
+          return { songs, standardOrder: userIds, shuffleOrder: userIds }
+        })
       },
 
       play: () => {
@@ -837,6 +909,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playTrack: (track, queue, options) => {
+        const remote = getRemote()
+        if (remote) return remote.playTrack(track, queue, options)
         get().cancelPreBuffer()
 
         const shuffleRequested = options?.shuffle === true && !!queue?.length
@@ -874,6 +948,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       playAlbum: (tracks, startIndex = 0) => {
+        const remote = getRemote()
+        if (remote) return remote.playAlbum(tracks, startIndex)
         get().cancelPreBuffer()
         const songs = tracks.map(t => ({ ...t, source: 'user' as const }))
 
@@ -906,6 +982,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       shuffleArtist: (songs) => {
+        const remote = getRemote()
+        if (remote) return remote.shuffleArtist(songs)
         get().cancelPreBuffer()
         const standardSongs = songs.map(t => ({ ...t, source: 'user' as const }))
         const shuffled = shuffleArray(standardSongs)
@@ -928,6 +1006,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       shuffleAllSongs: async (prependTracks) => {
+        const remote = getRemote()
+        if (remote) return remote.shuffleAllSongs(prependTracks)
 
         // Clear the queue first
         get().clearQueue()
@@ -1124,6 +1204,8 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       shuffleGenreSongs: async (genreId, genreName) => {
+        const remote = getRemote()
+        if (remote) return remote.shuffleGenreSongs(genreId, genreName)
         // Clear the queue first
         get().clearQueue()
 

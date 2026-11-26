@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { usePageBackgroundArt } from '../../hooks/usePageBackgroundArt'
 import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackground'
 import { jellyfinClient } from '../../api/jellyfin'
+import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useStatsStore } from '../../stores/statsStore'
@@ -101,7 +102,10 @@ function getGroupingIcon(categoryKey: string): LucideIcon {
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playTrack, isPlaying, play, pause: pausePlayback } = usePlayerStore()
+  const { playTrack } = usePlayerStore()
+  // Follows the controlled device while another one is being controlled
+  const isPlaying = useShownIsPlaying()
+  const { play, pause: pausePlayback } = shownPlayback
   const currentTrack = useCurrentTrack()
   const isQueueSidebarOpen = usePlayerStore(state => state.isQueueSidebarOpen)
   const { pageVisibility } = useSettingsStore()

@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayer } from '../../hooks/usePlayer'
 import { useSettingsStore, ARTWORK_ACCENT } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import Image from '../shared/Image'
@@ -216,7 +217,9 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
     const [showSyncingMessage, setShowSyncingMessage] = useState(false)
     const draggingIndexRef = useRef<number | null>(null)
 
+    // The queue of this device, or of the device being controlled
     const {
+        isRemote,
         songs,
         currentIndex,
         isPlaying,
@@ -224,12 +227,23 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
         skipToTrack,
         removeFromQueue,
         reorderQueue,
-        isFetchingRecommendations,
-        isLoadingMoreSongs,
         repeat,
-    } = usePlayerStore()
+        showQueueRecommendations,
+        setQueueRecommendations,
+        clearUpcoming,
+    } = usePlayer()
+    // Loading states are this device's own
+    const localIsFetchingRecommendations = usePlayerStore(s => s.isFetchingRecommendations)
+    const localIsLoadingMoreSongs = usePlayerStore(s => s.isLoadingMoreSongs)
+    const isFetchingRecommendations = !isRemote && localIsFetchingRecommendations
+    const isLoadingMoreSongs = !isRemote && localIsLoadingMoreSongs
 
-    const { showQueueRecommendations, setShowQueueRecommendations, recommendationsQuality } = useSettingsStore()
+    const { recommendationsQuality: localRecommendationsQuality } = useSettingsStore()
+    const recommendationsQuality = isRemote ? null : localRecommendationsQuality
+
+    // Drag handlers read the latest queue without re-creating on every change
+    const songsRef = useRef(songs)
+    songsRef.current = songs
 
     // Stable callbacks for memoized QueueTrackItem
     const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -265,7 +279,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
         }
         // Prevent dropping across user-added / recommendation boundary
         const fromIdx = draggingIndexRef.current ?? dragIndex
-        const currentSongs = usePlayerStore.getState().songs
+        const currentSongs = songsRef.current
         const fromTrack = currentSongs[fromIdx]
         const toTrack = currentSongs[dropIndex]
         if (fromTrack && toTrack && fromTrack.source !== toTrack.source) {
@@ -293,7 +307,7 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
     const handleDragEnterRow = useCallback((index: number) => {
         // Only show drop indicator when dragging within the same section
         if (draggingIndexRef.current == null) return
-        const currentSongs = usePlayerStore.getState().songs
+        const currentSongs = songsRef.current
         const fromTrack = currentSongs[draggingIndexRef.current]
         const toTrack = currentSongs[index]
         if (!fromTrack || !toTrack) return
@@ -480,23 +494,8 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                             Coming up
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                // Clear only coming up songs (user-added songs after current)
-                                                const songsToKeep = songs.filter((song, index) =>
-                                                    index <= currentIndex || song.source === 'recommendation'
-                                                )
-                                                // Rebuild the queue
-                                                const newSongs = songsToKeep
-                                                const newCurrentIndex = Math.min(currentIndex, newSongs.length - 1)
-
-                                                // Update player store
-                                                usePlayerStore.setState({
-                                                    songs: newSongs,
-                                                    currentIndex: newCurrentIndex,
-                                                    standardOrder: newSongs.filter(s => s.source === 'user').map(s => s.Id),
-                                                    shuffleOrder: newSongs.filter(s => s.source === 'user').map(s => s.Id),
-                                                })
-                                            }}
+                                            // Clear only coming up songs (user-added songs after current)
+                                            onClick={clearUpcoming}
                                             className="text-xs font-semibold text-white/80 hover:opacity-80 transition-opacity tracking-wider"
                                         >
                                             Clear
@@ -537,27 +536,8 @@ export default function QueueList({ onNavigateFromContextMenu, header }: QueueLi
                                     </div>
                                     <button
                                         disabled={repeat !== 'off'}
-                                        onClick={() => {
-                                            const newValue = !showQueueRecommendations
-                                            setShowQueueRecommendations(newValue)
-                                            if (!newValue) {
-                                                // Only remove FUTURE recommendations (after current index)
-                                                // Keep the currently playing song and all previous songs (including played recommendations)
-                                                const songsToKeep = songs.filter((song, index) => {
-                                                    // Keep all songs up to and including current
-                                                    if (index <= currentIndex) return true
-                                                    // Keep future user-added songs
-                                                    return song.source === 'user'
-                                                })
-                                                // Current index stays the same since we only removed songs after it
-                                                usePlayerStore.setState({
-                                                    songs: songsToKeep,
-                                                    currentIndex: currentIndex,
-                                                    standardOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
-                                                    shuffleOrder: songsToKeep.filter(s => s.source === 'user').map(s => s.Id),
-                                                })
-                                            }
-                                        }}
+                                        // Turning it off removes upcoming recommendations, keeping played ones
+                                        onClick={() => setQueueRecommendations(!showQueueRecommendations)}
                                         className={`relative w-12 h-6 rounded-full transition-colors ${showQueueRecommendations && repeat === 'off' ? 'bg-[var(--accent-fill)]' : 'bg-white/30'
                                             } ${repeat !== 'off' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >

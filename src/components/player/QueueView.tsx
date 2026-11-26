@@ -1,4 +1,4 @@
-import { usePlayerStore } from '../../stores/playerStore'
+import { usePlayer } from '../../hooks/usePlayer'
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1 } from 'lucide-react'
 import QueueList from './QueueList'
 
@@ -19,7 +19,7 @@ export default function QueueView({ onNavigateFromContextMenu }: QueueViewProps)
     toggleRepeat,
     next,
     previous,
-  } = usePlayerStore()
+  } = usePlayer()
 
   // Check if there are songs after/before current (accounting for repeat mode)
   const hasNext = songs.length > 0 && (currentIndex < 0 || currentIndex < songs.length - 1 || repeat !== 'off')

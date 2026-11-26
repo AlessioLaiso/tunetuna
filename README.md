@@ -17,6 +17,7 @@ A Jellyfin music client, built as a mobile-first self-hostable progressive web a
   - Search by name and filter by genre and year.
   - Queue management with optional recommendations for similar songs.
   - Background playback support, also on mobile.
+  - Control playback on your other devices: when Tunetuna is open on another device with the same account, pick it from the devices button in the player to control what plays there. Every device can still play on its own.
   - Customizable accent color.
   - Artist and album pages with images and text info, when provided by the Jellyfin server.
   - Quick way to shuffle all songs by an artist or in a genre.

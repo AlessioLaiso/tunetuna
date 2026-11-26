@@ -17,7 +17,6 @@ export const VPN_IP_REGEX = /^https?:\/\/100\.\d+\.\d+\.\d+/
 
 // App info for API headers
 export const APP_CLIENT_NAME = 'Tunetuna'
-export const APP_DEVICE_TYPE = 'Web'
 export const APP_VERSION = '1.0.0'
 
 // Store persistence keys — referenced in store definitions and authStore.logout()

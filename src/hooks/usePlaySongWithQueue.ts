@@ -3,6 +3,7 @@ import { jellyfinClient } from '../api/jellyfin'
 import type { BaseItemDto, LightweightSong } from '../api/types'
 import { useMusicStore } from '../stores/musicStore'
 import { usePlayerStore } from '../stores/playerStore'
+import { getEffectiveShuffle } from './usePlayer'
 
 type QueueItem = BaseItemDto | LightweightSong
 
@@ -45,6 +46,7 @@ export function usePlaySongWithQueue() {
     if (!queue.length) return
 
     const clicked = queue.find(s => s.Id === clickedSongId) || queue[0]
-    playTrack(clicked, queue, { shuffle: usePlayerStore.getState().shuffle })
+    // Follows the shuffle button of the device being controlled
+    playTrack(clicked, queue, { shuffle: getEffectiveShuffle() })
   }, [playTrack])
 }
