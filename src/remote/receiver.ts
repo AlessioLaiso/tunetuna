@@ -11,11 +11,12 @@ import { logger } from '../utils/logger'
 import {
   decodeRemoteMessage,
   encodeRemoteMessage,
+  MAX_PLAY_IDS,
   QUEUE_WINDOW_AFTER,
   QUEUE_WINDOW_BEFORE,
 } from './protocol'
-import type { RemoteCommand, RemoteStateMessage, RepeatMode } from './protocol'
-import { handleRemoteState, handleSessions, refreshSessions, resetRemote, useRemoteStore } from './remoteStore'
+import type { HandoffStateMessage, RemoteCommand, RemoteStateMessage, RepeatMode } from './protocol'
+import { handleHandoffState, handleRemoteState, handleSessions, refreshSessions, resetRemote, useRemoteStore } from './remoteStore'
 
 /**
  * Makes this device visible to and controllable by the user's other Tunetuna
@@ -150,6 +151,7 @@ function handleGeneralCommand(data: { Name?: string; Arguments?: Record<string, 
       const message = decodeRemoteMessage(args.String)
       if (!message) return
       if (message.op === 'state') handleRemoteState(message)
+      else if (message.op === 'handoffState') void handleHandoffState(message)
       else void handleRemoteCommand(message)
       return
     }
@@ -185,6 +187,9 @@ async function handleRemoteCommand(command: RemoteCommand) {
       return
     case 'unsubscribe':
       subscribers.delete(command.replyTo)
+      return
+    case 'handoff':
+      if (command.replyTo) await handOff(command.replyTo)
       return
     case 'playTrack': {
       const tracks = await resolveTracks(command.ids)
@@ -239,6 +244,48 @@ async function handleRemoteCommand(command: RemoteCommand) {
     case 'setRecommendations':
       player().setQueueRecommendations(command.enabled)
       return
+  }
+}
+
+/** Pauses here and sends the queue to the device that continues playback. */
+async function handOff(replyTo: string) {
+  logger.debug('[remote] Handoff requested by', replyTo)
+  const from = await ensureSelfSessionId()
+  if (!from) {
+    logger.warn('[remote] Handoff: own session Id unknown, cannot reply')
+    return
+  }
+  const player = usePlayerStore.getState()
+  // Read the position before the pause fade moves it
+  const message = buildHandoffState(from)
+  if (player.isPlaying) runLocally(() => player.pauseWithFade())
+  try {
+    await jellyfinClient.sendGeneralCommand(replyTo, 'SendString', { String: encodeRemoteMessage(message) })
+  } catch (error) {
+    logger.warn('[remote] Handoff reply failed', error)
+  }
+}
+
+function buildHandoffState(from: string): HandoffStateMessage {
+  const player = usePlayerStore.getState()
+  let songs = player.songs
+  let currentIndex = player.currentIndex
+  const capped = songs.length > MAX_PLAY_IDS
+  if (capped) {
+    const start = Math.max(0, Math.min(currentIndex - Math.floor(MAX_PLAY_IDS / 4), songs.length - MAX_PLAY_IDS))
+    songs = songs.slice(start, start + MAX_PLAY_IDS)
+    currentIndex = currentIndex >= 0 ? currentIndex - start : -1
+  }
+  return {
+    op: 'handoffState',
+    from,
+    items: songs.map(s => s.Id),
+    sources: songs.map(s => (s.source === 'recommendation' ? 'r' : 'u')).join(''),
+    currentIndex,
+    position: player.currentTime,
+    shuffle: player.shuffle,
+    repeat: player.repeat,
+    ...(player.shuffle && !capped ? { standardOrder: player.standardOrder } : {}),
   }
 }
 

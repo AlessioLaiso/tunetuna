@@ -33,9 +33,30 @@ export interface RemoteStateMessage {
   showRecommendations: boolean
 }
 
+/**
+ * Sent by a device in reply to `handoff`, after pausing: its whole queue
+ * (capped around the current song) so the asking device continues from there.
+ */
+export interface HandoffStateMessage {
+  op: 'handoffState'
+  from: string
+  items: string[]
+  /** One character per item: 'u' user-added, 'r' recommendation */
+  sources: string
+  /** Index into items, -1 when nothing is loaded */
+  currentIndex: number
+  position: number
+  shuffle: boolean
+  repeat: RepeatMode
+  /** User songs in standard (unshuffled) order, sent while shuffled and the queue wasn't capped */
+  standardOrder?: string[]
+}
+
 export type RemoteCommand =
   | { op: 'subscribe'; replyTo: string }
   | { op: 'unsubscribe'; replyTo: string }
+  /** Pause and send the queue to `replyTo`, which continues playback itself */
+  | { op: 'handoff'; replyTo: string }
   | { op: 'playTrack'; ids: string[]; index: number; shuffle: boolean }
   | { op: 'playAlbum'; ids: string[]; index: number }
   | { op: 'shuffleArtist'; ids: string[] }
@@ -49,7 +70,7 @@ export type RemoteCommand =
   | { op: 'clearUpcoming' }
   | { op: 'setRecommendations'; enabled: boolean }
 
-export type RemoteMessage = RemoteCommand | RemoteStateMessage
+export type RemoteMessage = RemoteCommand | RemoteStateMessage | HandoffStateMessage
 
 const MARKER = 'tunetuna-remote'
 

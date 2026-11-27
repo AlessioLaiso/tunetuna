@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Laptop, Smartphone, Tablet, TabletSmartphone } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Laptop, Loader2, Play, Smartphone, Tablet, TabletSmartphone } from 'lucide-react'
 import ResponsiveModal from '../shared/ResponsiveModal'
-import { refreshSessions, useRemoteStore } from '../../remote/remoteStore'
+import { refreshSessions, takeOverPlayback, useRemoteStore } from '../../remote/remoteStore'
 import type { DeviceKind } from '../../remote/remoteStore'
 import { usePlayerStore } from '../../stores/playerStore'
 
@@ -25,6 +25,7 @@ export default function DevicePicker({ isOpen, onClose }: DevicePickerProps) {
   const selfName = useRemoteStore(s => s.selfName)
   const selfKind = useRemoteStore(s => s.selfKind)
   const selectDevice = useRemoteStore(s => s.selectDevice)
+  const handoffFrom = useRemoteStore(s => s.handoffFrom)
   const localTrack = usePlayerStore(s => (s.currentIndex >= 0 ? s.songs[s.currentIndex] ?? null : null))
   const localPlaying = usePlayerStore(s => s.isPlaying)
 
@@ -33,11 +34,22 @@ export default function DevicePicker({ isOpen, onClose }: DevicePickerProps) {
     if (isOpen) void refreshSessions()
   }, [isOpen])
 
+  // Close once playback has moved here (or the move failed, which shows a toast)
+  const wasHandingOff = useRef(false)
+  useEffect(() => {
+    if (handoffFrom) wasHandingOff.current = true
+    else if (wasHandingOff.current) {
+      wasHandingOff.current = false
+      onClose()
+    }
+  }, [handoffFrom, onClose])
+
   const rows = [
     {
       sessionId: null as string | null,
       name: `${selfName} (this device)`,
       kind: selfKind,
+      canTakeOver: false,
       detail: nowPlayingLabel(
         localTrack ? { title: localTrack.Name || '', artist: localTrack.ArtistItems?.[0]?.Name || localTrack.AlbumArtist || '' } : null,
         !localPlaying,
@@ -47,6 +59,7 @@ export default function DevicePicker({ isOpen, onClose }: DevicePickerProps) {
       sessionId: d.sessionId as string | null,
       name: d.name,
       kind: d.kind,
+      canTakeOver: d.nowPlaying !== null,
       detail: nowPlayingLabel(d.nowPlaying, d.isPaused),
     })),
   ]
@@ -60,34 +73,39 @@ export default function DevicePicker({ isOpen, onClose }: DevicePickerProps) {
     <ResponsiveModal isOpen={isOpen} onClose={onClose}>
       <div className="px-6 pb-6">
         <h3 className="text-white text-lg font-semibold mb-4">Control playback on</h3>
-        <div className="flex flex-col gap-1" role="radiogroup" aria-label="Device">
+        <div className="flex flex-col gap-1">
           {rows.map(row => {
             const selected = row.sessionId === targetSessionId
             const Icon = KIND_ICONS[row.kind]
+            const handingOff = row.sessionId !== null && row.sessionId === handoffFrom
             return (
-              <button
+              <div
                 key={row.sessionId ?? 'self'}
-                role="radio"
-                aria-checked={selected}
-                onClick={() => handleSelect(row.sessionId)}
-                className={`w-full flex items-center gap-3 text-left px-4 py-3 rounded-lg transition-colors ${
-                  selected ? 'bg-white/10' : 'hover:bg-white/15'
-                }`}
+                className={`flex items-center rounded-lg transition-colors ${selected ? 'bg-white/10' : 'hover:bg-white/15'}`}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${selected ? 'text-[var(--accent-color)]' : 'text-white/60'}`} />
-                <div className="min-w-0 flex-1">
-                  <div className={`text-sm truncate ${selected ? 'text-[var(--accent-color)]' : 'text-white'}`}>{row.name}</div>
-                  <div className="text-xs text-white/50 truncate">{row.detail}</div>
-                </div>
-                <span
-                  className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                    selected ? 'border-[var(--accent-color)]' : 'border-white/40'
-                  }`}
-                  aria-hidden="true"
+                <button
+                  aria-pressed={selected}
+                  onClick={() => handleSelect(row.sessionId)}
+                  className="min-w-0 flex-1 flex items-center gap-3 text-left px-4 py-3"
                 >
-                  {selected && <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-fill)]" />}
-                </span>
-              </button>
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${selected ? 'text-[var(--accent-color)]' : 'text-white/60'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-sm truncate ${selected ? 'text-[var(--accent-color)]' : 'text-white'}`}>{row.name}</div>
+                    <div className="text-xs text-white/50 truncate">{row.detail}</div>
+                  </div>
+                </button>
+                {row.canTakeOver && row.sessionId && (
+                  <button
+                    onClick={() => void takeOverPlayback(row.sessionId!)}
+                    disabled={handoffFrom !== null}
+                    aria-label="Play on this device"
+                    title="Play on this device"
+                    className="flex-shrink-0 mr-2 p-2 rounded-full text-white hover:text-[var(--accent-color)] disabled:opacity-50 disabled:hover:text-white transition-colors"
+                  >
+                    {handingOff ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>

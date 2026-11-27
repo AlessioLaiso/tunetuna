@@ -197,6 +197,8 @@ interface PlayerState {
   playTrack: (track: BaseItemDto | LightweightSong, queue?: (BaseItemDto | LightweightSong)[], options?: { shuffle?: boolean }) => void
   playAlbum: (tracks: (BaseItemDto | LightweightSong)[], startIndex?: number) => void
   playNext: (tracks: BaseItemDto[]) => void
+  /** Continues a queue handed over by another device, from `position` in its current song. */
+  resumeQueue: (songs: QueueSong[], currentIndex: number, position: number, options: { shuffle: boolean; repeat: 'off' | 'all' | 'one'; standardOrder?: string[] }) => void
   shuffleArtist: (songs: BaseItemDto[]) => void
   shuffleAllSongs: (prependTracks?: (BaseItemDto | LightweightSong)[]) => Promise<void>
   shuffleGenreSongs: (genreId: string, genreName: string) => Promise<void>
@@ -969,6 +971,33 @@ export const usePlayerStore = create<PlayerState>()(
 
         // Start playback
         get().play()
+      },
+
+      resumeQueue: (songs, currentIndex, position, options) => {
+        get().cancelPreBuffer()
+        const userIds = songs.filter(s => s.source === 'user').map(s => s.Id)
+        const index = Math.min(Math.max(currentIndex, 0), songs.length - 1)
+        set({
+          songs,
+          standardOrder: options.standardOrder ?? userIds,
+          shuffleOrder: userIds,
+          currentIndex: index,
+          previousIndex: index > 0 ? index - 1 : -1,
+          shuffle: options.shuffle,
+          repeat: options.repeat,
+          isPlaying: false,
+          currentTime: 0,
+          duration: 0,
+          manuallyCleared: false,
+        })
+        get().play()
+
+        if (position <= 0) return
+        const audio = get().audioElement
+        if (!audio) return
+        const seekWhenReady = () => get().seek(position)
+        if (audio.readyState >= 1) seekWhenReady()
+        else audio.addEventListener('loadedmetadata', seekWhenReady, { once: true })
       },
 
       playNext: (tracks) => {

@@ -5,13 +5,13 @@ import { TICKS_PER_SECOND } from '../api/sessionTypes'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from '../stores/musicStore'
 import { useToastStore } from '../stores/toastStore'
-import { setRemotePlaybackDelegate } from '../stores/playerStore'
+import { runLocally, setRemotePlaybackDelegate, usePlayerStore } from '../stores/playerStore'
 import type { QueueSong } from '../stores/playerStore'
 import { APP_CLIENT_NAME } from '../utils/constants'
 import { getDeviceName } from '../utils/deviceName'
 import { logger } from '../utils/logger'
 import { encodeRemoteMessage, MAX_PLAY_IDS } from './protocol'
-import type { RemoteCommand, RemoteStateMessage, RepeatMode } from './protocol'
+import type { HandoffStateMessage, RemoteCommand, RemoteStateMessage, RepeatMode } from './protocol'
 
 export type DeviceKind = 'phone' | 'tablet' | 'computer'
 
@@ -59,6 +59,8 @@ interface RemoteState {
   /** The device being controlled; null = this device */
   targetSessionId: string | null
   remote: RemotePlayback | null
+  /** The device whose playback is being moved here, while waiting for its queue */
+  handoffFrom: string | null
   selectDevice: (sessionId: string | null) => void
 }
 
@@ -86,6 +88,7 @@ export const useRemoteStore = create<RemoteState>()((set, get) => ({
   devices: [],
   targetSessionId: null,
   remote: null,
+  handoffFrom: null,
 
   selectDevice: (sessionId) => {
     const previous = get().targetSessionId
@@ -280,6 +283,90 @@ function applyState(message: RemoteStateMessage) {
 }
 
 // ============================================================================
+// Moving playback to this device
+// ============================================================================
+
+/** How long to wait for the other device's queue before giving up. */
+const HANDOFF_TIMEOUT_MS = 10_000
+let handoffTimeout: ReturnType<typeof setTimeout> | null = null
+
+/** Asks another device to stop and hand its queue over, then plays it here. */
+export async function takeOverPlayback(sessionId: string) {
+  const state = useRemoteStore.getState()
+  const selfSessionId = state.selfSessionId
+  if (!selfSessionId || state.handoffFrom) return
+  const name = state.devices.find(d => d.sessionId === sessionId)?.name ?? 'the other device'
+
+  useRemoteStore.setState({ handoffFrom: sessionId })
+  handoffTimeout = setTimeout(() => {
+    if (useRemoteStore.getState().handoffFrom !== sessionId) return
+    useRemoteStore.setState({ handoffFrom: null })
+    useToastStore.getState().addToast(`${name} didn't respond. It may need to reload to get the latest Tunetuna.`, 'error', 5000)
+  }, HANDOFF_TIMEOUT_MS)
+
+  logger.debug('[remote] Requesting handoff from', sessionId, 'reply to', selfSessionId)
+  try {
+    await jellyfinClient.sendGeneralCommand(sessionId, 'SendString', {
+      String: encodeRemoteMessage({ op: 'handoff', replyTo: selfSessionId }),
+    })
+  } catch (error) {
+    logger.warn('[remote] Handoff request failed', error)
+    endHandoff()
+    useToastStore.getState().addToast(`Couldn't reach ${name}`, 'error', 3000)
+  }
+}
+
+function endHandoff() {
+  if (handoffTimeout) clearTimeout(handoffTimeout)
+  handoffTimeout = null
+  useRemoteStore.setState({ handoffFrom: null })
+}
+
+/** The other device's queue arrived: continue it here. */
+export async function handleHandoffState(message: HandoffStateMessage) {
+  logger.debug('[remote] Handoff state received', message.from, message.items.length)
+  if (message.from !== useRemoteStore.getState().handoffFrom) return
+  // The device answered; fetching its songs can take longer than the timeout
+  if (handoffTimeout) clearTimeout(handoffTimeout)
+  handoffTimeout = null
+
+  const missing = [...new Set(message.items.filter(id => !lookupTrack(id)))]
+  if (missing.length) {
+    try {
+      const items = await jellyfinClient.getItemsByIds(missing)
+      items.forEach(item => fetchedTracks.set(item.Id, item))
+    } catch (error) {
+      logger.warn('[remote] Failed to fetch handed-over songs', error)
+    }
+  }
+  // Cancelled (logout) while fetching
+  if (message.from !== useRemoteStore.getState().handoffFrom) return
+  endHandoff()
+
+  const current = message.items[message.currentIndex]
+  const songs: QueueSong[] = []
+  let currentIndex = -1
+  message.items.forEach((id, i) => {
+    const track = lookupTrack(id)
+    if (!track) return
+    if (i === message.currentIndex) currentIndex = songs.length
+    songs.push({ ...track, source: message.sources[i] === 'r' ? 'recommendation' : 'user' } as QueueSong)
+  })
+  if (songs.length === 0 || (current && currentIndex === -1)) {
+    useToastStore.getState().addToast("Couldn't load the other device's queue", 'error', 3000)
+    return
+  }
+
+  // Playback now lives here, not on whichever device was being controlled
+  useRemoteStore.getState().selectDevice(null)
+  runLocally(() => usePlayerStore.getState().resumeQueue(songs, currentIndex, message.position, {
+    shuffle: message.shuffle,
+    repeat: message.repeat,
+    standardOrder: message.standardOrder,
+  }))
+}
+
+// ============================================================================
 // Outgoing commands
 // ============================================================================
 
@@ -449,6 +536,7 @@ const remoteDelegate = {
 /** Forget everything (logout). */
 export function resetRemote() {
   useRemoteStore.getState().selectDevice(null)
+  endHandoff()
   useRemoteStore.setState({ devices: [], selfSessionId: null, remote: null })
   fetchedTracks.clear()
 }
