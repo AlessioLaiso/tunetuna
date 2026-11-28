@@ -4,6 +4,7 @@ import { ArrowUpDown, ChevronDown, Settings, Play, Shuffle, ListStart, ListEnd, 
 import { useCollectionStore, type CollectionSortMode } from '../../stores/collectionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useStatsStore } from '../../stores/statsStore'
 import { useToastStore } from '../../stores/toastStore'
 import { useLibraryLookup } from '../../hooks/useLibraryLookup'
@@ -45,7 +46,7 @@ export default function CollectionPage() {
   const suppressClickRef = useRef(false)
 
   const { fetchReleaseDetail, releaseDetailCache } = useCollectionStore()
-  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore(useShallow(s => ({ playTrack: s.playTrack, playAlbum: s.playAlbum, addToQueueWithToast: s.addToQueueWithToast, playNext: s.playNext })))
   const { logStream } = useStatsStore()
   const { addToast } = useToastStore()
   const { findSongWithAlbumHint } = useLibraryLookup()

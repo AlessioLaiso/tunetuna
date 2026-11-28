@@ -211,6 +211,12 @@ button {
   animation: rotate 0.5s ease-in-out;
 }
 
+/* Vinyl discs and cassette wheels: one turn per 10s. Pause with animation-play-state so the
+   angle is kept, and so the browser animates it without re-rendering anything. */
+.spin-slow {
+  animation: rotate 10s linear infinite;
+}
+
 /* A light head shake ("no"), then fade out: the lyrics button when no lyrics were found */
 @keyframes shakeNoFadeOut {
   0%, 60% { opacity: 1; }

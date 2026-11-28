@@ -44,7 +44,9 @@ export default function SearchBar({ onSearchStateChange, title = 'Search' }: Sea
 
 
   // Player functions
-  const { addToQueue, shuffleAllSongs, isQueueSidebarOpen } = usePlayerStore()
+  const addToQueue = usePlayerStore(s => s.addToQueue)
+  const shuffleAllSongs = usePlayerStore(s => s.shuffleAllSongs)
+  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const playSongWithQueue = usePlaySongWithQueue()
 
   // Loading state for shuffle button

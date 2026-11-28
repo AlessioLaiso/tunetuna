@@ -8,7 +8,8 @@ import QueueSidebarPanel from './QueueSidebarPanel'
 import { useAppBackgroundActive } from '../../hooks/useAppBackground'
 
 export default function QueueSidebar() {
-    const { isQueueSidebarOpen, toggleQueueSidebar } = usePlayerStore()
+    const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
+    const toggleQueueSidebar = usePlayerStore(s => s.toggleQueueSidebar)
     const hasAppBackground = useAppBackgroundActive()
 
     // Close sidebar on escape

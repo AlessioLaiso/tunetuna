@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import { createLocalStorage } from '../utils/storage'
 import { jellyfinClient } from '../api/jellyfin'
 import { clearPlaybackTrackingState } from './playerStore'
 import { clearArtistImageCache } from '../utils/artistImageCache'
@@ -88,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: STORE_KEYS.auth,
+      storage: createLocalStorage<AuthState>(),
       onRehydrateStorage: () => (state) => {
         if (state?.isAuthenticated && state.serverUrl && state.accessToken && state.userId) {
           // Set credentials immediately with the remote URL so the app is usable right away

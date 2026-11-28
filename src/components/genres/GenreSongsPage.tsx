@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useMusicStore } from '../../stores/musicStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useSyncStore } from '../../stores/syncStore'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
 import SongItem from '../songs/SongItem'
@@ -29,7 +30,7 @@ export default function GenreSongsPage() {
   const { id: rawId } = useParams<{ id: string }>()
   const id = rawId ? decodeURIComponent(rawId) : undefined
   const navigate = useNavigate()
-  const { playAlbum, shuffleGenreSongs, addToQueue } = usePlayerStore()
+  const { playAlbum, shuffleGenreSongs, addToQueue } = usePlayerStore(useShallow(s => ({ playAlbum: s.playAlbum, shuffleGenreSongs: s.shuffleGenreSongs, addToQueue: s.addToQueue })))
   const { genres, genreSongs, setGenreSongs } = useMusicStore()
   const { state: syncState } = useSyncStore()
   const [genre, setGenre] = useState<BaseItemDto | null>(null)

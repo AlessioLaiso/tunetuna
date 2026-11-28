@@ -5,6 +5,7 @@ import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
 import { remoteControls, remotePosition, useRemoteStore } from '../../remote/remoteStore'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { jellyfinClient } from '../../api/jellyfin'
 import { getLrclibLyrics } from '../../api/lrclib'
@@ -110,7 +111,7 @@ function WordSyncedLine({ line, time }: { line: LyricsLine; time: number }) {
 export default function LyricsModal() {
   const currentTrack = useLocalCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()
-  const { isQueueSidebarOpen, currentTime: localTime, isPlaying: localPlaying } = usePlayerStore()
+  const { isQueueSidebarOpen, currentTime: localTime, isPlaying: localPlaying } = usePlayerStore(useShallow(s => ({ isQueueSidebarOpen: s.isQueueSidebarOpen, currentTime: s.currentTime, isPlaying: s.isPlaying })))
 
   // While controlling another device, follow what plays there
   const isRemote = useRemoteStore(s => s.targetSessionId !== null)

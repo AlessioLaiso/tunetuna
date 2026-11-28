@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import { createLocalStorage } from '../utils/storage'
 import { STORE_KEYS } from '../utils/constants'
 import { ARTWORK_ACCENT, DEFAULT_THEME, THEME_ACCENT, getTheme } from '../utils/themes'
 
@@ -160,6 +161,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: STORE_KEYS.settings,
+      storage: createLocalStorage<SettingsState>(),
     }
   ), { name: 'settingsStore' })
 )

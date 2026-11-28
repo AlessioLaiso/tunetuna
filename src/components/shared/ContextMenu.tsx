@@ -11,6 +11,7 @@ import PlaylistFormModal from '../playlists/PlaylistFormModal'
 import { jellyfinClient } from '../../api/jellyfin'
 import { createSearchLinksResponse, type OdesliResponse } from '../../api/feed'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useSyncStore } from '../../stores/syncStore'
 import { useMusicStore } from '../../stores/musicStore'
 import { useStatsStore } from '../../stores/statsStore'
@@ -94,7 +95,7 @@ export default function ContextMenu({ item, itemType, isOpen, onClose, zIndex, o
   const [duplicateSongIds, setDuplicateSongIds] = useState<string[]>([])
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null)
   const [duplicateHasImage, setDuplicateHasImage] = useState(false)
-  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, shuffleAllSongs } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext, shuffleArtist, shuffleAllSongs } = usePlayerStore(useShallow(s => ({ playTrack: s.playTrack, playAlbum: s.playAlbum, addToQueueWithToast: s.addToQueueWithToast, playNext: s.playNext, shuffleArtist: s.shuffleArtist, shuffleAllSongs: s.shuffleAllSongs })))
   const startSync = useSyncStore(s => s.startSync)
   const completeSync = useSyncStore(s => s.completeSync)
   const genres = useMusicStore(s => s.genres)

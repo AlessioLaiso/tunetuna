@@ -5,6 +5,7 @@ import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackgr
 import { jellyfinClient } from '../../api/jellyfin'
 import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList } from '../../hooks/useIsQueueList'
 import { useScrollLazyLoad } from '../../hooks/useScrollLazyLoad'
@@ -273,7 +274,7 @@ export default function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const navigationType = useNavigationType()
-  const { addToQueue, shuffleArtist } = usePlayerStore()
+  const { addToQueue, shuffleArtist } = usePlayerStore(useShallow(s => ({ addToQueue: s.addToQueue, shuffleArtist: s.shuffleArtist })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const { pause } = shownPlayback

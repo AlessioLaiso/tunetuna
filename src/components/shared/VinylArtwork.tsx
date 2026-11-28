@@ -12,7 +12,6 @@ interface VinylArtworkProps {
   // Vinyl animation state (from useVinylAnimation)
   showVinyl: boolean
   hideAlbumArt: boolean
-  rotationAngle: number
   shouldSplitRef: React.MutableRefObject<boolean>
   isPlaying: boolean
   // Display
@@ -32,7 +31,6 @@ export default function VinylArtwork({
   hasArtistLogo,
   showVinyl,
   hideAlbumArt,
-  rotationAngle,
   shouldSplitRef,
   isPlaying,
   isCassette = false,
@@ -66,8 +64,8 @@ export default function VinylArtwork({
           }}
         >
           <div
-            className="w-full h-full"
-            style={{ transformOrigin: 'center center', transform: `rotate(${rotationAngle}deg)` }}
+            className="w-full h-full spin-slow"
+            style={{ transformOrigin: 'center center', animationPlayState: isPlaying ? 'running' : 'paused' }}
           >
             {discImageUrl ? (
               <img

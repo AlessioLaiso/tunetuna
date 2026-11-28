@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import { createLocalStorage } from '../utils/storage'
 import {
   fetchDiscogsIdentity,
   fetchDiscogsCollection,
@@ -138,6 +139,7 @@ export const useCollectionStore = create<CollectionState>()(devtools(persist((se
   setViewMode: (mode) => set({ viewMode: mode }),
 }), {
   name: STORE_KEYS.collection,
+  storage: createLocalStorage<CollectionState>(),
   partialize: (state) => ({
     sortMode: state.sortMode,
     viewMode: state.viewMode,

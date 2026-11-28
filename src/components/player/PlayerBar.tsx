@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { logger } from '../../utils/logger'
 import { useStatsStore } from '../../stores/statsStore'
 import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
-import { usePlayer } from '../../hooks/usePlayer'
+import { usePlayer, usePlayerTime } from '../../hooks/usePlayer'
 import { useRemoteStore } from '../../remote/remoteStore'
 import { DevicesButton } from './DevicePicker'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
@@ -39,11 +40,12 @@ export default function PlayerBar() {
     setNextAudioElement,
     preBufferNextTrack,
     overlapSwap,
-  } = usePlayerStore()
+  } = usePlayerStore(useShallow(s => ({ songs: s.songs, isPlaying: s.isPlaying, currentTime: s.currentTime, duration: s.duration, audioElement: s.audioElement, setAudioElement: s.setAudioElement, togglePlayPause: s.togglePlayPause, next: s.next, setCurrentTime: s.setCurrentTime, setDuration: s.setDuration, playTrack: s.playTrack, previous: s.previous, isQueueSidebarOpen: s.isQueueSidebarOpen, toggleQueueSidebar: s.toggleQueueSidebar, setNextAudioElement: s.setNextAudioElement, preBufferNextTrack: s.preBufferNextTrack, overlapSwap: s.overlapSwap })))
 
   const currentTrack = useLocalCurrentTrack()
   // What the bar shows and controls: this device, or the one being controlled
   const view = usePlayer()
+  const shownTime = usePlayerTime()
   const hasOtherDevices = useRemoteStore(s => s.devices.length > 0)
   const lastPlayedTrack = useLastPlayedTrack()
   const hasAppBackground = useAppBackgroundActive()
@@ -453,7 +455,7 @@ export default function PlayerBar() {
     if (showModal && !shownTrack) handleCloseModal()
   }, [showModal, shownTrack])
 
-  const progressPercent = view.duration > 0 ? (view.currentTime / view.duration) * 100 : 0
+  const progressPercent = view.duration > 0 ? (shownTime / view.duration) * 100 : 0
 
   // Check if there's a next song available
   const hasNext = view.songs.length > 0 && (
@@ -468,7 +470,7 @@ export default function PlayerBar() {
   const hasPrevious =
     view.currentIndex > 0 ||
     (view.repeat === 'all' && view.songs.length > 0) ||
-    (view.songs.length > 0 && view.currentIndex >= 0 && view.currentTime > 3)
+    (view.songs.length > 0 && view.currentIndex >= 0 && shownTime > 3)
 
   // Handle volume popover opening
   const handleOpenVolumePopover = () => {
@@ -654,13 +656,13 @@ export default function PlayerBar() {
             aria-label="Seek"
             aria-valuemin={0}
             aria-valuemax={view.duration || 100}
-            aria-valuenow={view.currentTime}
+            aria-valuenow={shownTime}
           >
             {/* Visual bar - positioned at bottom of touch target to align with player bar top edge */}
             <div className="absolute left-0 right-0 bottom-[10px] h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
               <div
-                className="h-full bg-[var(--accent-fill)] transition-all"
-                style={{ width: `${progressPercent}%` }}
+                className="h-full w-full origin-left bg-[var(--accent-fill)] transition-transform"
+                style={{ transform: `scaleX(${progressPercent / 100})` }}
               />
             </div>
           </div>
@@ -712,7 +714,7 @@ export default function PlayerBar() {
                 {shownTrack && (
                   <>
                     <span className="flex-shrink-0">•</span>
-                    <span className="tabular-nums flex-shrink-0">{formatTime(view.currentTime)}/{formatTime(view.duration)}</span>
+                    <span className="tabular-nums flex-shrink-0">{formatTime(shownTime)}/{formatTime(view.duration)}</span>
                   </>
                 )}
               </div>
@@ -939,13 +941,13 @@ export default function PlayerBar() {
             aria-label="Seek"
             aria-valuemin={0}
             aria-valuemax={view.duration || 100}
-            aria-valuenow={view.currentTime}
+            aria-valuenow={shownTime}
           >
             {/* Visual bar - centered within touch target */}
             <div className="absolute left-0 right-0 h-1 bg-white/10 group-hover:bg-white/20 transition-colors duration-200">
               <div
-                className="h-full bg-[var(--accent-fill)] transition-all"
-                style={{ width: `${shownTrack ? progressPercent : 0}%` }}
+                className="h-full w-full origin-left bg-[var(--accent-fill)] transition-transform"
+                style={{ transform: `scaleX(${shownTrack ? progressPercent / 100 : 0})` }}
               />
             </div>
           </div>

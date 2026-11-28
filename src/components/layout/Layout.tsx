@@ -73,7 +73,7 @@ export default function Layout({ children }: LayoutProps) {
   const completeSync = useSyncStore(s => s.completeSync)
   const connection = useConnectionStatus()
 
-  const { isQueueSidebarOpen } = usePlayerStore()
+  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
   const autoSyncTriggered = useRef(false)
 
   // Blurred background art and artwork accent: the page's own item, else the track shown in the player bar

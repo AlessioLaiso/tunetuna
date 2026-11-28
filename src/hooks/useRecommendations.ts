@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useMusicStore } from '../stores/musicStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getRecommendedSongs } from '../utils/recommendations'
@@ -50,7 +51,7 @@ export function useRecommendations() {
     isFetchingRecommendations,
     setIsFetchingRecommendations,
     repeat,
-  } = usePlayerStore()
+  } = usePlayerStore(useShallow(s => ({ currentIndex: s.currentIndex, addToQueue: s.addToQueue, refreshCurrentTrack: s.refreshCurrentTrack, isFetchingRecommendations: s.isFetchingRecommendations, setIsFetchingRecommendations: s.setIsFetchingRecommendations, repeat: s.repeat })))
 
   // Use length for dependency to avoid re-running on every queue modification
   const songsLength = usePlayerStore(state => state.songs.length)

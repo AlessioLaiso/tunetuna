@@ -5,6 +5,7 @@ import { ArrowLeft, Play, Pause, MoreHorizontal, Shuffle, ListStart, ListEnd, Li
 import { useCollectionStore } from '../../stores/collectionStore'
 import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
 import { useStatsStore } from '../../stores/statsStore'
@@ -51,7 +52,7 @@ function CollectionTrackItem({
   contextMenuItemId: string | null
   trackNumberWidth: string
 }) {
-  const { playTrack } = usePlayerStore()
+  const { playTrack } = usePlayerStore(useShallow(s => ({ playTrack: s.playTrack })))
   const currentTrack = useCurrentTrack()
   const isMatched = !!track.libraryMatch
   const isQueueThisRelease = useIsQueueList(libraryMatches)
@@ -124,7 +125,7 @@ export default function CollectionDetailPage() {
   const { releaseId } = useParams<{ releaseId: string }>()
   const navigate = useNavigate()
   const { releases, fetchReleaseDetail } = useCollectionStore()
-  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore()
+  const { playTrack, playAlbum, addToQueueWithToast, playNext } = usePlayerStore(useShallow(s => ({ playTrack: s.playTrack, playAlbum: s.playAlbum, addToQueueWithToast: s.addToQueueWithToast, playNext: s.playNext })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const { play, pause } = shownPlayback
@@ -367,7 +368,7 @@ export default function CollectionDetailPage() {
   // The disc or cassette spins whenever any of the release's songs is playing.
   const isDiscSpinning = useIsCurrentTrackInList(libraryMatches) && isPlaying
 
-  const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
+  const { showVinyl, hideAlbumArt, shouldSplitRef } = useVinylAnimation({
     isPlaying: isDiscSpinning,
     hasImage,
     enabled: !isCassette,
@@ -541,7 +542,6 @@ export default function CollectionDetailPage() {
               hasArtistLogo={hasArtistLogo}
               showVinyl={showVinyl}
               hideAlbumArt={hideAlbumArt}
-              rotationAngle={rotationAngle}
               shouldSplitRef={shouldSplitRef}
               isPlaying={isDiscSpinning}
               isCassette={isCassette}

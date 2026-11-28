@@ -5,6 +5,7 @@ import { useAppBackgroundActive, HERO_FADE_MASK } from '../../hooks/useAppBackgr
 import { jellyfinClient } from '../../api/jellyfin'
 import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useStatsStore } from '../../stores/statsStore'
 import { useMusicStore } from '../../stores/musicStore'
@@ -102,7 +103,7 @@ function getGroupingIcon(categoryKey: string): LucideIcon {
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { playTrack } = usePlayerStore()
+  const { playTrack } = usePlayerStore(useShallow(s => ({ playTrack: s.playTrack })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const { play, pause: pausePlayback } = shownPlayback

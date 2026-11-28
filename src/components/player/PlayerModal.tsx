@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, useRef, type CSSProperties } from 'react'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useLocalCurrentTrack } from '../../hooks/useCurrentTrack'
-import { usePlayer } from '../../hooks/usePlayer'
+import { usePlayer, usePlayerTime } from '../../hooks/usePlayer'
 import { DevicesButton } from './DevicePicker'
 import { useLastPlayedTrack } from '../../hooks/useLastPlayedTrack'
 import { jellyfinClient } from '../../api/jellyfin'
@@ -102,7 +103,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     playTrack,
     isQueueSidebarOpen,
     toggleQueueSidebar,
-  } = usePlayerStore()
+  } = usePlayerStore(useShallow(s => ({ togglePlayPause: s.togglePlayPause, next: s.next, previous: s.previous, isPlaying: s.isPlaying, playTrack: s.playTrack, isQueueSidebarOpen: s.isQueueSidebarOpen, toggleQueueSidebar: s.toggleQueueSidebar })))
 
   // What the modal shows and controls: this device, or the one being controlled
   const {
@@ -110,7 +111,6 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     songs,
     currentIndex,
     isPlaying,
-    currentTime,
     duration,
     shuffle,
     repeat,
@@ -122,6 +122,7 @@ export default function PlayerModal({ onClose, onClosingStart, closeRef }: Playe
     toggleRepeat,
     currentTrack: viewTrack,
   } = usePlayer()
+  const currentTime = usePlayerTime()
 
   const localCurrentTrack = useLocalCurrentTrack()
   const lastPlayedTrack = useLastPlayedTrack()

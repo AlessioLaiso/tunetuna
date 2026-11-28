@@ -5,6 +5,7 @@ import { useStatsStore, type PlayEvent } from '../../stores/statsStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList } from '../../hooks/useIsQueueList'
@@ -17,7 +18,6 @@ import { useContextMenu } from '../../hooks/useContextMenu'
 import Image from '../shared/Image'
 import { SkeletonDetailPage } from '../shared/Skeleton'
 import { capitalizeFirst, formatDuration } from '../../utils/formatting'
-import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
 import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
@@ -53,7 +53,7 @@ export default function SmartPlaylistDetailPage() {
   const songs = useMemo(() => filterExcludedGenres(allSongs, excludedGenres), [allSongs, excludedGenres])
   const fetchEvents = useStatsStore(s => s.fetchEvents)
   const oldestEventTs = useStatsStore(s => s.oldestEventTs)
-  const { shuffleArtist } = usePlayerStore()
+  const { shuffleArtist } = usePlayerStore(useShallow(s => ({ shuffleArtist: s.shuffleArtist })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
@@ -158,7 +158,6 @@ export default function SmartPlaylistDetailPage() {
   // merely turns up during shuffle-all or another queue.
   const isListPlaying = useIsQueueList(tracks) && isPlaying
 
-  const wheelRotation = useCassetteWheelAnimation(isListPlaying)
 
   if (loading) {
     return <SkeletonDetailPage variant="art" />
@@ -192,6 +191,7 @@ export default function SmartPlaylistDetailPage() {
               {/* Left wheel */}
               <img
                 src={wheelImage}
+                className="spin-slow"
                 alt=""
                 style={{
                   position: 'absolute',
@@ -199,7 +199,7 @@ export default function SmartPlaylistDetailPage() {
                   height: `${WHEEL_SIZE_PERCENT}%`,
                   left: `${WHEEL_LEFT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
                   top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
-                  transform: `rotate(${wheelRotation}deg)`,
+                  animationPlayState: isListPlaying ? 'running' : 'paused',
                   transformOrigin: 'center center',
                   zIndex: 3,
                 }}
@@ -207,6 +207,7 @@ export default function SmartPlaylistDetailPage() {
               {/* Right wheel */}
               <img
                 src={wheelImage}
+                className="spin-slow"
                 alt=""
                 style={{
                   position: 'absolute',
@@ -214,7 +215,7 @@ export default function SmartPlaylistDetailPage() {
                   height: `${WHEEL_SIZE_PERCENT}%`,
                   left: `${WHEEL_RIGHT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
                   top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
-                  transform: `rotate(${wheelRotation}deg)`,
+                  animationPlayState: isListPlaying ? 'running' : 'paused',
                   transformOrigin: 'center center',
                   zIndex: 3,
                 }}

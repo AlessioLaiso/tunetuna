@@ -16,7 +16,7 @@ export default function HomePage() {
   const { showTop10, showNewReleases, showRecentlyPlayed, muspyRssUrl } = useSettingsStore()
   const hasAttemptedLoad = useRef(false)
 
-  const { isQueueSidebarOpen } = usePlayerStore()
+  const isQueueSidebarOpen = usePlayerStore(s => s.isQueueSidebarOpen)
 
   // Track if components have attempted to load
   useEffect(() => {

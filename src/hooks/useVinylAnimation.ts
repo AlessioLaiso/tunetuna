@@ -9,7 +9,6 @@ interface UseVinylAnimationOptions {
 interface UseVinylAnimationResult {
   showVinyl: boolean
   hideAlbumArt: boolean
-  rotationAngle: number
   shouldSplitRef: React.MutableRefObject<boolean>
 }
 
@@ -20,11 +19,7 @@ export function useVinylAnimation({
 }: UseVinylAnimationOptions): UseVinylAnimationResult {
   const [showVinyl, setShowVinyl] = useState(false)
   const [hideAlbumArt, setHideAlbumArt] = useState(false)
-  const [rotationAngle, setRotationAngle] = useState(0)
 
-  const rotationRef = useRef(0)
-  const animationFrameRef = useRef<number | null>(null)
-  const lastTimeRef = useRef(0)
   const shouldSplitRef = useRef(false)
   const hasInitializedRef = useRef(false)
   const reverseAnimationStartedRef = useRef(false)
@@ -98,34 +93,5 @@ export function useVinylAnimation({
     return () => window.removeEventListener('resize', handleResize)
   }, [isPlaying, showVinyl, hideAlbumArt])
 
-  // Rotation animation
-  useEffect(() => {
-    if (!enabled) return
-
-    if (isPlaying) {
-      const animate = (currentTime: number) => {
-        if (lastTimeRef.current === 0) lastTimeRef.current = currentTime
-        const deltaTime = currentTime - lastTimeRef.current
-        const rotationSpeed = 360 / 10000
-        rotationRef.current = (rotationRef.current + rotationSpeed * deltaTime) % 360
-        setRotationAngle(rotationRef.current)
-        lastTimeRef.current = currentTime
-        animationFrameRef.current = requestAnimationFrame(animate)
-      }
-      lastTimeRef.current = 0
-      animationFrameRef.current = requestAnimationFrame(animate)
-    } else {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      lastTimeRef.current = 0
-    }
-
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
-    }
-  }, [isPlaying, enabled])
-
-  return { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef }
+  return { showVinyl, hideAlbumArt, shouldSplitRef }
 }

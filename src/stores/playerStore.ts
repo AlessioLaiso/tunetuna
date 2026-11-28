@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import { createLocalStorage } from '../utils/storage'
 import type { BaseItemDto, LightweightSong } from '../api/types'
 import { jellyfinClient } from '../api/jellyfin'
 import { useMusicStore } from './musicStore'
@@ -1390,6 +1391,7 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: STORE_KEYS.player,
+      storage: createLocalStorage<PlayerState>(),
       partialize: (state) => ({
         // Core queue state
         songs: state.songs,

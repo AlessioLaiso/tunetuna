@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useShownIsPlaying, shownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
 import { useIsQueueList, useIsCurrentTrackInList } from '../../hooks/useIsQueueList'
@@ -115,7 +116,7 @@ export default function AlbumDetailPage() {
   const navigate = useNavigate()
   const hasAppBackground = useAppBackgroundActive()
   usePageBackgroundArt(id)
-  const { playAlbum } = usePlayerStore()
+  const { playAlbum } = usePlayerStore(useShallow(s => ({ playAlbum: s.playAlbum })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const { play, pause } = shownPlayback
@@ -144,7 +145,7 @@ export default function AlbumDetailPage() {
   // The disc spins whenever any of the album's songs is playing.
   const isDiscSpinning = useIsCurrentTrackInList(tracks) && isPlaying
 
-  const { showVinyl, hideAlbumArt, rotationAngle, shouldSplitRef } = useVinylAnimation({
+  const { showVinyl, hideAlbumArt, shouldSplitRef } = useVinylAnimation({
     isPlaying: isDiscSpinning,
     hasImage,
   })
@@ -417,7 +418,6 @@ export default function AlbumDetailPage() {
               hasArtistLogo={hasArtistLogo}
               showVinyl={showVinyl}
               hideAlbumArt={hideAlbumArt}
-              rotationAngle={rotationAngle}
               shouldSplitRef={shouldSplitRef}
               isPlaying={isDiscSpinning}
               onCoverError={() => setHasImage(false)}

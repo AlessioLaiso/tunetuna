@@ -1,5 +1,41 @@
-import type { StorageValue } from 'zustand/middleware'
+import { createJSONStorage, type PersistStorage, type StorageValue } from 'zustand/middleware'
+import { shallow } from 'zustand/shallow'
 import { logger } from './logger'
+
+// ============================================================================
+// Write skipping
+// ============================================================================
+
+/**
+ * Zustand's persist middleware writes after every set(), even when only transient fields changed
+ * (e.g. the playback position, a few times a second), serializing the whole persisted state each
+ * time. This skips the write when every persisted field is the same object as last written.
+ * Relies on the stores updating immutably, which they all do.
+ */
+export function skipUnchangedWrites<T>(storage: PersistStorage<T>): PersistStorage<T>
+export function skipUnchangedWrites<T>(storage: PersistStorage<T> | undefined): PersistStorage<T> | undefined
+export function skipUnchangedWrites<T>(storage: PersistStorage<T> | undefined): PersistStorage<T> | undefined {
+  if (!storage) return undefined
+  const lastWritten = new Map<string, StorageValue<T>>()
+  return {
+    getItem: (name) => storage.getItem(name),
+    setItem: (name, value) => {
+      const last = lastWritten.get(name)
+      if (last && last.version === value.version && shallow(last.state, value.state)) return
+      lastWritten.set(name, value)
+      return storage.setItem(name, value)
+    },
+    removeItem: (name) => {
+      lastWritten.delete(name)
+      return storage.removeItem(name)
+    },
+  }
+}
+
+/** localStorage for a persisted store (zustand's default), skipping unchanged writes */
+export function createLocalStorage<T>() {
+  return skipUnchangedWrites(createJSONStorage<T>(() => localStorage))
+}
 
 // ============================================================================
 // IndexedDB Storage Adapter Factory
@@ -11,7 +47,11 @@ import { logger } from './logger'
  *
  * @param dbName - The IndexedDB database name (must be unique per store)
  */
-export function createIndexedDBStorage<T>(dbName: string) {
+export function createIndexedDBStorage<T>(dbName: string): PersistStorage<T> {
+  return skipUnchangedWrites(createIndexedDBAdapter<T>(dbName))
+}
+
+function createIndexedDBAdapter<T>(dbName: string): PersistStorage<T> {
   let dbInstance: IDBDatabase | null = null
   let dbPromise: Promise<IDBDatabase> | null = null
 

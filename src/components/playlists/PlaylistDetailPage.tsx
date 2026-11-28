@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { jellyfinClient } from '../../api/jellyfin'
 import { useShownIsPlaying, shownPlayback, getShownPlayback } from '../../hooks/useShownPlayback'
 import { usePlayerStore } from '../../stores/playerStore'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlaySongWithQueue } from '../../hooks/usePlaySongWithQueue'
 import { useMusicStore } from '../../stores/musicStore'
 import { useCurrentTrack } from '../../hooks/useCurrentTrack'
@@ -21,7 +22,6 @@ import wheelImage from '../../assets/wheel.png'
 import cassetteImage from '../../assets/cassette.png'
 import { capitalizeFirst, formatDuration, parseGroupingTag } from '../../utils/formatting'
 import { moveSongToTop, type MixRouteState } from '../../utils/smartPlaylists'
-import { useCassetteWheelAnimation } from '../../hooks/useCassetteWheelAnimation'
 import { useLargeViewport } from '../../hooks/useLargeViewport'
 import { SurfaceBackdrop } from '../layout/AppBackground'
 
@@ -183,7 +183,7 @@ export default function PlaylistDetailPage() {
   const { id, moodValue } = useParams<{ id?: string; moodValue?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { playAlbum, shuffleArtist } = usePlayerStore()
+  const { playAlbum, shuffleArtist } = usePlayerStore(useShallow(s => ({ playAlbum: s.playAlbum, shuffleArtist: s.shuffleArtist })))
   // Follows the controlled device while another one is being controlled
   const isPlaying = useShownIsPlaying()
   const playSongWithQueue = usePlaySongWithQueue()
@@ -292,7 +292,6 @@ export default function PlaylistDetailPage() {
   const isQueueThisPlaylist = useIsQueueList(tracks)
   const isPlaylistCurrentlyPlaying = isQueueThisPlaylist && isPlaying
 
-  const wheelRotation = useCassetteWheelAnimation(isPlaylistCurrentlyPlaying)
 
   // Handle cassette visibility with animation delay
   useEffect(() => {
@@ -591,6 +590,7 @@ export default function PlaylistDetailPage() {
                   {/* Left wheel — behind cassette */}
                   <img
                     src={wheelImage}
+                    className="spin-slow"
                     alt=""
                     style={{
                       position: 'absolute',
@@ -598,7 +598,7 @@ export default function PlaylistDetailPage() {
                       height: `${WHEEL_SIZE_PERCENT}%`,
                       left: `${WHEEL_LEFT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
                       top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
-                      transform: `rotate(${wheelRotation}deg)`,
+                      animationPlayState: isPlaylistCurrentlyPlaying ? 'running' : 'paused',
                       transformOrigin: 'center center',
                       zIndex: 3,
                     }}
@@ -606,6 +606,7 @@ export default function PlaylistDetailPage() {
                   {/* Right wheel — behind cassette */}
                   <img
                     src={wheelImage}
+                    className="spin-slow"
                     alt=""
                     style={{
                       position: 'absolute',
@@ -613,7 +614,7 @@ export default function PlaylistDetailPage() {
                       height: `${WHEEL_SIZE_PERCENT}%`,
                       left: `${WHEEL_RIGHT_CENTER_X_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
                       top: `${WHEEL_CENTER_Y_PERCENT - WHEEL_SIZE_PERCENT / 2}%`,
-                      transform: `rotate(${wheelRotation}deg)`,
+                      animationPlayState: isPlaylistCurrentlyPlaying ? 'running' : 'paused',
                       transformOrigin: 'center center',
                       zIndex: 3,
                     }}
